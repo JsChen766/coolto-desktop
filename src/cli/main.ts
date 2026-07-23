@@ -3,47 +3,26 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 
+import { createActionApprovalManager } from "../actions/create-action-approvals.js";
 import { createCooltoAgent } from "../agent/create-agent.js";
-import type { CooltoAgentEvent } from "../agent/events.js";
 import { CooltoApiClient } from "../api/coolto-api-client.js";
 import { KeychainSessionStore } from "../auth/keychain-session-store.js";
 import { ensureAuthenticated } from "../auth/session-manager.js";
 import { loadLocalEnv, readConfig } from "../config.js";
+import { SelectedFileRegistry } from "../files/selected-file-registry.js";
+import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { createToolRegistry } from "../tools/registry.js";
+import {
+  resolvePendingApprovals,
+} from "./approval-ui.js";
+import { parseCliArguments } from "./args.js";
 import { readLoginCredentials } from "./login.js";
-
-function renderEvent(event: CooltoAgentEvent): void {
-  switch (event.type) {
-    case "message.delta":
-      stdout.write(event.text);
-      break;
-
-    case "tool.started":
-      stdout.write(`\n[工具] ${event.name}\n`);
-      break;
-
-    case "tool.completed":
-      if (event.isError) {
-        stdout.write(`[工具失败] ${event.name}\n`);
-      }
-      break;
-
-    case "run.failed":
-      stdout.write(`\n[失败] ${event.message}\n`);
-      break;
-
-    case "run.completed":
-      stdout.write("\n");
-      break;
-
-    default:
-      break;
-  }
-}
+import { renderEvent } from "./render-event.js";
 
 async function main(): Promise<void> {
   loadLocalEnv();
   const config = readConfig();
+  const cliArguments = parseCliArguments(process.argv.slice(2));
   const apiClient = new CooltoApiClient({
     baseUrl: config.apiBaseUrl,
   });
@@ -62,12 +41,30 @@ async function main(): Promise<void> {
       : `已登录 Coolto：${authenticated.user.email}（Session 已保存到系统安全凭据库）\n`,
   );
 
+  const selectedFiles = new SelectedFileRegistry();
+  const registeredFiles = await selectedFiles.registerPaths(
+    cliArguments.attachmentPaths,
+  );
+  if (registeredFiles.length > 0) {
+    stdout.write(
+      `已选择附件：${registeredFiles.map((file) => file.filename).join("、")}\n`,
+    );
+  }
+  const importProposalStore = new ExperienceImportProposalStore();
+  const approvalManager = createActionApprovalManager(
+    apiClient,
+    importProposalStore,
+  );
   const agent = createCooltoAgent({
     apiKey: config.apiKey,
     modelId: config.modelId,
+    approvalManager,
     tools: createToolRegistry({
       currentUserReader: apiClient,
       experienceReader: apiClient,
+      importProposalStore,
+      approvalManager,
+      selectedFileRegistry: selectedFiles,
     }),
   });
 
@@ -75,7 +72,7 @@ async function main(): Promise<void> {
     renderEvent(event);
   });
 
-  const oneShotInput = process.argv.slice(2).join(" ").trim();
+  const oneShotInput = cliArguments.prompt;
   if (oneShotInput) {
     await agent.prompt(oneShotInput);
     return;
@@ -108,6 +105,7 @@ async function main(): Promise<void> {
       if (input.trim()) {
         stdout.write("Agent> ");
         await agent.prompt(input);
+        await resolvePendingApprovals(agent, terminal);
       }
     }
   } finally {

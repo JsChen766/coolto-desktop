@@ -78,3 +78,22 @@ export interface ExperienceReader {
     signal?: AbortSignal,
   ): Promise<ExperienceDetail>;
 }
+
+export interface ExperienceCreateInput {
+  category: ExperienceCategory;
+  title: string;
+  content: string;
+  organization?: string;
+  role?: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  tags?: string[];
+}
+
+export interface ExperienceWriter {
+  createExperience(
+    input: ExperienceCreateInput,
+    signal?: AbortSignal,
+  ): Promise<ExperienceDetail>;
+}

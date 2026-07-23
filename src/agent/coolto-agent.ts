@@ -1,11 +1,19 @@
 import {
   Agent,
   type AgentEvent,
+  type AgentMessage,
   type AgentTool,
+  type BeforeToolCallContext,
+  type BeforeToolCallResult,
   type StreamFn,
 } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
 
+import { ApprovalManager } from "../approvals/approval-manager.js";
+import type {
+  ApprovalDecision,
+  ApprovalRequest,
+} from "../approvals/types.js";
 import {
   type CooltoAgentEvent,
   mapPiEvent,
@@ -17,6 +25,11 @@ export interface CooltoAgentOptions {
   systemPrompt: string;
   tools: AgentTool[];
   getApiKey?: (provider: string) => string | undefined;
+  beforeToolCall?: (
+    context: BeforeToolCallContext,
+    signal?: AbortSignal,
+  ) => Promise<BeforeToolCallResult | undefined>;
+  approvalManager?: ApprovalManager;
 }
 
 export type CooltoAgentListener = (
@@ -26,8 +39,10 @@ export type CooltoAgentListener = (
 
 export class CooltoAgent {
   readonly #agent: Agent;
+  readonly #approvalManager: ApprovalManager | undefined;
 
   public constructor(options: CooltoAgentOptions) {
+    this.#approvalManager = options.approvalManager;
     this.#agent = new Agent({
       initialState: {
         systemPrompt: options.systemPrompt,
@@ -38,6 +53,9 @@ export class CooltoAgent {
       streamFn: options.streamFn,
       toolExecution: "sequential",
       ...(options.getApiKey ? { getApiKey: options.getApiKey } : {}),
+      ...(options.beforeToolCall
+        ? { beforeToolCall: options.beforeToolCall }
+        : {}),
     });
   }
 
@@ -58,6 +76,34 @@ export class CooltoAgent {
     return this.#agent.prompt(text);
   }
 
+  public getMessages(): AgentMessage[] {
+    return structuredClone(this.#agent.state.messages);
+  }
+
+  public replaceMessages(messages: AgentMessage[]): void {
+    if (this.isRunning) {
+      throw new Error("Agent 运行期间不能切换对话");
+    }
+    this.#agent.state.messages = structuredClone(messages);
+  }
+
+  public getPendingApprovals(): ApprovalRequest[] {
+    return this.#approvalManager?.listPending() ?? [];
+  }
+
+  public async resolveApproval(
+    requestId: string,
+    decision: ApprovalDecision,
+  ): Promise<void> {
+    if (!this.#approvalManager) {
+      throw new Error("当前 Agent 未配置审批管理器");
+    }
+    await this.#approvalManager.resolve(requestId, decision);
+    if (decision.type === "custom") {
+      await this.prompt(decision.text);
+    }
+  }
+
   public cancel(): void {
     this.#agent.abort();
   }
@@ -67,7 +113,7 @@ export class CooltoAgent {
   }
 
   public subscribe(listener: CooltoAgentListener): () => void {
-    return this.#agent.subscribe(
+    const unsubscribeAgent = this.#agent.subscribe(
       async (event: AgentEvent, signal: AbortSignal) => {
         const mapped = mapPiEvent(event);
         if (mapped) {
@@ -75,5 +121,12 @@ export class CooltoAgent {
         }
       },
     );
+    const unsubscribeApprovals = this.#approvalManager?.subscribe(
+      async (event) => listener(event, new AbortController().signal),
+    );
+    return () => {
+      unsubscribeAgent();
+      unsubscribeApprovals?.();
+    };
   }
 }

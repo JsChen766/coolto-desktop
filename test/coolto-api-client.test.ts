@@ -170,6 +170,46 @@ test("API client reads experience lists and full details with the same session",
   );
 });
 
+test("API client maps camelCase input to the backend experience create contract", async () => {
+  let requestBody: unknown;
+  const client = new CooltoApiClient({
+    baseUrl: "http://localhost:8000",
+    fetchFn: async (_input, init) => {
+      requestBody = JSON.parse(String(init?.body));
+      return jsonResponse({
+        success: true,
+        data: {
+          ...experienceSummary,
+          currentRevision: experienceRevision,
+          revisions: [],
+        },
+      });
+    },
+  });
+  client.restoreSession("create.session.token");
+
+  await client.createExperience({
+    category: "project",
+    title: "Local Agent",
+    content: "Built a local agent.",
+    startDate: "2026-01",
+    endDate: "present",
+    tags: ["TypeScript"],
+  });
+
+  assert.deepEqual(requestBody, {
+    category: "project",
+    title: "Local Agent",
+    content: "Built a local agent.",
+    organization: null,
+    role: null,
+    location: null,
+    start_date: "2026-01",
+    end_date: "present",
+    tags: ["TypeScript"],
+  });
+});
+
 test("API client exposes backend login errors without retaining a session", async () => {
   const client = new CooltoApiClient({
     baseUrl: "http://localhost:8000",

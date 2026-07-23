@@ -91,6 +91,35 @@ test("authenticated agent can select the current-user business tool", async () =
   );
 });
 
+test("agent transcript can be exported and restored for another conversation", async () => {
+  const firstFaux = fauxProvider({ tokensPerSecond: 0 });
+  firstFaux.setResponses([fauxAssistantMessage("第一轮回答")]);
+  const firstAgent = createCooltoAgent(
+    { tools: [] },
+    {
+      model: firstFaux.getModel(),
+      streamFn: firstFaux.provider.streamSimple.bind(firstFaux.provider),
+    },
+  );
+  await firstAgent.prompt("第一轮问题");
+  const savedMessages = firstAgent.getMessages();
+
+  const secondFaux = fauxProvider({ tokensPerSecond: 0 });
+  secondFaux.setResponses([fauxAssistantMessage("第二轮回答")]);
+  const restoredAgent = createCooltoAgent(
+    { tools: [] },
+    {
+      model: secondFaux.getModel(),
+      streamFn: secondFaux.provider.streamSimple.bind(secondFaux.provider),
+    },
+  );
+  restoredAgent.replaceMessages(savedMessages);
+  await restoredAgent.prompt("第二轮问题");
+
+  assert.equal(restoredAgent.getMessages().length, 4);
+  assert.equal(savedMessages.length, 2);
+});
+
 test("agent can search experiences and then fetch the selected detail", async () => {
   const faux = fauxProvider({ tokensPerSecond: 0 });
   faux.setResponses([

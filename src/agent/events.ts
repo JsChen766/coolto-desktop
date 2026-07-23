@@ -1,4 +1,5 @@
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
+import type { ApprovalEvent } from "../approvals/types.js";
 
 export type CooltoAgentEvent =
   | { type: "run.started" }
@@ -16,7 +17,8 @@ export type CooltoAgentEvent =
       isError: boolean;
     }
   | { type: "run.failed"; message: string }
-  | { type: "run.completed" };
+  | { type: "run.completed" }
+  | ApprovalEvent;
 
 export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
   switch (event.type) {

@@ -1,10 +1,12 @@
 import type {
   CurrentUser,
   CurrentUserReader,
+  ExperienceCreateInput,
   ExperienceDetail,
   ExperienceReader,
   ExperienceSearchOptions,
   ExperienceSearchResult,
+  ExperienceWriter,
   LoginCredentials,
   LoginUser,
 } from "./types.js";
@@ -40,7 +42,9 @@ export interface CooltoApiClientOptions {
   fetchFn?: typeof fetch;
 }
 
-export class CooltoApiClient implements CurrentUserReader, ExperienceReader {
+export class CooltoApiClient
+  implements CurrentUserReader, ExperienceReader, ExperienceWriter
+{
   readonly #baseUrl: string;
   readonly #fetch: typeof fetch;
   #sessionCookie: string | undefined;
@@ -155,6 +159,30 @@ export class CooltoApiClient implements CurrentUserReader, ExperienceReader {
         ...(signal ? { signal } : {}),
       },
     );
+  }
+
+  public async createExperience(
+    input: ExperienceCreateInput,
+    signal?: AbortSignal,
+  ): Promise<ExperienceDetail> {
+    return this.#request<ExperienceDetail>("/v1/product/experiences", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        category: input.category,
+        title: input.title,
+        content: input.content,
+        organization: input.organization ?? null,
+        role: input.role ?? null,
+        location: input.location ?? null,
+        start_date: input.startDate ?? null,
+        end_date: input.endDate ?? null,
+        tags: input.tags ?? [],
+      }),
+      ...(signal ? { signal } : {}),
+    });
   }
 
   public async logout(signal?: AbortSignal): Promise<void> {

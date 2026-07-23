@@ -1,0 +1,129 @@
+.markdown-content {
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14.5px;
+  line-height: 1.72;
+  overflow-wrap: anywhere;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content p {
+  margin: 0 0 0.9em;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  margin: 1.25em 0 0.5em;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-weight: 620;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+}
+
+.markdown-content h1 {
+  font-size: 1.18em;
+}
+
+.markdown-content h2 {
+  font-size: 1.1em;
+}
+
+.markdown-content h3,
+.markdown-content h4 {
+  font-size: 1em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0.45em 0 0.95em;
+  padding-left: 1.45em;
+}
+
+.markdown-content li {
+  margin: 0.33em 0;
+}
+
+.markdown-content li::marker {
+  color: var(--muted);
+}
+
+.markdown-content strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.markdown-content a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--muted);
+  text-underline-offset: 2px;
+}
+
+.markdown-content blockquote {
+  margin: 0.7em 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-soft);
+}
+
+.markdown-content :not(pre) > code {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--code-bg);
+  color: var(--text-soft);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  font-weight: 520;
+}
+
+.markdown-content pre {
+  margin: 0.7em 0 1em;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--code-block);
+  color: var(--code-block-text);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.markdown-content pre code {
+  font: inherit;
+}
+
+.markdown-content hr {
+  height: 1px;
+  margin: 1.3em 0;
+  border: 0;
+  background: var(--border);
+}
+
+.markdown-content table {
+  width: 100%;
+  margin: 0.7em 0 1em;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.markdown-content th,
+.markdown-content td {
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.markdown-content th {
+  background: var(--surface);
+  font-weight: 620;
+}

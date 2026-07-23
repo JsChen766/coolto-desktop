@@ -1,4 +1,9 @@
-import type { AgentTool, StreamFn } from "@earendil-works/pi-agent-core";
+import type {
+  AgentTool,
+  BeforeToolCallContext,
+  BeforeToolCallResult,
+  StreamFn,
+} from "@earendil-works/pi-agent-core";
 import {
   createModels,
   type Api,
@@ -7,6 +12,7 @@ import {
 } from "@earendil-works/pi-ai";
 import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek";
 
+import { ApprovalManager } from "../approvals/approval-manager.js";
 import { createToolRegistry } from "../tools/registry.js";
 import { CooltoAgent } from "./coolto-agent.js";
 import { COOLTO_SYSTEM_PROMPT } from "./system-prompt.js";
@@ -19,6 +25,11 @@ export interface CreateAgentOptions {
   modelId?: string;
   systemPrompt?: string;
   tools?: AgentTool[];
+  beforeToolCall?: (
+    context: BeforeToolCallContext,
+    signal?: AbortSignal,
+  ) => Promise<BeforeToolCallResult | undefined>;
+  approvalManager?: ApprovalManager;
 }
 
 export interface AgentDependencies {
@@ -63,6 +74,12 @@ export function createCooltoAgent(
     tools: options.tools ?? createToolRegistry(),
     ...(options.apiKey
       ? { getApiKey: () => options.apiKey }
+      : {}),
+    ...(options.beforeToolCall
+      ? { beforeToolCall: options.beforeToolCall }
+      : {}),
+    ...(options.approvalManager
+      ? { approvalManager: options.approvalManager }
       : {}),
   };
 

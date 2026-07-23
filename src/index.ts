@@ -28,12 +28,14 @@ export type {
   CurrentUser,
   CurrentUserReader,
   ExperienceCategory,
+  ExperienceCreateInput,
   ExperienceDetail,
   ExperienceReader,
   ExperienceRevision,
   ExperienceSearchOptions,
   ExperienceSearchResult,
   ExperienceSummary,
+  ExperienceWriter,
   LoginCredentials,
   LoginUser,
 } from "./api/types.js";
@@ -49,6 +51,41 @@ export type {
   AuthSessionStore,
   StoredAuthSession,
 } from "./auth/session-store.js";
+export {
+  ExperienceImportProposalStore,
+} from "./import/proposal-store.js";
+export type {
+  ExperienceImportCandidate,
+  ExperienceImportProposal,
+  ProposedExperience,
+} from "./import/types.js";
+export {
+  ApprovalManager,
+  type ApprovalListener,
+} from "./approvals/approval-manager.js";
+export { ApprovalStore } from "./approvals/approval-store.js";
+export {
+  ActionExecutorRegistry,
+  type ActionExecutionContext,
+  type ActionExecutor,
+} from "./approvals/executor-registry.js";
+export type {
+  ActionRisk,
+  ApprovalDecision,
+  ApprovalDraft,
+  ApprovalEvent,
+  ApprovalExecutionResult,
+  ApprovalPreview,
+  ApprovalRequest,
+} from "./approvals/types.js";
+export {
+  SelectedFileRegistry,
+} from "./files/selected-file-registry.js";
+export type {
+  SelectedFileContent,
+  SelectedFileMetadata,
+  SupportedImportFileType,
+} from "./files/types.js";
 export {
   createToolRegistry,
   type ToolRegistryDependencies,
