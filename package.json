@@ -10,16 +10,19 @@
   },
   "scripts": {
     "dev": "node --import tsx src/cli/main.ts",
+    "sync:resume-template": "node scripts/sync-resume-template-assets.mjs",
+    "check:resume-template": "node scripts/sync-resume-template-assets.mjs --check",
     "desktop:dev": "electron-vite dev",
     "desktop:build": "electron-vite build",
     "desktop:preview": "electron-vite preview",
     "desktop:typecheck": "vue-tsc -p tsconfig.web.json --noEmit",
+    "qa:resume-renderer": "npm run desktop:build && node scripts/run-resume-renderer-qa.mjs",
     "logout": "node --import tsx src/cli/logout.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/cli/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test test/**/*.test.ts",
-    "check": "npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build"
+    "check": "npm run check:resume-template && npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.81.1",

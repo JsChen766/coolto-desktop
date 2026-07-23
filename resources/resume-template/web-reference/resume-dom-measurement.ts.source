@@ -1,0 +1,297 @@
+import type { ResumeStructure, ResumeTemplateId } from '../types/generated-content'
+
+export const RESUME_MEASUREMENT_VERSION = 'browser-layout-observation-v1' as const
+export const RESUME_LAYOUT_TOLERANCE_PX = 1
+export const RESUME_BULLET_LINE_TOLERANCE_PX = 1
+
+export type ResumeObservationSurface = 'preview' | 'review' | 'print' | 'application_package'
+
+export interface ResumeBulletLayoutMetric {
+  bulletId: string
+  lineCount: number
+  lastLineWidthPx: number
+  availableLineWidthPx: number
+  lastLineRatio: number
+  passed: boolean
+  error: string
+}
+
+export interface BrowserLayoutObservation {
+  run_id: string | null
+  surface: ResumeObservationSurface
+  measurement_version: typeof RESUME_MEASUREMENT_VERSION
+  template_id: ResumeTemplateId
+  profile_version: string
+  profile_hash: string
+  fonts_ready: boolean
+  loaded_font_families: string[]
+  page_count: number
+  overflow_px: number
+  used_height_px: number
+  available_height_px: number
+  viewport: {
+    width_px: number
+    height_px: number
+    device_pixel_ratio: number
+  }
+  page_metrics: Array<{
+    page_index: number
+    used_height_px: number
+    available_height_px: number
+    usage_ratio: number
+    overflow_px: number
+  }>
+  bullets: Array<{
+    bullet_id: string
+    line_count: number
+    last_line_width_px: number
+    available_line_width_px: number
+  }>
+  client_build: string
+  observed_at: string
+  idempotency_key: string
+}
+
+export interface ResumeDomMeasurement {
+  pageCount: number
+  overflowPx: number
+  usedHeightPx: number
+  availableHeightPx: number
+  usageRatio: number
+  bullets: ResumeBulletLayoutMetric[]
+  errors: string[]
+}
+
+interface VisualLine {
+  top: number
+  left: number
+  right: number
+}
+
+function roundMetric(value: number): number {
+  return Number(value.toFixed(4))
+}
+
+function finiteRect(rect: DOMRect): boolean {
+  return [rect.top, rect.left, rect.right, rect.bottom, rect.width, rect.height].every(Number.isFinite)
+}
+
+function textRects(element: HTMLElement): DOMRect[] {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+  const rectangles: DOMRect[] = []
+  let node = walker.nextNode()
+  while (node) {
+    if ((node.textContent || '').trim()) {
+      const range = document.createRange()
+      range.selectNodeContents(node)
+      rectangles.push(...Array.from(range.getClientRects()).filter(rect => finiteRect(rect) && rect.width > 0 && rect.height > 0))
+      range.detach()
+    }
+    node = walker.nextNode()
+  }
+  return rectangles
+}
+
+export function groupRectsIntoVisualLines(
+  rectangles: DOMRect[],
+  tolerancePx = RESUME_BULLET_LINE_TOLERANCE_PX,
+): VisualLine[] {
+  const sorted = [...rectangles].sort((left, right) => left.top - right.top || left.left - right.left)
+  const lines: VisualLine[] = []
+  for (const rectangle of sorted) {
+    const line = lines.find(candidate => Math.abs(candidate.top - rectangle.top) <= tolerancePx)
+    if (line) {
+      line.left = Math.min(line.left, rectangle.left)
+      line.right = Math.max(line.right, rectangle.right)
+      continue
+    }
+    lines.push({ top: rectangle.top, left: rectangle.left, right: rectangle.right })
+  }
+  return lines.sort((left, right) => left.top - right.top)
+}
+
+function contentWidth(element: HTMLElement): number {
+  const style = getComputedStyle(element)
+  const padding = Number.parseFloat(style.paddingLeft || '0') + Number.parseFloat(style.paddingRight || '0')
+  return element.clientWidth - padding
+}
+
+function failedBullet(bulletId: string, error: string): ResumeBulletLayoutMetric {
+  return {
+    bulletId,
+    lineCount: 0,
+    lastLineWidthPx: 0,
+    availableLineWidthPx: 0,
+    lastLineRatio: 0,
+    passed: false,
+    error,
+  }
+}
+
+export function measureResumeBullets(
+  root: HTMLElement,
+  gateRatio: number,
+): { bullets: ResumeBulletLayoutMetric[]; errors: string[] } {
+  const bullets: ResumeBulletLayoutMetric[] = []
+  const errors: string[] = []
+  const seen = new Set<string>()
+
+  for (const bullet of Array.from(root.querySelectorAll<HTMLElement>('[data-bullet-id]'))) {
+    const bulletId = (bullet.dataset.bulletId || '').trim()
+    if (!bulletId) {
+      bullets.push(failedBullet('', 'missing_bullet_id'))
+      errors.push('missing_bullet_id')
+      continue
+    }
+    if (seen.has(bulletId)) {
+      bullets.push(failedBullet(bulletId, 'duplicate_bullet_id'))
+      errors.push(`duplicate_bullet_id:${bulletId}`)
+      continue
+    }
+    seen.add(bulletId)
+
+    const text = bullet.querySelector<HTMLElement>('.resume-document-bullet-text')
+    if (!text || !(text.textContent || '').trim()) {
+      bullets.push(failedBullet(bulletId, 'empty_bullet'))
+      errors.push(`empty_bullet:${bulletId}`)
+      continue
+    }
+
+    const availableLineWidthPx = contentWidth(text)
+    const lines = groupRectsIntoVisualLines(textRects(text))
+    if (!Number.isFinite(availableLineWidthPx) || availableLineWidthPx <= 0 || !lines.length) {
+      bullets.push(failedBullet(bulletId, 'invalid_bullet_geometry'))
+      errors.push(`invalid_bullet_geometry:${bulletId}`)
+      continue
+    }
+
+    const lastLine = lines[lines.length - 1]
+    const lastLineWidthPx = lastLine.right - lastLine.left
+    const lastLineRatio = lastLineWidthPx / availableLineWidthPx
+    if (![lastLineWidthPx, lastLineRatio].every(Number.isFinite) || lastLineWidthPx < 0) {
+      bullets.push(failedBullet(bulletId, 'invalid_bullet_geometry'))
+      errors.push(`invalid_bullet_geometry:${bulletId}`)
+      continue
+    }
+
+    bullets.push({
+      bulletId,
+      lineCount: lines.length,
+      lastLineWidthPx: roundMetric(lastLineWidthPx),
+      availableLineWidthPx: roundMetric(availableLineWidthPx),
+      lastLineRatio: roundMetric(lastLineRatio),
+      passed: lastLineRatio + Number.EPSILON >= gateRatio,
+      error: '',
+    })
+  }
+
+  return { bullets, errors }
+}
+
+function lastMeaningfulBottom(content: HTMLElement, contentTop: number): number {
+  const blocks = Array.from(content.children).filter((element): element is HTMLElement => element instanceof HTMLElement)
+  const bottoms = blocks
+    .filter(element => (element.textContent || '').trim() || element.querySelector('img,svg,canvas'))
+    .map(element => element.getBoundingClientRect().bottom - contentTop)
+    .filter(value => Number.isFinite(value) && value >= 0)
+  return bottoms.length ? Math.max(...bottoms) : 0
+}
+
+export function measureResumeDom(
+  page: HTMLElement,
+  gateRatio: number,
+  tolerancePx = RESUME_LAYOUT_TOLERANCE_PX,
+): ResumeDomMeasurement {
+  const box = page.querySelector<HTMLElement>('.resume-document-content-box')
+  const content = page.querySelector<HTMLElement>('.resume-document-content')
+  if (!box || !content) {
+    return {
+      pageCount: 1,
+      overflowPx: 0,
+      usedHeightPx: 0,
+      availableHeightPx: 0,
+      usageRatio: 0,
+      bullets: [],
+      errors: ['missing_measurement_nodes'],
+    }
+  }
+
+  const availableHeightPx = box.clientHeight
+  const contentTop = box.getBoundingClientRect().top
+  const usedHeightPx = lastMeaningfulBottom(content, contentTop)
+  const scrollHeightPx = box.scrollHeight
+  const overflowPx = Math.max(0, scrollHeightPx - availableHeightPx)
+  const pageCount = Math.max(1, Math.ceil(Math.max(0, scrollHeightPx - tolerancePx) / Math.max(1, availableHeightPx)))
+  const usageRatio = availableHeightPx > 0 ? usedHeightPx / availableHeightPx : 0
+  const bulletResult = measureResumeBullets(page, gateRatio)
+  const errors = [...bulletResult.errors]
+  if (![availableHeightPx, usedHeightPx, scrollHeightPx, overflowPx, usageRatio].every(Number.isFinite) || availableHeightPx <= 0) {
+    errors.push('invalid_page_geometry')
+  }
+
+  return {
+    pageCount,
+    overflowPx: roundMetric(overflowPx),
+    usedHeightPx: roundMetric(usedHeightPx),
+    availableHeightPx: roundMetric(availableHeightPx),
+    usageRatio: roundMetric(usageRatio),
+    bullets: bulletResult.bullets,
+    errors,
+  }
+}
+
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableValue)
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => [key, stableValue(nested)]))
+  }
+  return value
+}
+
+async function sha256(value: string): Promise<string> {
+  if (globalThis.crypto?.subtle) {
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+  }
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`
+}
+
+export async function createObservationIdempotencyKey(input: {
+  structure: ResumeStructure | null
+  surface: ResumeObservationSurface
+  profileVersion: string
+  profileHash: string
+  measurement: ResumeDomMeasurement
+}): Promise<string> {
+  const canonical = JSON.stringify(stableValue({
+    structure: input.structure,
+    surface: input.surface,
+    profile_version: input.profileVersion,
+    profile_hash: input.profileHash,
+    page_count: input.measurement.pageCount,
+    overflow_px: input.measurement.overflowPx,
+    used_height_px: input.measurement.usedHeightPx,
+    available_height_px: input.measurement.availableHeightPx,
+    bullets: input.measurement.bullets.map(bullet => ({
+      bullet_id: bullet.bulletId,
+      line_count: bullet.lineCount,
+      last_line_width_px: bullet.lastLineWidthPx,
+      available_line_width_px: bullet.availableLineWidthPx,
+    })),
+  }))
+  return sha256(canonical)
+}
+
+export function observationSurface(surface: string): ResumeObservationSurface {
+  if (surface === 'application-package' || surface === 'application_package') return 'application_package'
+  if (surface.includes('review')) return 'review'
+  if (surface === 'print') return 'print'
+  return 'preview'
+}

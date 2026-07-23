@@ -1,0 +1,710 @@
+<template>
+  <view
+    ref="frameRef"
+    class="resume-document-frame"
+    :class="{
+      'resume-document-frame-compact': compact,
+      'resume-document-frame-invalid': !layoutStatus.qualified && !isLayoutPending,
+      'resume-document-frame-overflow': layoutStatus.overflowPx > 1,
+    }"
+    data-resume-renderer="resume-document-v1"
+    :data-resume-surface="surface"
+    :data-template-id="template.template_id"
+    :data-profile-version="template.profile_version"
+    :data-profile-hash="template.profile_hash"
+    :data-source-template-id="structure?.layout_template_id || ''"
+    :data-source-profile-version="structure?.layout_profile_version || ''"
+    :data-source-profile-hash="structure?.layout_profile_hash || ''"
+    :data-layout-state="layoutStatus.state"
+    :data-layout-qualified="String(layoutStatus.qualified)"
+    :data-page-count="String(layoutStatus.pageCount)"
+    :data-page-usage="layoutStatus.usageRatio.toFixed(4)"
+    :data-overflow-px="layoutStatus.overflowPx.toFixed(2)"
+    :data-failed-bullet-count="String(layoutStatus.failedBulletIds.length)"
+    :style="frameStyle"
+  >
+    <view v-if="layoutStatus.message" class="resume-document-notice">
+      <text>{{ layoutStatus.message }}</text>
+    </view>
+    <view class="resume-document-viewport" :style="viewportStyle">
+      <view class="resume-document-scale" :style="scaleStyle">
+        <view
+          ref="pageRef"
+          class="resume-document-page"
+          :data-template-id="template.template_id"
+          :data-profile-version="template.profile_version"
+          :data-profile-hash="template.profile_hash"
+        >
+          <view class="resume-document-content-box">
+            <view class="resume-document-content">
+              <view v-if="hasHeader" class="resume-document-header">
+                <text class="resume-document-name">{{ displayName }}</text>
+                <view v-if="hasContact" class="resume-document-contact">
+                  <text v-if="contact?.phone">{{ contact.phone }}</text>
+                  <text v-if="contact?.email">{{ contact.email }}</text>
+                  <text v-if="contact?.location">{{ contact.location }}</text>
+                  <a v-if="linkedin" class="resume-document-link" :href="safeLink(linkedin)" target="_blank" rel="noreferrer">{{ linkedin }}</a>
+                </view>
+              </view>
+
+              <template v-if="structure">
+                <section
+                  v-for="section in visibleSections"
+                  :key="section.id"
+                  class="resume-document-section"
+                  :class="[resumeDiffClass(section.id, 'section'), resumeTargetClass(section.id, 'section')]"
+                  :data-section-id="section.id"
+                  :data-section-type="section.type"
+                  @click.stop="selectSection(section.id)"
+                >
+                  <view class="resume-document-section-heading"><text>{{ sectionHeading(section) }}</text></view>
+                  <article
+                    v-for="item in section.items"
+                    :key="item.id"
+                    class="resume-document-item"
+                    :class="[resumeDiffClass(item.id, 'item'), resumeTargetClass(item.id, 'item')]"
+                    :data-item-id="item.id"
+                    @click.stop="selectItem(section.id, item.id)"
+                  >
+                    <view class="resume-document-entry-line">
+                      <text class="resume-document-entry-primary">{{ entryPrimary(item) }}</text>
+                      <text v-if="dateRange(item)" class="resume-document-entry-side">{{ dateRange(item) }}</text>
+                    </view>
+                    <view v-if="entrySecondary(item) || entryLocation(item)" class="resume-document-entry-line resume-document-entry-subline">
+                      <text v-if="entrySecondary(item)" class="resume-document-entry-secondary">{{ entrySecondary(item) }}</text>
+                      <text v-if="entryLocation(item)" class="resume-document-entry-side">{{ entryLocation(item) }}</text>
+                    </view>
+                    <view v-if="item.raw_text" class="resume-document-richtext" v-html="renderSafeMarkdown(item.raw_text, true)" />
+                    <view v-if="item.bullets?.length" class="resume-document-bullets">
+                      <view
+                        v-for="bullet in item.bullets"
+                        :key="bullet.id"
+                        class="resume-document-bullet"
+                        :class="[resumeDiffClass(bullet.id, 'bullet'), resumeTargetClass(bullet.id, 'bullet')]"
+                        :data-bullet-id="bullet.id"
+                        :draggable="selectable"
+                        @click.stop="selectBullet(section.id, item.id, bullet.id)"
+                        @dragstart.stop="dragBullet($event, section.id, item.id, bullet.id, bullet.text)"
+                      >
+                        <text class="resume-document-bullet-marker" aria-hidden="true">•</text>
+                        <view class="resume-document-richtext resume-document-bullet-text" v-html="renderSafeMarkdown(bullet.text, true)" />
+                      </view>
+                    </view>
+                  </article>
+                </section>
+              </template>
+
+              <view v-else-if="normalizedLegacyContent" class="resume-document-legacy" v-html="renderSafeMarkdown(normalizedLegacyContent, false)" />
+
+              <section
+                v-for="group in fallbackGroups"
+                v-else
+                :key="group.type"
+                class="resume-document-section resume-document-legacy-items"
+                :data-section-type="group.type"
+              >
+                <view class="resume-document-section-heading"><text>{{ group.heading }}</text></view>
+                <article v-for="item in group.items" :key="item.id" class="resume-document-item" :data-item-id="item.id">
+                  <view class="resume-document-entry-line"><text class="resume-document-entry-primary">{{ item.title || group.heading }}</text></view>
+                  <view class="resume-document-richtext" v-html="renderSafeMarkdown(item.contentSnapshot, false)" />
+                </article>
+              </section>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import type { CSSProperties } from 'vue'
+import { marked } from 'marked'
+import type { EditDiff, ResumeSection, ResumeSectionItem, ResumeStructure } from '../types/generated-content'
+import { sortByResumeSectionOrder } from '../utils/resume-section-order'
+import {
+  resumeTemplateStyle,
+  resolveResumeTemplate,
+  STANDARD_RESUME_TEMPLATE,
+  type ResumeLayoutStatus,
+} from '../utils/resume-template-manifest'
+import {
+  createObservationIdempotencyKey,
+  measureResumeDom,
+  observationSurface,
+  RESUME_LAYOUT_TOLERANCE_PX,
+  RESUME_MEASUREMENT_VERSION,
+  type BrowserLayoutObservation,
+  type ResumeDomMeasurement,
+} from '../utils/resume-dom-measurement'
+
+interface FallbackItem {
+  id: string
+  sectionType: string
+  title: string | null
+  contentSnapshot: string
+}
+
+const props = withDefaults(defineProps<{
+  structure?: ResumeStructure | null
+  legacyContent?: string
+  fallbackTitle?: string
+  fallbackLinkedin?: string
+  compact?: boolean
+  items?: FallbackItem[]
+  surface?: string
+  measurementNonce?: number
+  diffHighlight?: EditDiff | null
+  selectable?: boolean
+  selectedTarget?: { sectionId?: string; itemId?: string; bulletId?: string } | null
+}>(), {
+  structure: null,
+  legacyContent: '',
+  fallbackTitle: '未命名简历',
+  fallbackLinkedin: '',
+  compact: false,
+  items: () => [],
+  surface: 'preview',
+  measurementNonce: 0,
+  diffHighlight: null,
+  selectable: false,
+  selectedTarget: null,
+})
+
+const emit = defineEmits<{
+  (event: 'layout-status', status: ResumeLayoutStatus): void
+  (event: 'select-target', target: { sectionId?: string; itemId?: string; bulletId?: string }): void
+}>()
+
+interface TemplateElementProxy { $el?: unknown }
+type TemplateElementRef = HTMLElement | TemplateElementProxy | null
+
+const frameRef = ref<TemplateElementRef>(null)
+const pageRef = ref<TemplateElementRef>(null)
+const compactScale = ref(0.25)
+let resizeObserver: ResizeObserver | null = null
+let measurementGeneration = 0
+let resizeTimer: ReturnType<typeof setTimeout> | null = null
+
+const resolution = computed(() => resolveResumeTemplate(props.structure))
+const template = computed(() => resolution.value.template || STANDARD_RESUME_TEMPLATE)
+const templateStyle = computed(() => resumeTemplateStyle(template.value, props.structure?.layout_tuning))
+const effectiveTargetBand = computed(() => {
+  const band = props.structure?.layout_target_band
+  if (
+    band
+    && Number.isFinite(band.minimum)
+    && Number.isFinite(band.target)
+    && Number.isFinite(band.maximum)
+    && band.minimum >= 0
+    && band.minimum <= band.target
+    && band.target <= band.maximum
+    && band.maximum <= 1
+  ) return band
+  return template.value.density
+})
+const contact = computed(() => props.structure?.contact || null)
+const displayName = computed(() => props.structure ? (contact.value?.name || '') : props.fallbackTitle)
+const linkedin = computed(() => props.structure ? (contact.value?.linkedin || '') : props.fallbackLinkedin)
+const hasContact = computed(() => Boolean(contact.value?.phone || contact.value?.email || contact.value?.location || linkedin.value))
+const hasHeader = computed(() => Boolean(displayName.value || hasContact.value))
+const normalizedLegacyContent = computed(() => stripSummarySections(props.legacyContent))
+const pageHeightPx = computed(() => template.value.page.height_mm * 96 / 25.4)
+const pageWidthPx = computed(() => template.value.page.width_mm * 96 / 25.4)
+const isLayoutPending = computed(() => ['loading_template', 'rendering', 'waiting_fonts', 'measuring'].includes(layoutStatus.value.state))
+
+const layoutStatus = ref<ResumeLayoutStatus>({
+  state: 'waiting_fonts',
+  qualified: false,
+  templateId: template.value.template_id,
+  profileVersion: template.value.profile_version,
+  profileHash: template.value.profile_hash,
+  fontsReady: false,
+  pageCount: 1,
+  overflowPx: 0,
+  usedHeightPx: 0,
+  availableHeightPx: 0,
+  usageRatio: 0,
+  loadedFontFamilies: [],
+  bulletMetrics: [],
+  failedBulletIds: [],
+  failureCodes: [],
+  observation: null,
+  message: '正在加载简历字体并校验版面…',
+})
+
+const displayHeightPx = computed(() => Math.max(pageHeightPx.value, layoutStatus.value.usedHeightPx + template.value.padding_mm.top * 96 / 25.4 + template.value.padding_mm.bottom * 96 / 25.4))
+const frameStyle = computed<CSSProperties>(() => ({
+  ...templateStyle.value,
+  '--resume-display-height': `${displayHeightPx.value}px`,
+  ...(props.compact ? { height: `${displayHeightPx.value * compactScale.value}px` } : {}),
+}))
+const viewportStyle = computed(() => ({
+  minHeight: `${displayHeightPx.value}px`,
+  ...(props.compact ? { height: `${displayHeightPx.value}px` } : {}),
+}))
+const scaleStyle = computed(() => props.compact ? { transform: `scale(${compactScale.value})` } : undefined)
+
+const changedDiffIds = computed(() => new Set([
+  ...(props.diffHighlight?.changed_bullet_ids || []),
+  ...(props.diffHighlight?.changed_item_ids || []),
+  ...(props.diffHighlight?.changed_section_ids || []),
+]))
+const addedDiffIds = computed(() => new Set(props.diffHighlight?.added_ids || []))
+
+function resumeDiffClass(id: string, kind: 'section' | 'item' | 'bullet') {
+  return {
+    [`resume-document-diff-${kind}`]: changedDiffIds.value.has(id) || addedDiffIds.value.has(id),
+    'resume-document-diff-changed': changedDiffIds.value.has(id),
+    'resume-document-diff-added': addedDiffIds.value.has(id),
+  }
+}
+
+function resumeTargetClass(id: string, kind: 'section' | 'item' | 'bullet') {
+  const target = props.selectedTarget
+  const selected = kind === 'bullet'
+    ? target?.bulletId === id
+    : kind === 'item'
+      ? target?.itemId === id && !target.bulletId
+      : target?.sectionId === id && !target.itemId && !target.bulletId
+  return {
+    'resume-document-targetable': props.selectable,
+    [`resume-document-targetable-${kind}`]: props.selectable,
+    'resume-document-target-selected': selected,
+  }
+}
+
+function selectSection(sectionId: string): void {
+  if (props.selectable) emit('select-target', { sectionId })
+}
+
+function selectItem(sectionId: string, itemId: string): void {
+  if (props.selectable) emit('select-target', { sectionId, itemId })
+}
+
+function selectBullet(sectionId: string, itemId: string, bulletId: string): void {
+  if (props.selectable) emit('select-target', { sectionId, itemId, bulletId })
+}
+
+function dragBullet(
+  event: DragEvent,
+  sectionId: string,
+  itemId: string,
+  bulletId: string,
+  text: string,
+): void {
+  if (!props.selectable || !event.dataTransfer) return
+  const payload = JSON.stringify({ sectionId, itemId, bulletId, text })
+  event.dataTransfer.effectAllowed = 'copy'
+  event.dataTransfer.setData('application/x-resume-ai-target', payload)
+  event.dataTransfer.setData('text/plain', text)
+  emit('select-target', { sectionId, itemId, bulletId })
+}
+
+const visibleSections = computed(() => sortByResumeSectionOrder(
+  (props.structure?.sections || [])
+    .filter(section => section.type !== 'summary' && !SUMMARY_HEADING_PATTERN.test((section.heading || '').trim()))
+    .filter(section => section.items?.length || section.heading),
+))
+
+const sectionLabels: Record<string, string> = {
+  education: 'Education', experience: 'Internship Experience', project: 'Projects', projects: 'Projects', skills: 'Additional', other: 'Additional',
+}
+const fallbackGroups = computed(() => {
+  const groups = new Map<string, FallbackItem[]>()
+  for (const item of props.items) {
+    if (item.sectionType === 'summary') continue
+    groups.set(item.sectionType, [...(groups.get(item.sectionType) || []), item])
+  }
+  return sortByResumeSectionOrder(Array.from(groups, ([type, items]) => ({ type, heading: sectionLabels[type] || 'Additional', items })))
+})
+const SUMMARY_HEADING_PATTERN = /^(professional\s+|personal\s+)?summary$|^(个人总结|个人摘要|个人简介)$/i
+
+function resolveElement(reference: TemplateElementRef): HTMLElement | null {
+  if (typeof HTMLElement === 'undefined') return null
+  if (reference instanceof HTMLElement) return reference
+  return reference?.$el instanceof HTMLElement ? reference.$el : null
+}
+
+function updateCompactScale(): void {
+  if (!props.compact) return
+  const frame = resolveElement(frameRef.value)
+  if (frame) compactScale.value = Math.min(1, frame.clientWidth / pageWidthPx.value)
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise(resolve => requestAnimationFrame(() => resolve()))
+}
+
+interface FontReadiness {
+  ready: boolean
+  loadedFamilies: string[]
+}
+
+function publishStatus(patch: Partial<ResumeLayoutStatus>): void {
+  layoutStatus.value = {
+    ...layoutStatus.value,
+    templateId: template.value.template_id,
+    profileVersion: template.value.profile_version,
+    profileHash: template.value.profile_hash,
+    ...patch,
+  }
+  emit('layout-status', layoutStatus.value)
+}
+
+function renderedText(): string {
+  return resolveElement(pageRef.value)?.textContent || ''
+}
+
+async function waitForFonts(): Promise<FontReadiness> {
+  if (typeof document === 'undefined' || !document.fonts) return { ready: false, loadedFamilies: [] }
+  await document.fonts.ready
+  const text = renderedText()
+  const scripts = [
+    { family: template.value.fonts.chinese.family, sample: '中文简历', used: /[\u3400-\u9fff\uf900-\ufaff]/u.test(text) },
+    { family: template.value.fonts.english.family, sample: 'English resume 2026', used: /[A-Za-z0-9]/u.test(text) },
+  ].filter(script => script.used)
+  if (!scripts.length) scripts.push({ family: template.value.fonts.english.family, sample: 'English resume 2026', used: true })
+  const styles = Array.from(new Set([
+    `${template.value.styles.body.font_weight} ${template.value.styles.body.font_size_pt}pt`,
+    `${template.value.styles.name.font_weight} ${template.value.styles.name.font_size_pt}pt`,
+    `${template.value.styles.section_heading.font_weight} ${template.value.styles.section_heading.font_size_pt}pt`,
+  ]))
+  const requests = styles.flatMap(style => scripts.map(script => ({
+    specification: `${style} "${script.family}"`,
+    sample: script.sample,
+  })))
+  await Promise.all(requests.map(request => document.fonts.load(request.specification, request.sample)))
+  const ready = requests.every(request => document.fonts.check(request.specification, request.sample))
+  return { ready, loadedFamilies: ready ? scripts.map(script => script.family) : [] }
+}
+
+function statusMessage(status: Omit<ResumeLayoutStatus, 'message'>): string {
+  if (resolution.value.status !== 'matched') return resolution.value.message
+  if (status.state === 'font_unavailable') return '目标简历字体加载失败，当前版面不能用于打印。'
+  if (status.state === 'rendering') return '正在渲染简历版面…'
+  if (status.state === 'waiting_fonts') return '正在等待简历字体…'
+  if (status.state === 'measuring') return '正在测量真实浏览器版面…'
+  if (status.failureCodes.includes('multi_page') || status.failureCodes.includes('overflow')) {
+    return `内容超出一页 ${status.overflowPx.toFixed(0)}px，请精简或重新生成后再打印。`
+  }
+  if (status.failureCodes.includes('bullet_tail')) {
+    return `${status.failedBulletIds.length} 条 bullet 尾行未严格大于 66.7%，请重新生成或调整真实内容。`
+  }
+  const templateLabel = template.value.template_id === 'resume-sparse' ? '稀疏模板' : '标准模板'
+  if (status.failureCodes.includes('underfilled')) {
+    return `页面使用率 ${(status.usageRatio * 100).toFixed(0)}%，低于${templateLabel}最低 ${(effectiveTargetBand.value.minimum * 100).toFixed(0)}%。`
+  }
+  if (status.failureCodes.includes('overfilled')) {
+    return `页面使用率 ${(status.usageRatio * 100).toFixed(0)}%，超过${templateLabel}建议上限 ${(effectiveTargetBand.value.maximum * 100).toFixed(0)}%。`
+  }
+  if (status.failureCodes.length) return '浏览器版面测量失败，请重新检测。'
+  return ''
+}
+
+function createMeasurementPage(): HTMLElement | null {
+  if (typeof document === 'undefined') return null
+  const source = resolveElement(pageRef.value)
+  if (!source) return null
+  const clone = source.cloneNode(true) as HTMLElement
+  clone.classList.add('resume-measurement-root')
+  for (const [name, value] of Object.entries(templateStyle.value)) {
+    if (name.startsWith('--') && value != null) clone.style.setProperty(name, String(value))
+  }
+  clone.style.setProperty('--resume-display-height', `${pageHeightPx.value}px`)
+  document.body.appendChild(clone)
+  return clone
+}
+
+function measurementFailures(measurement: ResumeDomMeasurement): string[] {
+  const failures = [...measurement.errors]
+  if (measurement.pageCount > 1) failures.push('multi_page')
+  if (measurement.overflowPx > RESUME_LAYOUT_TOLERANCE_PX) failures.push('overflow')
+  if (measurement.usageRatio < effectiveTargetBand.value.minimum) failures.push('underfilled')
+  if (measurement.usageRatio > effectiveTargetBand.value.maximum) failures.push('overfilled')
+  if (measurement.bullets.some(bullet => !bullet.passed)) failures.push('bullet_tail')
+  return Array.from(new Set(failures))
+}
+
+async function buildObservation(
+  measurement: ResumeDomMeasurement,
+  fontReadiness: FontReadiness,
+): Promise<BrowserLayoutObservation> {
+  const surface = typeof matchMedia !== 'undefined' && matchMedia('print').matches
+    ? 'print'
+    : observationSurface(props.surface)
+  const idempotencyKey = await createObservationIdempotencyKey({
+    structure: props.structure || null,
+    surface,
+    profileVersion: template.value.profile_version,
+    profileHash: template.value.profile_hash,
+    measurement,
+  })
+  return {
+    run_id: null,
+    surface,
+    measurement_version: RESUME_MEASUREMENT_VERSION,
+    template_id: template.value.template_id,
+    profile_version: template.value.profile_version,
+    profile_hash: template.value.profile_hash,
+    fonts_ready: fontReadiness.ready,
+    loaded_font_families: fontReadiness.loadedFamilies,
+    page_count: measurement.pageCount,
+    overflow_px: measurement.overflowPx,
+    used_height_px: measurement.usedHeightPx,
+    available_height_px: measurement.availableHeightPx,
+    viewport: {
+      width_px: typeof window === 'undefined' ? 0 : window.innerWidth,
+      height_px: typeof window === 'undefined' ? 0 : window.innerHeight,
+      device_pixel_ratio: typeof window === 'undefined' ? 1 : window.devicePixelRatio,
+    },
+    page_metrics: [{
+      page_index: 1,
+      used_height_px: measurement.usedHeightPx,
+      available_height_px: measurement.availableHeightPx,
+      usage_ratio: measurement.usageRatio,
+      overflow_px: measurement.overflowPx,
+    }],
+    bullets: measurement.bullets.map(bullet => ({
+      bullet_id: bullet.bulletId,
+      line_count: bullet.lineCount,
+      last_line_width_px: bullet.lastLineWidthPx,
+      available_line_width_px: bullet.availableLineWidthPx,
+    })),
+    client_build: 'coolto-frontend-v2',
+    observed_at: new Date().toISOString(),
+    idempotency_key: idempotencyKey,
+  }
+}
+
+async function measure(): Promise<void> {
+  const generation = ++measurementGeneration
+  publishStatus({
+    state: 'rendering',
+    qualified: false,
+    fontsReady: false,
+    loadedFontFamilies: [],
+    bulletMetrics: [],
+    failedBulletIds: [],
+    failureCodes: [],
+    observation: null,
+    message: '正在渲染简历版面…',
+  })
+  await nextTick()
+  if (generation !== measurementGeneration) return
+
+  if (resolution.value.status !== 'matched') {
+    const state = resolution.value.status === 'legacy'
+      ? 'legacy'
+      : resolution.value.status === 'unsupported_template' ? 'unsupported_template' : 'profile_mismatch'
+    publishStatus({ state, message: resolution.value.message })
+    updateCompactScale()
+    return
+  }
+
+  publishStatus({ state: 'waiting_fonts', message: '正在等待简历字体…' })
+  let fontReadiness: FontReadiness = { ready: false, loadedFamilies: [] }
+  try { fontReadiness = await waitForFonts() } catch { fontReadiness = { ready: false, loadedFamilies: [] } }
+  if (generation !== measurementGeneration) return
+  if (!fontReadiness.ready) {
+    const withoutMessage = {
+      ...layoutStatus.value,
+      state: 'font_unavailable' as const,
+      fontsReady: false,
+      loadedFontFamilies: [],
+      failureCodes: ['font_unavailable'],
+    }
+    publishStatus({ ...withoutMessage, message: statusMessage(withoutMessage) })
+    updateCompactScale()
+    return
+  }
+
+  publishStatus({
+    state: 'measuring',
+    fontsReady: true,
+    loadedFontFamilies: fontReadiness.loadedFamilies,
+    message: '正在测量真实浏览器版面…',
+  })
+  await nextFrame()
+  await nextFrame()
+  if (generation !== measurementGeneration) return
+
+  const measurementPage = createMeasurementPage()
+  if (!measurementPage) {
+    publishStatus({ state: 'layout_failed', failureCodes: ['missing_measurement_page'], message: '无法创建简历测量容器。' })
+    return
+  }
+  try {
+    const measurement = measureResumeDom(measurementPage, template.value.bullet.gate_ratio)
+    const failureCodes = measurementFailures(measurement)
+    const observation = await buildObservation(measurement, fontReadiness)
+    if (generation !== measurementGeneration) return
+    const failedBulletIds = measurement.bullets.filter(bullet => !bullet.passed).map(bullet => bullet.bulletId)
+    const withoutMessage: Omit<ResumeLayoutStatus, 'message'> = {
+      state: failureCodes.length ? 'layout_failed' : 'verified',
+      qualified: failureCodes.length === 0,
+      templateId: template.value.template_id,
+      profileVersion: template.value.profile_version,
+      profileHash: template.value.profile_hash,
+      fontsReady: true,
+      pageCount: measurement.pageCount,
+      overflowPx: measurement.overflowPx,
+      usedHeightPx: measurement.usedHeightPx,
+      availableHeightPx: measurement.availableHeightPx,
+      usageRatio: measurement.usageRatio,
+      loadedFontFamilies: fontReadiness.loadedFamilies,
+      bulletMetrics: measurement.bullets,
+      failedBulletIds,
+      failureCodes,
+      observation,
+    }
+    publishStatus({ ...withoutMessage, message: statusMessage(withoutMessage) })
+  } finally {
+    measurementPage.remove()
+    updateCompactScale()
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[character] || character)
+}
+
+function sanitizeHtml(html: string, inlineOnly: boolean): string {
+  if (typeof document === 'undefined') return escapeHtml(html)
+  const holder = document.createElement('template')
+  holder.innerHTML = html
+  const allowed = new Set(inlineOnly ? ['P', 'BR', 'STRONG', 'EM', 'A', 'SPAN'] : ['P', 'BR', 'STRONG', 'EM', 'A', 'H1', 'H2', 'H3', 'UL', 'OL', 'LI'])
+  for (const element of Array.from(holder.content.querySelectorAll('*'))) {
+    if (!allowed.has(element.tagName)) { element.replaceWith(document.createTextNode(element.textContent || '')); continue }
+    for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name)
+  }
+  return holder.innerHTML
+}
+
+function renderSafeMarkdown(value: string | null | undefined, inlineOnly: boolean): string {
+  const rendered = inlineOnly ? marked.parseInline(value || '', { breaks: true }) as string : marked.parse(value || '', { breaks: true }) as string
+  return sanitizeHtml(rendered, inlineOnly)
+}
+
+function stripSummarySections(value: string): string {
+  const source = value.replace(/\r\n/g, '\n').trim()
+  if (!source) return ''
+  const headingPattern = /(^|\n)#{1,6}\s+([^\n]+)\n/g
+  const headings = Array.from(source.matchAll(headingPattern))
+  const ranges: Array<[number, number]> = []
+  headings.forEach((heading, index) => {
+    if (SUMMARY_HEADING_PATTERN.test(heading[2].replace(/[*_`]/g, '').trim())) ranges.push([(heading.index ?? 0) + heading[1].length, headings[index + 1]?.index ?? source.length])
+  })
+  let result = source
+  for (let index = ranges.length - 1; index >= 0; index -= 1) result = `${result.slice(0, ranges[index][0])}${result.slice(ranges[index][1])}`
+  return result.replace(/\n{3,}/g, '\n\n').trim()
+}
+
+function safeLink(value: string): string {
+  const normalized = value.trim()
+  if (/^(https?:\/\/|mailto:)/i.test(normalized)) return normalized
+  if (/^[\w.-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(normalized)) return `mailto:${normalized}`
+  return ''
+}
+
+function sectionHeading(section: ResumeSection): string { return section.heading || sectionLabels[section.type] || 'Additional' }
+function splitOrganizationLocation(item: ResumeSectionItem): { organization: string; location: string } {
+  const organization = (item.organization || '').trim()
+  if (item.location || !organization) return { organization, location: (item.location || '').trim() }
+  const parts = organization.split(/\s+(?:·|•|\||｜|,|，)\s+/).map(value => value.trim()).filter(Boolean)
+  return parts.length === 2 ? { organization: parts[0], location: parts[1] } : { organization, location: '' }
+}
+function entryPrimary(item: ResumeSectionItem): string {
+  return [item.title, splitOrganizationLocation(item).organization].filter(Boolean).join(' · ') || item.role || ''
+}
+function entryLocation(item: ResumeSectionItem): string { return splitOrganizationLocation(item).location }
+function entrySecondary(item: ResumeSectionItem): string {
+  return item.role || ''
+}
+function dateRange(item: ResumeSectionItem): string { return [item.start_date, item.end_date].filter(Boolean).join(' – ') }
+
+function scheduleMeasure(): void {
+  updateCompactScale()
+  if (resizeTimer) clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => { void measure() }, 120)
+}
+
+watch(() => [props.structure, props.items, props.legacyContent, props.measurementNonce], () => { void measure() }, { deep: true })
+onMounted(() => {
+  void measure()
+  const frame = resolveElement(frameRef.value)
+  if (typeof ResizeObserver !== 'undefined' && frame) {
+    resizeObserver = new ResizeObserver(updateCompactScale)
+    resizeObserver.observe(frame)
+  }
+  if (typeof window !== 'undefined') window.addEventListener('resize', scheduleMeasure)
+})
+onUnmounted(() => {
+  measurementGeneration += 1
+  if (resizeTimer) clearTimeout(resizeTimer)
+  resizeObserver?.disconnect()
+  if (typeof window !== 'undefined') window.removeEventListener('resize', scheduleMeasure)
+})
+</script>
+
+<style scoped>
+@font-face { font-family: 'Times New Roman'; src: url('/static/fonts/times.ttf?v=resume-fonts-20260722') format('truetype'); font-style: normal; font-weight: 400; font-display: block; unicode-range: U+0000-024F, U+1E00-1EFF; }
+@font-face { font-family: 'SimSun'; src: url('/static/fonts/simsun.ttc?v=resume-fonts-20260722') format('truetype'); font-style: normal; font-weight: 400; font-display: block; unicode-range: U+2E80-2FFF, U+3000-303F, U+31C0-31EF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FE30-FE4F, U+FF00-FFEF; }
+
+.resume-document-frame { position: relative; width: var(--resume-page-width); min-width: var(--resume-page-width); }
+.resume-document-frame-compact { width: 100%; min-width: 0; overflow: hidden; }
+.resume-document-viewport { width: var(--resume-page-width); min-height: var(--resume-page-height); }
+.resume-document-frame-compact .resume-document-viewport { min-height: 0; }
+.resume-document-scale { width: var(--resume-page-width); transform-origin: top left; }
+.resume-document-page { position: relative; box-sizing: border-box; width: var(--resume-page-width); height: var(--resume-page-height); padding: var(--resume-padding-top) var(--resume-padding-right) var(--resume-padding-bottom) var(--resume-padding-left); overflow: hidden; background: #fff; color: #000; font-family: 'Times New Roman', 'SimSun', serif; font-size: var(--resume-body-font-size); font-weight: var(--resume-body-font-weight); line-height: var(--resume-body-line-height); font-kerning: normal; text-rendering: geometricPrecision; }
+.resume-document-frame-overflow .resume-document-page { height: var(--resume-display-height); overflow: visible; }
+.resume-document-frame-overflow .resume-document-page::after { position: absolute; top: var(--resume-page-height); right: 0; left: 0; border-top: 1px dashed #d8892b; content: ''; }
+.resume-document-content-box { width: var(--resume-content-width); height: var(--resume-content-height); overflow: visible; }
+.resume-document-content { display: block; width: 100%; }
+.resume-document-notice { position: absolute; z-index: 4; top: 4px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); padding: 4px 8px; border: 1px solid #e9b96e; border-radius: 4px; background: rgba(255,247,230,.98); color: #7a4b00; font-size: 10px; line-height: 1.3; text-align: center; }
+.resume-document-frame-invalid .resume-document-page { outline: 1px solid #d8892b; outline-offset: -1px; }
+.resume-document-header { margin-bottom: var(--resume-header-after); text-align: center; break-inside: avoid; }
+.resume-document-name { display: block; font-size: var(--resume-name-font-size); font-weight: var(--resume-name-font-weight); line-height: var(--resume-name-line-height); }
+.resume-document-contact { display: flex; justify-content: center; gap: var(--resume-contact-gap); margin-top: 0; font-size: var(--resume-contact-font-size); font-weight: var(--resume-contact-font-weight); line-height: var(--resume-contact-line-height); white-space: nowrap; }
+.resume-document-link { color: #0000ee; text-decoration: underline; }
+.resume-document-section { margin-top: var(--resume-section-before); }
+.resume-document-section-heading { margin-bottom: var(--resume-section-after); border-bottom: var(--resume-heading-border) solid #000; font-size: var(--resume-section-font-size); font-weight: var(--resume-section-font-weight); line-height: var(--resume-section-line-height); text-transform: uppercase; break-after: avoid; page-break-after: avoid; }
+.resume-document-item { margin-bottom: var(--resume-item-after); break-inside: avoid; page-break-inside: avoid; }
+.resume-document-entry-line { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: baseline; gap: var(--resume-entry-gap); min-height: 1em; }
+.resume-document-entry-primary { min-width: 0; font-size: var(--resume-item-font-size); font-weight: var(--resume-item-font-weight); line-height: var(--resume-item-line-height); }
+.resume-document-entry-secondary { min-width: 0; font-size: var(--resume-subheading-font-size); font-weight: var(--resume-subheading-font-weight); font-style: var(--resume-subheading-font-style); line-height: var(--resume-subheading-line-height); }
+.resume-document-entry-side { justify-self: end; font-size: var(--resume-date-font-size); font-weight: var(--resume-date-font-weight); line-height: var(--resume-date-line-height); text-align: right; white-space: nowrap; }
+.resume-document-richtext { margin-top: var(--resume-raw-text-before); line-height: var(--resume-body-line-height); }
+.resume-document-bullets { margin-top: 0; }
+.resume-document-bullet { display: flex; align-items: flex-start; gap: var(--resume-bullet-gap); margin-top: var(--resume-bullet-before); margin-bottom: var(--resume-bullet-after); padding-left: var(--resume-bullet-indent); break-inside: avoid; }
+.resume-document-bullet-marker { flex: 0 0 var(--resume-bullet-marker-width); width: var(--resume-bullet-marker-width); }
+.resume-document-bullet-text { flex: 1; min-width: 0; margin-top: 0; }
+.resume-document-diff-changed { box-shadow: inset 0 0 0 1.5px rgba(217, 119, 6, .55); background: rgba(255, 247, 237, .75); }
+.resume-document-diff-added { box-shadow: inset 0 0 0 1.5px rgba(5, 150, 105, .5); background: rgba(236, 253, 245, .8); }
+.resume-document-diff-section { border-radius: 1mm; }
+.resume-document-diff-item { border-radius: .8mm; }
+.resume-document-diff-bullet { border-radius: .6mm; }
+.resume-document-targetable { cursor: pointer; transition: box-shadow .12s ease, background .12s ease; }
+.resume-document-targetable-bullet:hover { box-shadow: inset 0 0 0 1.5px rgba(37, 99, 235, .42); background: rgba(239, 246, 255, .82); }
+.resume-document-targetable-item:hover > .resume-document-entry-line:first-child,
+.resume-document-targetable-section:hover > .resume-document-section-heading { color: #1d4ed8; }
+.resume-document-target-selected { box-shadow: inset 0 0 0 2px rgba(37, 99, 235, .75) !important; background: rgba(219, 234, 254, .88) !important; }
+.resume-measurement-root .resume-document-diff-changed,
+.resume-measurement-root .resume-document-diff-added,
+.resume-measurement-root .resume-document-target-selected { box-shadow: none; background: transparent; }
+.resume-document-richtext :deep(p), .resume-document-legacy :deep(p) { display: block; margin: 0; }
+.resume-document-richtext :deep(ul), .resume-document-richtext :deep(ol), .resume-document-legacy :deep(ul), .resume-document-legacy :deep(ol) { margin: 0; padding-left: var(--resume-legacy-list-indent); }
+.resume-document-richtext :deep(li), .resume-document-legacy :deep(li) { margin: 0; padding: 0; break-inside: avoid; }
+.resume-document-richtext :deep(a), .resume-document-legacy :deep(a) { overflow-wrap: anywhere; }
+.resume-document-legacy :deep(h1), .resume-document-legacy :deep(h2), .resume-document-legacy :deep(h3) { margin: var(--resume-section-before) 0 var(--resume-section-after); border-bottom: var(--resume-heading-border) solid #000; font-size: var(--resume-section-font-size); font-weight: 700; line-height: var(--resume-section-line-height); break-after: avoid; }
+.resume-measurement-root { position: fixed !important; z-index: -1 !important; top: 0 !important; left: -100000px !important; width: var(--resume-page-width) !important; height: var(--resume-page-height) !important; margin: 0 !important; overflow: hidden !important; visibility: hidden !important; pointer-events: none !important; transform: none !important; }
+
+@media print {
+  .resume-document-notice { display: none !important; }
+  .resume-document-frame, .resume-document-viewport, .resume-document-scale { width: var(--resume-page-width) !important; min-width: var(--resume-page-width) !important; height: var(--resume-page-height) !important; min-height: var(--resume-page-height) !important; margin: 0 !important; overflow: hidden !important; transform: none !important; }
+  .resume-document-page { width: var(--resume-page-width) !important; height: var(--resume-page-height) !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .resume-document-page::after { display: none !important; }
+  .resume-document-diff-changed, .resume-document-diff-added, .resume-document-target-selected { box-shadow: none !important; background: transparent !important; }
+}
+</style>

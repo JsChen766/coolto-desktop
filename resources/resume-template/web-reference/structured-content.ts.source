@@ -1,0 +1,116 @@
+import type { ArtifactStructure, ResumeSectionType, ResumeStructure } from '../types/generated-content'
+
+const RESUME_SECTION_LABELS: Record<ResumeSectionType, string> = {
+  summary: '个人总结',
+  education: '教育经历',
+  experience: '工作经历',
+  project: '项目经历',
+  skills: '专业技能',
+  other: '其他',
+}
+
+function text(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && !!item.trim()) : []
+}
+
+function record(value: unknown): Record<string, any> {
+  return value && typeof value === 'object' ? value as Record<string, any> : {}
+}
+
+const SUMMARY_HEADING_PATTERN = /^(professional\s+|personal\s+)?summary$|^(\u4e2a\u4eba\u603b\u7ed3|\u4e2a\u4eba\u6458\u8981|\u4e2a\u4eba\u7b80\u4ecb)$/i
+
+export function renderResumeStructureToMarkdown(structured: ResumeStructure, fallbackTitle = '个人简历'): string {
+  const lines: string[] = []
+  const contact = structured.contact
+  const name = text(contact?.name)
+  lines.push(`# ${name || fallbackTitle || '个人简历'}`)
+  const contactLine = [contact?.email, contact?.phone, contact?.location, contact?.linkedin].map(text).filter(Boolean).join(' · ')
+  if (contactLine) lines.push('', contactLine)
+
+  for (const section of structured.sections || []) {
+    if (section.type === 'summary' || SUMMARY_HEADING_PATTERN.test(text(section.heading))) continue
+    lines.push('', `## ${text(section.heading) || RESUME_SECTION_LABELS[section.type] || '其他'}`)
+    for (const item of section.items || []) {
+      const organization = text(item.organization) || text(item.title)
+      const location = text(item.location)
+      const role = text(item.role) || (item.organization ? text(item.title) : '')
+      const titleLine = [organization, location, role].filter(Boolean).join(' · ')
+      const dateLine = [item.start_date, item.end_date].map(text).filter(Boolean).join(' – ')
+      if (titleLine) lines.push('', `### ${titleLine}`)
+      if (dateLine) lines.push(dateLine)
+      if (text(item.raw_text)) lines.push('', text(item.raw_text))
+      for (const bullet of item.bullets || []) {
+        if (text(bullet.text)) lines.push(`- ${text(bullet.text)}`)
+      }
+    }
+  }
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+export function renderArtifactStructureToMarkdown(type: string, value: ArtifactStructure): string {
+  const source = record(value)
+  if (type === 'cover_letter') {
+    return [
+      text(source.recipient),
+      text(source.opening),
+      ...(Array.isArray(source.body_paragraphs) ? source.body_paragraphs.map((item: unknown) => text(record(item).text)) : []),
+      text(source.closing),
+      text(source.signature),
+    ].filter(Boolean).join('\n\n')
+  }
+  if (type === 'self_intro') {
+    return (Array.isArray(source.sentences) ? source.sentences : [])
+      .map((item: unknown) => text(record(item).text))
+      .filter(Boolean)
+      .join('\n\n')
+  }
+  if (type === 'match_report') {
+    const lines = [`# 岗位匹配报告`, '', `总体匹配度：${Number(source.overall_score || 0)}/100`]
+    for (const itemValue of Array.isArray(source.requirements) ? source.requirements : []) {
+      const item = record(itemValue)
+      lines.push('', `## ${text(item.requirement_text) || text(item.requirement_id) || '岗位要求'}`)
+      lines.push(`匹配程度：${text(item.match_level) || 'missing'}`)
+      for (const snippet of stringList(item.evidence_snippets)) lines.push(`- 证据：${snippet}`)
+      if (text(item.recommendation)) lines.push(`- 建议：${text(item.recommendation)}`)
+    }
+    const suggestions = stringList(source.actionable_suggestions)
+    if (suggestions.length) {
+      lines.push('', '## 行动建议')
+      suggestions.forEach(item => lines.push(`- ${item}`))
+    }
+    return lines.join('\n').trim()
+  }
+  if (type === 'interview_prep') {
+    const lines = ['# 面试准备']
+    const questions = Array.isArray(source.questions) ? source.questions : []
+    questions.forEach((questionValue: unknown, index: number) => {
+      const question = record(questionValue)
+      const star = record(question.star_answer)
+      lines.push('', `## ${index + 1}. ${text(question.question) || '面试问题'}`)
+      if (text(star.situation)) lines.push(`- 情境：${text(star.situation)}`)
+      if (text(star.task)) lines.push(`- 任务：${text(star.task)}`)
+      if (text(star.action)) lines.push(`- 行动：${text(star.action)}`)
+      if (text(star.result)) lines.push(`- 结果：${text(star.result)}`)
+    })
+    const askBack = stringList(source.ask_back_questions)
+    if (askBack.length) {
+      lines.push('', '## 反问面试官')
+      askBack.forEach(item => lines.push(`- ${item}`))
+    }
+    const uncovered = stringList(source.uncovered_jd_requirement_ids)
+    if (uncovered.length) lines.push('', `> ⚠️ Coverage gap — the following JD requirement(s) have no matching question: ${uncovered.join(', ')}`)
+    return lines.join('\n').trim()
+  }
+  if (type === 'linkedin_summary') {
+    return [
+      text(source.hook),
+      ...(Array.isArray(source.body_paragraphs) ? source.body_paragraphs.map((item: unknown) => text(record(item).text)) : []),
+      text(source.call_to_action),
+    ].filter(Boolean).join('\n\n')
+  }
+  return text(source.content)
+}

@@ -1,0 +1,196 @@
+@font-face {
+  font-family: "Times New Roman";
+  src: url("../resume/template/fonts/times.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  unicode-range: U+0000-024F, U+1E00-1EFF;
+}
+
+@font-face {
+  font-family: "SimSun";
+  src: url("../resume/template/fonts/simsun.ttc") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  unicode-range: U+2E80-2FFF, U+3000-303F, U+31C0-31EF, U+3400-4DBF,
+    U+4E00-9FFF, U+F900-FAFF, U+FE30-FE4F, U+FF00-FFEF;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+}
+
+.resume-document-frame {
+  position: relative;
+  width: var(--resume-page-width);
+  min-width: var(--resume-page-width);
+}
+
+.resume-document-page {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--resume-page-width);
+  height: var(--resume-page-height);
+  padding: var(--resume-padding-top) var(--resume-padding-right)
+    var(--resume-padding-bottom) var(--resume-padding-left);
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+  font-family: "Times New Roman", "SimSun", serif;
+  font-size: var(--resume-body-font-size);
+  font-weight: var(--resume-body-font-weight);
+  line-height: var(--resume-body-line-height);
+  font-kerning: normal;
+  text-rendering: geometricPrecision;
+}
+
+.resume-document-content-box {
+  width: var(--resume-content-width);
+  height: var(--resume-content-height);
+  overflow: visible;
+}
+
+.resume-document-content {
+  display: block;
+  width: 100%;
+}
+
+.resume-document-header {
+  margin-bottom: var(--resume-header-after);
+  text-align: center;
+  break-inside: avoid;
+}
+
+.resume-document-name {
+  display: block;
+  font-size: var(--resume-name-font-size);
+  font-weight: var(--resume-name-font-weight);
+  line-height: var(--resume-name-line-height);
+}
+
+.resume-document-contact {
+  display: flex;
+  justify-content: center;
+  gap: var(--resume-contact-gap);
+  margin-top: 0;
+  font-size: var(--resume-contact-font-size);
+  font-weight: var(--resume-contact-font-weight);
+  line-height: var(--resume-contact-line-height);
+  white-space: nowrap;
+}
+
+.resume-document-section {
+  margin-top: var(--resume-section-before);
+}
+
+.resume-document-section-heading {
+  margin-bottom: var(--resume-section-after);
+  border-bottom: var(--resume-heading-border) solid #000;
+  font-size: var(--resume-section-font-size);
+  font-weight: var(--resume-section-font-weight);
+  line-height: var(--resume-section-line-height);
+  text-transform: uppercase;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.resume-document-item {
+  margin-bottom: var(--resume-item-after);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.resume-document-entry-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--resume-entry-gap);
+  min-height: 1em;
+}
+
+.resume-document-entry-primary {
+  min-width: 0;
+  font-size: var(--resume-item-font-size);
+  font-weight: var(--resume-item-font-weight);
+  line-height: var(--resume-item-line-height);
+}
+
+.resume-document-entry-secondary {
+  min-width: 0;
+  font-size: var(--resume-subheading-font-size);
+  font-weight: var(--resume-subheading-font-weight);
+  font-style: var(--resume-subheading-font-style);
+  line-height: var(--resume-subheading-line-height);
+}
+
+.resume-document-entry-side {
+  justify-self: end;
+  font-size: var(--resume-date-font-size);
+  font-weight: var(--resume-date-font-weight);
+  line-height: var(--resume-date-line-height);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.resume-document-richtext {
+  margin-top: var(--resume-raw-text-before);
+  line-height: var(--resume-body-line-height);
+}
+
+.resume-document-bullets {
+  margin-top: 0;
+}
+
+.resume-document-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--resume-bullet-gap);
+  margin-top: var(--resume-bullet-before);
+  margin-bottom: var(--resume-bullet-after);
+  padding-left: var(--resume-bullet-indent);
+  break-inside: avoid;
+}
+
+.resume-document-bullet-marker {
+  flex: 0 0 var(--resume-bullet-marker-width);
+  width: var(--resume-bullet-marker-width);
+}
+
+.resume-document-bullet-text {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+@media print {
+  html,
+  body,
+  #resume-renderer-root,
+  .resume-document-frame {
+    width: var(--resume-page-width);
+    height: var(--resume-page-height);
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .resume-document-page {
+    width: var(--resume-page-width) !important;
+    height: var(--resume-page-height) !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+

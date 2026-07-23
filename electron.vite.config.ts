@@ -16,12 +16,15 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       lib: {
-        entry: resolve("src/desktop/preload/index.ts"),
+        entry: {
+          index: resolve("src/desktop/preload/index.ts"),
+          resume: resolve("src/desktop/resume-preload/index.ts"),
+        },
       },
       rollupOptions: {
         output: {
           format: "cjs",
-          entryFileNames: "index.cjs",
+          entryFileNames: "[name].cjs",
         },
       },
     },
@@ -31,7 +34,10 @@ export default defineConfig({
     plugins: [vue()],
     build: {
       rollupOptions: {
-        input: resolve("src/desktop/renderer/index.html"),
+        input: {
+          index: resolve("src/desktop/renderer/index.html"),
+          resume: resolve("src/desktop/renderer/resume.html"),
+        },
       },
     },
     resolve: {

@@ -1,0 +1,38 @@
+import manifestJson from '../resume-layout-templates-v1.json'
+
+const standardProfile = manifestJson.templates.find(template => template.template_id === 'resume-standard')
+const sparseProfile = manifestJson.templates.find(template => template.template_id === 'resume-sparse')
+
+if (!standardProfile || !sparseProfile) {
+  throw new Error('Resume layout manifest is missing a required template profile.')
+}
+
+export const RESUME_LAYOUT_PROFILE_VERSION = standardProfile.profile_version
+export const RESUME_LAYOUT_PROFILE_HASH = standardProfile.profile_hash
+export const SPARSE_RESUME_LAYOUT_PROFILE_VERSION = sparseProfile.profile_version
+export const SPARSE_RESUME_LAYOUT_PROFILE_HASH = sparseProfile.profile_hash
+export const LEGACY_RESUME_LAYOUT_PROFILE_VERSION = 'resume-template-v1'
+export const LEGACY_RESUME_LAYOUT_PROFILE_HASH = 'd0e68c93c3f210cc5fde4c6f0a4122b86ffb1463ff54ba0b5d867ea0fdbe8599'
+export const CHINESE_RESUME_FONT_FAMILY = 'SimSun'
+export const ENGLISH_RESUME_FONT_FAMILY = 'Times New Roman'
+export const RESUME_FONT_STACK = `'${ENGLISH_RESUME_FONT_FAMILY}', '${CHINESE_RESUME_FONT_FAMILY}', serif`
+
+export function resumeFontFamily(): string {
+  return RESUME_FONT_STACK
+}
+
+export type ResumeProfileCompatibility = 'matched' | 'legacy' | 'unknown'
+
+export function resumeProfileCompatibility(
+  version?: string | null,
+  hash?: string | null,
+): ResumeProfileCompatibility {
+  if (!version && !hash) return 'legacy'
+  if (version === RESUME_LAYOUT_PROFILE_VERSION && hash === RESUME_LAYOUT_PROFILE_HASH) return 'matched'
+  if (version === SPARSE_RESUME_LAYOUT_PROFILE_VERSION && hash === SPARSE_RESUME_LAYOUT_PROFILE_HASH) return 'matched'
+  if (
+    version === LEGACY_RESUME_LAYOUT_PROFILE_VERSION
+    && hash === LEGACY_RESUME_LAYOUT_PROFILE_HASH
+  ) return 'legacy'
+  return 'unknown'
+}

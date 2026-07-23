@@ -1,0 +1,22 @@
+const RESUME_SECTION_ORDER: Readonly<Record<string, number>> = {
+  education: 0,
+  experience: 1,
+  project: 2,
+  other: 3,
+  skill: 4,
+  skills: 4,
+}
+
+function resumeSectionRank(type: string): number {
+  return RESUME_SECTION_ORDER[type] ?? 3.5
+}
+
+export function sortByResumeSectionOrder<T extends { type: string }>(sections: readonly T[]): T[] {
+  return sections
+    .map((section, index) => ({ section, index }))
+    .sort((left, right) => (
+      resumeSectionRank(left.section.type) - resumeSectionRank(right.section.type)
+      || left.index - right.index
+    ))
+    .map(({ section }) => section)
+}

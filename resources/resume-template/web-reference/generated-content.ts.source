@@ -1,0 +1,171 @@
+export interface ResumeBullet {
+  id: string
+  text: string
+  matched_jd_requirement_ids: string[]
+  source_fact_ids?: string[]
+  layout_exception?: 'unfixable_grounded_short' | null
+}
+
+export interface ResumeSectionItem {
+  id: string
+  title: string | null
+  organization: string | null
+  role: string | null
+  location?: string | null
+  start_date: string | null
+  end_date: string | null
+  source_experience_id: string | null
+  bullets: ResumeBullet[]
+  raw_text: string | null
+}
+
+export type ResumeSectionType = 'summary' | 'education' | 'experience' | 'project' | 'skills' | 'other'
+
+export interface ResumeSection {
+  id: string
+  type: ResumeSectionType
+  heading: string | null
+  items: ResumeSectionItem[]
+}
+
+export interface ResumeContact {
+  name: string | null
+  email: string | null
+  phone: string | null
+  location: string | null
+  linkedin?: string | null
+}
+
+export interface ResumeLayoutTuning {
+  body_font_scale: number
+  body_line_height: number
+  section_gap_scale: number
+  item_gap_scale: number
+  bullet_gap_scale: number
+}
+
+export type ResumeTemplateId = 'resume-standard' | 'resume-sparse'
+
+export interface ResumeLayoutTargetBand {
+  minimum: number
+  target: number
+  maximum: number
+}
+
+export interface ResumeStructure {
+  language: string
+  contact: ResumeContact | null
+  sections: ResumeSection[]
+  layout_template_id?: ResumeTemplateId
+  layout_profile_version?: string
+  layout_profile_hash?: string
+  layout_tuning?: ResumeLayoutTuning
+  layout_usage_ratio?: number
+  layout_target_band?: ResumeLayoutTargetBand
+  quality_status?: 'passed' | 'needs_user_decision' | 'failed'
+  quality_issues?: Array<{ code: string; message: string }>
+}
+
+export interface CoverageRequirement {
+  requirement_id: string
+  requirement_text: string
+  bullet_count?: number
+  question_count?: number
+  supporting_items?: string[]
+}
+
+export interface CoverageReport {
+  requirements: CoverageRequirement[]
+  covered_count: number
+  total_count: number
+}
+
+export interface ResumeRisk {
+  type: string
+  text: string
+  severity: string
+}
+
+export interface GeneratedResumeDraft {
+  id: string
+  title: string
+  content: string
+  structured?: ResumeStructure | null
+  score?: Record<string, unknown>
+  evidence_summary?: unknown[]
+  risk_summary?: ResumeRisk[]
+  missing_info?: string[]
+  coverage_report?: CoverageReport | null
+}
+
+export interface TraceableText {
+  id: string
+  text: string
+  source_experience_ids?: string[]
+  matched_jd_requirement_ids?: string[]
+}
+
+export interface CoverLetterStructure {
+  recipient: string | null
+  opening: string
+  body_paragraphs: TraceableText[]
+  closing: string
+  signature: string | null
+}
+
+export interface SelfIntroStructure {
+  sentences: TraceableText[]
+}
+
+export interface MatchRequirement {
+  id: string
+  requirement_id: string
+  requirement_text: string
+  match_level: 'strong' | 'partial' | 'missing'
+  evidence_experience_ids: string[]
+  evidence_snippets: string[]
+  recommendation: string
+}
+
+export interface MatchReportStructure {
+  requirements: MatchRequirement[]
+  overall_score: number
+  actionable_suggestions: string[]
+}
+
+export interface InterviewQuestion {
+  id: string
+  question: string
+  star_answer: { situation: string; task: string; action: string; result: string }
+  source_experience_ids: string[]
+  matched_jd_requirement_ids: string[]
+}
+
+export interface InterviewPrepStructure {
+  questions: InterviewQuestion[]
+  ask_back_questions: string[]
+  coverage_report?: CoverageReport | null
+  uncovered_jd_requirement_ids?: string[]
+}
+
+export interface LinkedinSummaryStructure {
+  hook: string
+  body_paragraphs: TraceableText[]
+  call_to_action: string
+}
+
+export type ArtifactStructure =
+  | CoverLetterStructure
+  | SelfIntroStructure
+  | MatchReportStructure
+  | InterviewPrepStructure
+  | LinkedinSummaryStructure
+  | Record<string, unknown>
+
+export interface EditDiff {
+  changed_bullet_ids: string[]
+  changed_item_ids: string[]
+  changed_section_ids: string[]
+  added_ids: string[]
+  removed_ids: string[]
+}
