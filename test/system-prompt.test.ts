@@ -12,5 +12,7 @@ test("system prompt defines autonomous tool choice and clarification behavior", 
   assert.match(COOLTO_SYSTEM_PROMPT, /不确定性/);
   assert.match(COOLTO_SYSTEM_PROMPT, /追问/);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得编造/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /nextCursor/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /覆盖全部经历/);
   assert.match(SYSTEM_PROMPT_VERSION, /^coolto-local-agent\/v\d+$/);
 });

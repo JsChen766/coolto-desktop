@@ -1,11 +1,17 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 
-import type { CurrentUserReader } from "../api/types.js";
+import type {
+  CurrentUserReader,
+  ExperienceReader,
+} from "../api/types.js";
+import { createGetExperienceTool } from "./get-experience.js";
 import { createGetCurrentUserTool } from "./get-current-user.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
+import { createSearchExperiencesTool } from "./search-experiences.js";
 
 export interface ToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
+  experienceReader?: ExperienceReader;
 }
 
 /**
@@ -20,6 +26,12 @@ export function createToolRegistry(
   if (dependencies.currentUserReader) {
     businessTools.push(
       createGetCurrentUserTool(dependencies.currentUserReader),
+    );
+  }
+  if (dependencies.experienceReader) {
+    businessTools.push(
+      createSearchExperiencesTool(dependencies.experienceReader),
+      createGetExperienceTool(dependencies.experienceReader),
     );
   }
 

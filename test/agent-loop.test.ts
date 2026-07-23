@@ -90,3 +90,83 @@ test("authenticated agent can select the current-user business tool", async () =
     true,
   );
 });
+
+test("agent can search experiences and then fetch the selected detail", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  faux.setResponses([
+    fauxAssistantMessage(
+      fauxToolCall(
+        "search_experiences",
+        { q: "agent", category: "project", limit: 5 },
+        { id: "tool-call-search" },
+      ),
+      { stopReason: "toolUse" },
+    ),
+    fauxAssistantMessage(
+      fauxToolCall(
+        "get_experience",
+        { experienceId: "exp-1" },
+        { id: "tool-call-detail" },
+      ),
+      { stopReason: "toolUse" },
+    ),
+    fauxAssistantMessage("你有一个名为 Local Agent 的项目经历。"),
+  ]);
+
+  const experienceReader = {
+    searchExperiences: async () => ({
+      items: [
+        {
+          ...experienceSummary,
+        },
+      ],
+      nextCursor: null,
+    }),
+    getExperience: async () => ({
+      ...experienceSummary,
+      currentRevision: experienceRevision,
+      revisions: [experienceRevision],
+    }),
+  };
+  const agent = createCooltoAgent(
+    {
+      tools: createToolRegistry({ experienceReader }),
+    },
+    {
+      model: faux.getModel(),
+      streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("找出我的 Agent 项目经历并读取详情");
+
+  assert.equal(faux.state.callCount, 3);
+  assert.equal(agent.toolNames.includes("search_experiences"), true);
+  assert.equal(agent.toolNames.includes("get_experience"), true);
+});
+
+const experienceRevision = {
+  id: "rev-1",
+  experienceId: "exp-1",
+  content: "Built a local agent.",
+  source: "manual",
+  revisionHash: "hash",
+  factBankStatus: "completed",
+  createdAt: "2026-07-01T00:00:00Z",
+};
+
+const experienceSummary = {
+  id: "exp-1",
+  category: "project" as const,
+  title: "Local Agent",
+  organization: null,
+  role: "Developer",
+  location: null,
+  startDate: "2026-01-01",
+  endDate: null,
+  tags: ["typescript", "ai"],
+  status: "active" as const,
+  currentRevisionId: "rev-1",
+  createdAt: "2026-07-01T00:00:00Z",
+  updatedAt: "2026-07-01T00:00:00Z",
+};

@@ -27,6 +27,13 @@ export {
 export type {
   CurrentUser,
   CurrentUserReader,
+  ExperienceCategory,
+  ExperienceDetail,
+  ExperienceReader,
+  ExperienceRevision,
+  ExperienceSearchOptions,
+  ExperienceSearchResult,
+  ExperienceSummary,
   LoginCredentials,
   LoginUser,
 } from "./api/types.js";

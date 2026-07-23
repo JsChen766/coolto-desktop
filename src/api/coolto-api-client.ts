@@ -1,6 +1,10 @@
 import type {
   CurrentUser,
   CurrentUserReader,
+  ExperienceDetail,
+  ExperienceReader,
+  ExperienceSearchOptions,
+  ExperienceSearchResult,
   LoginCredentials,
   LoginUser,
 } from "./types.js";
@@ -36,7 +40,7 @@ export interface CooltoApiClientOptions {
   fetchFn?: typeof fetch;
 }
 
-export class CooltoApiClient implements CurrentUserReader {
+export class CooltoApiClient implements CurrentUserReader, ExperienceReader {
   readonly #baseUrl: string;
   readonly #fetch: typeof fetch;
   #sessionCookie: string | undefined;
@@ -105,6 +109,52 @@ export class CooltoApiClient implements CurrentUserReader {
     return this.#request<CurrentUser>("/v1/users/me", {
       ...(signal ? { signal } : {}),
     });
+  }
+
+  public async searchExperiences(
+    options: ExperienceSearchOptions = {},
+    signal?: AbortSignal,
+  ): Promise<ExperienceSearchResult> {
+    const query = new URLSearchParams();
+    if (options.q) {
+      query.set("q", options.q);
+    }
+    if (options.category) {
+      query.set("category", options.category);
+    }
+    for (const tag of options.tags ?? []) {
+      query.append("tags", tag);
+    }
+    if (options.limit !== undefined) {
+      query.set("limit", String(options.limit));
+    }
+    if (options.cursor) {
+      query.set("cursor", options.cursor);
+    }
+
+    const queryString = query.toString();
+    return this.#request<ExperienceSearchResult>(
+      `/v1/product/experiences${queryString ? `?${queryString}` : ""}`,
+      {
+        ...(signal ? { signal } : {}),
+      },
+    );
+  }
+
+  public async getExperience(
+    experienceId: string,
+    signal?: AbortSignal,
+  ): Promise<ExperienceDetail> {
+    const normalizedId = experienceId.trim();
+    if (!normalizedId) {
+      throw new Error("experienceId 不能为空");
+    }
+    return this.#request<ExperienceDetail>(
+      `/v1/product/experiences/${encodeURIComponent(normalizedId)}`,
+      {
+        ...(signal ? { signal } : {}),
+      },
+    );
   }
 
   public async logout(signal?: AbortSignal): Promise<void> {

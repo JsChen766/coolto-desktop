@@ -65,7 +65,10 @@ async function main(): Promise<void> {
   const agent = createCooltoAgent({
     apiKey: config.apiKey,
     modelId: config.modelId,
-    tools: createToolRegistry({ currentUserReader: apiClient }),
+    tools: createToolRegistry({
+      currentUserReader: apiClient,
+      experienceReader: apiClient,
+    }),
   });
 
   agent.subscribe((event) => {

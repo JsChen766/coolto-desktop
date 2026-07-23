@@ -43,3 +43,59 @@ test("authenticated registry exposes the current user tool", async () => {
     email: "alice@example.com",
   });
 });
+
+test("experience registry exposes list and detail tools", async () => {
+  const reader = {
+    searchExperiences: async () => ({
+      items: [],
+      nextCursor: null,
+    }),
+    getExperience: async (experienceId: string) => ({
+      id: experienceId,
+      category: "work" as const,
+      title: "Example",
+      organization: null,
+      role: null,
+      location: null,
+      startDate: null,
+      endDate: null,
+      tags: [],
+      status: "active" as const,
+      currentRevisionId: null,
+      createdAt: "2026-07-01T00:00:00Z",
+      updatedAt: "2026-07-01T00:00:00Z",
+      revisions: [
+        {
+          id: "rev-old",
+          experienceId,
+          content: "historical content",
+          source: "manual",
+          revisionHash: "hash",
+          factBankStatus: "completed",
+          createdAt: "2026-06-01T00:00:00Z",
+        },
+      ],
+    }),
+  };
+  const tools = createToolRegistry({ experienceReader: reader });
+
+  assert.deepEqual(
+    tools.map((tool) => tool.name),
+    ["get_runtime_info", "search_experiences", "get_experience"],
+  );
+
+  const runtimeResult = await tools[0]!.execute("runtime", {});
+  assert.deepEqual(runtimeResult.details.implementedBusinessTools, [
+    "search_experiences",
+    "get_experience",
+  ]);
+
+  const detailResult = await tools[2]!.execute("detail", {
+    experienceId: "exp-1",
+  });
+  assert.equal(detailResult.details.id, "exp-1");
+  assert.equal(
+    JSON.stringify(detailResult).includes("historical content"),
+    false,
+  );
+});

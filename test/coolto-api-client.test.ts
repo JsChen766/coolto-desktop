@@ -107,6 +107,69 @@ test("API client can restore a validated session token", async () => {
   );
 });
 
+test("API client reads experience lists and full details with the same session", async () => {
+  const requestedUrls: URL[] = [];
+  const client = new CooltoApiClient({
+    baseUrl: "http://localhost:8000",
+    fetchFn: async (input, init) => {
+      const url = new URL(String(input));
+      requestedUrls.push(url);
+      assert.equal(
+        new Headers(init?.headers).get("cookie"),
+        "access_token=experience.session.token",
+      );
+
+      if (url.pathname.endsWith("/exp-1")) {
+        return jsonResponse({
+          success: true,
+          data: {
+            ...experienceSummary,
+            currentRevision: experienceRevision,
+            revisions: [experienceRevision],
+          },
+        });
+      }
+
+      return jsonResponse({
+        success: true,
+        data: {
+          items: [experienceSummary],
+          nextCursor: "exp-next",
+        },
+      });
+    },
+  });
+  client.restoreSession("experience.session.token");
+
+  const searchResult = await client.searchExperiences({
+    q: "agent",
+    category: "project",
+    tags: ["typescript", "ai"],
+    limit: 5,
+    cursor: "exp-cursor",
+  });
+  const detail = await client.getExperience("exp-1");
+
+  assert.equal(searchResult.items[0]?.id, "exp-1");
+  assert.equal(detail.revisions[0]?.content, "Built a local agent.");
+
+  const searchUrl = requestedUrls[0];
+  assert.ok(searchUrl);
+  assert.equal(searchUrl.pathname, "/v1/product/experiences");
+  assert.equal(searchUrl.searchParams.get("q"), "agent");
+  assert.equal(searchUrl.searchParams.get("category"), "project");
+  assert.deepEqual(searchUrl.searchParams.getAll("tags"), [
+    "typescript",
+    "ai",
+  ]);
+  assert.equal(searchUrl.searchParams.get("limit"), "5");
+  assert.equal(searchUrl.searchParams.get("cursor"), "exp-cursor");
+  assert.equal(
+    requestedUrls[1]?.pathname,
+    "/v1/product/experiences/exp-1",
+  );
+});
+
 test("API client exposes backend login errors without retaining a session", async () => {
   const client = new CooltoApiClient({
     baseUrl: "http://localhost:8000",
@@ -145,3 +208,29 @@ function jsonResponse(
     },
   });
 }
+
+const experienceRevision = {
+  id: "rev-1",
+  experienceId: "exp-1",
+  content: "Built a local agent.",
+  source: "manual",
+  revisionHash: "hash",
+  factBankStatus: "completed",
+  createdAt: "2026-07-01T00:00:00Z",
+};
+
+const experienceSummary = {
+  id: "exp-1",
+  category: "project",
+  title: "Local Agent",
+  organization: null,
+  role: "Developer",
+  location: null,
+  startDate: "2026-01-01",
+  endDate: null,
+  tags: ["typescript", "ai"],
+  status: "active",
+  currentRevisionId: "rev-1",
+  createdAt: "2026-07-01T00:00:00Z",
+  updatedAt: "2026-07-01T00:00:00Z",
+};
