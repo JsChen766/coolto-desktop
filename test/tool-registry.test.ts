@@ -19,3 +19,27 @@ test("tool registry has unique, explicitly scoped tools", async () => {
   assert.equal(result.details.cloudLangGraphUsed, false);
   assert.equal(result.details.persistentAssetCacheEnabled, false);
 });
+
+test("authenticated registry exposes the current user tool", async () => {
+  const tools = createToolRegistry({
+    currentUserReader: {
+      getCurrentUser: async () => ({
+        id: "user-1",
+        email: "alice@example.com",
+      }),
+    },
+  });
+
+  assert.deepEqual(
+    tools.map((tool) => tool.name),
+    ["get_runtime_info", "get_current_user"],
+  );
+
+  const currentUserTool = tools[1];
+  assert.ok(currentUserTool);
+  const result = await currentUserTool.execute("test-call", {});
+  assert.deepEqual(result.details, {
+    id: "user-1",
+    email: "alice@example.com",
+  });
+});

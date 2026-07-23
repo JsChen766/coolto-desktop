@@ -10,16 +10,18 @@ export interface RuntimeInfo {
   implementedBusinessTools: string[];
 }
 
-const RUNTIME_INFO: RuntimeInfo = {
-  runtime: "local-pi-agent",
-  architecture: "single-agent",
-  input: "natural-language",
-  cloudLangGraphUsed: false,
-  persistentAssetCacheEnabled: false,
-  implementedBusinessTools: [],
-};
+export function createRuntimeInfoTool(
+  implementedBusinessTools: string[] = [],
+): AgentTool {
+  const runtimeInfo: RuntimeInfo = {
+    runtime: "local-pi-agent",
+    architecture: "single-agent",
+    input: "natural-language",
+    cloudLangGraphUsed: false,
+    persistentAssetCacheEnabled: false,
+    implementedBusinessTools,
+  };
 
-export function createRuntimeInfoTool(): AgentTool {
   return {
     name: "get_runtime_info",
     label: "查看本地 Agent 能力",
@@ -30,10 +32,10 @@ export function createRuntimeInfoTool(): AgentTool {
       content: [
         {
           type: "text",
-          text: JSON.stringify(RUNTIME_INFO),
+          text: JSON.stringify(runtimeInfo),
         },
       ],
-      details: RUNTIME_INFO,
+      details: runtimeInfo,
     }),
   };
 }

@@ -5,7 +5,12 @@ import { stdin, stdout } from "node:process";
 
 import { createCooltoAgent } from "../agent/create-agent.js";
 import type { CooltoAgentEvent } from "../agent/events.js";
+import { CooltoApiClient } from "../api/coolto-api-client.js";
+import { KeychainSessionStore } from "../auth/keychain-session-store.js";
+import { ensureAuthenticated } from "../auth/session-manager.js";
 import { loadLocalEnv, readConfig } from "../config.js";
+import { createToolRegistry } from "../tools/registry.js";
+import { readLoginCredentials } from "./login.js";
 
 function renderEvent(event: CooltoAgentEvent): void {
   switch (event.type) {
@@ -39,9 +44,28 @@ function renderEvent(event: CooltoAgentEvent): void {
 async function main(): Promise<void> {
   loadLocalEnv();
   const config = readConfig();
+  const apiClient = new CooltoApiClient({
+    baseUrl: config.apiBaseUrl,
+  });
+  const sessionStore = new KeychainSessionStore({
+    apiBaseUrl: config.apiBaseUrl,
+  });
+  const authenticated = await ensureAuthenticated(
+    apiClient,
+    sessionStore,
+    config.apiBaseUrl,
+    readLoginCredentials,
+  );
+  stdout.write(
+    authenticated.restored
+      ? `已自动登录 Coolto：${authenticated.user.email}\n`
+      : `已登录 Coolto：${authenticated.user.email}（Session 已保存到系统安全凭据库）\n`,
+  );
+
   const agent = createCooltoAgent({
     apiKey: config.apiKey,
     modelId: config.modelId,
+    tools: createToolRegistry({ currentUserReader: apiClient }),
   });
 
   agent.subscribe((event) => {

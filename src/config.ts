@@ -3,9 +3,12 @@ import { resolve } from "node:path";
 
 import { DEFAULT_MODEL_ID } from "./agent/create-agent.js";
 
+export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
+
 export interface AppConfig {
   apiKey: string;
   modelId: string;
+  apiBaseUrl: string;
 }
 
 export function loadLocalEnv(cwd = process.cwd()): void {
@@ -28,5 +31,12 @@ export function readConfig(
   return {
     apiKey,
     modelId: env.COOLTO_MODEL?.trim() || DEFAULT_MODEL_ID,
+    apiBaseUrl: readApiBaseUrl(env),
   };
+}
+
+export function readApiBaseUrl(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return env.COOLTO_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL;
 }

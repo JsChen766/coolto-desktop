@@ -55,3 +55,38 @@ test("single agent completes a model-selected tool loop", async () => {
   );
   assert.equal(events.at(-1)?.type, "run.completed");
 });
+
+test("authenticated agent can select the current-user business tool", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  faux.setResponses([
+    fauxAssistantMessage(
+      fauxToolCall("get_current_user", {}, { id: "tool-call-user" }),
+      { stopReason: "toolUse" },
+    ),
+    fauxAssistantMessage("当前登录邮箱是 alice@example.com。"),
+  ]);
+
+  const tools = createToolRegistry({
+    currentUserReader: {
+      getCurrentUser: async () => ({
+        id: "user-1",
+        email: "alice@example.com",
+      }),
+    },
+  });
+  const agent = createCooltoAgent(
+    { tools },
+    {
+      model: faux.getModel(),
+      streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("我现在登录的是哪个账号？");
+
+  assert.equal(faux.state.callCount, 2);
+  assert.equal(
+    agent.toolNames.includes("get_current_user"),
+    true,
+  );
+});
