@@ -110,8 +110,13 @@ assert.equal(report.postflight.hasTimesNewRoman, true);
 assert.doesNotMatch(report.postflight.extractedText, /\*\*|__/);
 
 assert.equal(report.workspaceResult.preparedStatus, "writing");
-assert.equal(report.workspaceResult.finalStatus, "layout_qualified");
-assert.equal(report.workspaceResult.revision, 1);
+assert.equal(report.workspaceResult.g3Status, "layout_qualified");
+assert.equal(report.workspaceResult.duplicateStatus, "layout_qualified");
+assert.equal(report.workspaceResult.reviewStatus, "needs_revision");
+assert.equal(report.workspaceResult.finalStatus, "ready_for_approval");
+assert.equal(report.workspaceResult.revision, 3);
+assert.equal(report.workspaceResult.repairRound, 1);
+assert.ok(report.workspaceResult.repairDiagnostic.candidatesCompiled >= 1);
 assert.ok(report.workspaceResult.bindingCount > 0);
 assert.equal(report.workspaceResult.compileResult.qualified, true);
 assert.ok(report.workspaceResult.compileResult.usageRatio >= 0.85);

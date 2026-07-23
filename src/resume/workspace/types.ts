@@ -4,18 +4,26 @@ import type {
   ResumeSourceSnapshot,
 } from "../source-types.js";
 import type { ResumeStructure } from "../types.js";
+import type {
+  RepairRoundDiagnostic,
+  ResumeAlternativeTargetInput,
+  ResumeQualityReport,
+} from "../quality/types.js";
 
 export type ResumeCandidateLanguage = "zh-CN" | "en-US";
 export type ResumeWorkspaceStatus =
   | "writing"
   | "needs_revision"
-  | "layout_qualified";
+  | "layout_qualified"
+  | "ready_for_approval"
+  | "needs_user_decision";
 
 export interface ResumeCandidateSnapshot {
   revision: number;
   structure: ResumeStructure;
   bindings: BulletEvidenceBinding[];
   compileResult: ResumeCompileResult;
+  qualityReport?: ResumeQualityReport;
 }
 
 export interface ResumeWorkspace {
@@ -28,6 +36,10 @@ export interface ResumeWorkspace {
   bindings: BulletEvidenceBinding[];
   compileResult: ResumeCompileResult;
   bestSnapshot: ResumeCandidateSnapshot;
+  qualityReviewStarted: boolean;
+  repairRound: number;
+  repairHistory: RepairRoundDiagnostic[];
+  qualityReport?: ResumeQualityReport;
 }
 
 export interface PrepareResumeCandidateInput {
@@ -60,6 +72,12 @@ export interface PatchResumeCandidateInput {
   candidateId: string;
   expectedRevision: number;
   operations: ResumePatchOperation[];
+}
+
+export interface RepairResumeCandidateInput {
+  candidateId: string;
+  expectedRevision: number;
+  alternativeTargets: ResumeAlternativeTargetInput[];
 }
 
 export interface ResumeBudgetDiagnostic {

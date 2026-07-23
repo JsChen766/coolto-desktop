@@ -39,8 +39,11 @@ test("source snapshot locks current revision content with a deterministic finger
   assert.equal(Object.isFrozen(first.experiences[0]), true);
 
   const projection = projectResumeSourceSnapshot(first);
-  assert.match(JSON.stringify(projection), /revisionContentHash/);
-  assert.doesNotMatch(JSON.stringify(projection), /revisionHistory/);
+  const serializedProjection = JSON.stringify(projection);
+  assert.match(serializedProjection, /revisionContentHash/);
+  assert.match(serializedProjection, /availableEvidence/);
+  assert.match(serializedProjection, /sourceStart/);
+  assert.doesNotMatch(serializedProjection, /revisionHistory/);
 });
 
 test("source fingerprint is independent from selected experience order", async () => {

@@ -18,6 +18,7 @@
     "desktop:typecheck": "vue-tsc -p tsconfig.web.json --noEmit",
     "qa:resume-renderer": "npm run desktop:build && node scripts/run-resume-renderer-qa.mjs",
     "smoke:resume-source": "node --import tsx scripts/run-resume-source-smoke.ts",
+    "eval:resume-agent": "node --import tsx scripts/run-resume-agent-eval.ts",
     "logout": "node --import tsx src/cli/logout.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/cli/main.js",

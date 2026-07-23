@@ -9,7 +9,12 @@ export type ResumeWorkspaceErrorCode =
   | "bullet_not_found"
   | "duplicate_bullet_id"
   | "bullet_source_mismatch"
-  | "invalid_patch_operation";
+  | "invalid_patch_operation"
+  | "quality_review_requires_layout"
+  | "quality_review_already_started"
+  | "quality_repair_requires_alternatives"
+  | "invalid_repair_target"
+  | "repair_round_limit";
 
 export class ResumeWorkspaceError extends Error {
   public constructor(

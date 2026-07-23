@@ -12,6 +12,8 @@ import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import type { ResumeSourceSnapshotBuilder } from "../resume/source-snapshot.js";
 import type { ResumeCandidatePatcher } from "../resume/workspace/candidate-patcher.js";
 import type { ResumeCandidatePreparer } from "../resume/workspace/candidate-preparer.js";
+import type { ResumeCandidateReviewer } from "../resume/quality/candidate-reviewer.js";
+import type { ResumeAlternativeRepairer } from "../resume/quality/alternative-repairer.js";
 import { createGetExperienceTool } from "./get-experience.js";
 import { createGetCurrentUserTool } from "./get-current-user.js";
 import { createGetResumeSourceSnapshotTool } from "./get-resume-source-snapshot.js";
@@ -31,6 +33,8 @@ export interface ToolRegistryDependencies {
   resumeSourceSnapshotBuilder?: ResumeSourceSnapshotBuilder;
   resumeCandidatePreparer?: ResumeCandidatePreparer;
   resumeCandidatePatcher?: ResumeCandidatePatcher;
+  resumeCandidateReviewer?: ResumeCandidateReviewer;
+  resumeAlternativeRepairer?: ResumeAlternativeRepairer;
   importProposalStore?: ExperienceImportProposalStore;
   approvalManager?: ApprovalManager;
   selectedFileRegistry?: SelectedFileRegistry;
@@ -84,12 +88,16 @@ export function createToolRegistry(
   }
   if (
     dependencies.resumeCandidatePreparer &&
-    dependencies.resumeCandidatePatcher
+    dependencies.resumeCandidatePatcher &&
+    dependencies.resumeCandidateReviewer &&
+    dependencies.resumeAlternativeRepairer
   ) {
     businessTools.push(
       ...createResumeCandidateTools(
         dependencies.resumeCandidatePreparer,
         dependencies.resumeCandidatePatcher,
+        dependencies.resumeCandidateReviewer,
+        dependencies.resumeAlternativeRepairer,
       ),
     );
   }

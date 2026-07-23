@@ -53,3 +53,17 @@ export const resumePatchOperationSchema = Type.Union([
   removeBulletSchema,
   moveBulletSchema,
 ]);
+
+export const alternativeTargetSchema = Type.Object({
+  targetId: Type.String({ minLength: 1 }),
+  alternatives: Type.Array(
+    Type.Object({
+      label: Type.Optional(Type.String({ maxLength: 120 })),
+      operations: Type.Array(resumePatchOperationSchema, {
+        minItems: 1,
+        maxItems: 3,
+      }),
+    }),
+    { minItems: 1, maxItems: 3 },
+  ),
+});

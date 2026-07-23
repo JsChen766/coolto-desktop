@@ -15,6 +15,7 @@ import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek";
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import { createToolRegistry } from "../tools/registry.js";
 import { CooltoAgent } from "./coolto-agent.js";
+import { compactResumeGenerationContext } from "./context-policy.js";
 import { COOLTO_SYSTEM_PROMPT } from "./system-prompt.js";
 
 export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
@@ -29,6 +30,10 @@ export interface CreateAgentOptions {
     context: BeforeToolCallContext,
     signal?: AbortSignal,
   ) => Promise<BeforeToolCallResult | undefined>;
+  transformContext?: (
+    messages: import("@earendil-works/pi-agent-core").AgentMessage[],
+    signal?: AbortSignal,
+  ) => Promise<import("@earendil-works/pi-agent-core").AgentMessage[]>;
   approvalManager?: ApprovalManager;
 }
 
@@ -78,6 +83,8 @@ export function createCooltoAgent(
     ...(options.beforeToolCall
       ? { beforeToolCall: options.beforeToolCall }
       : {}),
+    transformContext:
+      options.transformContext ?? compactResumeGenerationContext,
     ...(options.approvalManager
       ? { approvalManager: options.approvalManager }
       : {}),

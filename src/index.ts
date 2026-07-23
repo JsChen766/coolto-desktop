@@ -84,6 +84,19 @@ export {
   type ResumeWorkspaceErrorCode,
 } from "./resume/workspace/errors.js";
 export { ResumeWorkspaceStore } from "./resume/workspace/workspace-store.js";
+export { ResumeQualityEvaluator } from "./resume/quality/quality-evaluator.js";
+export { ResumeCandidateReviewer } from "./resume/quality/candidate-reviewer.js";
+export { ResumeAlternativeRepairer } from "./resume/quality/alternative-repairer.js";
+export type {
+  AvailableEvidenceCandidate,
+  RepairRoundDiagnostic,
+  ResumeAlternativeTargetInput,
+  ResumeQualityIssue,
+  ResumeQualityIssueCode,
+  ResumeQualityReport,
+  ResumeQualityScore,
+  ResumeRepairTarget,
+} from "./resume/quality/types.js";
 export type {
   PatchResumeCandidateInput,
   PrepareResumeCandidateInput,
@@ -91,6 +104,7 @@ export type {
   ResumeCandidateLanguage,
   ResumeCandidateSnapshot,
   ResumePatchOperation,
+  RepairResumeCandidateInput,
   ResumeWorkspace,
   ResumeWorkspaceStatus,
 } from "./resume/workspace/types.js";

@@ -2,6 +2,7 @@ import type { ResumeCompileViolation } from "../compiler-types.js";
 import type { ResumeStructure } from "../types.js";
 import { calculateResumeBudget, requirementCoverage } from "./candidate-budget.js";
 import { unwrittenExperienceItemIds } from "./candidate-content.js";
+import { rankAvailableEvidence } from "../quality/evidence-candidates.js";
 import type { ResumeWorkspace } from "./types.js";
 
 export function projectResumeWorkspace(workspace: ResumeWorkspace): object {
@@ -17,6 +18,10 @@ export function projectResumeWorkspace(workspace: ResumeWorkspace): object {
     structure: workspace.structure,
     visibleText: resumeVisibleText(workspace.structure),
     evidenceBindings: workspace.bindings,
+    availableEvidence: rankAvailableEvidence(
+      workspace.sourceSnapshot,
+      workspace.bindings,
+    ),
     requirementCoverage: coverage,
     budget: calculateResumeBudget(workspace.compileResult),
     compile: workspace.compileResult,
@@ -24,12 +29,18 @@ export function projectResumeWorkspace(workspace: ResumeWorkspace): object {
       unwrittenExperienceItemIds: unwrittenExperienceItemIds(workspace.structure),
     },
     bulletTailDiagnostics: bulletTailDiagnostics(workspace),
+    quality: workspace.qualityReport ?? null,
+    repairRound: workspace.repairRound,
+    repairRoundsRemaining: Math.max(0, 3 - workspace.repairRound),
+    repairHistory: workspace.repairHistory,
     bestSnapshot: {
       revision: workspace.bestSnapshot.revision,
       qualified:
         workspace.bestSnapshot.compileResult.qualified &&
-        unwrittenExperienceItemIds(workspace.bestSnapshot.structure).length === 0,
+        unwrittenExperienceItemIds(workspace.bestSnapshot.structure).length === 0 &&
+        (workspace.bestSnapshot.qualityReport?.passed ?? false),
       layoutQualified: workspace.bestSnapshot.compileResult.qualified,
+      qualityQualified: workspace.bestSnapshot.qualityReport?.passed ?? false,
       usageRatio: workspace.bestSnapshot.compileResult.usageRatio,
       violationCodes: workspace.bestSnapshot.compileResult.violations.map(
         (violation) => violation.code,
@@ -92,8 +103,17 @@ function bulletTailDiagnostics(workspace: ResumeWorkspace): object[] {
 }
 
 function instructionFor(workspace: ResumeWorkspace): string {
+  if (workspace.status === "ready_for_approval") {
+    return "All source, content-quality, font, page, and bullet-tail gates pass. Stop editing; G5 save approval is not implemented yet.";
+  }
+  if (workspace.status === "needs_user_decision") {
+    return "Automatic repair stopped because source support is missing or all three rounds were used. Present the best snapshot and remaining issues without lowering any gate.";
+  }
   if (workspace.status === "layout_qualified") {
-    return "All G3 source and layout gates pass. Stop patching; G4 quality review is still required before approval.";
+    return "All G3 source and layout gates pass. Call review_resume_candidate before approval.";
+  }
+  if (workspace.qualityReviewStarted) {
+    return "Use only the reported repairTargets and bounded alternativeTargets. Do not modify frozen bullets or bypass the three-round limit.";
   }
   if (workspace.status === "writing") {
     const unwritten = unwrittenExperienceItemIds(workspace.structure);

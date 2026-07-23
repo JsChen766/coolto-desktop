@@ -13,6 +13,9 @@ import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher
 import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
+import { ResumeQualityEvaluator } from "../../resume/quality/quality-evaluator.js";
+import { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
+import { ResumeAlternativeRepairer } from "../../resume/quality/alternative-repairer.js";
 import { createToolRegistry } from "../../tools/registry.js";
 import type {
   ConversationDetail,
@@ -131,6 +134,16 @@ export class DesktopAgentRuntime {
       this.#resumeCompiler,
       resumeWorkspaceStore,
     );
+    const resumeQualityEvaluator = new ResumeQualityEvaluator();
+    const resumeCandidateReviewer = new ResumeCandidateReviewer(
+      resumeQualityEvaluator,
+      resumeWorkspaceStore,
+    );
+    const resumeAlternativeRepairer = new ResumeAlternativeRepairer(
+      this.#resumeCompiler,
+      resumeQualityEvaluator,
+      resumeWorkspaceStore,
+    );
     const agent = createCooltoAgent({
       apiKey: config.apiKey,
       modelId: config.modelId,
@@ -143,6 +156,8 @@ export class DesktopAgentRuntime {
         resumeSourceSnapshotBuilder,
         resumeCandidatePreparer,
         resumeCandidatePatcher,
+        resumeCandidateReviewer,
+        resumeAlternativeRepairer,
         importProposalStore: proposalStore,
         approvalManager,
         selectedFileRegistry: selectedFiles,

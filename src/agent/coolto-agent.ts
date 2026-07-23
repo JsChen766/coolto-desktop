@@ -29,6 +29,10 @@ export interface CooltoAgentOptions {
     context: BeforeToolCallContext,
     signal?: AbortSignal,
   ) => Promise<BeforeToolCallResult | undefined>;
+  transformContext?: (
+    messages: AgentMessage[],
+    signal?: AbortSignal,
+  ) => Promise<AgentMessage[]>;
   approvalManager?: ApprovalManager;
 }
 
@@ -55,6 +59,9 @@ export class CooltoAgent {
       ...(options.getApiKey ? { getApiKey: options.getApiKey } : {}),
       ...(options.beforeToolCall
         ? { beforeToolCall: options.beforeToolCall }
+        : {}),
+      ...(options.transformContext
+        ? { transformContext: options.transformContext }
         : {}),
     });
   }

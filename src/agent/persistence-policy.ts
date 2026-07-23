@@ -4,6 +4,7 @@ const TRANSIENT_TOOL_NAMES = new Set([
   "get_resume_source_snapshot",
   "prepare_resume_candidate",
   "patch_resume_candidate",
+  "review_resume_candidate",
 ]);
 
 interface ToolResultLike {

@@ -1,4 +1,5 @@
 import type { ResumeSourceSnapshot } from "./source-types.js";
+import { rankAvailableEvidence } from "./quality/evidence-candidates.js";
 
 /**
  * Model-facing projection of an immutable snapshot. It keeps the complete
@@ -33,11 +34,12 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
       revisionContentHash: experience.contentHash,
       content: experience.content,
     })),
+    availableEvidence: rankAvailableEvidence(snapshot, []),
     template: snapshot.template,
     evidenceInstructions: {
       offsetEncoding: "UTF-16",
       quoteRule:
-        "Every bullet must cite an exact sourceQuote and sourceStart/sourceEnd from one current revision.",
+        "Copy sourceQuote/sourceStart/sourceEnd from availableEvidence exactly; do not recalculate offsets manually.",
       truthRule:
         "Do not add numbers, technologies, scope, ownership, or results absent from the cited source text.",
     },

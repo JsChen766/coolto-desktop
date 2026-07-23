@@ -26,6 +26,12 @@ export class ResumeCandidatePatcher {
         `Candidate revision changed from ${input.expectedRevision} to ${current.revision}.`,
       );
     }
+    if (current.qualityReviewStarted) {
+      throw new ResumeWorkspaceError(
+        "quality_repair_requires_alternatives",
+        "Quality review has started; use bounded alternativeTargets instead of a direct patch.",
+      );
+    }
     if (current.patchCount >= MAX_PATCH_COUNT) {
       throw new ResumeWorkspaceError(
         "workspace_revision_limit",

@@ -63,6 +63,9 @@ export class ResumeCandidatePreparer {
       structure: initial.structure,
       bindings: initial.bindings,
       compileResult,
+      qualityReviewStarted: false,
+      repairRound: 0,
+      repairHistory: [],
       bestSnapshot: {
         revision: 0,
         structure: structuredClone(initial.structure),

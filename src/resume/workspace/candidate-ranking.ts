@@ -12,6 +12,13 @@ export function isBetterCandidate(
   ) < 0;
 }
 
+export function compareCandidateSnapshots(
+  left: ResumeCandidateSnapshot,
+  right: ResumeCandidateSnapshot,
+): number {
+  return compareVectors(rankingVector(left), rankingVector(right));
+}
+
 function rankingVector(snapshot: ResumeCandidateSnapshot): number[] {
   const result: ResumeCompileResult = snapshot.compileResult;
   const violationCount = (code: string) =>
@@ -24,15 +31,30 @@ function rankingVector(snapshot: ResumeCandidateSnapshot): number[] {
   const targetDistance = Math.abs(
     result.usageRatio - result.effectiveTargetBand.target,
   );
+  const qualityIssues = snapshot.qualityReport?.issues ?? [];
+  const sourceQualityFailures = qualityIssues.filter((issue) =>
+    [
+      "near_duplicate_bullet",
+      "unsupported_responsibility_claim",
+      "unsupported_technology_claim",
+      "missing_source_for_must_have_requirement",
+    ].includes(issue.code),
+  ).length;
+  const uncoveredMustHave = qualityIssues.filter(
+    (issue) => issue.code === "uncovered_must_have_requirement",
+  ).length;
   return [
     unwrittenExperienceItemIds(snapshot.structure).length,
-    result.qualified ? 0 : 1,
+    sourceQualityFailures,
     critical,
     pageFailures,
     result.overflowPx,
     tailFailures,
     violationCount("page_underfilled"),
+    uncoveredMustHave,
+    result.qualified ? 0 : 1,
     targetDistance,
+    -(snapshot.qualityReport?.score.overall ?? 0),
     result.violations.length,
   ];
 }
