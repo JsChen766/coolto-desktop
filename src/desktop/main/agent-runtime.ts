@@ -8,6 +8,11 @@ import type { ApprovalDecision } from "../../approvals/types.js";
 import { readConfig } from "../../config.js";
 import { SelectedFileRegistry } from "../../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
+import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
+import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
+import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
+import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
+import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../../tools/registry.js";
 import type {
   ConversationDetail,
@@ -19,6 +24,7 @@ export class DesktopAgentRuntime {
   readonly #apiClient: CooltoApiClient;
   readonly #store: ConversationStore;
   readonly #target: WebContents;
+  readonly #resumeCompiler: ResumeCompiler;
   readonly #agents = new Map<string, CooltoAgent>();
   #runningConversationId: string | undefined;
 
@@ -26,10 +32,12 @@ export class DesktopAgentRuntime {
     apiClient: CooltoApiClient,
     store: ConversationStore,
     target: WebContents,
+    resumeCompiler: ResumeCompiler,
   ) {
     this.#apiClient = apiClient;
     this.#store = store;
     this.#target = target;
+    this.#resumeCompiler = resumeCompiler;
   }
 
   public get isRunning(): boolean {
@@ -107,13 +115,34 @@ export class DesktopAgentRuntime {
       this.#apiClient,
       proposalStore,
     );
+    const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
+      currentUser: this.#apiClient,
+      profile: this.#apiClient,
+      jd: this.#apiClient,
+      experience: this.#apiClient,
+    });
+    const resumeWorkspaceStore = new ResumeWorkspaceStore();
+    const resumeCandidatePreparer = new ResumeCandidatePreparer(
+      resumeSourceSnapshotBuilder,
+      this.#resumeCompiler,
+      resumeWorkspaceStore,
+    );
+    const resumeCandidatePatcher = new ResumeCandidatePatcher(
+      this.#resumeCompiler,
+      resumeWorkspaceStore,
+    );
     const agent = createCooltoAgent({
       apiKey: config.apiKey,
       modelId: config.modelId,
       approvalManager,
       tools: createToolRegistry({
         currentUserReader: this.#apiClient,
+        userProfileReader: this.#apiClient,
         experienceReader: this.#apiClient,
+        jdReader: this.#apiClient,
+        resumeSourceSnapshotBuilder,
+        resumeCandidatePreparer,
+        resumeCandidatePatcher,
         importProposalStore: proposalStore,
         approvalManager,
         selectedFileRegistry: selectedFiles,

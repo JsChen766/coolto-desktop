@@ -1,6 +1,7 @@
 import type { BrowserWindow, IpcMain } from "electron";
 
 import type { ApprovalDecision } from "../../approvals/types.js";
+import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import type {
   AgentPromptInput,
   ApprovalResolveInput,
@@ -19,6 +20,7 @@ interface UserServices {
 export function registerDesktopIpc(
   ipcMain: IpcMain,
   window: BrowserWindow,
+  resumeCompiler: ResumeCompiler,
 ): void {
   for (const channel of IPC_CHANNELS) {
     ipcMain.removeHandler(channel);
@@ -39,6 +41,7 @@ export function registerDesktopIpc(
         auth.apiClient,
         conversations,
         window.webContents,
+        resumeCompiler,
       ),
     };
     return services;

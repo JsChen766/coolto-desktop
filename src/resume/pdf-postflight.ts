@@ -13,6 +13,7 @@ export interface ResumePdfPostflightResult {
   hasTextLayer: boolean;
   extractedText: string;
   embeddedFontNames: string[];
+  missingFontNames: string[];
   cjkFontNames: string[];
   latinFontNames: string[];
   hasTimesNewRoman: boolean;
@@ -27,6 +28,10 @@ interface ResolvedPdfFont {
 
 function unique(values: Iterable<string>): string[] {
   return Array.from(new Set(values)).sort();
+}
+
+export function containsLatinOrDigit(value: string): boolean {
+  return /[A-Za-z0-9]/u.test(value);
 }
 
 export async function inspectResumePdf(
@@ -61,14 +66,20 @@ export async function inspectResumePdf(
     if (/[\u3400-\u9fff\uf900-\ufaff]/u.test(item.str)) {
       cjkFontNames.push(name);
     }
-    if (/[A-Za-z]/u.test(item.str)) {
+    if (containsLatinOrDigit(item.str)) {
       latinFontNames.push(name);
     }
   }
+  const missingFontNames = unique(
+    Array.from(fontByResourceId.values())
+      .filter((font) => font.missingFile)
+      .map((font) => font.name ?? "unknown"),
+  );
   const embeddedFontNames = unique(
-    Array.from(fontByResourceId.values(), (font) => font.name ?? "").filter(
-      Boolean,
-    ),
+    Array.from(fontByResourceId.values())
+      .filter((font) => !font.missingFile)
+      .map((font) => font.name ?? "")
+      .filter(Boolean),
   );
   const uniqueCjkFontNames = unique(cjkFontNames);
   const uniqueLatinFontNames = unique(latinFontNames);
@@ -87,6 +98,7 @@ export async function inspectResumePdf(
   if (pageCount !== 1) violations.push("pdf_page_count");
   if (!isA4Portrait) violations.push("pdf_page_size");
   if (!extractedText) violations.push("pdf_text_layer_missing");
+  if (missingFontNames.length) violations.push("pdf_font_resource_missing");
   if (uniqueLatinFontNames.length && !hasTimesNewRoman) {
     violations.push("pdf_latin_font_mismatch");
   }
@@ -103,6 +115,7 @@ export async function inspectResumePdf(
     hasTextLayer: Boolean(extractedText),
     extractedText,
     embeddedFontNames,
+    missingFontNames,
     cjkFontNames: uniqueCjkFontNames,
     latinFontNames: uniqueLatinFontNames,
     hasTimesNewRoman,

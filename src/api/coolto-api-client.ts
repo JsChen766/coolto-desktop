@@ -1,3 +1,6 @@
+import { CooltoApiTransport } from "./api-transport.js";
+import { ExperienceApi } from "./experience-api.js";
+import { ProfileJdApi } from "./profile-jd-api.js";
 import type {
   CurrentUser,
   CurrentUserReader,
@@ -7,259 +10,108 @@ import type {
   ExperienceSearchOptions,
   ExperienceSearchResult,
   ExperienceWriter,
+  JdReader,
+  JdRecord,
+  JdSearchOptions,
+  JdSearchResult,
   LoginCredentials,
   LoginUser,
+  UserProfile,
+  UserProfileReader,
 } from "./types.js";
 
-interface SuccessEnvelope<T> {
-  success: true;
-  data: T;
-  request_id?: string;
-}
-
-interface ErrorEnvelope {
-  success: false;
-  error?: {
-    code?: string;
-    message?: string;
-  };
-  request_id?: string;
-}
-
-export class CooltoApiError extends Error {
-  public constructor(
-    message: string,
-    public readonly status: number,
-    public readonly code?: string,
-  ) {
-    super(message);
-    this.name = "CooltoApiError";
-  }
-}
+export { CooltoApiError } from "./coolto-api-error.js";
 
 export interface CooltoApiClientOptions {
   baseUrl: string;
   fetchFn?: typeof fetch;
 }
 
+/** Thin compatibility facade over resource-focused API adapters. */
 export class CooltoApiClient
-  implements CurrentUserReader, ExperienceReader, ExperienceWriter
+  implements
+    CurrentUserReader,
+    UserProfileReader,
+    ExperienceReader,
+    ExperienceWriter,
+    JdReader
 {
-  readonly #baseUrl: string;
-  readonly #fetch: typeof fetch;
-  #sessionCookie: string | undefined;
+  readonly #transport: CooltoApiTransport;
+  readonly #profileJd: ProfileJdApi;
+  readonly #experiences: ExperienceApi;
 
   public constructor(options: CooltoApiClientOptions) {
-    this.#baseUrl = options.baseUrl.replace(/\/+$/, "");
-    this.#fetch = options.fetchFn ?? globalThis.fetch;
+    this.#transport = new CooltoApiTransport(
+      options.baseUrl,
+      options.fetchFn ?? globalThis.fetch,
+    );
+    this.#profileJd = new ProfileJdApi(this.#transport);
+    this.#experiences = new ExperienceApi(this.#transport);
   }
 
   public get isAuthenticated(): boolean {
-    return this.#sessionCookie !== undefined;
+    return this.#transport.isAuthenticated;
   }
 
   public restoreSession(accessToken: string): void {
-    if (!isSafeAccessToken(accessToken)) {
-      throw new CooltoApiError(
-        "本地保存的 access_token 格式无效",
-        401,
-        "invalid_local_session",
-      );
-    }
-    this.#sessionCookie = `access_token=${accessToken}`;
+    this.#transport.restoreSession(accessToken);
   }
 
   public getSessionToken(): string {
-    const token = this.#sessionCookie?.slice("access_token=".length);
-    if (!token) {
-      throw new CooltoApiError("尚未登录 Coolto", 401, "not_authenticated");
-    }
-    return token;
+    return this.#transport.getSessionToken();
   }
 
   public clearSession(): void {
-    this.#sessionCookie = undefined;
+    this.#transport.clearSession();
   }
 
-  public async login(
-    credentials: LoginCredentials,
-    signal?: AbortSignal,
-  ): Promise<LoginUser> {
-    const response = await this.#fetch(`${this.#baseUrl}/v1/auth/login`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(credentials),
-      ...(signal ? { signal } : {}),
-    });
-
-    const data = await this.#readEnvelope<LoginUser>(response);
-    const accessToken = extractAccessToken(response.headers);
-    if (!accessToken) {
-      throw new CooltoApiError(
-        "登录响应没有返回 access_token Cookie",
-        response.status,
-      );
-    }
-
-    this.restoreSession(accessToken);
-    return data;
+  public login(credentials: LoginCredentials, signal?: AbortSignal): Promise<LoginUser> {
+    return this.#transport.login(credentials, signal);
   }
 
-  public async getCurrentUser(
-    signal?: AbortSignal,
-  ): Promise<CurrentUser> {
-    return this.#request<CurrentUser>("/v1/users/me", {
+  public logout(signal?: AbortSignal): Promise<void> {
+    return this.#transport.logout(signal);
+  }
+
+  public getCurrentUser(signal?: AbortSignal): Promise<CurrentUser> {
+    return this.#transport.request<CurrentUser>("/v1/users/me", {
       ...(signal ? { signal } : {}),
     });
   }
 
-  public async searchExperiences(
+  public getUserProfile(signal?: AbortSignal): Promise<UserProfile> {
+    return this.#profileJd.getUserProfile(signal);
+  }
+
+  public listJds(
+    options: JdSearchOptions = {},
+    signal?: AbortSignal,
+  ): Promise<JdSearchResult> {
+    return this.#profileJd.listJds(options, signal);
+  }
+
+  public getJd(jdId: string, signal?: AbortSignal): Promise<JdRecord> {
+    return this.#profileJd.getJd(jdId, signal);
+  }
+
+  public searchExperiences(
     options: ExperienceSearchOptions = {},
     signal?: AbortSignal,
   ): Promise<ExperienceSearchResult> {
-    const query = new URLSearchParams();
-    if (options.q) {
-      query.set("q", options.q);
-    }
-    if (options.category) {
-      query.set("category", options.category);
-    }
-    for (const tag of options.tags ?? []) {
-      query.append("tags", tag);
-    }
-    if (options.limit !== undefined) {
-      query.set("limit", String(options.limit));
-    }
-    if (options.cursor) {
-      query.set("cursor", options.cursor);
-    }
-
-    const queryString = query.toString();
-    return this.#request<ExperienceSearchResult>(
-      `/v1/product/experiences${queryString ? `?${queryString}` : ""}`,
-      {
-        ...(signal ? { signal } : {}),
-      },
-    );
+    return this.#experiences.searchExperiences(options, signal);
   }
 
-  public async getExperience(
+  public getExperience(
     experienceId: string,
     signal?: AbortSignal,
   ): Promise<ExperienceDetail> {
-    const normalizedId = experienceId.trim();
-    if (!normalizedId) {
-      throw new Error("experienceId 不能为空");
-    }
-    return this.#request<ExperienceDetail>(
-      `/v1/product/experiences/${encodeURIComponent(normalizedId)}`,
-      {
-        ...(signal ? { signal } : {}),
-      },
-    );
+    return this.#experiences.getExperience(experienceId, signal);
   }
 
-  public async createExperience(
+  public createExperience(
     input: ExperienceCreateInput,
     signal?: AbortSignal,
   ): Promise<ExperienceDetail> {
-    return this.#request<ExperienceDetail>("/v1/product/experiences", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        category: input.category,
-        title: input.title,
-        content: input.content,
-        organization: input.organization ?? null,
-        role: input.role ?? null,
-        location: input.location ?? null,
-        start_date: input.startDate ?? null,
-        end_date: input.endDate ?? null,
-        tags: input.tags ?? [],
-      }),
-      ...(signal ? { signal } : {}),
-    });
+    return this.#experiences.createExperience(input, signal);
   }
-
-  public async logout(signal?: AbortSignal): Promise<void> {
-    if (!this.#sessionCookie) {
-      return;
-    }
-
-    try {
-      await this.#request<{ message: string }>("/v1/auth/logout", {
-        method: "POST",
-        ...(signal ? { signal } : {}),
-      });
-    } finally {
-      this.#sessionCookie = undefined;
-    }
-  }
-
-  async #request<T>(
-    path: string,
-    init: RequestInit = {},
-  ): Promise<T> {
-    if (!this.#sessionCookie) {
-      throw new CooltoApiError("尚未登录 Coolto", 401, "not_authenticated");
-    }
-
-    const headers = new Headers(init.headers);
-    headers.set("cookie", this.#sessionCookie);
-
-    const response = await this.#fetch(`${this.#baseUrl}${path}`, {
-      ...init,
-      headers,
-    });
-    return this.#readEnvelope<T>(response);
-  }
-
-  async #readEnvelope<T>(response: Response): Promise<T> {
-    let payload: SuccessEnvelope<T> | ErrorEnvelope | undefined;
-    try {
-      payload = (await response.json()) as SuccessEnvelope<T> | ErrorEnvelope;
-    } catch {
-      throw new CooltoApiError(
-        `后端返回了无法解析的响应（HTTP ${response.status}）`,
-        response.status,
-      );
-    }
-
-    if (!response.ok || payload.success !== true) {
-      const errorPayload = payload as ErrorEnvelope;
-      throw new CooltoApiError(
-        errorPayload.error?.message ?? `后端请求失败（HTTP ${response.status}）`,
-        response.status,
-        errorPayload.error?.code,
-      );
-    }
-
-    return payload.data;
-  }
-}
-
-function extractAccessToken(headers: Headers): string | undefined {
-  const headersWithCookies = headers as Headers & {
-    getSetCookie?: () => string[];
-  };
-  const setCookies =
-    headersWithCookies.getSetCookie?.() ??
-    (headers.get("set-cookie") ? [headers.get("set-cookie")!] : []);
-
-  for (const cookie of setCookies) {
-    const match = /(?:^|,\s*)access_token=([^;,\s]+)/.exec(cookie);
-    if (match?.[1]) {
-      return match[1];
-    }
-  }
-
-  return undefined;
-}
-
-function isSafeAccessToken(value: string): boolean {
-  return value.length > 0 && /^[A-Za-z0-9._~-]+$/.test(value);
 }

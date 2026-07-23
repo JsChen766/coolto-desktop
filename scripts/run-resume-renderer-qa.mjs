@@ -17,6 +17,7 @@ const fixtureIds = [
   "zh-qualified",
   "en-qualified",
   "mixed-qualified",
+  "markdown-qualified",
   "underfilled",
   "tail-failure",
   "overflow",
@@ -34,6 +35,7 @@ await new Promise((resolve, reject) => {
       COOLTO_RESUME_QA_RESULT_PATH: resultPath,
       COOLTO_RESUME_QA_PDF_PATH: pdfPath,
       COOLTO_RESUME_QA_SCREENSHOT_PATH: screenshotPath,
+      COOLTO_RESUME_QA_PDF_FIXTURE: "markdown-qualified",
     },
   });
   child.once("error", reject);
@@ -65,6 +67,7 @@ assert.deepEqual(byId.get("mixed-qualified").loadedFontFamilies, [
   "SimSun",
   "Times New Roman",
 ]);
+assert.equal(byId.get("markdown-qualified").qualified, true);
 assert.ok(
   byId
     .get("underfilled")
@@ -86,6 +89,17 @@ assert.ok(
 );
 assert.ok(byId.get("overflow").pageCount > 1);
 
+const [concurrentQualified, concurrentTail] = report.concurrentCompileResults;
+assert.equal(concurrentQualified.fixtureId, "concurrent-qualified");
+assert.equal(concurrentQualified.qualified, true);
+assert.equal(concurrentTail.fixtureId, "concurrent-tail");
+assert.equal(concurrentTail.qualified, false);
+assert.ok(
+  concurrentTail.violations.some(
+    (violation) => violation.code === "bullet_tail_too_short",
+  ),
+);
+
 assert.equal(report.pdfCompileResult.qualified, true);
 assert.equal(report.postflight.valid, true);
 assert.equal(report.postflight.pageCount, 1);
@@ -93,6 +107,15 @@ assert.equal(report.postflight.isA4Portrait, true);
 assert.equal(report.postflight.hasTextLayer, true);
 assert.equal(report.postflight.hasSimSun, true);
 assert.equal(report.postflight.hasTimesNewRoman, true);
+assert.doesNotMatch(report.postflight.extractedText, /\*\*|__/);
+
+assert.equal(report.workspaceResult.preparedStatus, "writing");
+assert.equal(report.workspaceResult.finalStatus, "layout_qualified");
+assert.equal(report.workspaceResult.revision, 1);
+assert.ok(report.workspaceResult.bindingCount > 0);
+assert.equal(report.workspaceResult.compileResult.qualified, true);
+assert.ok(report.workspaceResult.compileResult.usageRatio >= 0.85);
+assert.ok(report.workspaceResult.compileResult.bullets.every((bullet) => bullet.passed));
 
 process.stdout.write(
   `${JSON.stringify({
@@ -101,6 +124,8 @@ process.stdout.write(
     minimumBulletTailRatio: Math.min(
       ...firstQualified.bullets.map((bullet) => bullet.lastLineRatio),
     ),
+    workspaceUsageRatio: report.workspaceResult.compileResult.usageRatio,
+    workspaceBindingCount: report.workspaceResult.bindingCount,
     artifactDirectory,
     resultPath,
     pdfPath,

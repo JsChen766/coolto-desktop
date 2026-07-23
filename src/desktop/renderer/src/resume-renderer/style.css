@@ -92,6 +92,11 @@ body {
   white-space: nowrap;
 }
 
+.resume-document-link {
+  color: #0000ee;
+  text-decoration: underline;
+}
+
 .resume-document-section {
   margin-top: var(--resume-section-before);
 }
@@ -175,6 +180,15 @@ body {
   margin-top: 0;
 }
 
+.resume-document-richtext p {
+  display: block;
+  margin: 0;
+}
+
+.resume-document-richtext a {
+  overflow-wrap: anywhere;
+}
+
 @media print {
   html,
   body,
@@ -193,4 +207,3 @@ body {
     -webkit-print-color-adjust: exact;
   }
 }
-

@@ -21,11 +21,19 @@ interface PendingCompile {
   timeout: ReturnType<typeof setTimeout>;
 }
 
+export interface ResumePdfCompilation {
+  result: ResumeCompileResult;
+  pdf: Buffer;
+  screenshot?: Buffer;
+}
+
 export class ElectronResumeCompilerService {
   readonly #ipcMain: IpcMain;
   readonly #pending = new Map<string, PendingCompile>();
+  #operationQueue: Promise<void> = Promise.resolve();
   #window: BrowserWindow | undefined;
   #loadPromise: Promise<void> | undefined;
+  #disposed = false;
 
   public constructor(ipcMain: IpcMain) {
     this.#ipcMain = ipcMain;
@@ -36,6 +44,44 @@ export class ElectronResumeCompilerService {
   }
 
   public async compile(
+    structure: ResumeStructure,
+    fixtureId?: string,
+  ): Promise<ResumeCompileResult> {
+    return this.#enqueue(() => this.#compileNow(structure, fixtureId));
+  }
+
+  public async compileForPdf(
+    structure: ResumeStructure,
+    fixtureId?: string,
+    captureScreenshot = false,
+  ): Promise<ResumePdfCompilation> {
+    return this.#enqueue(async () => {
+      const result = await this.#compileNow(structure, fixtureId);
+      if (!result.qualified) {
+        throw new Error("Refusing to print an unqualified resume candidate");
+      }
+      const window = await this.#ensureWindow();
+      const pdf = await window.webContents.printToPDF({
+        pageSize: "A4",
+        landscape: false,
+        displayHeaderFooter: false,
+        printBackground: true,
+        scale: 1,
+        margins: { marginType: "none" },
+        preferCSSPageSize: true,
+      });
+      const screenshot = captureScreenshot
+        ? (await window.webContents.capturePage()).toPNG()
+        : undefined;
+      return {
+        result,
+        pdf,
+        ...(screenshot ? { screenshot } : {}),
+      };
+    });
+  }
+
+  async #compileNow(
     structure: ResumeStructure,
     fixtureId?: string,
   ): Promise<ResumeCompileResult> {
@@ -56,25 +102,8 @@ export class ElectronResumeCompilerService {
     return result;
   }
 
-  public async printToPdf(): Promise<Buffer> {
-    const window = await this.#ensureWindow();
-    return window.webContents.printToPDF({
-      pageSize: "A4",
-      landscape: false,
-      displayHeaderFooter: false,
-      printBackground: true,
-      scale: 1,
-      margins: { marginType: "none" },
-      preferCSSPageSize: true,
-    });
-  }
-
-  public async capturePng(): Promise<Buffer> {
-    const window = await this.#ensureWindow();
-    return (await window.webContents.capturePage()).toPNG();
-  }
-
   public dispose(): void {
+    this.#disposed = true;
     this.#ipcMain.removeListener(
       RESUME_COMPILE_RESULT_CHANNEL,
       this.#handleCompileResponse,
@@ -109,7 +138,22 @@ export class ElectronResumeCompilerService {
     pending.resolve(response.result);
   };
 
+  #enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.#disposed) {
+      return Promise.reject(new Error("Resume compiler was disposed"));
+    }
+    const result = this.#operationQueue.then(operation);
+    this.#operationQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
   async #ensureWindow(): Promise<BrowserWindow> {
+    if (this.#disposed) {
+      throw new Error("Resume compiler was disposed");
+    }
     if (this.#window && !this.#window.isDestroyed()) {
       await this.#loadPromise;
       return this.#window;
@@ -154,4 +198,3 @@ export class ElectronResumeCompilerService {
     return window;
   }
 }
-

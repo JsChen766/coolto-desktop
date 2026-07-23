@@ -11,6 +11,7 @@ import { ensureAuthenticated } from "../auth/session-manager.js";
 import { loadLocalEnv, readConfig } from "../config.js";
 import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
+import { ResumeSourceSnapshotBuilder } from "../resume/source-snapshot.js";
 import { createToolRegistry } from "../tools/registry.js";
 import {
   resolvePendingApprovals,
@@ -55,13 +56,22 @@ async function main(): Promise<void> {
     apiClient,
     importProposalStore,
   );
+  const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
+    currentUser: apiClient,
+    profile: apiClient,
+    jd: apiClient,
+    experience: apiClient,
+  });
   const agent = createCooltoAgent({
     apiKey: config.apiKey,
     modelId: config.modelId,
     approvalManager,
     tools: createToolRegistry({
       currentUserReader: apiClient,
+      userProfileReader: apiClient,
       experienceReader: apiClient,
+      jdReader: apiClient,
+      resumeSourceSnapshotBuilder,
       importProposalStore,
       approvalManager,
       selectedFileRegistry: selectedFiles,

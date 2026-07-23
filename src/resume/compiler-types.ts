@@ -57,6 +57,7 @@ export interface ResumeCompileResult {
   overflowPx: number;
   usedHeightPx: number;
   availableHeightPx: number;
+  bodyLineHeightPx: number;
   usageRatio: number;
   effectiveTargetBand: ResumeLayoutTargetBand;
   bullets: ResumeBulletMeasurement[];
@@ -75,4 +76,3 @@ export interface ResumeRendererHostApi {
   ): () => void;
   sendResult(response: ResumeCompileResponse): void;
 }
-

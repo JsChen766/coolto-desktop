@@ -5,6 +5,7 @@ import {
   CooltoApiClient,
   CooltoApiError,
 } from "../src/api/coolto-api-client.js";
+import { ApiContractError } from "../src/api/normalizers.js";
 
 test("API client keeps the login cookie in memory for authenticated calls", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -170,6 +171,37 @@ test("API client reads experience lists and full details with the same session",
   );
 });
 
+test("API client reads profile and versioned JD assets", async () => {
+  const requestedUrls: URL[] = [];
+  const client = new CooltoApiClient({
+    baseUrl: "http://localhost:8000",
+    fetchFn: async (input) => {
+      const url = new URL(String(input));
+      requestedUrls.push(url);
+      if (url.pathname === "/v1/users/me/profile") {
+        return jsonResponse({ success: true, data: userProfile });
+      }
+      if (url.pathname === "/v1/product/jds/jd-1") {
+        return jsonResponse({ success: true, data: jdRecord });
+      }
+      return jsonResponse({
+        success: true,
+        data: { items: [jdRecord], nextCursor: "jd-next" },
+      });
+    },
+  });
+  client.restoreSession("profile.jd.session");
+
+  assert.equal((await client.getUserProfile()).fullName, "Alice Chen");
+  const list = await client.listJds({ limit: 5, cursor: "jd-cursor" });
+  assert.equal(list.items[0]?.requirements[0]?.id, "req-1");
+  assert.equal((await client.getJd("jd-1")).jdHash, "jd-hash");
+  assert.equal(requestedUrls[1]?.searchParams.get("limit"), "5");
+  assert.equal(requestedUrls[1]?.searchParams.get("cursor"), "jd-cursor");
+  assert.equal(requestedUrls[2]?.pathname, "/v1/product/jds/jd-1");
+  await assert.rejects(client.getJd("   "), /jdId 不能为空/);
+});
+
 test("API client maps camelCase input to the backend experience create contract", async () => {
   let requestBody: unknown;
   const client = new CooltoApiClient({
@@ -208,6 +240,46 @@ test("API client maps camelCase input to the backend experience create contract"
     end_date: "present",
     tags: ["TypeScript"],
   });
+});
+
+test("new source readers fail closed on malformed API contracts", async () => {
+  const client = new CooltoApiClient({
+    baseUrl: "http://localhost:8000",
+    fetchFn: async () =>
+      jsonResponse({
+        success: true,
+        data: { ...userProfile, targetRoles: null },
+      }),
+  });
+  client.restoreSession("contract.session.token");
+  await assert.rejects(
+    client.getUserProfile(),
+    (error: unknown) =>
+      error instanceof ApiContractError && /profile\.targetRoles/.test(error.message),
+  );
+});
+
+test("experience readers fail closed on malformed runtime contracts", async () => {
+  const client = new CooltoApiClient({
+    baseUrl: "http://localhost:8000",
+    fetchFn: async () =>
+      jsonResponse({
+        success: true,
+        data: {
+          ...experienceSummary,
+          category: "invented-category",
+          currentRevision: experienceRevision,
+          revisions: [experienceRevision],
+        },
+      }),
+  });
+  client.restoreSession("experience.contract.session");
+
+  await assert.rejects(
+    client.getExperience("exp-1"),
+    (error: unknown) =>
+      error instanceof ApiContractError && /category/.test(error.message),
+  );
 });
 
 test("API client exposes backend login errors without retaining a session", async () => {
@@ -273,4 +345,49 @@ const experienceSummary = {
   currentRevisionId: "rev-1",
   createdAt: "2026-07-01T00:00:00Z",
   updatedAt: "2026-07-01T00:00:00Z",
+};
+
+const userProfile = {
+  fullName: "Alice Chen",
+  email: "alice@example.com",
+  phone: "+852 1234 5678",
+  location: "Hong Kong",
+  linkedinUrl: null,
+  githubUrl: null,
+  personalWebsite: null,
+  currentTitle: null,
+  currentCompany: null,
+  yearsOfExperience: 2,
+  careerStage: "early_career",
+  targetRoles: ["Product Manager"],
+  targetIndustries: [],
+  targetLocations: ["Hong Kong"],
+  preferredLanguage: "zh-CN",
+  resumeStyle: "standard",
+};
+
+const jdRecord = {
+  id: "jd-1",
+  title: "Product Manager",
+  company: "Example",
+  targetRole: "Product Manager",
+  rawText: "Build reliable data products.",
+  requirements: [
+    {
+      id: "req-1",
+      text: "Experience with data products",
+      category: "domain",
+      importance: "high",
+      keywords: ["data"],
+      weight: 0.9,
+      v2Importance: "must_have",
+      v2Category: "domain",
+    },
+  ],
+  jdHash: "jd-hash",
+  requirementMapId: "map-1",
+  requirementsOrigin: "parsed",
+  sourceThreadId: null,
+  createdAt: "2026-07-01T00:00:00Z",
+  updatedAt: "2026-07-02T00:00:00Z",
 };

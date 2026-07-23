@@ -6,6 +6,7 @@ import {
   RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
   RESUME_LAYOUT_TOLERANCE_PX,
 } from "../src/resume/compiler-types.js";
+import { containsLatinOrDigit } from "../src/resume/pdf-postflight.js";
 import { getResumeFixture, RESUME_FIXTURES } from "../src/resume/fixtures.js";
 
 test("resume compiler fixtures preserve stable evidence-linked IDs", () => {
@@ -46,11 +47,31 @@ test("global page gates cannot drift below the product requirements", () => {
   assert.equal(RESUME_LAYOUT_TOLERANCE_PX, 1);
 });
 
+test("PDF font classification treats digits as Times New Roman content", () => {
+  assert.equal(containsLatinOrDigit("2026"), true);
+  assert.equal(containsLatinOrDigit("English"), true);
+  assert.equal(containsLatinOrDigit("中文"), false);
+});
+
 test("hidden renderer uses real DOM geometry and an isolated Chromium host", async () => {
-  const [renderer, service] = await Promise.all([
+  const [fontReadiness, bulletMeasurement, markdown, service] = await Promise.all([
     readFile(
       new URL(
-        "../src/desktop/renderer/src/resume-renderer/compile.ts",
+        "../src/desktop/renderer/src/resume-renderer/font-readiness.ts",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../src/desktop/renderer/src/resume-renderer/bullet-measurement.ts",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../src/desktop/renderer/src/resume-renderer/safe-markdown.ts",
         import.meta.url,
       ),
       "utf8",
@@ -60,9 +81,14 @@ test("hidden renderer uses real DOM geometry and an isolated Chromium host", asy
       "utf8",
     ),
   ]);
-  assert.match(renderer, /document\.fonts\.ready/);
-  assert.match(renderer, /range\.getClientRects\(\)/);
-  assert.match(renderer, /lastLineRatio \+ Number\.EPSILON >= gateRatio/);
+  assert.match(fontReadiness, /document\.fonts\.ready/);
+  assert.match(bulletMeasurement, /range\.getClientRects\(\)/);
+  assert.match(
+    bulletMeasurement,
+    /lastLineRatio \+ Number\.EPSILON >= gateRatio/,
+  );
+  assert.match(markdown, /marked\.parseInline/);
+  assert.match(markdown, /element\.removeAttribute/);
   assert.match(service, /show: false/);
   assert.match(service, /nodeIntegration: false/);
   assert.match(service, /contextIsolation: true/);
@@ -70,4 +96,6 @@ test("hidden renderer uses real DOM geometry and an isolated Chromium host", asy
   assert.match(service, /printToPDF\(\{/);
   assert.match(service, /pageSize: "A4"/);
   assert.match(service, /preferCSSPageSize: true/);
+  assert.match(service, /#operationQueue/);
+  assert.match(service, /Refusing to print an unqualified resume candidate/);
 });

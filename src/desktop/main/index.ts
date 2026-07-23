@@ -5,6 +5,7 @@ import { app, BrowserWindow, ipcMain, shell } from "electron";
 
 import { registerDesktopIpc } from "./ipc.js";
 import { ElectronResumeCompilerService } from "./resume-compiler-service.js";
+import { runResumeWorkspaceQa } from "./resume-workspace-qa.js";
 import { getResumeFixture } from "../../resume/fixtures.js";
 import { inspectResumePdf } from "../../resume/pdf-postflight.js";
 
@@ -12,6 +13,7 @@ let mainWindow: BrowserWindow | undefined;
 
 function createWindow(): void {
   const isMac = process.platform === "darwin";
+  const resumeCompiler = new ElectronResumeCompilerService(ipcMain);
   const window = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -63,10 +65,11 @@ function createWindow(): void {
     }
   });
   window.on("closed", () => {
+    resumeCompiler.dispose();
     mainWindow = undefined;
   });
 
-  registerDesktopIpc(ipcMain, window);
+  registerDesktopIpc(ipcMain, window, resumeCompiler);
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
@@ -97,15 +100,29 @@ async function runResumeRendererQa(): Promise<void> {
       );
     }
 
+    const concurrentCompileResults = await Promise.all([
+      compiler.compile(getResumeFixture("zh-qualified"), "concurrent-qualified"),
+      compiler.compile(getResumeFixture("tail-failure"), "concurrent-tail"),
+    ]);
+
     const pdfFixtureId =
       process.env.COOLTO_RESUME_QA_PDF_FIXTURE ?? "zh-qualified";
-    const pdfCompileResult = await compiler.compile(
+    const pdfCompilation = await compiler.compileForPdf(
       getResumeFixture(pdfFixtureId),
       pdfFixtureId,
+      Boolean(process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH),
     );
-    const pdf = await compiler.printToPdf();
+    const pdfCompileResult = pdfCompilation.result;
+    const pdf = pdfCompilation.pdf;
     const postflight = await inspectResumePdf(pdf);
-    const result = { compileResults, pdfCompileResult, postflight };
+    const workspaceResult = await runResumeWorkspaceQa(compiler);
+    const result = {
+      compileResults,
+      concurrentCompileResults,
+      pdfCompileResult,
+      postflight,
+      workspaceResult,
+    };
 
     if (process.env.COOLTO_RESUME_QA_RESULT_PATH) {
       await writeOutput(
@@ -116,10 +133,13 @@ async function runResumeRendererQa(): Promise<void> {
     if (process.env.COOLTO_RESUME_QA_PDF_PATH) {
       await writeOutput(process.env.COOLTO_RESUME_QA_PDF_PATH, pdf);
     }
-    if (process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH) {
+    if (
+      process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH &&
+      pdfCompilation.screenshot
+    ) {
       await writeOutput(
         process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH,
-        await compiler.capturePng(),
+        pdfCompilation.screenshot,
       );
     }
     if (process.env.COOLTO_RESUME_QA_QUIET !== "1") {

@@ -1,0 +1,256 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { EvidenceValidationError } from "../src/resume/evidence-ledger.js";
+import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../src/resume/template-contract.js";
+import { ResumeCandidatePatcher } from "../src/resume/workspace/candidate-patcher.js";
+import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-preparer.js";
+import { ResumeWorkspaceError } from "../src/resume/workspace/errors.js";
+import { projectResumeWorkspace } from "../src/resume/workspace/workspace-projection.js";
+import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
+import {
+  FixtureResumeCompiler,
+  createBinding,
+  createWorkspaceSnapshotBuilder,
+} from "./support/resume-workspace-fixture.js";
+
+test("preparer creates the fixed resume skeleton and returns a real pixel budget", async () => {
+  const { preparer, compiler } = createServices();
+  const workspace = await preparer.prepare({
+    jdId: "jd-1",
+    experienceIds: ["work-1", "edu-1"],
+    language: "zh-CN",
+  });
+  const projection = projectResumeWorkspace(workspace) as Record<string, any>;
+
+  assert.equal(workspace.candidateId, "candidate-test");
+  assert.equal(workspace.status, "writing");
+  assert.deepEqual(
+    workspace.structure.sections.map((section) => section.heading),
+    ["教育经历", "工作经历", "专业技能"],
+  );
+  assert.equal(workspace.structure.sections[0]?.items[0]?.id, "item-edu-1");
+  assert.equal(workspace.structure.sections[1]?.items[0]?.id, "item-work-1");
+  assert.equal(workspace.structure.sections[2]?.items[0]?.raw_text, "Python、数据分析");
+  assert.equal(workspace.structure.layout_template_id, "resume-standard");
+  assert.equal(compiler.structures.length, 1);
+  assert.equal(projection.budget.pxToMinimum, 200);
+  assert.equal(projection.budget.estimatedBodyLinesRemaining, 17.5);
+  assert.deepEqual(projection.contentDiagnostics.unwrittenExperienceItemIds, [
+    "item-work-1",
+  ]);
+  assert.match(projection.visibleText, /Alice Chen[\s\S]*教育经历[\s\S]*工作经历/);
+  assert.match(projection.instruction, /item-work-1/);
+});
+
+test("patcher reaches qualification with grounded local patches and rejects stale writes", async () => {
+  const { builder, preparer, patcher } = createServices();
+  const snapshot = await buildSnapshot(builder);
+  const initial = await preparer.prepare(prepareInput);
+  const qualified = await patcher.patch({
+    candidateId: initial.candidateId,
+    expectedRevision: 0,
+    operations: [
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。"),
+      },
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。"),
+      },
+    ],
+  });
+
+  assert.equal(qualified.revision, 1);
+  assert.equal(qualified.status, "layout_qualified");
+  assert.equal(qualified.bindings.length, 2);
+  assert.deepEqual(
+    qualified.structure.sections[1]?.items[0]?.bullets.map((bullet) => bullet.id),
+    ["bullet-1", "bullet-2"],
+  );
+  await assert.rejects(
+    patcher.patch({
+      candidateId: initial.candidateId,
+      expectedRevision: 1,
+      operations: [
+        {
+          op: "add_bullet",
+          itemId: "item-work-1",
+          binding: createBinding(
+            snapshot,
+            "bullet-1",
+            "设计异常检查规则并与业务团队协作。",
+          ),
+        },
+      ],
+    }),
+    (error: unknown) =>
+      error instanceof ResumeWorkspaceError && error.code === "duplicate_bullet_id",
+  );
+  await assert.rejects(
+    patcher.patch({
+      candidateId: initial.candidateId,
+      expectedRevision: 0,
+      operations: [{ op: "remove_bullet", bulletId: "bullet-1" }],
+    }),
+    (error: unknown) =>
+      error instanceof ResumeWorkspaceError &&
+      error.code === "stale_candidate_revision",
+  );
+});
+
+test("failed evidence patches are atomic and cannot cross experience ownership", async () => {
+  const { builder, preparer, patcher, store } = createServices();
+  const snapshot = await buildSnapshot(builder);
+  const initial = await preparer.prepare(prepareInput);
+  const invalid = createBinding(snapshot, "bullet-invalid", "使用 Python 清洗运营数据。");
+  invalid.excerpts[0]!.sourceQuote = "伪造的原文";
+
+  await assert.rejects(
+    patcher.patch({
+      candidateId: initial.candidateId,
+      expectedRevision: 0,
+      operations: [
+        { op: "add_bullet", itemId: "item-work-1", binding: invalid },
+      ],
+    }),
+    EvidenceValidationError,
+  );
+  assert.equal(store.get(initial.candidateId).revision, 0);
+
+  const wrongOwner = createBinding(
+    snapshot,
+    "bullet-owner",
+    "使用 Python 清洗运营数据。",
+  );
+  await assert.rejects(
+    patcher.patch({
+      candidateId: initial.candidateId,
+      expectedRevision: 0,
+      operations: [
+        { op: "add_bullet", itemId: "item-edu-1", binding: wrongOwner },
+      ],
+    }),
+    (error: unknown) =>
+      error instanceof ResumeWorkspaceError && error.code === "bullet_source_mismatch",
+  );
+  assert.equal(store.get(initial.candidateId).bindings.length, 0);
+});
+
+test("a worse revision does not replace the best qualified candidate", async () => {
+  const { builder, preparer, patcher } = createServices();
+  const snapshot = await buildSnapshot(builder);
+  const initial = await preparer.prepare({
+    ...prepareInput,
+    initialBindings: [
+      createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。"),
+      createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。"),
+    ],
+  });
+  assert.equal(initial.status, "layout_qualified");
+
+  const worse = await patcher.patch({
+    candidateId: initial.candidateId,
+    expectedRevision: 0,
+    operations: [
+      {
+        op: "replace_bullet",
+        bulletId: "bullet-2",
+        binding: createBinding(
+          snapshot,
+          "bullet-2",
+          "为 3 个团队建立周度报表。",
+          "为 3 个团队建立周度报表，短尾",
+        ),
+      },
+    ],
+  });
+
+  assert.equal(worse.status, "needs_revision");
+  assert.equal(worse.bestSnapshot.revision, 0);
+  assert.equal(worse.bestSnapshot.compileResult.qualified, true);
+  const projection = projectResumeWorkspace(worse) as Record<string, any>;
+  assert.equal(projection.bulletTailDiagnostics[0].bulletId, "bullet-2");
+  assert.equal(projection.bulletTailDiagnostics[0].deficitPx, 200.26);
+});
+
+test("move and remove patches preserve stable IDs and evidence coverage", async () => {
+  const { builder, preparer, patcher } = createServices();
+  const snapshot = await buildSnapshot(builder);
+  const initial = await preparer.prepare({
+    ...prepareInput,
+    initialBindings: [
+      createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。"),
+      createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。"),
+    ],
+  });
+  const moved = await patcher.patch({
+    candidateId: initial.candidateId,
+    expectedRevision: 0,
+    operations: [
+      { op: "move_bullet", bulletId: "bullet-2", afterBulletId: null },
+    ],
+  });
+  assert.deepEqual(
+    moved.structure.sections[1]?.items[0]?.bullets.map((bullet) => bullet.id),
+    ["bullet-2", "bullet-1"],
+  );
+
+  const removed = await patcher.patch({
+    candidateId: initial.candidateId,
+    expectedRevision: 1,
+    operations: [{ op: "remove_bullet", bulletId: "bullet-1" }],
+  });
+  assert.deepEqual(
+    removed.structure.sections[1]?.items[0]?.bullets.map((bullet) => bullet.id),
+    ["bullet-2"],
+  );
+  assert.deepEqual(removed.bindings.map((binding) => binding.bulletId), ["bullet-2"]);
+  assert.equal(removed.bestSnapshot.revision, 0);
+});
+
+test("prepare fails closed without required education", async () => {
+  const { preparer } = createServices();
+  await assert.rejects(
+    preparer.prepare({
+      jdId: "jd-1",
+      experienceIds: ["work-1"],
+      language: "zh-CN",
+    }),
+    (error: unknown) =>
+      error instanceof ResumeWorkspaceError && error.code === "missing_education_source",
+  );
+});
+
+const prepareInput = {
+  jdId: "jd-1",
+  experienceIds: ["edu-1", "work-1"],
+  language: "zh-CN" as const,
+};
+
+function createServices() {
+  const builder = createWorkspaceSnapshotBuilder();
+  const compiler = new FixtureResumeCompiler();
+  const store = new ResumeWorkspaceStore();
+  const preparer = new ResumeCandidatePreparer(builder, compiler, store, {
+    createCandidateId: () => "candidate-test",
+  });
+  return {
+    builder,
+    compiler,
+    store,
+    preparer,
+    patcher: new ResumeCandidatePatcher(compiler, store),
+  };
+}
+
+function buildSnapshot(builder: ReturnType<typeof createWorkspaceSnapshotBuilder>) {
+  return builder.build({
+    jdId: "jd-1",
+    experienceIds: ["edu-1", "work-1"],
+    template: STANDARD_RESUME_TEMPLATE_SNAPSHOT,
+  });
+}

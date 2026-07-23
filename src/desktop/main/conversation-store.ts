@@ -12,6 +12,7 @@ import { join } from "node:path";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { app, safeStorage } from "electron";
 
+import { sanitizeAgentMessagesForPersistence } from "../../agent/persistence-policy.js";
 import type {
   ChatMessage,
   ConversationDetail,
@@ -95,7 +96,7 @@ export class ConversationStore {
     messages: AgentMessage[],
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.agentMessages = structuredClone(messages);
+    record.agentMessages = sanitizeAgentMessagesForPersistence(messages);
     record.updatedAt = new Date().toISOString();
     if (record.title === UNTITLED) {
       record.title = deriveTitle(messages);

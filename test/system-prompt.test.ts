@@ -14,6 +14,13 @@ test("system prompt defines autonomous tool choice and clarification behavior", 
   assert.match(COOLTO_SYSTEM_PROMPT, /不得编造/);
   assert.match(COOLTO_SYSTEM_PROMPT, /nextCursor/);
   assert.match(COOLTO_SYSTEM_PROMPT, /覆盖全部经历/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /currentRevision\.content/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /sourceQuote/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /UTF-16/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /prepare_resume_candidate/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /patch_resume_candidate/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /visibleText/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /layout_qualified/);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得自行生成待决策卡片/);
   assert.match(COOLTO_SYSTEM_PROMPT, /接受、拒绝、自定义回答/);
   assert.match(SYSTEM_PROMPT_VERSION, /^coolto-local-agent\/v\d+$/);

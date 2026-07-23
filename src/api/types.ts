@@ -17,6 +17,79 @@ export interface CurrentUserReader {
   getCurrentUser(signal?: AbortSignal): Promise<CurrentUser>;
 }
 
+export interface UserProfile {
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  personalWebsite: string | null;
+  currentTitle: string | null;
+  currentCompany: string | null;
+  yearsOfExperience: number | null;
+  careerStage: string | null;
+  targetRoles: string[];
+  targetIndustries: string[];
+  targetLocations: string[];
+  preferredLanguage: string | null;
+  resumeStyle: string | null;
+}
+
+export interface UserProfileReader {
+  getUserProfile(signal?: AbortSignal): Promise<UserProfile>;
+}
+
+export type JdRequirementImportance = "low" | "medium" | "high";
+export type JdRequirementV2Importance =
+  | "must_have"
+  | "preferred"
+  | "optional";
+
+export interface JdRequirement {
+  id: string;
+  text: string;
+  category: string;
+  importance: JdRequirementImportance;
+  keywords: string[];
+  weight: number | null;
+  v2Importance: JdRequirementV2Importance | null;
+  v2Category: string | null;
+}
+
+export interface JdRecord {
+  id: string;
+  title: string;
+  company: string | null;
+  targetRole: string | null;
+  rawText: string;
+  requirements: JdRequirement[];
+  jdHash: string | null;
+  requirementMapId: string | null;
+  requirementsOrigin: string;
+  sourceThreadId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JdSearchResult {
+  items: JdRecord[];
+  nextCursor: string | null;
+}
+
+export interface JdSearchOptions {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface JdReader {
+  listJds(
+    options?: JdSearchOptions,
+    signal?: AbortSignal,
+  ): Promise<JdSearchResult>;
+  getJd(jdId: string, signal?: AbortSignal): Promise<JdRecord>;
+}
+
 export type ExperienceCategory =
   | "work"
   | "project"
