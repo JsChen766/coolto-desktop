@@ -1,0 +1,70 @@
+import type { AgentTool, StreamFn } from "@earendil-works/pi-agent-core";
+import {
+  createModels,
+  type Api,
+  type Model,
+  type MutableModels,
+} from "@earendil-works/pi-ai";
+import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek";
+
+import { createToolRegistry } from "../tools/registry.js";
+import { CooltoAgent } from "./coolto-agent.js";
+import { COOLTO_SYSTEM_PROMPT } from "./system-prompt.js";
+
+export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
+export const DEFAULT_PROVIDER_ID = "deepseek";
+
+export interface CreateAgentOptions {
+  apiKey?: string;
+  modelId?: string;
+  systemPrompt?: string;
+  tools?: AgentTool[];
+}
+
+export interface AgentDependencies {
+  model: Model<Api>;
+  streamFn: StreamFn;
+}
+
+export function createDeepSeekDependencies(
+  modelId = DEFAULT_MODEL_ID,
+): AgentDependencies {
+  const models: MutableModels = createModels();
+  models.setProvider(deepseekProvider());
+
+  const model = models.getModel(DEFAULT_PROVIDER_ID, modelId);
+  if (!model) {
+    const available = models
+      .getModels(DEFAULT_PROVIDER_ID)
+      .map((candidate) => candidate.id)
+      .join(", ");
+    throw new Error(
+      `未知的 DeepSeek 模型 "${modelId}"。可用模型：${available || "无"}`,
+    );
+  }
+
+  return {
+    model,
+    streamFn: models.streamSimple.bind(models),
+  };
+}
+
+export function createCooltoAgent(
+  options: CreateAgentOptions = {},
+  dependencies?: AgentDependencies,
+): CooltoAgent {
+  const runtime =
+    dependencies ?? createDeepSeekDependencies(options.modelId);
+
+  const agentOptions = {
+    model: runtime.model,
+    streamFn: runtime.streamFn,
+    systemPrompt: options.systemPrompt ?? COOLTO_SYSTEM_PROMPT,
+    tools: options.tools ?? createToolRegistry(),
+    ...(options.apiKey
+      ? { getApiKey: () => options.apiKey }
+      : {}),
+  };
+
+  return new CooltoAgent(agentOptions);
+}
