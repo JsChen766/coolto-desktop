@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ArrowUp, FileText, Paperclip, Square, X } from "@lucide/vue";
+import { ArrowUp, FileText, Paperclip, Plus, Square, X } from "@lucide/vue";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import IconButton from "./IconButton.vue";
+import ResumePickerPopup from "./ResumePickerPopup.vue";
 import type { ResumeChatReference } from "@desktop/types";
 import type { AttachmentView } from "../attachments/use-conversation-attachment";
 import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 const text = ref("");
 const DEFAULT_ATTACHMENT_PROMPT = "请解析并导入这份简历中的经历";
 const reference = ref<ResumeChatReference>();
+const pickerOpen = ref(false);
 const textarea = ref<HTMLTextAreaElement>();
 const dragActive = ref(false);
 let unsubscribeReference: (() => void) | undefined;
@@ -94,6 +96,11 @@ function handleDrop(event: DragEvent): void {
   } catch {
     return;
   }
+}
+
+function handlePick(selected: ResumeChatReference): void {
+  pickerOpen.value = false;
+  selectReference(selected);
 }
 
 function selectReference(selected: ResumeChatReference): void {
@@ -203,6 +210,13 @@ function fileSize(bytes: number): string {
       <div class="composer-actions">
         <div class="composer-left">
           <IconButton
+            :icon="Plus"
+            label="选择已有简历"
+            :disabled="disabled || running"
+            :size="17"
+            @click="pickerOpen = true"
+          />
+          <IconButton
             :icon="Paperclip"
             label="选择简历附件"
             :disabled="disabled || running || attachmentBusy"
@@ -237,5 +251,10 @@ function fileSize(bytes: number): string {
     <p class="composer-disclaimer">
       Coolto 可能会出错，请核对重要信息与待执行操作。
     </p>
+    <ResumePickerPopup
+      v-if="pickerOpen"
+      @select="handlePick"
+      @close="pickerOpen = false"
+    />
   </footer>
 </template>

@@ -1,0 +1,67 @@
+<template>
+  <div class="resume-picker-backdrop" @click.self="$emit('close')">
+    <div class="resume-picker">
+      <p class="resume-picker-title">选择简历</p>
+      <div v-if="loading" class="resume-picker-loading">加载中…</div>
+      <ul v-else class="resume-picker-list" role="listbox">
+        <li
+          v-for="entry in entries"
+          :key="entry.entryId"
+          class="resume-picker-item"
+          role="option"
+          tabindex="0"
+          @click="pick(entry)"
+          @keydown.enter="pick(entry)"
+        >
+          <span class="resume-picker-item-title">{{ entry.displayTitle }}</span>
+          <span class="resume-picker-item-meta">{{ statusLabel(entry) }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted, ref } from "vue";
+import type { ResumeChatReference } from "@desktop/types";
+import type { ResumeLibraryEntry } from "../../../../../resume/library/types";
+import { desktopApi } from "../lib/desktop-api";
+
+const emit = defineEmits<{
+  select: [reference: ResumeChatReference];
+  close: [];
+}>();
+
+const entries = ref<ResumeLibraryEntry[]>([]);
+const loading = ref(true);
+
+onMounted(async () => {
+  try {
+    entries.value = await desktopApi.library.list();
+  } finally {
+    loading.value = false;
+  }
+});
+
+function statusLabel(entry: ResumeLibraryEntry): string {
+  const s = entry.syncStatus;
+  if (s === "synced") return "已同步";
+  if (s === "cloud_only") return "仅云端";
+  if (s === "local_only") return "仅本机";
+  if (s === "local_changes") return "有本地修改";
+  if (s === "cloud_changes") return "云端已更新";
+  if (s === "conflict") return "冲突";
+  return "";
+}
+
+function pick(entry: ResumeLibraryEntry): void {
+  const artifactId = entry.local?.artifactId ?? entry.cloud?.resumeId ?? entry.entryId;
+  const targetId = artifactId;
+  emit("select", {
+    artifactId,
+    targetType: "resume",
+    targetId,
+    label: entry.displayTitle,
+  });
+}
+</script>
