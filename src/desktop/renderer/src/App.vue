@@ -44,8 +44,6 @@ const {
   send: sendPrompt,
   resolveApproval,
 } = useChatSession(resumeWorkspace);
-const composerInitialValue = ref<string>();
-const composerReference = ref<ResumeChatReference>();
 const scroller = ref<HTMLElement>();
 const dark = ref(localStorage.getItem("coolto-theme") === "dark");
 
@@ -60,8 +58,6 @@ async function send(
   text: string,
   resumeReference?: ResumeChatReference,
 ): Promise<void> {
-  composerInitialValue.value = undefined;
-  composerReference.value = undefined;
   await sendPrompt(text, resumeReference);
 }
 
@@ -82,11 +78,6 @@ function draftCloudState(artifactId: string) {
   return resumeWorkspace.drafts.value.find(
     (draft) => draft.artifactId === artifactId,
   )?.cloudState;
-}
-
-function requestChatEdit(reference: ResumeChatReference): void {
-  composerReference.value = structuredClone(reference);
-  composerInitialValue.value = "请帮我修改这部分内容";
 }
 
 function activeResumeReference(): ResumeChatReference | undefined {
@@ -233,8 +224,6 @@ function scrollToBottom(): void {
           <Composer
             :disabled="!current"
             :running="running"
-            :initial-value="composerInitialValue"
-            :initial-reference="composerReference"
             @send="send"
             @cancel="desktopApi.agent.cancel"
           />
@@ -248,7 +237,6 @@ function scrollToBottom(): void {
           :local-save-state="resumeWorkspace.localSaveState.value"
           @edit="resumeWorkspace.edit"
           @autosave="resumeWorkspace.autosave"
-          @request-chat-edit="requestChatEdit"
           @restore="resumeWorkspace.restore"
           @accept="resumeWorkspace.resolvePending('accept')"
           @reject="resumeWorkspace.resolvePending('reject')"

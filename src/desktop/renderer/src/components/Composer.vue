@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { ArrowUp, FileText, Paperclip, Square, X } from "@lucide/vue";
-import { nextTick, ref, watch } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 
 import IconButton from "./IconButton.vue";
 import type { ResumeChatReference } from "@desktop/types";
+import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
 
 const props = defineProps<{
   disabled?: boolean;
   running?: boolean;
-  initialValue?: string | undefined;
-  initialReference?: ResumeChatReference | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -17,27 +16,17 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
-const text = ref(props.initialValue ?? "");
-const reference = ref<ResumeChatReference | undefined>(props.initialReference);
+const text = ref("");
+const reference = ref<ResumeChatReference>();
 const textarea = ref<HTMLTextAreaElement>();
+const dragActive = ref(false);
+let unsubscribeReference: (() => void) | undefined;
 
-watch(
-  () => props.initialValue,
-  (value) => {
-    if (value !== undefined) {
-      text.value = value;
-      void nextTick(resize);
-    }
-  },
-);
+onMounted(() => {
+  unsubscribeReference = subscribeResumeReference(selectReference);
+});
 
-watch(
-  () => props.initialReference,
-  (value) => {
-    reference.value = value ? structuredClone(value) : undefined;
-  },
-  { deep: true },
-);
+onBeforeUnmount(() => unsubscribeReference?.());
 
 function resize(): void {
   const element = textarea.value;
@@ -64,6 +53,7 @@ function handleKeydown(event: KeyboardEvent): void {
 
 function handleDrop(event: DragEvent): void {
   event.preventDefault();
+  dragActive.value = false;
   const encoded = event.dataTransfer?.getData(
     "application/x-coolto-resume-reference",
   );
@@ -76,22 +66,51 @@ function handleDrop(event: DragEvent): void {
       typeof parsed.targetId === "string" &&
       typeof parsed.label === "string"
     ) {
-      reference.value = parsed;
-      if (!text.value.trim()) text.value = "请帮我修改这部分内容";
-      void nextTick(() => {
-        resize();
-        textarea.value?.focus();
-      });
+      selectReference(parsed);
     }
   } catch {
     return;
+  }
+}
+
+function selectReference(selected: ResumeChatReference): void {
+  reference.value = structuredClone(selected);
+  if (!text.value.trim()) text.value = "请帮我修改这部分内容";
+  void nextTick(() => {
+    resize();
+    textarea.value?.focus();
+  });
+}
+
+function handleDragOver(event: DragEvent): void {
+  event.preventDefault();
+  dragActive.value = true;
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+}
+
+function handleDragLeave(event: DragEvent): void {
+  const container = event.currentTarget as HTMLElement | null;
+  const related = event.relatedTarget as Node | null;
+  if (!container || !related || !container.contains(related)) {
+    dragActive.value = false;
   }
 }
 </script>
 
 <template>
   <footer class="composer-dock">
-    <div class="composer" @dragover.prevent @drop="handleDrop">
+    <div
+      class="composer"
+      :class="{ 'drag-active': dragActive }"
+      @dragenter.prevent="dragActive = true"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop="handleDrop"
+    >
+      <div v-if="dragActive" class="composer-drop-hint">
+        <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
+        松开后引用到聊天
+      </div>
       <div v-if="reference" class="composer-resume-reference">
         <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
         <span>

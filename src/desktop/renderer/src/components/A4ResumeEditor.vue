@@ -12,6 +12,8 @@ import {
   requireResumeTemplate,
   resolveResumeTemplate,
 } from "../resume-renderer/template";
+import { addResumeDragHandle } from "../resume-workspace/resume-drag-source";
+import { publishResumeReference } from "../resume-workspace/resume-reference-channel";
 
 const props = defineProps<{
   draft: ResumeDraftDetail;
@@ -20,7 +22,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   edit: [input: ResumeDraftEditInput];
   autosave: [input: ResumeDraftEditInput];
-  requestChatEdit: [reference: ResumeChatReference];
 }>();
 
 const viewport = ref<HTMLElement>();
@@ -87,18 +88,16 @@ function decorateEditableFields(root: HTMLElement): void {
     const text = bullet.querySelector<HTMLElement>(
       ".resume-document-bullet-text",
     );
-    const marker = bullet.querySelector<HTMLElement>(
-      ".resume-document-bullet-marker",
-    );
-    if (!bulletId || !text || !marker) return;
+    if (!bulletId || !text) return;
     makeEditable(text, { type: "bullet", bulletId });
     if (changed.has(bulletId)) markChangedText(text);
-    makeDraggable(marker, {
+    const reference: ResumeChatReference = {
       artifactId: props.draft.artifactId,
       targetType: "bullet",
       targetId: bulletId,
       label: text.innerText.trim().slice(0, 64),
-    });
+    };
+    addResumeDragHandle(bullet, reference, "bullet");
   });
   root.querySelectorAll<HTMLElement>("[data-item-id]").forEach((item) => {
     const itemId = item.dataset.itemId;
@@ -106,13 +105,16 @@ function decorateEditableFields(root: HTMLElement): void {
     const primary = item.querySelector<HTMLElement>(
       ".resume-document-entry-primary",
     );
-    if (primary) {
-      makeDraggable(primary, {
+    const sectionType = item.closest<HTMLElement>("[data-section-type]")
+      ?.dataset.sectionType;
+    if (primary && ["experience", "project"].includes(sectionType ?? "")) {
+      const reference: ResumeChatReference = {
         artifactId: props.draft.artifactId,
         targetType: "item",
         targetId: itemId,
         label: primary.innerText.trim().slice(0, 64),
-      });
+      };
+      addResumeDragHandle(item, reference, "item");
     }
     const rawText = item.querySelector<HTMLElement>(
       ".resume-document-richtext:not(.resume-document-bullet-text)",
@@ -187,23 +189,6 @@ function emitChangedText(
   else emit("autosave", input);
 }
 
-function makeDraggable(
-  element: HTMLElement,
-  reference: ResumeChatReference,
-): void {
-  element.draggable = true;
-  element.classList.add("resume-draggable-source");
-  element.title = "拖到聊天区，让 AI 修改";
-  element.addEventListener("dragstart", (event) => {
-    event.dataTransfer?.setData(
-      "application/x-coolto-resume-reference",
-      JSON.stringify(reference),
-    );
-    event.dataTransfer?.setData("text/plain", reference.label);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
-  });
-}
-
 function makeLocked(element: HTMLElement): void {
   if (element.classList.contains("resume-editable-text")) return;
   element.classList.add("resume-locked-field");
@@ -241,7 +226,7 @@ function showLockedExplanation(element: HTMLElement): void {
 
 function sendLockedToChat(): void {
   if (!locked.value) return;
-  emit("requestChatEdit", locked.value.reference);
+  publishResumeReference(locked.value.reference);
   locked.value = undefined;
 }
 </script>

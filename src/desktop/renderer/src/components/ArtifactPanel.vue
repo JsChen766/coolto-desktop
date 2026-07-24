@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { FileClock, FileText, LoaderCircle } from "@lucide/vue";
+import { FileClock, FileText, GripVertical, LoaderCircle } from "@lucide/vue";
 import { computed, ref } from "vue";
 
 import type {
-  ResumeChatReference,
   ResumeDraftDetail,
   ResumeDraftEditInput,
   ResumeDraftRestoreInput,
@@ -21,7 +20,6 @@ const props = defineProps<{
 defineEmits<{
   edit: [input: ResumeDraftEditInput];
   autosave: [input: ResumeDraftEditInput];
-  requestChatEdit: [reference: ResumeChatReference];
   restore: [input: ResumeDraftRestoreInput];
   accept: [];
   reject: [];
@@ -96,11 +94,15 @@ const localState = computed(() => {
         </p>
       </div>
 
+      <div class="resume-drag-instruction">
+        <GripVertical :size="14" :stroke-width="1.8" aria-hidden="true" />
+        <span>悬停要点或经历，拖动左侧手柄到聊天；点击手柄也可直接引用</span>
+      </div>
+
       <A4ResumeEditor
         :draft="draft"
         @edit="$emit('edit', $event)"
         @autosave="$emit('autosave', $event)"
-        @request-chat-edit="$emit('requestChatEdit', $event)"
       />
 
       <footer v-if="draft.pendingChange" class="resume-change-actions">
