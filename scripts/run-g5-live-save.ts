@@ -53,27 +53,25 @@ try {
   }));
   const second = await approveSave(client, createLiveSavePayload({
     ...common,
-    proposalId: `g5-live-${runLabel}-variant`,
+    proposalId: `g5-live-${runLabel}-replace`,
     title: `G5 LIVE QA ${runLabel} v2`,
-    mode: "new_variant",
+    mode: "replace_resume",
     resumeId: first.resumeId,
-    expectedBaseVariantId: first.variantId,
+    expectedContentHash: first.contentHash,
   }));
   const appRead = await client.resumes.getResume(first.resumeId);
   const webRead = await readAsWeb(baseUrl, client.getSessionToken(), first.resumeId);
-  assert.equal(appRead.activeVariantId, second.variantId);
-  assert.equal(webRead.activeVariantId, second.variantId);
-  const appActive = appRead.variants.find((variant) => variant.id === second.variantId);
-  const webActive = webRead.variants.find((variant) => variant.id === second.variantId);
-  assert.deepEqual(webActive?.structured, appActive?.structured);
-  assert.ok(appActive?.structured?.sections.flatMap((section) => section.items)
+  assert.equal(appRead.contentHash, second.contentHash);
+  assert.equal(webRead.contentHash, second.contentHash);
+  assert.deepEqual(webRead.structured, appRead.structured);
+  assert.ok(appRead.structured.sections.flatMap((section) => section.items)
     .flatMap((item) => item.bullets)
     .every((bullet) => bullet.source_evidence?.length));
   process.stdout.write(`${JSON.stringify({
     passed: true,
     resumeId: first.resumeId,
-    firstVariantId: first.variantId,
-    activeVariantId: second.variantId,
+    firstContentHash: first.contentHash,
+    currentContentHash: second.contentHash,
     createdSourceCount: created.length,
     usageRatio: compileResult.usageRatio,
     minimumBulletTailRatio: Math.min(...compileResult.bullets.map((item) => item.lastLineRatio)),
@@ -99,7 +97,7 @@ async function approveSave(client: CooltoApiClient, payload: ResumeSaveApprovalP
     const message = completed?.type === "approval.failed" ? completed.message : "no result";
     throw new Error(`G5 live approval failed: ${message}`);
   }
-  return completed.details as { resumeId: string; variantId: string };
+  return completed.details as { resumeId: string; contentHash: string };
 }
 
 async function readQualifiedCompileResult(path: string): Promise<ResumeCompileResult> {

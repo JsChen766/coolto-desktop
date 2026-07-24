@@ -33,6 +33,18 @@ export interface ConversationDetail extends ConversationSummary {
   resumeArtifacts: ResumeDraftArtifactReference[];
 }
 
+export interface DesktopAttachment {
+  id: string;
+  filename: string;
+  type: "pdf" | "docx" | "text" | "markdown";
+  sizeBytes: number;
+}
+
+export interface AttachmentRemoveInput {
+  conversationId: string;
+  fileId: string;
+}
+
 export interface ResumeDraftCheckpointView {
   id: string;
   label: string;
@@ -198,6 +210,11 @@ export interface DesktopApi {
     get(conversationId: string): Promise<ConversationDetail>;
     rename(input: ConversationRenameInput): Promise<ConversationSummary>;
     delete(conversationId: string): Promise<void>;
+  };
+  attachments: {
+    list(conversationId: string): Promise<DesktopAttachment[]>;
+    select(conversationId: string): Promise<DesktopAttachment | undefined>;
+    remove(input: AttachmentRemoveInput): Promise<void>;
   };
   resumeDrafts: {
     list(): Promise<ResumeDraftSummary[]>;

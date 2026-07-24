@@ -9,7 +9,7 @@ src/desktop/renderer/src/resume/template/
 
 The three authorities are intentionally separate:
 
-- `../cv-agent`: persisted `ResumeVariant.structured` semantics, layout manifest,
+- `../cv-agent`: persisted `Resume.structured` semantics, layout manifest,
   profile hashes, and font binaries;
 - `../cv_agent_frontend`: canonical Web DOM/CSS renderer and DOM measurement;
 - this App: an independent local Pi Agent and renderer that must preserve both
@@ -37,7 +37,6 @@ uni-app component directly, but it must preserve the same canonical DOM classes,
 CSS-variable mapping, font rules, section/item/bullet IDs, and measurement
 algorithm.
 
-The persisted JSON shape is represented in `src/resume/types.ts`. New App
-variants must store that snake_case `ResumeStructure` directly in
-`ResumeVariant.structured`; no App-only translation format is allowed.
-
+The persisted JSON shape is represented in `src/resume/types.ts`. The App and
+Web store that snake_case `ResumeStructure` directly in the one cloud
+`Resume.structured` document; no App-only translation format is allowed.

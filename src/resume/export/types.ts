@@ -21,7 +21,7 @@ export interface ResolvedResumePdfSource {
   candidateId?: string;
   candidateRevision?: number;
   resumeId?: string;
-  variantId?: string;
+  contentHash?: string;
 }
 
 export interface ResumePdfExportApprovalPayload

@@ -1,10 +1,8 @@
 /**
  * Shared resume storage/API contract.
  *
- * The snake_case fields inside `ResumeStructure` are persisted in the backend
- * `ResumeVariant.structured` JSON. The camelCase fields on Resume/ResumeVariant
- * mirror the existing product API response. Do not translate the structured
- * payload into a second App-only format.
+ * The snake_case fields inside `ResumeStructure` are persisted directly on the
+ * backend Resume document. Do not translate the payload into an App-only format.
  */
 
 export type ResumeTemplateId = "resume-standard" | "resume-sparse";
@@ -15,15 +13,6 @@ export type ResumeSectionType =
   | "experience"
   | "project"
   | "skills"
-  | "other";
-
-/** The legacy ResumeItem table uses the backend's plural `projects` value. */
-export type ResumeItemSectionType =
-  | "summary"
-  | "experience"
-  | "education"
-  | "skills"
-  | "projects"
   | "other";
 
 export interface ResumeBullet {
@@ -89,7 +78,6 @@ export interface ResumeQualityIssue {
   message: string;
 }
 
-/** Reads both current and legacy persisted variants. */
 export interface ResumeStructure {
   language: string;
   contact: ResumeContact | null;
@@ -104,7 +92,7 @@ export interface ResumeStructure {
   quality_issues?: ResumeQualityIssue[];
 }
 
-/** New App-generated variants must always pin the complete layout contract. */
+/** New App-generated documents must always pin the complete layout contract. */
 export interface CurrentResumeStructure extends ResumeStructure {
   layout_template_id: ResumeTemplateId;
   layout_profile_version: string;
@@ -114,22 +102,20 @@ export interface CurrentResumeStructure extends ResumeStructure {
 }
 
 export type ResumeStatus = "draft" | "active" | "published" | "archived";
-export type ResumeVariantGateStatus =
+export type ResumeQualityStatus =
   | "unverified"
   | "passed"
   | "needs_revision"
   | "failed";
-export type ResumeVariantPublicationStatus =
-  | "staged"
-  | "published"
-  | "discarded";
 
 export interface Resume {
   id: string;
   title: string;
   targetRole: string | null;
   jdId: string | null;
-  activeVariantId: string | null;
+  contentHash: string;
+  schemaVersion: string;
+  qualityStatus: ResumeQualityStatus;
   status: ResumeStatus;
   createdAt: string;
   updatedAt: string;
@@ -156,37 +142,13 @@ export interface ResumeRiskSummaryItem {
   severity: string;
 }
 
-export interface ResumeVariant {
-  id: string;
-  title: string;
+export interface ResumeFull extends Resume {
+  structured: ResumeStructure;
   content: string;
-  structured?: ResumeStructure | null;
-  parentVariantId?: string | null;
-  version?: number;
   score: ResumeScore;
   evidenceSummary: ResumeEvidenceSummaryItem[];
   riskSummary: ResumeRiskSummaryItem[];
   missingInfo: string[];
-  gateStatus?: ResumeVariantGateStatus;
-  publicationStatus?: ResumeVariantPublicationStatus;
-  createdAt: string;
-}
-
-export interface ResumeItem {
-  id: string;
-  resumeId: string;
-  sectionType: ResumeItemSectionType;
-  title: string | null;
-  contentSnapshot: string;
-  orderIndex: number;
-  hidden: boolean;
-  pinned: boolean;
-  sourceExperienceId: string | null;
-  sourceVariantId: string | null;
-  updatedAt: string;
-}
-
-export interface ResumeFull extends Resume {
-  items: ResumeItem[];
-  variants: ResumeVariant[];
+  qualityIssues: Array<Record<string, unknown>>;
+  qualityGateVersion: string | null;
 }

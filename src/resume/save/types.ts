@@ -1,7 +1,7 @@
 import type { ResumeFull, ResumeStructure } from "../types.js";
 import type { BulletEvidenceBinding } from "../source-types.js";
 
-export type ResumeSaveMode = "new_resume" | "new_variant";
+export type ResumeSaveMode = "new_resume" | "replace_resume";
 
 export interface ResumeBrowserLayoutObservation {
   run_id: null;
@@ -42,66 +42,29 @@ export interface ResumeSaveApprovalPayload {
   targetRole: string | null;
   jdId: string;
   resumeId?: string;
-  expectedBaseVariantId?: string;
+  expectedContentHash?: string;
   sourceFingerprint: string;
   structured: ResumeStructure;
   evidenceBindings: BulletEvidenceBinding[];
   observation: ResumeBrowserLayoutObservation;
 }
 
-export interface ResumePublicationStageResult {
-  resumeId: string;
-  variantId: string;
-  gateStatus: "unverified" | "passed" | "needs_revision" | "failed";
-  publicationStatus: "staged" | "published" | "discarded";
-  activeVariantId: string | null;
+export interface ResumePublicationResult extends ResumeFull {
   created: boolean;
-}
-
-export interface ResumePublicationVerification {
-  resumeId: string;
-  variantId: string;
-  status: "passed" | "needs_revision" | "failed";
-  canAccept: boolean;
-  violations: Array<{ code: string; message: string; bullet_id?: string }>;
   pageUsageRatio: number;
-}
-
-export interface ResumePublicationAcceptResult {
-  resumeId: string;
-  variantId: string;
-  activeVariantId: string;
-  gateStatus: "passed";
-  publicationStatus: "published";
 }
 
 export interface ResumePublicationGateway {
   listResumes(signal?: AbortSignal): Promise<ResumeFull[]>;
   getResume(resumeId: string, signal?: AbortSignal): Promise<ResumeFull>;
-  stageNew(
+  publishNew(
     payload: ResumeSaveApprovalPayload,
     idempotencyKey: string,
     signal?: AbortSignal,
-  ): Promise<ResumePublicationStageResult>;
-  stageVariant(
+  ): Promise<ResumePublicationResult>;
+  publishExisting(
     payload: ResumeSaveApprovalPayload,
     idempotencyKey: string,
     signal?: AbortSignal,
-  ): Promise<ResumePublicationStageResult>;
-  verify(
-    resumeId: string,
-    variantId: string,
-    observation: ResumeBrowserLayoutObservation,
-    signal?: AbortSignal,
-  ): Promise<ResumePublicationVerification>;
-  accept(
-    resumeId: string,
-    variantId: string,
-    signal?: AbortSignal,
-  ): Promise<ResumePublicationAcceptResult>;
-  reject(
-    resumeId: string,
-    variantId: string,
-    signal?: AbortSignal,
-  ): Promise<void>;
+  ): Promise<ResumePublicationResult>;
 }

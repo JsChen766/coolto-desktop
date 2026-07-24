@@ -1,26 +1,59 @@
 import type {
   Resume,
   ResumeFull,
-  ResumeItem,
-  ResumeVariant,
+  ResumeScore,
 } from "../resume/types.js";
 
 export function normalizeResumeFull(value: unknown): ResumeFull {
   const source = record(value, "resume");
   return {
     ...normalizeResume(source),
-    items: array(source.items).map(normalizeItem),
-    variants: array(source.variants).map(normalizeVariant),
+    structured: record(source.structured, "resume.structured") as unknown as ResumeFull["structured"],
+    content: text(source.content, "resume.content"),
+    score: normalizeScore(source.score),
+    evidenceSummary: array(source.evidenceSummary).map((item) => {
+      const value = record(item, "resume.evidenceSummary item");
+      return {
+        requirementId: text(value.requirement_id, "evidence.requirement_id"),
+        requirementText: text(value.requirement_text, "evidence.requirement_text"),
+        supportingClaims: array(value.supporting_claims).filter(
+          (claim): claim is string => typeof claim === "string",
+        ),
+        matchScore: number(value.match_score, "evidence.match_score"),
+      };
+    }),
+    riskSummary: array(source.riskSummary).map((item) => {
+      const value = record(item, "resume.riskSummary item");
+      return {
+        type: text(value.type, "risk.type"),
+        text: text(value.text, "risk.text"),
+        severity: text(value.severity, "risk.severity"),
+      };
+    }),
+    missingInfo: array(source.missingInfo).filter((item): item is string => typeof item === "string"),
+    qualityIssues: array(source.qualityIssues).filter(
+      (item): item is Record<string, unknown> => !!item && typeof item === "object" && !Array.isArray(item),
+    ),
+    qualityGateVersion: nullableText(source.qualityGateVersion),
   };
 }
 
 export function normalizeResumeList(value: unknown): ResumeFull[] {
   const source = record(value, "resume list");
-  return array(source.items).map((item) => ({
-    ...normalizeResume(record(item, "resume")),
-    items: [],
-    variants: [],
-  }));
+  return array(source.items).map((item) => {
+    const summary = normalizeResume(record(item, "resume"));
+    return {
+      ...summary,
+      structured: { language: "zh-CN", contact: null, sections: [] },
+      content: "",
+      score: emptyScore(),
+      evidenceSummary: [],
+      riskSummary: [],
+      missingInfo: [],
+      qualityIssues: [],
+      qualityGateVersion: null,
+    };
+  });
 }
 
 function normalizeResume(source: Record<string, unknown>): Resume {
@@ -29,72 +62,28 @@ function normalizeResume(source: Record<string, unknown>): Resume {
     title: text(source.title, "resume.title"),
     targetRole: nullableText(source.targetRole),
     jdId: nullableText(source.jdId),
-    activeVariantId: nullableText(source.activeVariantId),
+    contentHash: text(source.contentHash, "resume.contentHash"),
+    schemaVersion: text(source.schemaVersion, "resume.schemaVersion"),
+    qualityStatus: text(source.qualityStatus, "resume.qualityStatus") as Resume["qualityStatus"],
     status: text(source.status, "resume.status") as Resume["status"],
     createdAt: text(source.createdAt, "resume.createdAt"),
     updatedAt: text(source.updatedAt, "resume.updatedAt"),
   };
 }
 
-function normalizeItem(value: unknown): ResumeItem {
-  const source = record(value, "resume item");
-  return {
-    id: text(source.id, "item.id"),
-    resumeId: text(source.resumeId, "item.resumeId"),
-    sectionType: text(source.sectionType, "item.sectionType") as ResumeItem["sectionType"],
-    title: nullableText(source.title),
-    contentSnapshot: text(source.contentSnapshot, "item.contentSnapshot"),
-    orderIndex: number(source.orderIndex, "item.orderIndex"),
-    hidden: boolean(source.hidden, "item.hidden"),
-    pinned: boolean(source.pinned, "item.pinned"),
-    sourceExperienceId: nullableText(source.sourceExperienceId),
-    sourceVariantId: nullableText(source.sourceVariantId),
-    updatedAt: text(source.updatedAt, "item.updatedAt"),
-  };
-}
-
-function normalizeVariant(value: unknown): ResumeVariant {
-  const source = record(value, "resume variant");
-  const version = typeof source.version === "number" ? source.version : undefined;
-  const gateStatus = typeof source.gateStatus === "string"
-    ? source.gateStatus as NonNullable<ResumeVariant["gateStatus"]>
-    : undefined;
-  const publicationStatus = typeof source.publicationStatus === "string"
-    ? source.publicationStatus as NonNullable<ResumeVariant["publicationStatus"]>
-    : undefined;
-  return {
-    id: text(source.id, "variant.id"),
-    title: text(source.title, "variant.title"),
-    content: text(source.content, "variant.content"),
-    structured:
-      source.structured && typeof source.structured === "object"
-        ? source.structured as NonNullable<ResumeVariant["structured"]>
-        : null,
-    parentVariantId: nullableText(source.parentVariantId),
-    ...(version === undefined ? {} : { version }),
-    score: normalizeScore(source.score),
-    evidenceSummary: Array.isArray(source.evidenceSummary)
-      ? source.evidenceSummary as ResumeVariant["evidenceSummary"]
-      : [],
-    riskSummary: Array.isArray(source.riskSummary)
-      ? source.riskSummary as ResumeVariant["riskSummary"]
-      : [],
-    missingInfo: array(source.missingInfo).filter((item): item is string => typeof item === "string"),
-    ...(gateStatus ? { gateStatus } : {}),
-    ...(publicationStatus ? { publicationStatus } : {}),
-    createdAt: text(source.createdAt, "variant.createdAt"),
-  };
-}
-
-function normalizeScore(value: unknown): ResumeVariant["score"] {
-  const source = record(value, "variant.score");
+function normalizeScore(value: unknown): ResumeScore {
+  const source = record(value, "resume.score");
   return {
     overall: number(source.overall, "score.overall"),
     relevance: number(source.relevance, "score.relevance"),
     clarity: number(source.clarity, "score.clarity"),
-    evidenceStrength: number(source.evidenceStrength, "score.evidenceStrength"),
-    quantifiedImpact: number(source.quantifiedImpact, "score.quantifiedImpact"),
+    evidenceStrength: number(source.evidence_strength, "score.evidence_strength"),
+    quantifiedImpact: number(source.quantified_impact, "score.quantified_impact"),
   };
+}
+
+function emptyScore(): ResumeScore {
+  return { overall: 0, relevance: 0, clarity: 0, evidenceStrength: 0, quantifiedImpact: 0 };
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
@@ -113,9 +102,5 @@ function nullableText(value: unknown): string | null {
 }
 function number(value: unknown, label: string): number {
   if (typeof value !== "number") throw new Error(`Malformed ${label}`);
-  return value;
-}
-function boolean(value: unknown, label: string): boolean {
-  if (typeof value !== "boolean") throw new Error(`Malformed ${label}`);
   return value;
 }

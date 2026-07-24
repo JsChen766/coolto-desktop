@@ -1,11 +1,8 @@
 import type { AuthenticatedRequester } from "./api-transport.js";
 import { normalizeResumeFull, normalizeResumeList } from "./resume-normalizers.js";
 import type {
-  ResumeBrowserLayoutObservation,
-  ResumePublicationAcceptResult,
   ResumePublicationGateway,
-  ResumePublicationStageResult,
-  ResumePublicationVerification,
+  ResumePublicationResult,
   ResumeSaveApprovalPayload,
 } from "../resume/save/types.js";
 
@@ -28,71 +25,51 @@ export class ResumePublicationApi implements ResumePublicationGateway {
     return normalizeResumeFull(value);
   }
 
-  public stageNew(
+  public async publishNew(
     payload: ResumeSaveApprovalPayload,
     idempotencyKey: string,
     signal?: AbortSignal,
-  ): Promise<ResumePublicationStageResult> {
-    return this.post("/v1/product/resumes/staged", stageBody(payload, idempotencyKey), signal);
+  ): Promise<ResumePublicationResult> {
+    const value = await this.write(
+      "/v1/product/resumes/publish",
+      "POST",
+      publishBody(payload, idempotencyKey),
+      signal,
+    );
+    return normalizePublication(value);
   }
 
-  public stageVariant(
+  public async publishExisting(
     payload: ResumeSaveApprovalPayload,
     idempotencyKey: string,
     signal?: AbortSignal,
-  ): Promise<ResumePublicationStageResult> {
+  ): Promise<ResumePublicationResult> {
     const resumeId = required(payload.resumeId, "resumeId");
-    return this.post(
-      `/v1/product/resumes/${encodeURIComponent(resumeId)}/variants`,
-      stageBody(payload, idempotencyKey),
+    const value = await this.write(
+      `/v1/product/resumes/${encodeURIComponent(resumeId)}/publish`,
+      "PUT",
+      publishBody(payload, idempotencyKey),
       signal,
     );
+    return normalizePublication(value);
   }
 
-  public verify(
-    resumeId: string,
-    variantId: string,
-    observation: ResumeBrowserLayoutObservation,
+  private write(
+    path: string,
+    method: "POST" | "PUT",
+    body: unknown,
     signal?: AbortSignal,
-  ): Promise<ResumePublicationVerification> {
-    return this.post(
-      actionPath(resumeId, variantId, "verify-layout"),
-      { observation },
-      signal,
-    );
-  }
-
-  public accept(
-    resumeId: string,
-    variantId: string,
-    signal?: AbortSignal,
-  ): Promise<ResumePublicationAcceptResult> {
-    return this.post(actionPath(resumeId, variantId, "accept"), undefined, signal);
-  }
-
-  public async reject(
-    resumeId: string,
-    variantId: string,
-    signal?: AbortSignal,
-  ): Promise<void> {
-    await this.post(actionPath(resumeId, variantId, "reject"), undefined, signal);
-  }
-
-  private post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
-    return this.requester.request<T>(path, {
-      method: "POST",
-      ...(body === undefined
-        ? {}
-        : {
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(body),
-          }),
+  ): Promise<unknown> {
+    return this.requester.request<unknown>(path, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
       ...(signal ? { signal } : {}),
     });
   }
 }
 
-function stageBody(payload: ResumeSaveApprovalPayload, idempotencyKey: string) {
+function publishBody(payload: ResumeSaveApprovalPayload, idempotencyKey: string) {
   return {
     idempotencyKey,
     proposalId: payload.proposalId,
@@ -102,12 +79,25 @@ function stageBody(payload: ResumeSaveApprovalPayload, idempotencyKey: string) {
     sourceFingerprint: payload.sourceFingerprint,
     structured: payload.structured,
     evidenceBindings: payload.evidenceBindings,
-    expectedBaseVariantId: payload.expectedBaseVariantId,
+    observation: payload.observation,
+    expectedContentHash: payload.expectedContentHash,
   };
 }
 
-function actionPath(resumeId: string, variantId: string, action: string): string {
-  return `/v1/product/resumes/${encodeURIComponent(required(resumeId, "resumeId"))}/variants/${encodeURIComponent(required(variantId, "variantId"))}/${action}`;
+function normalizePublication(value: unknown): ResumePublicationResult {
+  const source = record(value);
+  return {
+    ...normalizeResumeFull(source),
+    created: source.created === true,
+    pageUsageRatio: typeof source.pageUsageRatio === "number" ? source.pageUsageRatio : 0,
+  };
+}
+
+function record(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Malformed resume publication response");
+  }
+  return value as Record<string, unknown>;
 }
 
 function required(value: string | undefined, label: string): string {

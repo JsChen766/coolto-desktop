@@ -14,14 +14,14 @@ export function createResumeSaveApprovalDraft(
     actionType: RESUME_SAVE_ACTION_TYPE,
     scopeKey: `resume-save:${payload.candidateId}`,
     risk: "write",
-    title: payload.mode === "new_resume" ? "保存新简历" : "保存简历新版本",
+    title: payload.mode === "new_resume" ? "保存新简历" : "覆盖云端简历",
     description:
-      "接受后将创建 staged 版本，服务端复验来源和 Chromium 布局，通过后才设为 active。",
+      "接受后服务端将原子复验来源和 Chromium 布局；全部通过才写入唯一的云端简历文档。",
     preview: {
       summary: [
         { label: "简历标题", value: payload.title },
         { label: "目标岗位", value: payload.targetRole ?? "未设置" },
-        { label: "保存方式", value: payload.mode === "new_resume" ? "新建简历" : "新增版本" },
+        { label: "保存方式", value: payload.mode === "new_resume" ? "新建简历" : "覆盖当前文档" },
         { label: "页面占比", value: `${(payload.observation.used_height_px / payload.observation.available_height_px * 100).toFixed(2)}%` },
         { label: "最低尾行", value: `${(minimumTail * 100).toFixed(2)}%` },
         { label: "模板", value: `${payload.observation.template_id} / ${payload.observation.profile_version}` },
@@ -31,11 +31,11 @@ export function createResumeSaveApprovalDraft(
           title: "将影响的云端固定资产",
           description:
             payload.mode === "new_resume"
-              ? "创建 1 份 Resume 和首个 ResumeVariant"
-              : `为 Resume ${payload.resumeId} 创建 1 个新版本`,
+              ? "创建 1 份 Resume"
+              : `原子替换 Resume ${payload.resumeId} 的当前内容`,
         },
       ],
-      warnings: ["来源或 active version 在审批期间变化时，保存会失败并要求重新确认。"],
+      warnings: ["云端 contentHash 在审批期间变化时，保存会失败并要求重新确认。"],
     },
   };
 }

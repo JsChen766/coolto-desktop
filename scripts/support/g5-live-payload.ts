@@ -54,7 +54,7 @@ export function createLiveSavePayload(input: {
   title: string;
   mode: ResumeSaveMode;
   resumeId?: string;
-  expectedBaseVariantId?: string;
+  expectedContentHash?: string;
 }): ResumeSaveApprovalPayload {
   const structured = structuredClone(input.source);
   const byItem = new Map(input.created.map((source) => [source.itemId, source]));
@@ -101,8 +101,8 @@ export function createLiveSavePayload(input: {
     targetRole: input.targetRole,
     jdId: input.jdId,
     ...(input.resumeId ? { resumeId: input.resumeId } : {}),
-    ...(input.expectedBaseVariantId
-      ? { expectedBaseVariantId: input.expectedBaseVariantId }
+    ...(input.expectedContentHash
+      ? { expectedContentHash: input.expectedContentHash }
       : {}),
     sourceFingerprint: sha256(input.created.map((source) => source.experience.id).join(":")),
     structured,

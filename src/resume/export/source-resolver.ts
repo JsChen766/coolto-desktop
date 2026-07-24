@@ -54,23 +54,18 @@ export class ResumePdfExportSourceResolver {
     const resumeId = input.resumeId.trim();
     if (!resumeId) throw publishedError("resumeId is required");
     const resume = await this.resumes.getResume(resumeId, signal);
-    const variant = resume.variants.find(
-      (candidate) => candidate.id === resume.activeVariantId,
-    );
     if (
-      !variant ||
-      variant.publicationStatus !== "published" ||
-      variant.gateStatus !== "passed" ||
-      !variant.structured
+      resume.status !== "published" ||
+      resume.qualityStatus !== "passed"
     ) {
-      throw publishedError("Resume has no active published and passed structured variant");
+      throw publishedError("Resume is not a published and quality-passed document");
     }
     return {
       source: "published",
       title: requiredTitle(input.title ?? resume.title),
       resumeId: resume.id,
-      variantId: variant.id,
-      structure: structuredClone(variant.structured),
+      contentHash: resume.contentHash,
+      structure: structuredClone(resume.structured),
     };
   }
 }

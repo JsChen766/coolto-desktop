@@ -14,7 +14,7 @@ export interface BuildResumeSaveProposalInput {
   title: string;
   mode: ResumeSaveMode;
   resumeId?: string;
-  expectedBaseVariantId?: string;
+  expectedContentHash?: string;
 }
 
 export class ResumeSaveProposalBuilder {
@@ -52,7 +52,7 @@ export class ResumeSaveProposalBuilder {
     }
     const title = input.title.trim();
     if (!title) throw new Error("简历标题不能为空");
-    const versionTarget = resolveVersionTarget(input);
+    const cloudTarget = resolveCloudTarget(input);
     const proposalId = `resume-save-${randomUUID()}`;
     const structured = structuredClone(workspace.structure);
     structured.layout_usage_ratio = workspace.compileResult.usageRatio;
@@ -64,7 +64,7 @@ export class ResumeSaveProposalBuilder {
       title,
       targetRole: workspace.sourceSnapshot.jd.targetRole,
       jdId: workspace.sourceSnapshot.jd.id,
-      ...versionTarget,
+      ...cloudTarget,
       sourceFingerprint: workspace.sourceSnapshot.sourceFingerprint,
       structured,
       evidenceBindings: structuredClone(workspace.bindings),
@@ -76,12 +76,12 @@ export class ResumeSaveProposalBuilder {
   }
 }
 
-function resolveVersionTarget(input: BuildResumeSaveProposalInput) {
+function resolveCloudTarget(input: BuildResumeSaveProposalInput) {
   if (input.mode === "new_resume") return {};
   const resumeId = input.resumeId?.trim();
-  const expectedBaseVariantId = input.expectedBaseVariantId?.trim();
-  if (!resumeId || !expectedBaseVariantId) {
-    throw new Error("保存为新版本时必须指定 resumeId 和当前 active variant ID");
+  const expectedContentHash = input.expectedContentHash?.trim();
+  if (!resumeId || !expectedContentHash) {
+    throw new Error("覆盖云端简历时必须指定 resumeId 和当前 contentHash");
   }
-  return { resumeId, expectedBaseVariantId };
+  return { resumeId, expectedContentHash };
 }

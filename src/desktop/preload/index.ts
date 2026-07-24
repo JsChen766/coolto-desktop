@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import type {
   AgentPromptInput,
+  AttachmentRemoveInput,
   ApprovalResolveInput,
   ConversationRenameInput,
   DesktopAgentEvent,
@@ -25,6 +26,14 @@ const api: DesktopApi = {
       ipcRenderer.invoke("conversations:rename", input),
     delete: (conversationId) =>
       ipcRenderer.invoke("conversations:delete", conversationId),
+  },
+  attachments: {
+    list: (conversationId) =>
+      ipcRenderer.invoke("attachments:list", conversationId),
+    select: (conversationId) =>
+      ipcRenderer.invoke("attachments:select", conversationId),
+    remove: (input: AttachmentRemoveInput) =>
+      ipcRenderer.invoke("attachments:remove", input),
   },
   resumeDrafts: {
     list: () => ipcRenderer.invoke("resume-drafts:list"),

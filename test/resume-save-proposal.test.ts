@@ -25,15 +25,15 @@ test("ready workspace becomes an immutable save proposal with raw layout data", 
   assert.notEqual(payload.structured.sections[0]!.heading, "mutated outside payload");
 });
 
-test("new version proposals require an explicit resume and active variant", async () => {
+test("replacement proposals require an explicit resume and content hash", async () => {
   const { proposalBuilder, ready } = await createReadySaveFixture();
   assert.throws(
     () =>
       proposalBuilder.build({
         candidateId: ready.candidateId,
         expectedRevision: ready.revision,
-        title: "新版本",
-        mode: "new_variant",
+        title: "覆盖当前简历",
+        mode: "replace_resume",
       }),
     /resumeId/,
   );

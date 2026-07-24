@@ -11,10 +11,10 @@ const parameters = Type.Object({
   title: Type.String({ minLength: 1, maxLength: 300 }),
   mode: Type.Union([
     Type.Literal("new_resume"),
-    Type.Literal("new_variant"),
+    Type.Literal("replace_resume"),
   ]),
   resumeId: Type.Optional(Type.String({ minLength: 1 })),
-  expectedBaseVariantId: Type.Optional(Type.String({ minLength: 1 })),
+  expectedContentHash: Type.Optional(Type.String({ minLength: 1 })),
 });
 
 export function createPrepareResumeSaveTool(
@@ -25,7 +25,7 @@ export function createPrepareResumeSaveTool(
     name: "prepare_resume_save",
     label: "准备保存简历",
     description:
-      "只允许 ready_for_approval 候选调用。创建不可变保存审批卡，不直接写云端。保存为已有简历新版本时必须提供 resumeId 和当前 active variant ID。",
+      "只允许 ready_for_approval 候选调用。创建不可变保存审批卡，不直接写云端。覆盖已有简历时必须提供 resumeId 和当前 contentHash。",
     parameters,
     execute: async (_toolCallId, params) => {
       const payload = builder.build(params);

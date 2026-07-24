@@ -15,7 +15,7 @@ export function createResumeReadTools(
     name: "list_resumes",
     label: "查看简历列表",
     description:
-      "保存为已有简历的新版本前列出用户可见的正式简历。只返回定位目标所需的 ID、标题和 active variant，不返回 staged 草稿。",
+      "覆盖已有简历前列出用户可见的云端简历。每个 ID 对应一份唯一的当前文档。",
     parameters: listParameters,
     execute: async (_toolCallId, _params, signal) => {
       const resumes = await reader.listResumes(signal);
@@ -24,7 +24,8 @@ export function createResumeReadTools(
         title: resume.title,
         targetRole: resume.targetRole,
         jdId: resume.jdId,
-        activeVariantId: resume.activeVariantId,
+        contentHash: resume.contentHash,
+        qualityStatus: resume.qualityStatus,
         updatedAt: resume.updatedAt,
       }));
       return {
@@ -35,9 +36,9 @@ export function createResumeReadTools(
   };
   const getTool: AgentTool<typeof getParameters> = {
     name: "get_resume",
-    label: "读取简历版本信息",
+    label: "读取简历",
     description:
-      "读取指定正式简历及其 published 版本元数据，用于确认保存目标和当前 active variant；不调用后端 Agent。",
+      "读取指定云端简历的当前完整文档和 contentHash，用于确认覆盖目标；不调用后端 Agent。",
     parameters: getParameters,
     execute: async (_toolCallId, params, signal) => {
       const resume = await reader.getResume(params.resumeId, signal);
@@ -46,15 +47,11 @@ export function createResumeReadTools(
         title: resume.title,
         targetRole: resume.targetRole,
         jdId: resume.jdId,
-        activeVariantId: resume.activeVariantId,
-        variants: resume.variants.map((variant) => ({
-          id: variant.id,
-          title: variant.title,
-          version: variant.version,
-          gateStatus: variant.gateStatus,
-          publicationStatus: variant.publicationStatus,
-          createdAt: variant.createdAt,
-        })),
+        contentHash: resume.contentHash,
+        schemaVersion: resume.schemaVersion,
+        qualityStatus: resume.qualityStatus,
+        status: resume.status,
+        updatedAt: resume.updatedAt,
       };
       return {
         content: [{ type: "text", text: JSON.stringify(projection) }],

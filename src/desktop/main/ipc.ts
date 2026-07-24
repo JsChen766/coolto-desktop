@@ -1,9 +1,10 @@
-import type { BrowserWindow, IpcMain } from "electron";
+import { dialog, type BrowserWindow, type IpcMain } from "electron";
 
 import type { ApprovalDecision } from "../../approvals/types.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import type {
   AgentPromptInput,
+  AttachmentRemoveInput,
   ApprovalResolveInput,
   ConversationRenameInput,
   ResumeDraftEditInput,
@@ -12,6 +13,7 @@ import type {
 import { DesktopAgentRuntime } from "./agent-runtime.js";
 import { DesktopAuthService } from "./auth-service.js";
 import { ConversationStore } from "./conversation-store.js";
+import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ElectronResumePdfSaveDialog } from "./electron-pdf-save-dialog.js";
 import { ResumePdfExportService } from "./resume-pdf-export-service.js";
 import { createElectronResumeDraftRepository } from "./resume-drafts/electron-draft-repository.js";
@@ -25,6 +27,7 @@ interface UserServices {
   resumeDrafts: ResumeDraftService;
   resumeDraftEditing: ResumeDraftEditingService;
   agent: DesktopAgentRuntime;
+  selectedFiles: ConversationSelectedFiles;
 }
 
 export function registerDesktopIpc(
@@ -52,6 +55,7 @@ export function registerDesktopIpc(
       user.id,
       createElectronResumeDraftRepository(user.id),
     );
+    const selectedFiles = new ConversationSelectedFiles();
     services = {
       ownerId: user.id,
       conversations,
@@ -67,7 +71,9 @@ export function registerDesktopIpc(
         window.webContents,
         resumeCompiler,
         resumePdfExports,
+        selectedFiles,
       ),
+      selectedFiles,
     };
     return services;
   };
@@ -80,12 +86,15 @@ export function registerDesktopIpc(
     "auth:login",
     async (_event, email: string, password: string) => {
       const user = await auth.login(email.trim(), password);
+      services?.agent.cancel();
+      services?.selectedFiles.clear();
       services = undefined;
       return { id: user.id, email: user.email };
     },
   );
   ipcMain.handle("auth:logout", async () => {
     services?.agent.cancel();
+    services?.selectedFiles.clear();
     services = undefined;
     await auth.logout();
   });
@@ -110,7 +119,49 @@ export function registerDesktopIpc(
   ipcMain.handle(
     "conversations:delete",
     async (_event, conversationId: string) => {
-      await (await servicesForCurrentUser()).conversations.delete(conversationId);
+      const current = await servicesForCurrentUser();
+      await current.conversations.delete(conversationId);
+      current.selectedFiles.release(conversationId);
+    },
+  );
+
+  ipcMain.handle("attachments:list", async (_event, conversationId: string) => {
+    const current = await servicesForCurrentUser();
+    await current.conversations.get(conversationId);
+    return current.selectedFiles.list(conversationId);
+  });
+  ipcMain.handle(
+    "attachments:select",
+    async (_event, conversationId: string) => {
+      const current = await servicesForCurrentUser();
+      await current.conversations.get(conversationId);
+      if (current.agent.isRunning) {
+        throw new Error("Agent 回复期间不能更换附件");
+      }
+      const selection = await dialog.showOpenDialog(window, {
+        title: "选择简历附件",
+        properties: ["openFile"],
+        filters: [
+          {
+            name: "简历文件",
+            extensions: ["pdf", "docx", "txt", "md", "markdown"],
+          },
+        ],
+      });
+      const path = selection.filePaths[0];
+      if (selection.canceled || !path) return undefined;
+      return current.selectedFiles.replace(conversationId, path);
+    },
+  );
+  ipcMain.handle(
+    "attachments:remove",
+    async (_event, input: AttachmentRemoveInput) => {
+      const current = await servicesForCurrentUser();
+      await current.conversations.get(input.conversationId);
+      if (current.agent.isRunning) {
+        throw new Error("Agent 回复期间不能移除附件");
+      }
+      current.selectedFiles.remove(input.conversationId, input.fileId);
     },
   );
 
@@ -173,6 +224,9 @@ const IPC_CHANNELS = [
   "conversations:get",
   "conversations:rename",
   "conversations:delete",
+  "attachments:list",
+  "attachments:select",
+  "attachments:remove",
   "resume-drafts:list",
   "resume-drafts:get",
   "resume-drafts:edit",

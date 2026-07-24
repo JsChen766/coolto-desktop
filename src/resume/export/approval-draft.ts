@@ -23,7 +23,7 @@ export function createResumePdfExportApprovalDraft(
         { label: "建议文件名", value: payload.suggestedFilename },
         {
           label: "来源",
-          value: payload.source === "candidate" ? "已通过质量门的候选" : "正式 active 版本",
+          value: payload.source === "candidate" ? "已通过质量门的候选" : "云端正式文档",
         },
         { label: "页数", value: String(payload.compileResult.pageCount) },
         { label: "页面占比", value: `${(payload.compileResult.usageRatio * 100).toFixed(2)}%` },

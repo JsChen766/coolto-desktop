@@ -65,8 +65,8 @@
     {
       "origin": "cv_agent_frontend/src/api/resumes.ts",
       "target": "resources/resume-template/web-reference/resumes-api.ts.source",
-      "sha256": "e0b85de22516a908713aa4dad9c77065e3c0d9e50a9d6fa27759a2337febbd0d",
-      "size": 8230
+      "sha256": "e1d80ba07ed2de14d5558e58939d89e6f97a6420d9006121291baef5dc71ba14",
+      "size": 6220
     }
   ]
 }

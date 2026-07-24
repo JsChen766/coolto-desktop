@@ -6,7 +6,6 @@ import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
 import { readConfig } from "../../config.js";
-import { SelectedFileRegistry } from "../../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
 import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
@@ -29,6 +28,7 @@ import type {
   DesktopAgentEvent,
 } from "../shared/types.js";
 import { ConversationStore } from "./conversation-store.js";
+import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 
 interface ConversationAgentContext {
@@ -49,6 +49,7 @@ export class DesktopAgentRuntime {
   readonly #target: WebContents;
   readonly #resumeCompiler: ResumePdfCompiler;
   readonly #resumePdfExports: ResumePdfExportGateway;
+  readonly #selectedFiles: ConversationSelectedFiles;
   readonly #contexts = new Map<string, ConversationAgentContext>();
   #runningConversationId: string | undefined;
 
@@ -59,6 +60,7 @@ export class DesktopAgentRuntime {
     target: WebContents,
     resumeCompiler: ResumePdfCompiler,
     resumePdfExports: ResumePdfExportGateway,
+    selectedFiles: ConversationSelectedFiles,
   ) {
     this.#apiClient = apiClient;
     this.#store = store;
@@ -66,6 +68,7 @@ export class DesktopAgentRuntime {
     this.#target = target;
     this.#resumeCompiler = resumeCompiler;
     this.#resumePdfExports = resumePdfExports;
+    this.#selectedFiles = selectedFiles;
   }
 
   public get isRunning(): boolean {
@@ -180,7 +183,7 @@ export class DesktopAgentRuntime {
 
   #createContext(conversationId: string): ConversationAgentContext {
     const config = readConfig();
-    const selectedFiles = new SelectedFileRegistry();
+    const selectedFiles = this.#selectedFiles.forConversation(conversationId);
     const proposalStore = new ExperienceImportProposalStore();
     const approvalManager = createActionApprovalManager(
       this.#apiClient,

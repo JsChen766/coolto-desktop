@@ -15,6 +15,7 @@ import MarkdownContent from "./components/MarkdownContent.vue";
 import Sidebar from "./components/Sidebar.vue";
 import ToolActivity from "./components/ToolActivity.vue";
 import { useChatSession } from "./chat/use-chat-session";
+import { useConversationAttachment } from "./attachments/use-conversation-attachment";
 import { desktopApi } from "./lib/desktop-api";
 import { useResumeWorkspace } from "./resume-workspace/use-resume-workspace";
 
@@ -44,6 +45,9 @@ const {
   send: sendPrompt,
   resolveApproval,
 } = useChatSession(resumeWorkspace);
+const conversationAttachment = useConversationAttachment(
+  () => current.value?.id,
+);
 const scroller = ref<HTMLElement>();
 const dark = ref(localStorage.getItem("coolto-theme") === "dark");
 
@@ -224,8 +228,13 @@ function scrollToBottom(): void {
           <Composer
             :disabled="!current"
             :running="running"
+            :attachment="conversationAttachment.attachment.value"
+            :attachment-busy="conversationAttachment.selecting.value"
+            :attachment-error="conversationAttachment.error.value"
             @send="send"
             @cancel="desktopApi.agent.cancel"
+            @select-attachment="conversationAttachment.select"
+            @remove-attachment="conversationAttachment.remove"
           />
         </section>
 

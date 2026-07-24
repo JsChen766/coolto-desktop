@@ -25,7 +25,7 @@ export interface ResumeDraftPendingChange {
 
 export interface ResumeDraftCloudLink {
   resumeId: string;
-  variantId: string;
+  contentHash: string;
   syncedAt: string;
   syncedRevision: number;
 }

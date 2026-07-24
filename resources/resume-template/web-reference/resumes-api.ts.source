@@ -1,79 +1,41 @@
 import { request, buildQuery } from './client'
 import { postSse } from './sse'
 import type { BrowserLayoutObservation } from '../utils/resume-dom-measurement'
-import type { CoverageReport, EditDiff, ResumeStructure } from '../types/generated-content'
+import type { EditDiff, ResumeStructure } from '../types/generated-content'
 
 export interface Resume {
   id: string
   title: string
   targetRole: string | null
   jdId: string | null
-  activeVariantId: string | null
-  status: string
+  contentHash: string
+  schemaVersion: string
+  qualityStatus: 'unverified' | 'passed' | 'needs_revision' | 'failed'
+  status: 'draft' | 'active' | 'published' | 'archived'
   createdAt: string
   updatedAt: string
 }
 
-export interface ResumeItem {
-  id: string
-  resumeId: string
-  sectionType: string
-  title: string | null
-  contentSnapshot: string
-  orderIndex: number
-  hidden: boolean
-  pinned: boolean
-  sourceExperienceId: string | null
-  sourceVariantId: string | null
-  updatedAt: string
-}
-
-export interface ResumeVariant {
-  id: string
-  title: string
+export interface ResumeFull extends Resume {
+  structured: ResumeStructure
   content: string
   score: {
     overall: number
     relevance: number
     clarity: number
-    evidenceStrength: number
-    quantifiedImpact: number
+    evidence_strength: number
+    quantified_impact: number
   }
   evidenceSummary: Array<{
-    requirementId: string
-    requirementText: string
-    supportingClaims: string[]
-    matchScore: number
+    requirement_id: string
+    requirement_text: string
+    supporting_claims: string[]
+    match_score: number
   }>
-  riskSummary: Array<{
-    type: string
-    text: string
-    severity: string
-  }>
+  riskSummary: Array<{ type: string; text: string; severity: string }>
   missingInfo: string[]
-  structured?: ResumeStructure | null
-  coverageReport?: CoverageReport | null
-  parentVariantId?: string | null
-  version?: number
-  gateStatus?: 'unverified' | 'passed' | 'needs_revision' | 'failed'
-  publicationStatus?: 'staged' | 'published' | 'discarded'
-  createdAt: string
-}
-
-export interface ReplaceStructuredResult {
-  variantId: string
-  structured: ResumeStructure
-  content: string
-  version: number
-  parentVariantId: string | null
-  gateStatus: 'unverified' | 'passed' | 'needs_revision' | 'failed'
-  qualityStatus: 'pass' | 'needs_revision'
-  layoutReport: Record<string, unknown>
-}
-
-export interface ResumeFull extends Resume {
-  items: ResumeItem[]
-  variants: ResumeVariant[]
+  qualityIssues: Array<Record<string, unknown>>
+  qualityGateVersion: string | null
 }
 
 export interface ResumeAiEditMessage {
@@ -88,7 +50,7 @@ export interface ResumeAiEditTarget {
 }
 
 export interface ResumeAiEditRequest {
-  baseVariantId: string
+  baseContentHash: string
   message: string
   messageContext?: string
   target?: ResumeAiEditTarget
@@ -99,7 +61,7 @@ export interface ResumeAiEditRequest {
 export interface ResumeAiEditProposalEvent {
   event: 'resume.edit.proposal'
   resume_id: string
-  base_variant_id: string
+  base_content_hash: string
   proposal_id: string
   structured: ResumeStructure
   content: string
@@ -142,17 +104,11 @@ export interface ResumeAiEditVerification {
   canRetry: boolean
   canRemeasure: boolean
   nextRepairAttempt: number | null
-  repairBaseVariantId: string | null
+  repairBaseContentHash: string | null
   repairInstruction: string | null
   repairableBulletIds: string[]
   violations: ResumeAiEditViolation[]
   pageUsageRatio: number
-}
-
-export interface ResumeAiEditAcceptResult {
-  resumeId: string
-  activeVariantId: string
-  variant: ResumeVariant
 }
 
 export interface ResumeAiEditRejectResult {
@@ -165,8 +121,7 @@ export interface ResumeAiEditReviseResult {
   proposalId: string
   structured: ResumeStructure
   content: string
-  gateStatus: 'unverified'
-  publicationStatus: 'staged'
+  qualityStatus: 'unverified'
 }
 
 export interface ResumeListResult {
@@ -176,32 +131,26 @@ export interface ResumeListResult {
 
 export interface CreateResumeBody {
   title: string
+  structured: ResumeStructure
   targetRole?: string
   jdId?: string
+  status?: Resume['status']
+}
+
+export interface ReplaceResumeBody {
+  structured: ResumeStructure
+  expectedContentHash?: string
+  title?: string
+  targetRole?: string
+  jdId?: string
+  status?: Resume['status']
 }
 
 export interface UpdateResumeBody {
   title?: string
   targetRole?: string
   jdId?: string
-  status?: string
-}
-
-export interface AddItemBody {
-  sectionType: string
-  title?: string
-  contentSnapshot?: string
-  orderIndex?: number
-  sourceExperienceId?: string
-}
-
-export interface UpdateItemBody {
-  sectionType?: 'summary' | 'experience' | 'education' | 'skills' | 'projects' | 'other'
-  title?: string
-  contentSnapshot?: string
-  orderIndex?: number
-  hidden?: boolean
-  pinned?: boolean
+  status?: Resume['status']
 }
 
 function listResumes(limit = 20, cursor?: string): Promise<ResumeListResult> {
@@ -209,46 +158,20 @@ function listResumes(limit = 20, cursor?: string): Promise<ResumeListResult> {
   return request<ResumeListResult>(`/v1/product/resumes${qs}`)
 }
 
-function createResume(body: CreateResumeBody): Promise<Resume> {
-  return request<Resume>('/v1/product/resumes', { method: 'POST', data: body })
+function createResume(body: CreateResumeBody): Promise<ResumeFull> {
+  return request<ResumeFull>('/v1/product/resumes', { method: 'POST', data: body })
 }
 
 function getResume(resumeId: string): Promise<ResumeFull> {
   return request<ResumeFull>(`/v1/product/resumes/${resumeId}`)
 }
 
-function updateResume(resumeId: string, body: UpdateResumeBody): Promise<Resume> {
-  return request<Resume>(`/v1/product/resumes/${resumeId}`, { method: 'PATCH', data: body })
+function replaceResume(resumeId: string, body: ReplaceResumeBody): Promise<ResumeFull> {
+  return request<ResumeFull>(`/v1/product/resumes/${resumeId}`, { method: 'PUT', data: body })
 }
 
-function addItem(resumeId: string, body: AddItemBody): Promise<ResumeItem> {
-  return request<ResumeItem>(`/v1/product/resumes/${resumeId}/items`, { method: 'POST', data: body })
-}
-
-function updateItem(itemId: string, body: UpdateItemBody): Promise<ResumeItem> {
-  return request<ResumeItem>(`/v1/product/resume-items/${itemId}`, { method: 'PATCH', data: body })
-}
-
-function deleteItem(itemId: string): Promise<{ deleted: boolean }> {
-  return request<{ deleted: boolean }>(`/v1/product/resume-items/${itemId}`, { method: 'DELETE' })
-}
-
-function reorderItems(resumeId: string, orderedIds: string[]): Promise<ResumeItem[]> {
-  return request<ResumeItem[]>(`/v1/product/resumes/${resumeId}/reorder`, {
-    method: 'POST',
-    data: { ordered_ids: orderedIds },
-  })
-}
-
-function replaceVariantStructured(
-  resumeId: string,
-  variantId: string,
-  structured: ResumeStructure,
-): Promise<ReplaceStructuredResult> {
-  return request<ReplaceStructuredResult>(
-    `/v1/product/resumes/${resumeId}/variants/${variantId}/structured`,
-    { method: 'PUT', data: { structured } },
-  )
+function updateResume(resumeId: string, body: UpdateResumeBody): Promise<ResumeFull> {
+  return request<ResumeFull>(`/v1/product/resumes/${resumeId}`, { method: 'PATCH', data: body })
 }
 
 function streamAiEdit(
@@ -259,11 +182,7 @@ function streamAiEdit(
   onError: (error: unknown) => void,
 ): AbortController {
   return postSse<ResumeAiEditSseEvent>(
-    `/v1/product/resumes/${resumeId}/ai-edits/stream`,
-    body,
-    onEvent,
-    onDone,
-    onError,
+    `/v1/product/resumes/${resumeId}/ai-edits/stream`, body, onEvent, onDone, onError,
   )
 }
 
@@ -279,8 +198,8 @@ function verifyAiEditLayout(
   )
 }
 
-function acceptAiEdit(resumeId: string, proposalId: string): Promise<ResumeAiEditAcceptResult> {
-  return request<ResumeAiEditAcceptResult>(
+function acceptAiEdit(resumeId: string, proposalId: string): Promise<ResumeFull> {
+  return request<ResumeFull>(
     `/v1/product/resumes/${resumeId}/ai-edits/${proposalId}/accept`,
     { method: 'POST', timeout: 60000 },
   )
@@ -305,7 +224,14 @@ function reviseAiEdit(
 }
 
 export const resumesApi = {
-  listResumes, createResume, getResume, updateResume,
-  addItem, updateItem, deleteItem, reorderItems, replaceVariantStructured,
-  streamAiEdit, verifyAiEditLayout, acceptAiEdit, rejectAiEdit, reviseAiEdit,
+  listResumes,
+  createResume,
+  getResume,
+  replaceResume,
+  updateResume,
+  streamAiEdit,
+  verifyAiEditLayout,
+  acceptAiEdit,
+  rejectAiEdit,
+  reviseAiEdit,
 }

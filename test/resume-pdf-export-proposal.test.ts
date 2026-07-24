@@ -4,9 +4,10 @@ import test from "node:test";
 import type { ResumePublicationGateway } from "../src/resume/save/types.js";
 import { ResumePdfExportProposalBuilder } from "../src/resume/export/proposal-builder.js";
 import { ResumePdfExportSourceResolver } from "../src/resume/export/source-resolver.js";
-import type { ResumeFull, ResumeStructure } from "../src/resume/types.js";
+import type { ResumeFull } from "../src/resume/types.js";
 import { createReadySaveFixture } from "./support/resume-save-fixture.js";
 import { FixtureResumeCompiler } from "./support/resume-workspace-fixture.js";
+import { cloudResumeFixture } from "./support/cloud-resume-fixture.js";
 
 test("ready candidate becomes an isolated and freshly compiled PDF proposal", async () => {
   const { store, ready } = await createReadySaveFixture();
@@ -30,38 +31,23 @@ test("ready candidate becomes an isolated and freshly compiled PDF proposal", as
   assert.notEqual(payload.structure.sections[0]!.heading, "mutated");
 });
 
-test("published PDF source resolves only the active passed variant", async () => {
+test("published PDF source resolves the one passed cloud document", async () => {
   const { store, ready } = await createReadySaveFixture();
-  const resume = publishedResume(ready.structure);
+  const resume = cloudResumeFixture(ready.structure);
   const builder = new ResumePdfExportProposalBuilder(
     new ResumePdfExportSourceResolver(store, readerFor(resume)),
     new FixtureResumeCompiler(),
   );
   const payload = await builder.build({ source: "published", resumeId: resume.id });
   assert.equal(payload.resumeId, resume.id);
-  assert.equal(payload.variantId, resume.activeVariantId);
+  assert.equal(payload.contentHash, resume.contentHash);
 
-  resume.variants[0]!.gateStatus = "failed";
+  resume.qualityStatus = "failed";
   await assert.rejects(
     builder.build({ source: "published", resumeId: resume.id }),
-    /active published and passed/u,
+    /quality-passed/u,
   );
 });
-
-function publishedResume(structure: ResumeStructure): ResumeFull {
-  return {
-    id: "resume-1", title: "正式简历", targetRole: "产品经理", jdId: "jd-1",
-    activeVariantId: "variant-1", status: "active",
-    createdAt: "2026-07-24", updatedAt: "2026-07-24", items: [],
-    variants: [{
-      id: "variant-1", title: "正式简历", content: "resume", structured: structure,
-      parentVariantId: null, version: 1,
-      score: { overall: 1, relevance: 1, clarity: 1, evidenceStrength: 1, quantifiedImpact: 1 },
-      evidenceSummary: [], riskSummary: [], missingInfo: [], gateStatus: "passed",
-      publicationStatus: "published", createdAt: "2026-07-24",
-    }],
-  };
-}
 
 function readerFor(resume: ResumeFull): ResumePublicationGateway {
   return { ...unusedReader(), listResumes: async () => [resume], getResume: async () => resume };
@@ -70,7 +56,9 @@ function readerFor(resume: ResumeFull): ResumePublicationGateway {
 function unusedReader(): ResumePublicationGateway {
   const unused = async () => { throw new Error("not used"); };
   return {
-    listResumes: unused, getResume: unused, stageNew: unused, stageVariant: unused,
-    verify: unused, accept: unused, reject: unused,
+    listResumes: unused,
+    getResume: unused,
+    publishNew: unused,
+    publishExisting: unused,
   };
 }

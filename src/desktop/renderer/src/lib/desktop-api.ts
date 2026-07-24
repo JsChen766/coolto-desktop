@@ -2,6 +2,7 @@ import type {
   ChatMessage,
   ConversationDetail,
   ConversationSummary,
+  DesktopAttachment,
   DesktopAgentEvent,
   DesktopApi,
   ResumeDraftDetail,
@@ -32,6 +33,11 @@ function createUnavailableDesktopApi(): DesktopApi {
       rename: unavailable,
       delete: unavailable,
     },
+    attachments: {
+      list: unavailable,
+      select: unavailable,
+      remove: unavailable,
+    },
     resumeDrafts: {
       list: unavailable,
       get: unavailable,
@@ -61,6 +67,7 @@ function createBrowserDemoApi(): DesktopApi {
     (conversationId: string, event: DesktopAgentEvent) => void
   >();
   let currentUser = { id: "preview-user", email: "preview@example.com" };
+  const demoAttachments = new Map<string, DesktopAttachment>();
   let conversations: ConversationDetail[] = [
     {
       id: crypto.randomUUID(),
@@ -164,6 +171,29 @@ function createBrowserDemoApi(): DesktopApi {
         conversations = conversations.filter(
           (candidate) => candidate.id !== conversationId,
         );
+        demoAttachments.delete(conversationId);
+      },
+    },
+    attachments: {
+      list: async (conversationId) => {
+        const attachment = demoAttachments.get(conversationId);
+        return attachment ? [structuredClone(attachment)] : [];
+      },
+      select: async (conversationId) => {
+        find(conversationId);
+        const attachment: DesktopAttachment = {
+          id: `attachment-${crypto.randomUUID()}`,
+          filename: "产品经理简历.docx",
+          type: "docx",
+          sizeBytes: 84_320,
+        };
+        demoAttachments.set(conversationId, attachment);
+        return structuredClone(attachment);
+      },
+      remove: async ({ conversationId, fileId }) => {
+        const attachment = demoAttachments.get(conversationId);
+        if (attachment?.id !== fileId) throw new Error("附件不存在");
+        demoAttachments.delete(conversationId);
       },
     },
     resumeDrafts: {

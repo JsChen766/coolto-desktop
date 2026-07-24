@@ -22,7 +22,7 @@ export function createPrepareResumePdfExportTool(
     name: "prepare_resume_pdf_export",
     label: "准备导出简历 PDF",
     description:
-      "为 ready_for_approval 候选或正式 active 版本创建本地导出审批。工具本身不弹对话框、不打印、不写文件。",
+      "为 ready_for_approval 候选或云端正式简历创建本地导出审批。工具本身不弹对话框、不打印、不写文件。",
     parameters,
     execute: async (_toolCallId, params, signal) => {
       const payload = await builder.build(sourceInput(params), signal);

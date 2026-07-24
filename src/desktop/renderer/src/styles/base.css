@@ -1597,7 +1597,75 @@ button:disabled {
   color: var(--bg);
 }
 
-/* Composer resume reference */
+/* Composer local attachment and resume reference */
+.composer-attachment {
+  min-height: 42px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: var(--surface-strong);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-soft);
+}
+
+.composer-attachment-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.composer-attachment-name {
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-attachment small {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.composer-attachment .attachment-status-parsing,
+.composer-attachment .attachment-status-partial {
+  color: var(--text-soft);
+}
+
+.composer-attachment .attachment-status-parsed,
+.composer-attachment .attachment-status-saved {
+  color: var(--text);
+}
+
+.composer-attachment .attachment-status-error,
+.composer-attachment-message,
+.composer-attachment-error {
+  color: var(--danger);
+}
+
+.composer-attachment button {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.composer-attachment button:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.composer-attachment-error {
+  margin: 0 5px;
+  font-size: 10.5px;
+}
+
 .composer-resume-reference {
   min-height: 38px;
   padding: 7px 8px;
