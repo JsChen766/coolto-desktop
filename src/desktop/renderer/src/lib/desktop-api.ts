@@ -340,7 +340,7 @@ function createDemoLibraryEntries() {
         updatedAt: new Date(Date.now() - 3_600_000).toISOString(),
       },
       local: {
-        artifactId: "draft-001",
+        artifactId: "741d9167-d87d-4a28-8b78-525d8a0a1017",
         title: "高级前端工程师简历",
         updatedAt: now,
         checkpointCount: 3,

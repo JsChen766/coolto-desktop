@@ -2,6 +2,7 @@
 import { nextTick, onMounted, ref, watch } from "vue";
 
 import type { ResumeChatReference } from "@desktop/types";
+import type { ResumeLibraryEntry } from "../../../../resume/library/types";
 import ApprovalCard from "./components/ApprovalCard.vue";
 import ArtifactPanel from "./components/ArtifactPanel.vue";
 import JdArtifactCard from "./components/JdArtifactCard.vue";
@@ -82,6 +83,14 @@ async function openResumeDraft(artifactId: string): Promise<void> {
   activeArtifactType.value = "resume";
   artifactOpen.value = true;
   await resumeWorkspace.openDraft(artifactId);
+}
+
+async function openFromLibrary(entry: ResumeLibraryEntry): Promise<void> {
+  libraryOpen.value = false;
+  if (entry.local) {
+    await openResumeDraft(entry.local.artifactId);
+  }
+  // TODO: cloud_only — 拉取云端内容创建本地草稿后再打开
 }
 
 function openJdPanel(proposalId: string): void {
@@ -190,7 +199,7 @@ function scrollToBottom(): void {
     />
 
     <main class="main-workspace">
-      <ResumeLibraryView v-if="libraryOpen" @close="libraryOpen = false" />
+      <ResumeLibraryView v-if="libraryOpen" @close="libraryOpen = false" @open="openFromLibrary" />
       <template v-else>
       <ChatHeader
         :title="current?.title ?? '新对话'"

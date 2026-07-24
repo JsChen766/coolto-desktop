@@ -99,7 +99,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
       <span>新对话</span>
     </button>
 
-    <button class="library-entry-btn icon-label" type="button" @click="$emit('openLibrary')">
+    <button class="new-chat-button icon-label" type="button" @click="$emit('openLibrary')">
       <FolderOpen :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span>简历仓库</span>
     </button>

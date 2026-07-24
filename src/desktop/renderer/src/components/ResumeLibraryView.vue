@@ -28,33 +28,14 @@
       <p>暂无简历{{ keyword ? '（尝试调整搜索词）' : '' }}</p>
     </div>
 
-    <ul v-else class="library-list" role="list">
-      <li v-for="entry in filtered" :key="entry.entryId">
-        <ResumeLibraryRow
-          :entry="entry"
-          @open="handleOpen"
-          @rename="library.rename"
-          @archive="library.archive"
-          @delete="library.deleteDraft"
-          @history="handleHistory"
-        />
-        <SyncConflictModal
-          v-if="conflictEntry?.entryId === entry.entryId"
-          :title="entry.displayTitle"
-          @reload="handleReload(entry)"
-          @saveAsNew="handleSaveAsNew(entry)"
-          @overwrite="handleOverwrite(entry)"
-          @cancel="conflictEntry = null"
-        />
-      </li>
-    </ul>
-
-    <ResumeCheckpointList
-      v-if="library.checkpoints.value.length > 0 && library.checkpointDraftId.value"
-      :checkpoints="library.checkpoints.value"
-      @close="library.clearCheckpoints()"
-      @restore="handleRestore"
-    />
+    <div v-else class="library-grid">
+      <ResumeLibraryCard
+        v-for="entry in filtered"
+        :key="entry.entryId"
+        :entry="entry"
+        @open="handleOpen"
+      />
+    </div>
   </div>
 </template>
 
@@ -62,9 +43,7 @@
 import { computed, onMounted, ref } from "vue";
 import type { ResumeLibraryEntry } from "../../../../../resume/library/types";
 import { useResumeLibrary } from "../library/use-resume-library";
-import ResumeLibraryRow from "./ResumeLibraryRow.vue";
-import ResumeCheckpointList from "./ResumeCheckpointList.vue";
-import SyncConflictModal from "./SyncConflictModal.vue";
+import ResumeLibraryCard from "./ResumeLibraryCard.vue";
 
 const emit = defineEmits<{
   close: [];
@@ -74,12 +53,11 @@ const emit = defineEmits<{
 const library = useResumeLibrary();
 const keyword = ref("");
 const statusFilter = ref("");
-const conflictEntry = ref<ResumeLibraryEntry | null>(null);
 
 onMounted(() => library.load());
 
-const filtered = computed(() => {
-  return library.entries.value.filter((e) => {
+const filtered = computed(() =>
+  library.entries.value.filter((e) => {
     if (keyword.value) {
       const kw = keyword.value.toLowerCase();
       const match =
@@ -94,40 +72,10 @@ const filtered = computed(() => {
       if (statusFilter.value === "conflict") return e.syncStatus === "conflict";
     }
     return true;
-  });
-});
+  }),
+);
 
 function handleOpen(entry: ResumeLibraryEntry) {
-  if (entry.syncStatus === "conflict") {
-    conflictEntry.value = entry;
-    return;
-  }
-  emit("open", entry);
-}
-
-async function handleHistory(artifactId: string) {
-  await library.loadCheckpoints(artifactId);
-}
-
-async function handleRestore(checkpointId: string) {
-  const artifactId = library.checkpointDraftId.value;
-  if (!artifactId) return;
-  await library.restoreCheckpoint(artifactId, checkpointId);
-}
-
-function handleReload(entry: ResumeLibraryEntry) {
-  conflictEntry.value = null;
-  emit("open", { ...entry, syncStatus: "cloud_only" });
-}
-
-function handleSaveAsNew(_entry: ResumeLibraryEntry) {
-  conflictEntry.value = null;
-  // Navigates to the chat to generate a new resume; handled by parent
-  alert("请在对话中使用「保存为新简历」操作。");
-}
-
-function handleOverwrite(entry: ResumeLibraryEntry) {
-  conflictEntry.value = null;
   emit("open", entry);
 }
 </script>
