@@ -32,6 +32,8 @@ import { createPrepareResumeSaveTool } from "./resume-candidate/prepare-save.js"
 import { createResumeReadTools } from "./resume-tools.js";
 import type { ResumePdfExportProposalBuilder } from "../resume/export/proposal-builder.js";
 import { createPrepareResumePdfExportTool } from "./resume-candidate/prepare-pdf-export.js";
+import { MatchReportStore } from "../match/report-store.js";
+import { createPrepareMatchAnalysisTool } from "./prepare-match-analysis.js";
 
 export interface ToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
@@ -50,6 +52,7 @@ export interface ToolRegistryDependencies {
   jdProposalStore?: JdProposalStore;
   approvalManager?: ApprovalManager;
   selectedFileRegistry?: SelectedFileRegistry;
+  matchReportStore?: MatchReportStore;
 }
 
 /**
@@ -146,6 +149,14 @@ export function createToolRegistry(
   if (dependencies.selectedFileRegistry) {
     businessTools.push(
       ...createSelectedFileTools(dependencies.selectedFileRegistry),
+    );
+  }
+  if (dependencies.jdReader && dependencies.matchReportStore) {
+    businessTools.push(
+      createPrepareMatchAnalysisTool(
+        dependencies.jdReader,
+        dependencies.matchReportStore,
+      ),
     );
   }
 

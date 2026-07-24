@@ -12,6 +12,8 @@ import {
 import { readConfig } from "../../config.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
 import { JdProposalStore } from "../../jd/proposal-store.js";
+import { MatchReportStore } from "../../match/report-store.js";
+import { createMatchEmitter } from "./match-emitter.js";
 import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
 import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
@@ -40,6 +42,7 @@ interface ConversationAgentContext {
   agent: CooltoAgent;
   workspaceStore: ResumeWorkspaceStore;
   jdProposalStore: JdProposalStore;
+  matchReportStore: MatchReportStore;
   artifactIdByCandidate: Map<string, string>;
   activeEdit?: {
     artifactId: string;
@@ -201,6 +204,7 @@ export class DesktopAgentRuntime {
     const selectedFiles = this.#selectedFiles.forConversation(conversationId);
     const proposalStore = new ExperienceImportProposalStore();
     const jdProposalStore = new JdProposalStore();
+    const matchReportStore = new MatchReportStore();
     const approvalManager = createActionApprovalManager({
       experienceWriter: this.#apiClient,
       importProposalStore: proposalStore,
@@ -264,14 +268,17 @@ export class DesktopAgentRuntime {
         resumePdfExportProposalBuilder,
         importProposalStore: proposalStore,
         jdProposalStore,
+        matchReportStore,
         approvalManager,
         selectedFileRegistry: selectedFiles,
       }),
     });
+    const emitMatchReport = createMatchEmitter(this.#target, matchReportStore);
     const context: ConversationAgentContext = {
       agent,
       workspaceStore: resumeWorkspaceStore,
       jdProposalStore,
+      matchReportStore,
       artifactIdByCandidate: new Map(),
     };
     agent.subscribe(async (event) => {
@@ -288,6 +295,13 @@ export class DesktopAgentRuntime {
         !event.isError
       ) {
         this.#emitJdProposal(conversationId, context);
+      }
+      if (
+        event.type === "tool.completed" &&
+        event.name === "prepare_match_analysis" &&
+        !event.isError
+      ) {
+        emitMatchReport(conversationId);
       }
       if (this.#target.isDestroyed()) {
         return;

@@ -6,6 +6,8 @@ import ApprovalCard from "./components/ApprovalCard.vue";
 import ArtifactPanel from "./components/ArtifactPanel.vue";
 import JdArtifactCard from "./components/JdArtifactCard.vue";
 import JdDetailPanel from "./components/JdDetailPanel.vue";
+import MatchReportCard from "./components/MatchReportCard.vue";
+import MatchReportPanel from "./components/MatchReportPanel.vue";
 import ResumeArtifactCard from "./components/ResumeArtifactCard.vue";
 import ChatHeader from "./components/ChatHeader.vue";
 import ChatMessageView from "./components/ChatMessage.vue";
@@ -23,7 +25,7 @@ import { useResumeWorkspace } from "./resume-workspace/use-resume-workspace";
 
 const sidebarOpen = ref(true);
 const artifactOpen = ref(false);
-const activeArtifactType = ref<"resume" | "jd">("resume");
+const activeArtifactType = ref<"resume" | "jd" | "match">("resume");
 const resumeWorkspace = useResumeWorkspace();
 const {
   booting,
@@ -41,6 +43,8 @@ const {
   dialog,
   jdArtifacts,
   activeJd,
+  matchReports,
+  activeMatchReport,
   login,
   logout,
   createConversation,
@@ -50,6 +54,7 @@ const {
   send: sendPrompt,
   resolveApproval,
   openJdDetail,
+  openMatchDetail,
 } = useChatSession(resumeWorkspace);
 const conversationAttachment = useConversationAttachment(
   () => current.value?.id,
@@ -60,7 +65,7 @@ const dark = ref(localStorage.getItem("coolto-theme") === "dark");
 onMounted(applyTheme);
 
 watch(
-  [() => current.value?.messages.length, streamingText, pendingApproval, jdArtifacts],
+  [() => current.value?.messages.length, streamingText, pendingApproval, jdArtifacts, matchReports],
   () => void nextTick(scrollToBottom),
 );
 
@@ -80,6 +85,12 @@ async function openResumeDraft(artifactId: string): Promise<void> {
 function openJdPanel(proposalId: string): void {
   openJdDetail(proposalId);
   activeArtifactType.value = "jd";
+  artifactOpen.value = true;
+}
+
+function openMatchPanel(reportId: string): void {
+  openMatchDetail(reportId);
+  activeArtifactType.value = "match";
   artifactOpen.value = true;
 }
 
@@ -227,6 +238,12 @@ function scrollToBottom(): void {
                 :artifact="jdArtifact"
                 @open="openJdPanel"
               />
+              <MatchReportCard
+                v-for="report in matchReports"
+                :key="report.reportId"
+                :report="report"
+                @open="openMatchPanel"
+              />
               <article
                 v-if="toolRuns.length || streamingText"
                 class="chat-message role-assistant live-response"
@@ -275,6 +292,10 @@ function scrollToBottom(): void {
         <JdDetailPanel
           v-else-if="artifactOpen && activeArtifactType === 'jd' && activeJd"
           :data="activeJd"
+        />
+        <MatchReportPanel
+          v-else-if="artifactOpen && activeArtifactType === 'match' && activeMatchReport"
+          :data="activeMatchReport"
         />
       </div>
     </main>

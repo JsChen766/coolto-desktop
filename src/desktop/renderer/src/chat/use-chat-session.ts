@@ -14,6 +14,7 @@ import type { ToolRun } from "../components/ToolActivity.vue";
 import { desktopApi } from "../lib/desktop-api";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useJdArtifacts } from "./use-jd-artifacts";
+import { useMatchReports } from "./use-match-reports";
 
 type ResumeWorkspace = ReturnType<typeof useResumeWorkspace>;
 
@@ -35,6 +36,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     conversation: ConversationSummary;
   }>();
   const jd = useJdArtifacts();
+  const match = useMatchReports();
   const approvalByConversation = new Map<string, DesktopApprovalRequest>();
   let unsubscribeEvents: (() => void) | undefined;
 
@@ -73,6 +75,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     conversations.value = [];
     approvalByConversation.clear();
     jd.clear();
+    match.clear();
     clearRunState();
     resumeWorkspace.clear();
   }
@@ -95,6 +98,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     clearRunState();
     pendingApproval.value = undefined;
     jd.switchConversation(current.value?.id);
+    match.switchConversation(current.value?.id);
     await refreshConversationList();
   }
 
@@ -104,6 +108,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     clearRunState();
     pendingApproval.value = approvalByConversation.get(conversationId);
     jd.switchConversation(conversationId);
+    match.switchConversation(conversationId);
   }
 
   function openDialog(
@@ -215,6 +220,10 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       jd.add(conversationId, event.data);
       return;
     }
+    if (event.type === "match.report.created") {
+      match.add(conversationId, event.data);
+      return;
+    }
     if (event.type === "approval.completed") {
       const details = event.details as { jdId?: string } | undefined;
       if (details?.jdId) {
@@ -278,6 +287,8 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     dialog,
     jdArtifacts: jd.jdArtifacts,
     activeJd: jd.activeJd,
+    matchReports: match.matchReports,
+    activeMatchReport: match.activeMatchReport,
     login,
     logout,
     createConversation,
@@ -287,6 +298,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     send,
     resolveApproval,
     openJdDetail: jd.openDetail,
+    openMatchDetail: match.openDetail,
   };
 }
 

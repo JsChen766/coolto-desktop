@@ -1,9 +1,32 @@
 import type { ResumeCompileResult } from "../../resume/compiler-types.js";
 import type {
+  MatchDimensionScore,
+  MatchGap,
+  MatchHighlight,
+} from "../../match/types.js";
+import type {
   ResumeDraftArtifactReference,
   ResumeDraftSummary,
 } from "../../resume/draft/types.js";
 import type { ResumeStructure } from "../../resume/types.js";
+
+export type MatchReportTier = "excellent" | "good" | "moderate" | "weak";
+
+export interface MatchReportArtifactData {
+  reportId: string;
+  jdId: string;
+  jdTitle: string;
+  jdCompany: string | null;
+  finalScore: number;
+  tier: MatchReportTier;
+  dimensions: MatchDimensionScore[];
+  highlights: MatchHighlight[];
+  gaps: MatchGap[];
+  coverageRatio: number;
+  evidenceCompleteness: number;
+  generatedAt: string;
+  expired: boolean;
+}
 
 export interface JdArtifactRequirement {
   text: string;
@@ -176,7 +199,8 @@ export type DesktopAgentEvent =
       requestId: string;
       message: string;
     }
-  | { type: "jd.proposal.created"; data: JdArtifactData };
+  | { type: "jd.proposal.created"; data: JdArtifactData }
+  | { type: "match.report.created"; data: MatchReportArtifactData };
 
 export interface ConversationRenameInput {
   conversationId: string;
