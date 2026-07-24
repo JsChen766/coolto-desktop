@@ -1288,6 +1288,196 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+/* JD artifact card */
+.jd-artifact-card {
+  width: min(430px, 100%);
+  min-height: 72px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+}
+
+.jd-artifact-card:hover {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.jd-artifact-card.jd-saved {
+  border-left: 3px solid #5c9e6f;
+}
+
+.jd-artifact-card.jd-rejected {
+  opacity: 0.6;
+}
+
+.jd-artifact-icon {
+  width: 38px;
+  height: 49px;
+  border-radius: 4px;
+  background: color-mix(in srgb, #5c9e6f 12%, var(--surface));
+  color: #5c9e6f;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.jd-artifact-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jd-artifact-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jd-artifact-copy > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.jd-artifact-open {
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+/* JD detail panel */
+.jd-detail-panel {
+  flex: 0 0 auto;
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.jd-detail-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.jd-detail-title-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.jd-detail-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.jd-status-pending {
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  color: var(--muted);
+}
+
+.jd-status-saved {
+  background: color-mix(in srgb, #5c9e6f 12%, transparent);
+  color: #5c9e6f;
+}
+
+.jd-status-rejected {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+
+.jd-detail-meta {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.jd-meta-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 12.5px;
+}
+
+.jd-meta-grid dt {
+  color: var(--muted);
+}
+
+.jd-meta-grid dd {
+  color: var(--text);
+}
+
+.jd-requirements-list {
+  padding: 12px 16px;
+  flex: 1;
+}
+
+.jd-section-heading {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 10px;
+}
+
+.jd-requirement-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.jd-requirement-row:last-child {
+  border-bottom: none;
+}
+
+.jd-requirement-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.45;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.jd-requirement-tags {
+  display: flex;
+  gap: 6px;
+}
+
+.jd-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.jd-importance-high,
+.jd-importance-must_have {
+  background: color-mix(in srgb, #c46a3a 10%, transparent);
+  color: #c46a3a;
+}
+
+.jd-importance-medium,
+.jd-importance-preferred {
+  background: color-mix(in srgb, #b8a032 10%, transparent);
+  color: #9a8628;
+}
+
 /* A4 editable resume */
 .artifact-title-wrap {
   min-width: 0;
@@ -1785,7 +1975,8 @@ button:disabled {
     min-width: 220px;
   }
 
-  .artifact-panel {
+  .artifact-panel,
+  .jd-detail-panel {
     display: none;
   }
 

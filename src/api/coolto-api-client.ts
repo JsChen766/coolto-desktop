@@ -1,5 +1,6 @@
 import { CooltoApiTransport } from "./api-transport.js";
 import { ExperienceApi } from "./experience-api.js";
+import { JdWriterApi } from "./jd-writer-api.js";
 import { ProfileJdApi } from "./profile-jd-api.js";
 import { ResumePublicationApi } from "./resume-publication-api.js";
 import type { ResumePublicationGateway } from "../resume/save/types.js";
@@ -12,10 +13,12 @@ import type {
   ExperienceSearchOptions,
   ExperienceSearchResult,
   ExperienceWriter,
+  JdCreateInput,
   JdReader,
   JdRecord,
   JdSearchOptions,
   JdSearchResult,
+  JdWriter,
   LoginCredentials,
   LoginUser,
   UserProfile,
@@ -36,10 +39,12 @@ export class CooltoApiClient
     UserProfileReader,
     ExperienceReader,
     ExperienceWriter,
-    JdReader
+    JdReader,
+    JdWriter
 {
   readonly #transport: CooltoApiTransport;
   readonly #profileJd: ProfileJdApi;
+  readonly #jdWriter: JdWriterApi;
   readonly #experiences: ExperienceApi;
   readonly #resumePublications: ResumePublicationApi;
 
@@ -49,6 +54,7 @@ export class CooltoApiClient
       options.fetchFn ?? globalThis.fetch,
     );
     this.#profileJd = new ProfileJdApi(this.#transport);
+    this.#jdWriter = new JdWriterApi(this.#transport);
     this.#experiences = new ExperienceApi(this.#transport);
     this.#resumePublications = new ResumePublicationApi(this.#transport);
   }
@@ -121,5 +127,12 @@ export class CooltoApiClient
     signal?: AbortSignal,
   ): Promise<ExperienceDetail> {
     return this.#experiences.createExperience(input, signal);
+  }
+
+  public createJd(
+    input: JdCreateInput,
+    signal?: AbortSignal,
+  ): Promise<JdRecord> {
+    return this.#jdWriter.createJd(input, signal);
   }
 }

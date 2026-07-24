@@ -50,11 +50,11 @@ test("accepted replacement performs one atomic conditional write", async () => {
 });
 
 function manager(gateway: ResumePublicationGateway) {
-  return createActionApprovalManager(
-    { createExperience: async () => { throw new Error("not used"); } },
-    new ExperienceImportProposalStore(),
-    gateway,
-  );
+  return createActionApprovalManager({
+    experienceWriter: { createExperience: async () => { throw new Error("not used"); } },
+    importProposalStore: new ExperienceImportProposalStore(),
+    resumePublications: gateway,
+  });
 }
 
 async function savePayload(): Promise<ResumeSaveApprovalPayload> {

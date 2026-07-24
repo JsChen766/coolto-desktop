@@ -11,6 +11,7 @@ import { ensureAuthenticated } from "../auth/session-manager.js";
 import { loadLocalEnv, readConfig } from "../config.js";
 import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
+import { JdProposalStore } from "../jd/proposal-store.js";
 import { ResumeSourceSnapshotBuilder } from "../resume/source-snapshot.js";
 import { createToolRegistry } from "../tools/registry.js";
 import {
@@ -52,11 +53,14 @@ async function main(): Promise<void> {
     );
   }
   const importProposalStore = new ExperienceImportProposalStore();
-  const approvalManager = createActionApprovalManager(
-    apiClient,
+  const jdProposalStore = new JdProposalStore();
+  const approvalManager = createActionApprovalManager({
+    experienceWriter: apiClient,
     importProposalStore,
-    apiClient.resumes,
-  );
+    jdWriter: apiClient,
+    jdProposalStore,
+    resumePublications: apiClient.resumes,
+  });
   const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
     currentUser: apiClient,
     profile: apiClient,
@@ -75,6 +79,7 @@ async function main(): Promise<void> {
       resumeReader: apiClient.resumes,
       resumeSourceSnapshotBuilder,
       importProposalStore,
+      jdProposalStore,
       approvalManager,
       selectedFileRegistry: selectedFiles,
     }),

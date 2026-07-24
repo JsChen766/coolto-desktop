@@ -56,10 +56,10 @@ test("Pi prepares an import and the host commits only after approval", async () 
     },
   };
   const proposalStore = new ExperienceImportProposalStore();
-  const approvalManager = createActionApprovalManager(
-    writer,
-    proposalStore,
-  );
+  const approvalManager = createActionApprovalManager({
+    experienceWriter: writer,
+    importProposalStore: proposalStore,
+  });
   const agent = createCooltoAgent(
     {
       tools: createToolRegistry({

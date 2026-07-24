@@ -7,6 +7,7 @@ import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
 import { readConfig } from "../../config.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
+import { JdProposalStore } from "../../jd/proposal-store.js";
 import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
 import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
@@ -34,6 +35,7 @@ import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 interface ConversationAgentContext {
   agent: CooltoAgent;
   workspaceStore: ResumeWorkspaceStore;
+  jdProposalStore: JdProposalStore;
   artifactIdByCandidate: Map<string, string>;
   activeEdit?: {
     artifactId: string;
@@ -185,12 +187,15 @@ export class DesktopAgentRuntime {
     const config = readConfig();
     const selectedFiles = this.#selectedFiles.forConversation(conversationId);
     const proposalStore = new ExperienceImportProposalStore();
-    const approvalManager = createActionApprovalManager(
-      this.#apiClient,
-      proposalStore,
-      this.#apiClient.resumes,
-      this.#resumePdfExports,
-    );
+    const jdProposalStore = new JdProposalStore();
+    const approvalManager = createActionApprovalManager({
+      experienceWriter: this.#apiClient,
+      importProposalStore: proposalStore,
+      jdWriter: this.#apiClient,
+      jdProposalStore,
+      resumePublications: this.#apiClient.resumes,
+      resumePdfExports: this.#resumePdfExports,
+    });
     const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: this.#apiClient,
       profile: this.#apiClient,
@@ -245,6 +250,7 @@ export class DesktopAgentRuntime {
         resumeSaveProposalBuilder,
         resumePdfExportProposalBuilder,
         importProposalStore: proposalStore,
+        jdProposalStore,
         approvalManager,
         selectedFileRegistry: selectedFiles,
       }),
@@ -252,6 +258,7 @@ export class DesktopAgentRuntime {
     const context: ConversationAgentContext = {
       agent,
       workspaceStore: resumeWorkspaceStore,
+      jdProposalStore,
       artifactIdByCandidate: new Map(),
     };
     agent.subscribe(async (event) => {
@@ -261,6 +268,13 @@ export class DesktopAgentRuntime {
         !event.isError
       ) {
         await this.#syncLatestWorkspace(conversationId, context);
+      }
+      if (
+        event.type === "tool.completed" &&
+        event.name === "prepare_jd_import" &&
+        !event.isError
+      ) {
+        this.#emitJdProposal(conversationId, context);
       }
       if (this.#target.isDestroyed()) {
         return;
@@ -312,6 +326,36 @@ export class DesktopAgentRuntime {
       this.#resumeDrafts.artifactReference(draft),
     );
     await this.#notifyDraftUpdated(conversationId, draft.artifactId);
+  }
+
+  #emitJdProposal(
+    conversationId: string,
+    context: ConversationAgentContext,
+  ): void {
+    const proposal = context.jdProposalStore.getActive();
+    if (!proposal || this.#target.isDestroyed()) return;
+    const pending = context.agent.getPendingApprovals();
+    const jdApproval = pending.find((p) => p.actionType === "jd.save");
+    if (!jdApproval) return;
+    this.#target.send("agent:event", {
+      conversationId,
+      event: {
+        type: "jd.proposal.created",
+        data: {
+          proposalId: proposal.id,
+          approvalRequestId: jdApproval.id,
+          title: proposal.title,
+          company: proposal.company,
+          targetRole: proposal.targetRole,
+          requirements: proposal.requirements.map((r) => ({
+            text: r.text,
+            category: r.category,
+            importance: r.importance,
+          })),
+          status: "pending",
+        },
+      } satisfies DesktopAgentEvent,
+    });
   }
 
   async #notifyDraftUpdated(

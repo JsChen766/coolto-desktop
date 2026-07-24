@@ -50,12 +50,11 @@ async function proposal() {
 }
 
 function manager(gateway: ResumePdfExportGateway) {
-  return createActionApprovalManager(
-    { createExperience: async () => { throw new Error("not used"); } },
-    new ExperienceImportProposalStore(),
-    undefined,
-    gateway,
-  );
+  return createActionApprovalManager({
+    experienceWriter: { createExperience: async () => { throw new Error("not used"); } },
+    importProposalStore: new ExperienceImportProposalStore(),
+    resumePdfExports: gateway,
+  });
 }
 
 class RecordingExportGateway implements ResumePdfExportGateway {

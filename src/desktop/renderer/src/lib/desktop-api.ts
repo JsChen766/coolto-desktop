@@ -5,6 +5,7 @@ import type {
   DesktopAttachment,
   DesktopAgentEvent,
   DesktopApi,
+  JdArtifactData,
   ResumeDraftDetail,
 } from "@desktop/types";
 import { getResumeFixture } from "../../../../resume/fixtures";
@@ -252,14 +253,22 @@ function createBrowserDemoApi(): DesktopApi {
         const conversation = find(conversationId);
         conversation.messages.push(message("user", text));
         emit(listeners, conversationId, { type: "run.started" });
-        const response =
-          "这是浏览器预览模式。Electron 启动后，这里会接入真实的本地 **Pi Agent**、工具调用与流式 Markdown 输出。";
+        const isJd = /jd|岗位|职位描述/iu.test(text);
+        const response = isJd
+          ? "已识别为岗位描述，提取了 6 条要求。请在左侧确认卡片中审批。"
+          : "这是浏览器预览模式。Electron 启动后，这里会接入真实的本地 **Pi Agent**、工具调用与流式 Markdown 输出。";
         for (const part of response.match(/.{1,8}/gu) ?? [response]) {
           emit(listeners, conversationId, {
             type: "message.delta",
             text: part,
           });
           await new Promise((resolve) => window.setTimeout(resolve, 25));
+        }
+        if (isJd) {
+          emit(listeners, conversationId, {
+            type: "jd.proposal.created",
+            data: createDemoJdArtifact(),
+          });
         }
         conversation.messages.push(message("assistant", response));
         conversation.messageCount = conversation.messages.length;
@@ -398,4 +407,23 @@ function emit(
   event: DesktopAgentEvent,
 ): void {
   listeners.forEach((listener) => listener(conversationId, event));
+}
+
+function createDemoJdArtifact(): JdArtifactData {
+  return {
+    proposalId: `jd-proposal-${crypto.randomUUID()}`,
+    approvalRequestId: `approval-${crypto.randomUUID()}`,
+    title: "高级前端工程师",
+    company: "字节跳动",
+    targetRole: null,
+    requirements: [
+      { text: "5年以上前端开发经验", category: "experience", importance: "high" },
+      { text: "精通 React/Vue 等主流框架", category: "skill", importance: "high" },
+      { text: "熟悉 TypeScript，有大型项目经验", category: "skill", importance: "high" },
+      { text: "良好的沟通能力和团队协作精神", category: "skill", importance: "medium" },
+      { text: "有性能优化经验者优先", category: "experience", importance: "medium" },
+      { text: "计算机相关专业本科及以上学历", category: "education", importance: "high" },
+    ],
+    status: "pending",
+  };
 }

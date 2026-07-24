@@ -90,6 +90,25 @@ export interface JdReader {
   getJd(jdId: string, signal?: AbortSignal): Promise<JdRecord>;
 }
 
+export interface JdCreateInput {
+  title: string;
+  rawText: string;
+  company?: string;
+  targetRole?: string;
+  requirements?: Array<{
+    text: string;
+    category: string;
+    importance: JdRequirementImportance;
+    keywords: string[];
+    v2Importance?: JdRequirementV2Importance;
+    v2Category?: string;
+  }>;
+}
+
+export interface JdWriter {
+  createJd(input: JdCreateInput, signal?: AbortSignal): Promise<JdRecord>;
+}
+
 export type ExperienceCategory =
   | "work"
   | "project"

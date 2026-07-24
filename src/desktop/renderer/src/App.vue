@@ -4,6 +4,8 @@ import { nextTick, onMounted, ref, watch } from "vue";
 import type { ResumeChatReference } from "@desktop/types";
 import ApprovalCard from "./components/ApprovalCard.vue";
 import ArtifactPanel from "./components/ArtifactPanel.vue";
+import JdArtifactCard from "./components/JdArtifactCard.vue";
+import JdDetailPanel from "./components/JdDetailPanel.vue";
 import ResumeArtifactCard from "./components/ResumeArtifactCard.vue";
 import ChatHeader from "./components/ChatHeader.vue";
 import ChatMessageView from "./components/ChatMessage.vue";
@@ -21,6 +23,7 @@ import { useResumeWorkspace } from "./resume-workspace/use-resume-workspace";
 
 const sidebarOpen = ref(true);
 const artifactOpen = ref(false);
+const activeArtifactType = ref<"resume" | "jd">("resume");
 const resumeWorkspace = useResumeWorkspace();
 const {
   booting,
@@ -36,6 +39,8 @@ const {
   pendingApproval,
   approvalBusy,
   dialog,
+  jdArtifacts,
+  activeJd,
   login,
   logout,
   createConversation,
@@ -44,6 +49,7 @@ const {
   confirmDialog,
   send: sendPrompt,
   resolveApproval,
+  openJdDetail,
 } = useChatSession(resumeWorkspace);
 const conversationAttachment = useConversationAttachment(
   () => current.value?.id,
@@ -54,7 +60,7 @@ const dark = ref(localStorage.getItem("coolto-theme") === "dark");
 onMounted(applyTheme);
 
 watch(
-  [() => current.value?.messages.length, streamingText, pendingApproval],
+  [() => current.value?.messages.length, streamingText, pendingApproval, jdArtifacts],
   () => void nextTick(scrollToBottom),
 );
 
@@ -66,15 +72,25 @@ async function send(
 }
 
 async function openResumeDraft(artifactId: string): Promise<void> {
+  activeArtifactType.value = "resume";
   artifactOpen.value = true;
   await resumeWorkspace.openDraft(artifactId);
 }
 
+function openJdPanel(proposalId: string): void {
+  openJdDetail(proposalId);
+  activeArtifactType.value = "jd";
+  artifactOpen.value = true;
+}
+
 async function toggleArtifact(): Promise<void> {
   artifactOpen.value = !artifactOpen.value;
-  const first = resumeWorkspace.drafts.value[0];
-  if (artifactOpen.value && !resumeWorkspace.activeDraft.value && first) {
-    await resumeWorkspace.openDraft(first.artifactId);
+  if (!artifactOpen.value) return;
+  if (activeArtifactType.value === "resume") {
+    const first = resumeWorkspace.drafts.value[0];
+    if (!resumeWorkspace.activeDraft.value && first) {
+      await resumeWorkspace.openDraft(first.artifactId);
+    }
   }
 }
 
@@ -205,6 +221,12 @@ function scrollToBottom(): void {
                 :cloud-state="draftCloudState(artifact.artifactId)"
                 @open="openResumeDraft"
               />
+              <JdArtifactCard
+                v-for="jdArtifact in jdArtifacts"
+                :key="jdArtifact.proposalId"
+                :artifact="jdArtifact"
+                @open="openJdPanel"
+              />
               <article
                 v-if="toolRuns.length || streamingText"
                 class="chat-message role-assistant live-response"
@@ -239,7 +261,7 @@ function scrollToBottom(): void {
         </section>
 
         <ArtifactPanel
-          v-if="artifactOpen"
+          v-if="artifactOpen && activeArtifactType === 'resume'"
           :draft="resumeWorkspace.activeDraft.value"
           :busy="resumeWorkspace.busy.value"
           :error="resumeWorkspace.error.value"
@@ -249,6 +271,10 @@ function scrollToBottom(): void {
           @restore="resumeWorkspace.restore"
           @accept="resumeWorkspace.resolvePending('accept')"
           @reject="resumeWorkspace.resolvePending('reject')"
+        />
+        <JdDetailPanel
+          v-else-if="artifactOpen && activeArtifactType === 'jd' && activeJd"
+          :data="activeJd"
         />
       </div>
     </main>

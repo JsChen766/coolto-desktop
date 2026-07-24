@@ -38,7 +38,7 @@ test("partial import creates a new approval only for failed candidates", async (
       return createDetail(input.title);
     },
   };
-  const approvals = createActionApprovalManager(writer, store);
+  const approvals = createActionApprovalManager({ experienceWriter: writer, importProposalStore: store });
   const request = await approvals.request(
     createExperienceImportApprovalDraft(proposal),
     createExperienceImportApprovalPayload(proposal),

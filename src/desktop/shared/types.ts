@@ -4,6 +4,23 @@ import type {
   ResumeDraftSummary,
 } from "../../resume/draft/types.js";
 import type { ResumeStructure } from "../../resume/types.js";
+
+export interface JdArtifactRequirement {
+  text: string;
+  category: string;
+  importance: string;
+}
+
+export interface JdArtifactData {
+  proposalId: string;
+  approvalRequestId: string;
+  title: string;
+  company: string | null;
+  targetRole: string | null;
+  requirements: JdArtifactRequirement[];
+  status: "pending" | "saved" | "rejected";
+  jdId?: string;
+}
 import type { ResumeWorkspaceStatus } from "../../resume/workspace/types.js";
 
 export type ChatRole = "user" | "assistant";
@@ -158,7 +175,8 @@ export type DesktopAgentEvent =
       type: "approval.failed";
       requestId: string;
       message: string;
-    };
+    }
+  | { type: "jd.proposal.created"; data: JdArtifactData };
 
 export interface ConversationRenameInput {
   conversationId: string;

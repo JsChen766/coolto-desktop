@@ -9,6 +9,7 @@ import type {
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
+import { JdProposalStore } from "../jd/proposal-store.js";
 import type { ResumeSourceSnapshotBuilder } from "../resume/source-snapshot.js";
 import type { ResumeCandidatePatcher } from "../resume/workspace/candidate-patcher.js";
 import type { ResumeCandidatePreparer } from "../resume/workspace/candidate-preparer.js";
@@ -21,6 +22,7 @@ import { createGetCurrentUserTool } from "./get-current-user.js";
 import { createGetResumeSourceSnapshotTool } from "./get-resume-source-snapshot.js";
 import { createGetUserProfileTool } from "./get-user-profile.js";
 import { createPrepareExperienceImportTool } from "./import-experiences/prepare-import.js";
+import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
 import { createSearchExperiencesTool } from "./search-experiences.js";
@@ -45,6 +47,7 @@ export interface ToolRegistryDependencies {
   resumePdfExportProposalBuilder?: ResumePdfExportProposalBuilder;
   resumeReader?: ResumePublicationGateway;
   importProposalStore?: ExperienceImportProposalStore;
+  jdProposalStore?: JdProposalStore;
   approvalManager?: ApprovalManager;
   selectedFileRegistry?: SelectedFileRegistry;
 }
@@ -87,6 +90,14 @@ export function createToolRegistry(
       createPrepareExperienceImportTool(
         dependencies.experienceReader,
         dependencies.importProposalStore,
+        dependencies.approvalManager,
+      ),
+    );
+  }
+  if (dependencies.jdProposalStore && dependencies.approvalManager) {
+    businessTools.push(
+      createPrepareJdImportTool(
+        dependencies.jdProposalStore,
         dependencies.approvalManager,
       ),
     );

@@ -12,17 +12,16 @@ import { FixtureResumeCompiler } from "./support/resume-workspace-fixture.js";
 test("PDF prepare tool creates approval without invoking the export gateway", async () => {
   const { store, ready } = await createReadySaveFixture();
   let exportCalls = 0;
-  const approvals = createActionApprovalManager(
-    { createExperience: async () => { throw new Error("not used"); } },
-    new ExperienceImportProposalStore(),
-    undefined,
-    {
+  const approvals = createActionApprovalManager({
+    experienceWriter: { createExperience: async () => { throw new Error("not used"); } },
+    importProposalStore: new ExperienceImportProposalStore(),
+    resumePdfExports: {
       exportPdf: async () => {
         exportCalls += 1;
         return { status: "cancelled" as const };
       },
     },
-  );
+  });
   const builder = new ResumePdfExportProposalBuilder(
     new ResumePdfExportSourceResolver(store, {} as never),
     new FixtureResumeCompiler(),

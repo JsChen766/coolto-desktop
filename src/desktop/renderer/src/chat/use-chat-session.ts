@@ -13,6 +13,7 @@ import type {
 import type { ToolRun } from "../components/ToolActivity.vue";
 import { desktopApi } from "../lib/desktop-api";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
+import { useJdArtifacts } from "./use-jd-artifacts";
 
 type ResumeWorkspace = ReturnType<typeof useResumeWorkspace>;
 
@@ -33,6 +34,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     mode: "rename" | "delete";
     conversation: ConversationSummary;
   }>();
+  const jd = useJdArtifacts();
   const approvalByConversation = new Map<string, DesktopApprovalRequest>();
   let unsubscribeEvents: (() => void) | undefined;
 
@@ -70,6 +72,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     current.value = undefined;
     conversations.value = [];
     approvalByConversation.clear();
+    jd.clear();
     clearRunState();
     resumeWorkspace.clear();
   }
@@ -91,6 +94,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     current.value = await desktopApi.conversations.create();
     clearRunState();
     pendingApproval.value = undefined;
+    jd.switchConversation(current.value?.id);
     await refreshConversationList();
   }
 
@@ -99,6 +103,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     current.value = await desktopApi.conversations.get(conversationId);
     clearRunState();
     pendingApproval.value = approvalByConversation.get(conversationId);
+    jd.switchConversation(conversationId);
   }
 
   function openDialog(
@@ -201,6 +206,20 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
         conversationId === current.value?.id &&
         pendingApproval.value?.id === event.requestId
       ) pendingApproval.value = undefined;
+      if (event.decision === "reject") {
+        jd.updateStatus(conversationId, event.requestId, "rejected");
+      }
+      return;
+    }
+    if (event.type === "jd.proposal.created") {
+      jd.add(conversationId, event.data);
+      return;
+    }
+    if (event.type === "approval.completed") {
+      const details = event.details as { jdId?: string } | undefined;
+      if (details?.jdId) {
+        jd.updateStatus(conversationId, event.requestId, "saved", details.jdId);
+      }
       return;
     }
     if (conversationId !== current.value?.id) return;
@@ -257,6 +276,8 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     pendingApproval,
     approvalBusy,
     dialog,
+    jdArtifacts: jd.jdArtifacts,
+    activeJd: jd.activeJd,
     login,
     logout,
     createConversation,
@@ -265,6 +286,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     confirmDialog,
     send,
     resolveApproval,
+    openJdDetail: jd.openDetail,
   };
 }
 
