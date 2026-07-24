@@ -54,6 +54,14 @@ function createUnavailableDesktopApi(): DesktopApi {
       resolveApproval: unavailable,
       onEvent: () => () => undefined,
     },
+    library: {
+      list: unavailable,
+      rename: unavailable,
+      archive: unavailable,
+      deleteDraft: unavailable,
+      getCheckpoints: unavailable,
+      restoreCheckpoint: unavailable,
+    },
     window: {
       minimize: unavailable,
       toggleMaximize: unavailable,
@@ -297,12 +305,107 @@ function createBrowserDemoApi(): DesktopApi {
         return () => listeners.delete(listener);
       },
     },
+    library: {
+      list: async () => createDemoLibraryEntries(),
+      rename: async (input) => {
+        const entry = createDemoLibraryEntries().find((e) => e.cloud?.resumeId === input.resumeId);
+        return { id: input.resumeId, title: input.title } as never;
+      },
+      archive: async () => ({}) as never,
+      deleteDraft: async () => undefined,
+      getCheckpoints: async () => createDemoCheckpoints(),
+      restoreCheckpoint: async () => ({}) as never,
+    },
     window: {
       minimize: async () => undefined,
       toggleMaximize: async () => undefined,
       close: async () => undefined,
     },
   };
+}
+
+function createDemoLibraryEntries() {
+  const now = new Date().toISOString();
+  return [
+    {
+      entryId: "cloud:resume-001",
+      displayTitle: "高级前端工程师简历",
+      cloud: {
+        resumeId: "resume-001",
+        title: "高级前端工程师简历",
+        targetRole: "高级前端工程师",
+        jdId: "jd-001",
+        status: "active" as const,
+        contentHash: "hash-aaa",
+        updatedAt: new Date(Date.now() - 3_600_000).toISOString(),
+      },
+      local: {
+        artifactId: "draft-001",
+        title: "高级前端工程师简历",
+        updatedAt: now,
+        checkpointCount: 3,
+        hasPendingChange: false,
+      },
+      syncStatus: "local_changes" as const,
+      availableOperations: ["open", "rename", "archive", "continue_editing", "export_pdf", "delete_local_draft", "restore_checkpoint"] as const,
+    },
+    {
+      entryId: "cloud:resume-002",
+      displayTitle: "AI 产品经理简历",
+      cloud: {
+        resumeId: "resume-002",
+        title: "AI 产品经理简历",
+        targetRole: "AI 产品经理",
+        jdId: null,
+        status: "active" as const,
+        contentHash: "hash-bbb",
+        updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
+      },
+      local: null,
+      syncStatus: "cloud_only" as const,
+      availableOperations: ["open", "rename", "archive", "continue_editing", "export_pdf"] as const,
+    },
+    {
+      entryId: "local:draft-002",
+      displayTitle: "英文自我介绍（草稿）",
+      cloud: null,
+      local: {
+        artifactId: "draft-002",
+        title: "英文自我介绍（草稿）",
+        updatedAt: new Date(Date.now() - 172_800_000).toISOString(),
+        checkpointCount: 1,
+        hasPendingChange: false,
+      },
+      syncStatus: "local_only" as const,
+      availableOperations: ["open", "delete_local_draft", "restore_checkpoint"] as const,
+    },
+  ];
+}
+
+function createDemoCheckpoints() {
+  return [
+    {
+      id: "cp-1",
+      label: "完成生成",
+      reason: "generated" as const,
+      createdAt: new Date(Date.now() - 7_200_000).toISOString(),
+      workspace: {} as never,
+    },
+    {
+      id: "cp-2",
+      label: "接受 AI 修改",
+      reason: "ai_change_accepted" as const,
+      createdAt: new Date(Date.now() - 3_600_000).toISOString(),
+      workspace: {} as never,
+    },
+    {
+      id: "cp-3",
+      label: "手动修改",
+      reason: "manual_edit" as const,
+      createdAt: new Date(Date.now() - 1_800_000).toISOString(),
+      workspace: {} as never,
+    },
+  ];
 }
 
 function createDemoDraft(now: Date): ResumeDraftDetail {

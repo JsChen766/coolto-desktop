@@ -18,6 +18,7 @@ import LoginScreen from "./components/LoginScreen.vue";
 import MarkdownContent from "./components/MarkdownContent.vue";
 import Sidebar from "./components/Sidebar.vue";
 import ToolActivity from "./components/ToolActivity.vue";
+import ResumeLibraryView from "./components/ResumeLibraryView.vue";
 import { useChatSession } from "./chat/use-chat-session";
 import { useConversationAttachment } from "./attachments/use-conversation-attachment";
 import { desktopApi } from "./lib/desktop-api";
@@ -26,6 +27,7 @@ import { useResumeWorkspace } from "./resume-workspace/use-resume-workspace";
 const sidebarOpen = ref(true);
 const artifactOpen = ref(false);
 const activeArtifactType = ref<"resume" | "jd" | "match">("resume");
+const libraryOpen = ref(false);
 const resumeWorkspace = useResumeWorkspace();
 const {
   booting,
@@ -180,6 +182,7 @@ function scrollToBottom(): void {
       @create="createConversation"
       @select="selectConversation"
       @select-draft="openResumeDraft"
+      @open-library="libraryOpen = true"
       @rename="openDialog('rename', $event)"
       @delete="openDialog('delete', $event)"
       @toggle-theme="toggleTheme"
@@ -187,6 +190,8 @@ function scrollToBottom(): void {
     />
 
     <main class="main-workspace">
+      <ResumeLibraryView v-if="libraryOpen" @close="libraryOpen = false" />
+      <template v-else>
       <ChatHeader
         :title="current?.title ?? '新对话'"
         :sidebar-open="sidebarOpen"
@@ -298,6 +303,7 @@ function scrollToBottom(): void {
           :data="activeMatchReport"
         />
       </div>
+      </template>
     </main>
 
     <ConversationDialog

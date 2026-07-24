@@ -20,6 +20,8 @@ import { createElectronResumeDraftRepository } from "./resume-drafts/electron-dr
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { ResumeDraftEditingService } from "./resume-drafts/draft-editing-service.js";
 import { ResumeManualEditor } from "../../resume/draft/manual-editor.js";
+import { ResumeLibraryService } from "./resume-library/resume-library-service.js";
+import { registerResumeLibraryIpc, LIBRARY_IPC_CHANNELS } from "./resume-library/resume-library-ipc.js";
 
 interface UserServices {
   ownerId: string;
@@ -35,7 +37,7 @@ export function registerDesktopIpc(
   window: BrowserWindow,
   resumeCompiler: ResumePdfCompiler,
 ): void {
-  for (const channel of IPC_CHANNELS) {
+  for (const channel of [...IPC_CHANNELS, ...LIBRARY_IPC_CHANNELS]) {
     ipcMain.removeHandler(channel);
   }
   const auth = new DesktopAuthService();
@@ -213,6 +215,15 @@ export function registerDesktopIpc(
     }
   });
   ipcMain.handle("window:close", () => window.close());
+
+  registerResumeLibraryIpc(ipcMain, async () => {
+    const user = auth.requireCurrentUser();
+    return new ResumeLibraryService(
+      auth.apiClient.resumes,
+      auth.apiClient.resumeLibrary,
+      createElectronResumeDraftRepository(user.id),
+    );
+  });
 }
 
 const IPC_CHANNELS = [

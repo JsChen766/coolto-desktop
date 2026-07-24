@@ -28,7 +28,7 @@ function makeJdRecord(overrides: Partial<JdRecord> = {}): JdRecord {
 
 function makeJdReader(jd: JdRecord = makeJdRecord()): JdReader {
   return {
-    listJds: async () => ({ items: [], nextCursor: undefined }),
+    listJds: async () => ({ items: [], nextCursor: null }),
     getJd: async () => jd,
   };
 }

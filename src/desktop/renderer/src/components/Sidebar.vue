@@ -2,6 +2,7 @@
 import {
   Ellipsis,
   FileText,
+  FolderOpen,
   LogOut,
   Moon,
   Settings2,
@@ -29,6 +30,7 @@ const emit = defineEmits<{
   create: [];
   select: [conversationId: string];
   selectDraft: [artifactId: string];
+  openLibrary: [];
   rename: [conversation: ConversationSummary];
   delete: [conversation: ConversationSummary];
   toggleTheme: [];
@@ -95,6 +97,11 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
     <button class="new-chat-button icon-label" type="button" @click="$emit('create')">
       <SquarePen :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span>新对话</span>
+    </button>
+
+    <button class="library-entry-btn icon-label" type="button" @click="$emit('openLibrary')">
+      <FolderOpen :size="16" :stroke-width="1.8" aria-hidden="true" />
+      <span>简历仓库</span>
     </button>
 
     <section class="sidebar-section resume-draft-section">

@@ -74,7 +74,7 @@ test("draft preview items are mapped from requirements", () => {
 
 test("draft preview items have 分类 and 重要性 fields", () => {
   const draft = createJdSaveApprovalDraft(makeProposal());
-  const fields = draft.preview?.items[0]?.fields ?? [];
+  const fields = draft.preview?.items?.[0]?.fields ?? [];
   const categoryField = fields.find((f) => f.label === "分类");
   const importanceField = fields.find((f) => f.label === "重要性");
   assert.ok(categoryField, "should have 分类 field");

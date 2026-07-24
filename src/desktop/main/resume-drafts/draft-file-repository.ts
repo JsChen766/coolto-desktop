@@ -4,6 +4,7 @@ import {
   readFile,
   readdir,
   rename,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -38,6 +39,15 @@ export class ResumeDraftFileRepository {
     const draft = await this.read(this.pathFor(artifactId));
     if (!draft) throw new Error("本地简历草稿不存在");
     return draft;
+  }
+
+  public async delete(artifactId: string): Promise<void> {
+    assertArtifactId(artifactId);
+    try {
+      await unlink(this.pathFor(artifactId));
+    } catch (error: unknown) {
+      if (!isMissingFileError(error)) throw error;
+    }
   }
 
   public async save(draft: LocalResumeDraft): Promise<void> {

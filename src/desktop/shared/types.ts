@@ -5,10 +5,13 @@ import type {
   MatchHighlight,
 } from "../../match/types.js";
 import type {
+  LocalResumeDraft,
   ResumeDraftArtifactReference,
+  ResumeDraftCheckpoint,
   ResumeDraftSummary,
 } from "../../resume/draft/types.js";
-import type { ResumeStructure } from "../../resume/types.js";
+import type { ResumeFull, ResumeStructure } from "../../resume/types.js";
+import type { ResumeLibraryEntry } from "../../resume/library/types.js";
 
 export type MatchReportTier = "excellent" | "good" | "moderate" | "weak";
 
@@ -128,6 +131,25 @@ export interface ResumeDraftEditInput {
 }
 
 export interface ResumeDraftRestoreInput {
+  artifactId: string;
+  checkpointId: string;
+}
+
+export interface LibraryRenameInput {
+  resumeId: string;
+  title: string;
+}
+
+export interface LibraryArchiveInput {
+  resumeId: string;
+  archive: boolean;
+}
+
+export interface LibraryDeleteDraftInput {
+  artifactId: string;
+}
+
+export interface LibraryRestoreCheckpointInput {
   artifactId: string;
   checkpointId: string;
 }
@@ -276,6 +298,14 @@ export interface DesktopApi {
         event: DesktopAgentEvent,
       ) => void,
     ): () => void;
+  };
+  library: {
+    list(): Promise<ResumeLibraryEntry[]>;
+    rename(input: LibraryRenameInput): Promise<ResumeFull>;
+    archive(input: LibraryArchiveInput): Promise<ResumeFull>;
+    deleteDraft(input: LibraryDeleteDraftInput): Promise<void>;
+    getCheckpoints(artifactId: string): Promise<ResumeDraftCheckpoint[]>;
+    restoreCheckpoint(input: LibraryRestoreCheckpointInput): Promise<LocalResumeDraft>;
   };
   window: {
     minimize(): Promise<void>;
