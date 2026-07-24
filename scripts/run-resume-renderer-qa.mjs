@@ -12,6 +12,7 @@ const artifactDirectory =
 const resultPath = join(artifactDirectory, "result.json");
 const pdfPath = join(artifactDirectory, "qualified.pdf");
 const screenshotPath = join(artifactDirectory, "qualified.png");
+const g6PdfPath = join(artifactDirectory, "g6-export.pdf");
 const fixtureIds = [
   "zh-qualified",
   "zh-qualified",
@@ -36,6 +37,7 @@ await new Promise((resolve, reject) => {
       COOLTO_RESUME_QA_PDF_PATH: pdfPath,
       COOLTO_RESUME_QA_SCREENSHOT_PATH: screenshotPath,
       COOLTO_RESUME_QA_PDF_FIXTURE: "markdown-qualified",
+      COOLTO_RESUME_G6_EXPORT_PATH: g6PdfPath,
     },
   });
   child.once("error", reject);
@@ -59,7 +61,9 @@ assert.ok(firstQualified.usageRatio >= 0.85);
 assert.ok(firstQualified.usageRatio <= 0.98);
 assert.ok(firstQualified.bullets.length > 0);
 assert.ok(firstQualified.bullets.every((bullet) => bullet.passed));
-assert.deepEqual(repeatedQualified, firstQualified);
+assertObservationTimestamp(firstQualified.observedAt);
+assertObservationTimestamp(repeatedQualified.observedAt);
+assert.deepEqual(withoutObservationTime(repeatedQualified), withoutObservationTime(firstQualified));
 
 const byId = new Map(results.slice(2).map((result) => [result.fixtureId, result]));
 assert.deepEqual(byId.get("en-qualified").loadedFontFamilies, ["Times New Roman"]);
@@ -121,6 +125,11 @@ assert.ok(report.workspaceResult.bindingCount > 0);
 assert.equal(report.workspaceResult.compileResult.qualified, true);
 assert.ok(report.workspaceResult.compileResult.usageRatio >= 0.85);
 assert.ok(report.workspaceResult.compileResult.bullets.every((bullet) => bullet.passed));
+assert.equal(report.g6ExportResult.status, "exported");
+assert.equal(report.g6ExportResult.filePath, g6PdfPath);
+assert.equal(report.g6ExportResult.pageCount, 1);
+assert.ok(report.g6ExportResult.bytes > 0);
+assert.match(report.g6ExportResult.sha256, /^[a-f0-9]{64}$/);
 
 process.stdout.write(
   `${JSON.stringify({
@@ -135,5 +144,17 @@ process.stdout.write(
     resultPath,
     pdfPath,
     screenshotPath,
+    g6PdfPath,
   }, null, 2)}\n`,
 );
+
+function assertObservationTimestamp(value) {
+  const timestamp = Date.parse(value);
+  assert.ok(Number.isFinite(timestamp));
+  assert.ok(timestamp <= Date.now());
+}
+
+function withoutObservationTime(result) {
+  const { observedAt: _observedAt, ...stableLayoutResult } = result;
+  return stableLayoutResult;
+}

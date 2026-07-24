@@ -107,6 +107,12 @@ export async function compileResume(
     qualified: violations.length === 0,
     fontsReady,
     loadedFontFamilies,
+    observedAt: new Date().toISOString(),
+    viewport: {
+      widthPx: round(window.innerWidth),
+      heightPx: round(window.innerHeight),
+      devicePixelRatio: round(window.devicePixelRatio),
+    },
     pageCount: measurement.pageCount,
     overflowPx: round(measurement.overflowPx),
     usedHeightPx: round(measurement.usedHeightPx),

@@ -1,6 +1,8 @@
 import { CooltoApiTransport } from "./api-transport.js";
 import { ExperienceApi } from "./experience-api.js";
 import { ProfileJdApi } from "./profile-jd-api.js";
+import { ResumePublicationApi } from "./resume-publication-api.js";
+import type { ResumePublicationGateway } from "../resume/save/types.js";
 import type {
   CurrentUser,
   CurrentUserReader,
@@ -39,6 +41,7 @@ export class CooltoApiClient
   readonly #transport: CooltoApiTransport;
   readonly #profileJd: ProfileJdApi;
   readonly #experiences: ExperienceApi;
+  readonly #resumePublications: ResumePublicationApi;
 
   public constructor(options: CooltoApiClientOptions) {
     this.#transport = new CooltoApiTransport(
@@ -47,10 +50,15 @@ export class CooltoApiClient
     );
     this.#profileJd = new ProfileJdApi(this.#transport);
     this.#experiences = new ExperienceApi(this.#transport);
+    this.#resumePublications = new ResumePublicationApi(this.#transport);
   }
 
   public get isAuthenticated(): boolean {
     return this.#transport.isAuthenticated;
+  }
+
+  public get resumes(): ResumePublicationGateway {
+    return this.#resumePublications;
   }
 
   public restoreSession(accessToken: string): void {

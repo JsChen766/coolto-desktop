@@ -7,7 +7,8 @@ import type {
 export const RESUME_COMPILE_CHANNEL = "resume-renderer:compile";
 export const RESUME_COMPILE_RESULT_CHANNEL = "resume-renderer:result";
 export const RESUME_GLOBAL_MINIMUM_USAGE_RATIO = 0.85;
-export const RESUME_DEFAULT_TARGET_USAGE_RATIO = 0.9;
+export const RESUME_DEFAULT_TARGET_USAGE_RATIO = 0.92;
+export const RESUME_DEFAULT_TARGET_BULLET_TAIL_RATIO = 0.75;
 export const RESUME_LAYOUT_TOLERANCE_PX = 1;
 export const RESUME_BULLET_LINE_TOLERANCE_PX = 1;
 
@@ -53,6 +54,12 @@ export interface ResumeCompileResult {
   qualified: boolean;
   fontsReady: boolean;
   loadedFontFamilies: string[];
+  observedAt: string;
+  viewport: {
+    widthPx: number;
+    heightPx: number;
+    devicePixelRatio: number;
+  };
   pageCount: number;
   overflowPx: number;
   usedHeightPx: number;

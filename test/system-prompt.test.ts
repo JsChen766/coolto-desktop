@@ -24,6 +24,13 @@ test("system prompt defines autonomous tool choice and clarification behavior", 
   assert.match(COOLTO_SYSTEM_PROMPT, /review_resume_candidate/);
   assert.match(COOLTO_SYSTEM_PROMPT, /alternativeTargets/);
   assert.match(COOLTO_SYSTEM_PROMPT, /ready_for_approval/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /prepare_resume_save/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /list_resumes/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /get_resume/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /用户接受前不得声称已保存/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /prepare_resume_pdf_export/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /系统对话框/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得声称已导出/);
   assert.match(COOLTO_SYSTEM_PROMPT, /needs_user_decision/);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得自行生成待决策卡片/);
   assert.match(COOLTO_SYSTEM_PROMPT, /接受、拒绝、自定义回答/);

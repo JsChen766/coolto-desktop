@@ -49,9 +49,9 @@ export function normalizeExperienceDetail(value: unknown): ExperienceDetail {
   };
 }
 
-function normalizeExperienceSummary(
+export function normalizeExperienceSummary(
   value: unknown,
-  path: string,
+  path = "experience",
 ): ExperienceSummary {
   const record = objectValue(value, path);
   const category = requiredString(record.category, `${path}.category`);

@@ -31,6 +31,14 @@ export interface ResumeBullet {
   text: string;
   matched_jd_requirement_ids: string[];
   source_fact_ids?: string[];
+  source_evidence?: Array<{
+    experience_id: string;
+    revision_id: string;
+    revision_content_hash: string;
+    source_start: number;
+    source_end: number;
+    source_quote: string;
+  }>;
   layout_exception?: "unfixable_grounded_short" | null;
 }
 
@@ -182,4 +190,3 @@ export interface ResumeFull extends Resume {
   items: ResumeItem[];
   variants: ResumeVariant[];
 }
-

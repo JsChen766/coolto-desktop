@@ -14,6 +14,8 @@ import type { ResumeCandidatePatcher } from "../resume/workspace/candidate-patch
 import type { ResumeCandidatePreparer } from "../resume/workspace/candidate-preparer.js";
 import type { ResumeCandidateReviewer } from "../resume/quality/candidate-reviewer.js";
 import type { ResumeAlternativeRepairer } from "../resume/quality/alternative-repairer.js";
+import type { ResumeSaveProposalBuilder } from "../resume/save/proposal-builder.js";
+import type { ResumePublicationGateway } from "../resume/save/types.js";
 import { createGetExperienceTool } from "./get-experience.js";
 import { createGetCurrentUserTool } from "./get-current-user.js";
 import { createGetResumeSourceSnapshotTool } from "./get-resume-source-snapshot.js";
@@ -24,6 +26,10 @@ import { createJdTools } from "./jd-tools.js";
 import { createSearchExperiencesTool } from "./search-experiences.js";
 import { createSelectedFileTools } from "./selected-files.js";
 import { createResumeCandidateTools } from "./resume-candidate/index.js";
+import { createPrepareResumeSaveTool } from "./resume-candidate/prepare-save.js";
+import { createResumeReadTools } from "./resume-tools.js";
+import type { ResumePdfExportProposalBuilder } from "../resume/export/proposal-builder.js";
+import { createPrepareResumePdfExportTool } from "./resume-candidate/prepare-pdf-export.js";
 
 export interface ToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
@@ -35,6 +41,9 @@ export interface ToolRegistryDependencies {
   resumeCandidatePatcher?: ResumeCandidatePatcher;
   resumeCandidateReviewer?: ResumeCandidateReviewer;
   resumeAlternativeRepairer?: ResumeAlternativeRepairer;
+  resumeSaveProposalBuilder?: ResumeSaveProposalBuilder;
+  resumePdfExportProposalBuilder?: ResumePdfExportProposalBuilder;
+  resumeReader?: ResumePublicationGateway;
   importProposalStore?: ExperienceImportProposalStore;
   approvalManager?: ApprovalManager;
   selectedFileRegistry?: SelectedFileRegistry;
@@ -60,6 +69,9 @@ export function createToolRegistry(
   if (dependencies.jdReader) {
     businessTools.push(...createJdTools(dependencies.jdReader));
   }
+  if (dependencies.resumeReader) {
+    businessTools.push(...createResumeReadTools(dependencies.resumeReader));
+  }
   if (dependencies.experienceReader) {
     businessTools.push(
       createSearchExperiencesTool(dependencies.experienceReader),
@@ -75,6 +87,25 @@ export function createToolRegistry(
       createPrepareExperienceImportTool(
         dependencies.experienceReader,
         dependencies.importProposalStore,
+        dependencies.approvalManager,
+      ),
+    );
+  }
+  if (dependencies.resumeSaveProposalBuilder && dependencies.approvalManager) {
+    businessTools.push(
+      createPrepareResumeSaveTool(
+        dependencies.resumeSaveProposalBuilder,
+        dependencies.approvalManager,
+      ),
+    );
+  }
+  if (
+    dependencies.resumePdfExportProposalBuilder &&
+    dependencies.approvalManager
+  ) {
+    businessTools.push(
+      createPrepareResumePdfExportTool(
+        dependencies.resumePdfExportProposalBuilder,
         dependencies.approvalManager,
       ),
     );

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Ellipsis,
+  FileText,
   LogOut,
   Moon,
   Settings2,
@@ -13,17 +14,21 @@ import type {
   ConversationSummary,
   DesktopUser,
 } from "@desktop/types";
+import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 
 const props = defineProps<{
   conversations: ConversationSummary[];
   currentId: string | undefined;
   user: DesktopUser;
   dark: boolean;
+  resumeDrafts: ResumeDraftSummary[];
+  currentDraftId: string | undefined;
 }>();
 
 const emit = defineEmits<{
   create: [];
   select: [conversationId: string];
+  selectDraft: [artifactId: string];
   rename: [conversation: ConversationSummary];
   delete: [conversation: ConversationSummary];
   toggleTheme: [];
@@ -91,6 +96,37 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
       <SquarePen :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span>新对话</span>
     </button>
+
+    <section class="sidebar-section resume-draft-section">
+      <p class="section-label">本地简历</p>
+      <div class="resume-draft-list">
+        <p v-if="resumeDrafts.length === 0" class="sidebar-empty">
+          暂无本地简历
+        </p>
+        <button
+          v-for="draft in resumeDrafts"
+          :key="draft.artifactId"
+          class="resume-draft-row"
+          :class="{ active: draft.artifactId === currentDraftId }"
+          type="button"
+          @click="$emit('selectDraft', draft.artifactId)"
+        >
+          <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
+          <span>{{ draft.title }}</span>
+          <i
+            class="resume-draft-state"
+            :class="draft.cloudState"
+            :title="
+              draft.cloudState === 'synced'
+                ? '已同步云端'
+                : draft.cloudState === 'local_changes'
+                  ? '有未同步修改'
+                  : '仅保存在本机'
+            "
+          />
+        </button>
+      </div>
+    </section>
 
     <section class="sidebar-section conversation-section">
       <p class="section-label">对话历史</p>

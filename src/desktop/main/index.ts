@@ -8,6 +8,7 @@ import { ElectronResumeCompilerService } from "./resume-compiler-service.js";
 import { runResumeWorkspaceQa } from "./resume-workspace-qa.js";
 import { getResumeFixture } from "../../resume/fixtures.js";
 import { inspectResumePdf } from "../../resume/pdf-postflight.js";
+import { runResumePdfExportQa } from "./resume-pdf-export-qa.js";
 
 let mainWindow: BrowserWindow | undefined;
 
@@ -116,12 +117,19 @@ async function runResumeRendererQa(): Promise<void> {
     const pdf = pdfCompilation.pdf;
     const postflight = await inspectResumePdf(pdf);
     const workspaceResult = await runResumeWorkspaceQa(compiler);
+    const g6ExportResult = process.env.COOLTO_RESUME_G6_EXPORT_PATH
+      ? await runResumePdfExportQa(
+          compiler,
+          process.env.COOLTO_RESUME_G6_EXPORT_PATH,
+        )
+      : undefined;
     const result = {
       compileResults,
       concurrentCompileResults,
       pdfCompileResult,
       postflight,
       workspaceResult,
+      ...(g6ExportResult ? { g6ExportResult } : {}),
     };
 
     if (process.env.COOLTO_RESUME_QA_RESULT_PATH) {

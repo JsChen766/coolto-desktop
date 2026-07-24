@@ -104,7 +104,7 @@ export function buildResumeSkeleton(
       item_gap_scale: 1,
       bullet_gap_scale: 1,
     },
-    layout_target_band: { minimum: 0.85, target: 0.9, maximum: 0.98 },
+    layout_target_band: { minimum: 0.85, target: 0.92, maximum: 0.98 },
   };
 }
 

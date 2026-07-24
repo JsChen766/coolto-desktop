@@ -505,7 +505,6 @@ button:disabled {
   z-index: 30;
   min-width: 142px;
   padding: 5px;
-  border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
   box-shadow: var(--shadow-menu);
@@ -705,7 +704,6 @@ button:disabled {
 
 .suggestion-card:hover {
   border-color: var(--border-strong);
-  background: var(--surface);
   color: var(--text);
 }
 
@@ -827,17 +825,16 @@ button:disabled {
   width: min(760px, 100%);
   margin: 0 auto;
   padding: 10px 11px 8px;
-  border: 1px solid transparent;
   border-radius: 17px;
   background: var(--surface);
   display: flex;
   flex-direction: column;
   gap: 5px;
-  transition: border-color 100ms ease;
+  transition: background 100ms ease;
 }
 
 .composer:focus-within {
-  border-color: var(--border);
+  background: var(--surface-strong);
 }
 
 .composer textarea {
@@ -910,7 +907,6 @@ button:disabled {
 .approval-card {
   width: 100%;
   padding: 17px;
-  border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
   box-shadow: 0 1px 0 rgb(0 0 0 / 2%);
@@ -1016,7 +1012,7 @@ button:disabled {
   padding: 0 11px;
   border: 1px solid var(--border);
   border-radius: 9px;
-  background: var(--bg);
+  background: transparent;
   color: var(--text-soft);
   justify-content: flex-start;
   font-size: 12.5px;
@@ -1024,12 +1020,12 @@ button:disabled {
 }
 
 .approval-button:hover:not(:disabled) {
-  background: var(--surface-strong);
+  border-color: var(--border-strong);
   color: var(--text);
 }
 
 .approval-button.primary {
-  border-color: var(--text);
+  border: 0;
   background: var(--text);
   color: var(--bg);
 }
@@ -1075,10 +1071,9 @@ button:disabled {
 
 /* Artifact */
 .artifact-panel {
-  width: min(430px, 38vw);
-  min-width: 340px;
+  width: min(720px, 56vw);
+  min-width: 480px;
   height: 100%;
-  border-left: 1px solid var(--border);
   background: var(--surface);
   display: flex;
   flex-direction: column;
@@ -1088,7 +1083,6 @@ button:disabled {
   height: 45px;
   min-height: 45px;
   padding: 0 9px 0 14px;
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1136,6 +1130,458 @@ button:disabled {
   font-weight: 600;
 }
 
+/* Local resumes */
+.resume-draft-section {
+  margin-top: 14px;
+}
+
+.resume-draft-list {
+  max-height: 146px;
+  overflow-y: auto;
+}
+
+.resume-draft-row {
+  width: 100%;
+  min-height: 31px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+  font-size: 13px;
+}
+
+.resume-draft-row:hover,
+.resume-draft-row.active {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.resume-draft-row > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-draft-state {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted-light);
+  flex: 0 0 auto;
+}
+
+.resume-draft-state.synced {
+  background: #6d9b7a;
+}
+
+.resume-draft-state.local_changes {
+  background: #b68a52;
+}
+
+/* Resume toolbar */
+.resume-header-tools {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.resume-details-popover {
+  position: absolute;
+  z-index: 60;
+  top: 38px;
+  right: 0;
+  width: 248px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-menu);
+}
+
+.resume-detail-row {
+  min-height: 35px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 12px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.resume-detail-row + .resume-detail-row {
+  margin-top: 2px;
+}
+
+.resume-detail-row strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.resume-detail-row small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+/* Chat resume artifact */
+.resume-artifact-card {
+  width: min(430px, 100%);
+  min-height: 72px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+}
+
+.resume-artifact-card:hover {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.resume-artifact-page {
+  width: 38px;
+  height: 49px;
+  border-radius: 4px;
+  background: var(--paper);
+  box-shadow: 0 4px 12px rgb(25 24 20 / 8%);
+  color: #77746d;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.resume-artifact-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.resume-artifact-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-artifact-copy > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.resume-artifact-open {
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+/* A4 editable resume */
+.artifact-title-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.artifact-local-state {
+  color: var(--muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.artifact-error {
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-size: 11.5px;
+}
+
+.artifact-loading {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.resume-editor-viewport {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  padding: 22px;
+  overflow: auto;
+}
+
+.resume-a4-stage {
+  position: relative;
+  margin: 0 auto;
+}
+
+.resume-a4-root {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: top left;
+}
+
+.resume-a4-root .resume-document-frame {
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.resume-editable-text {
+  border-radius: 1px;
+  outline: none;
+  cursor: text;
+}
+
+.resume-editable-text:hover,
+.resume-editable-text:focus {
+  background: rgb(88 153 106 / 7%);
+}
+
+.resume-locked-field {
+  border-radius: 1px;
+  outline: none;
+  cursor: not-allowed;
+}
+
+.resume-locked-field:hover,
+.resume-locked-field:focus {
+  background: rgb(116 113 104 / 8%);
+}
+
+.resume-draggable-source {
+  cursor: grab;
+}
+
+.resume-draggable-source:active {
+  cursor: grabbing;
+}
+
+.resume-change-highlight {
+  background-image: linear-gradient(
+    to bottom,
+    transparent 12%,
+    rgb(73 174 101 / 18%) 12%,
+    rgb(73 174 101 / 18%) 88%,
+    transparent 88%
+  );
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.resume-lock-popover {
+  position: absolute;
+  z-index: 70;
+  width: 252px;
+  padding: 12px;
+  border-radius: 11px;
+  background: var(--bg);
+  box-shadow: var(--shadow-menu);
+  color: var(--text-soft);
+}
+
+.resume-lock-title {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.resume-lock-popover p {
+  margin: 8px 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.resume-lock-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.resume-lock-actions button {
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.resume-lock-actions button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.resume-history-panel {
+  max-height: 210px;
+  padding: 10px;
+  background: var(--bg);
+  overflow-y: auto;
+}
+
+.resume-history-heading {
+  padding: 3px 7px 8px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.resume-history-heading strong {
+  font-size: 12px;
+}
+
+.resume-history-heading span,
+.resume-history-empty {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.resume-history-row {
+  width: 100%;
+  min-height: 46px;
+  padding: 7px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  text-align: left;
+}
+
+.resume-history-row:hover {
+  background: var(--surface);
+}
+
+.resume-history-row > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.resume-history-row strong {
+  font-size: 11.5px;
+}
+
+.resume-history-row small,
+.resume-history-row time {
+  color: var(--muted);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.resume-change-actions {
+  min-height: 64px;
+  padding: 10px 13px;
+  background: var(--surface-strong);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.resume-change-actions > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.resume-change-actions strong {
+  font-size: 12px;
+}
+
+.resume-change-actions span {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.resume-change-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.resume-change-buttons button {
+  min-height: 31px;
+  padding: 0 11px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-soft);
+  font-size: 11.5px;
+}
+
+.resume-change-buttons .resume-accept-button {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Composer resume reference */
+.composer-resume-reference {
+  min-height: 38px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: var(--surface-strong);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-soft);
+}
+
+.composer-resume-reference > span {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.composer-resume-reference small {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.composer-resume-reference strong {
+  overflow: hidden;
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-resume-reference button {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.composer-resume-reference button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
 /* Dialog */
 .dialog-backdrop {
   position: fixed;
@@ -1151,7 +1597,6 @@ button:disabled {
 .dialog-card {
   width: min(400px, 100%);
   padding: 20px;
-  border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--bg);
   box-shadow: var(--shadow-menu);
@@ -1180,8 +1625,8 @@ button:disabled {
 
 @media (max-width: 1040px) {
   .artifact-panel {
-    width: 360px;
-    min-width: 320px;
+    width: 480px;
+    min-width: 420px;
   }
 
   .composer-hint {

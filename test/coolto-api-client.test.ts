@@ -204,10 +204,14 @@ test("API client reads profile and versioned JD assets", async () => {
 
 test("API client maps camelCase input to the backend experience create contract", async () => {
   let requestBody: unknown;
+  const requestedPaths: string[] = [];
   const client = new CooltoApiClient({
     baseUrl: "http://localhost:8000",
-    fetchFn: async (_input, init) => {
-      requestBody = JSON.parse(String(init?.body));
+    fetchFn: async (input, init) => {
+      requestedPaths.push(new URL(String(input)).pathname);
+      if (init?.method === "POST") {
+        requestBody = JSON.parse(String(init.body));
+      }
       return jsonResponse({
         success: true,
         data: {
@@ -240,6 +244,10 @@ test("API client maps camelCase input to the backend experience create contract"
     end_date: "present",
     tags: ["TypeScript"],
   });
+  assert.deepEqual(requestedPaths, [
+    "/v1/product/experiences",
+    `/v1/product/experiences/${experienceSummary.id}`,
+  ]);
 });
 
 test("new source readers fail closed on malformed API contracts", async () => {

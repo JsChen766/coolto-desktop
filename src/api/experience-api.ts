@@ -2,6 +2,7 @@ import type { AuthenticatedRequester } from "./api-transport.js";
 import {
   normalizeExperienceDetail,
   normalizeExperienceSearchResult,
+  normalizeExperienceSummary,
 } from "./experience-normalizers.js";
 import type {
   ExperienceCreateInput,
@@ -69,6 +70,7 @@ export class ExperienceApi implements ExperienceReader, ExperienceWriter {
         ...(signal ? { signal } : {}),
       },
     );
-    return normalizeExperienceDetail(value);
+    const created = normalizeExperienceSummary(value);
+    return this.getExperience(created.id, signal);
   }
 }

@@ -1,5 +1,7 @@
 export type ResumeWorkspaceErrorCode =
   | "candidate_not_found"
+  | "candidate_not_ready_for_save"
+  | "candidate_evidence_incomplete"
   | "stale_candidate_revision"
   | "workspace_revision_limit"
   | "missing_education_source"

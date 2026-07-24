@@ -3,13 +3,27 @@ import { ResumeWorkspaceError } from "./errors.js";
 
 export class ResumeWorkspaceStore {
   readonly #workspaces = new Map<string, ResumeWorkspace>();
+  #latestCandidateId: string | undefined;
 
   public create(workspace: ResumeWorkspace): ResumeWorkspace {
     if (this.#workspaces.has(workspace.candidateId)) {
       throw new Error(`Duplicate candidate ID: ${workspace.candidateId}`);
     }
     this.#workspaces.set(workspace.candidateId, structuredClone(workspace));
+    this.#latestCandidateId = workspace.candidateId;
     return structuredClone(workspace);
+  }
+
+  public restore(workspace: ResumeWorkspace): ResumeWorkspace {
+    this.#workspaces.set(workspace.candidateId, structuredClone(workspace));
+    this.#latestCandidateId = workspace.candidateId;
+    return structuredClone(workspace);
+  }
+
+  public latest(): ResumeWorkspace | undefined {
+    if (!this.#latestCandidateId) return undefined;
+    const workspace = this.#workspaces.get(this.#latestCandidateId);
+    return workspace ? structuredClone(workspace) : undefined;
   }
 
   public get(candidateId: string): ResumeWorkspace {
@@ -41,6 +55,7 @@ export class ResumeWorkspaceStore {
       );
     }
     this.#workspaces.set(workspace.candidateId, structuredClone(workspace));
+    this.#latestCandidateId = workspace.candidateId;
     return structuredClone(workspace);
   }
 }

@@ -18,15 +18,17 @@ import type {
   ConversationDetail,
   ConversationSummary,
 } from "../shared/types.js";
+import type { ResumeDraftArtifactReference } from "../../resume/draft/types.js";
 
 interface StoredConversation {
-  version: 1;
+  version: 1 | 2;
   id: string;
   ownerId: string;
   title: string;
   createdAt: string;
   updatedAt: string;
   agentMessages: AgentMessage[];
+  resumeArtifacts?: ResumeDraftArtifactReference[];
 }
 
 const UNTITLED = "新对话";
@@ -62,13 +64,14 @@ export class ConversationStore {
   public async create(): Promise<ConversationDetail> {
     const now = new Date().toISOString();
     const conversation: StoredConversation = {
-      version: 1,
+      version: 2,
       id: randomUUID(),
       ownerId: this.#ownerId,
       title: UNTITLED,
       createdAt: now,
       updatedAt: now,
       agentMessages: [],
+      resumeArtifacts: [],
     };
     await this.#write(conversation);
     return toDetail(conversation);
@@ -96,11 +99,33 @@ export class ConversationStore {
     messages: AgentMessage[],
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
+    record.version = 2;
     record.agentMessages = sanitizeAgentMessagesForPersistence(messages);
     record.updatedAt = new Date().toISOString();
     if (record.title === UNTITLED) {
       record.title = deriveTitle(messages);
     }
+    await this.#write(record);
+    return toDetail(record);
+  }
+
+  public async addResumeArtifact(
+    conversationId: string,
+    artifact: ResumeDraftArtifactReference,
+  ): Promise<ConversationDetail> {
+    const record = await this.getRecord(conversationId);
+    record.version = 2;
+    const artifacts = record.resumeArtifacts ?? [];
+    const existing = artifacts.findIndex(
+      (candidate) => candidate.artifactId === artifact.artifactId,
+    );
+    if (existing >= 0) {
+      artifacts[existing] = structuredClone(artifact);
+    } else {
+      artifacts.push(structuredClone(artifact));
+    }
+    record.resumeArtifacts = artifacts;
+    record.updatedAt = new Date().toISOString();
     await this.#write(record);
     return toDetail(record);
   }
@@ -181,6 +206,7 @@ function toDetail(record: StoredConversation): ConversationDetail {
   return {
     ...toSummary(record),
     messages: extractChatMessages(record.agentMessages),
+    resumeArtifacts: structuredClone(record.resumeArtifacts ?? []),
   };
 }
 
@@ -190,7 +216,7 @@ function extractChatMessages(messages: AgentMessage[]): ChatMessage[] {
     if (message.role !== "user" && message.role !== "assistant") {
       return;
     }
-    const content = extractText(message.content);
+    const content = stripInternalResumeReference(extractText(message.content));
     if (!content.trim()) {
       return;
     }
@@ -206,6 +232,12 @@ function extractChatMessages(messages: AgentMessage[]): ChatMessage[] {
     });
   });
   return visible;
+}
+
+function stripInternalResumeReference(value: string): string {
+  return value
+    .replace(/\n*<resume_reference>[\s\S]*?<\/resume_reference>\s*$/u, "")
+    .trimEnd();
 }
 
 function extractText(content: unknown): string {
@@ -252,13 +284,15 @@ function isStoredConversation(value: unknown): value is StoredConversation {
   }
   const candidate = value as Partial<StoredConversation>;
   return (
-    candidate.version === 1 &&
+    (candidate.version === 1 || candidate.version === 2) &&
     typeof candidate.id === "string" &&
     typeof candidate.ownerId === "string" &&
     typeof candidate.title === "string" &&
     typeof candidate.createdAt === "string" &&
     typeof candidate.updatedAt === "string" &&
-    Array.isArray(candidate.agentMessages)
+    Array.isArray(candidate.agentMessages) &&
+    (candidate.resumeArtifacts === undefined ||
+      Array.isArray(candidate.resumeArtifacts))
   );
 }
 

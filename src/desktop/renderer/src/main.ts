@@ -1,6 +1,7 @@
 import { createApp } from "vue";
 
 import App from "./App.vue";
+import "./resume-renderer/style.css";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/markdown.css";

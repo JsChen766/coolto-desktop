@@ -26,6 +26,16 @@ const api: DesktopApi = {
     delete: (conversationId) =>
       ipcRenderer.invoke("conversations:delete", conversationId),
   },
+  resumeDrafts: {
+    list: () => ipcRenderer.invoke("resume-drafts:list"),
+    get: (artifactId) => ipcRenderer.invoke("resume-drafts:get", artifactId),
+    edit: (input) => ipcRenderer.invoke("resume-drafts:edit", input),
+    restore: (input) => ipcRenderer.invoke("resume-drafts:restore", input),
+    accept: (artifactId) =>
+      ipcRenderer.invoke("resume-drafts:accept", artifactId),
+    reject: (artifactId) =>
+      ipcRenderer.invoke("resume-drafts:reject", artifactId),
+  },
   agent: {
     prompt: (input: AgentPromptInput) =>
       ipcRenderer.invoke("agent:prompt", input),

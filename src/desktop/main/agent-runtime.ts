@@ -11,63 +11,127 @@ import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
 import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
 import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
-import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
+import type {
+  ResumePdfCompiler,
+  ResumePdfExportGateway,
+} from "../../resume/export/types.js";
+import { ResumePdfExportSourceResolver } from "../../resume/export/source-resolver.js";
+import { ResumePdfExportProposalBuilder } from "../../resume/export/proposal-builder.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { ResumeQualityEvaluator } from "../../resume/quality/quality-evaluator.js";
 import { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
 import { ResumeAlternativeRepairer } from "../../resume/quality/alternative-repairer.js";
+import { ResumeSaveProposalBuilder } from "../../resume/save/proposal-builder.js";
 import { createToolRegistry } from "../../tools/registry.js";
 import type {
+  AgentPromptInput,
   ConversationDetail,
   DesktopAgentEvent,
 } from "../shared/types.js";
 import { ConversationStore } from "./conversation-store.js";
+import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+
+interface ConversationAgentContext {
+  agent: CooltoAgent;
+  workspaceStore: ResumeWorkspaceStore;
+  artifactIdByCandidate: Map<string, string>;
+  activeEdit?: {
+    artifactId: string;
+    base: NonNullable<ReturnType<ResumeWorkspaceStore["latest"]>>;
+    summary: string;
+  };
+}
 
 export class DesktopAgentRuntime {
   readonly #apiClient: CooltoApiClient;
   readonly #store: ConversationStore;
+  readonly #resumeDrafts: ResumeDraftService;
   readonly #target: WebContents;
-  readonly #resumeCompiler: ResumeCompiler;
-  readonly #agents = new Map<string, CooltoAgent>();
+  readonly #resumeCompiler: ResumePdfCompiler;
+  readonly #resumePdfExports: ResumePdfExportGateway;
+  readonly #contexts = new Map<string, ConversationAgentContext>();
   #runningConversationId: string | undefined;
 
   public constructor(
     apiClient: CooltoApiClient,
     store: ConversationStore,
+    resumeDrafts: ResumeDraftService,
     target: WebContents,
-    resumeCompiler: ResumeCompiler,
+    resumeCompiler: ResumePdfCompiler,
+    resumePdfExports: ResumePdfExportGateway,
   ) {
     this.#apiClient = apiClient;
     this.#store = store;
+    this.#resumeDrafts = resumeDrafts;
     this.#target = target;
     this.#resumeCompiler = resumeCompiler;
+    this.#resumePdfExports = resumePdfExports;
   }
 
   public get isRunning(): boolean {
     return this.#runningConversationId !== undefined;
   }
 
-  public async prompt(
-    conversationId: string,
-    text: string,
-  ): Promise<ConversationDetail> {
-    const agent = await this.#agentFor(conversationId);
+  public async prompt(input: AgentPromptInput): Promise<ConversationDetail> {
+    const conversationId = input.conversationId;
+    const context = await this.#contextFor(conversationId);
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
     try {
-      await agent.prompt(text);
+      const editBase = input.resumeReference
+        ? await this.#activateReferencedDraft(context, input.resumeReference.artifactId)
+        : undefined;
+      if (editBase) {
+        context.activeEdit = {
+          artifactId: editBase.artifactId,
+          base: structuredClone(editBase.workspace),
+          summary: `AI 修改：${input.resumeReference?.label ?? "简历内容"}`,
+        };
+      }
+      await context.agent.prompt(
+        input.resumeReference
+          ? promptWithResumeReference(input.text, input.resumeReference)
+          : input.text,
+      );
+      const proposed = context.workspaceStore.latest();
+      if (
+        editBase &&
+        proposed &&
+        proposed.revision !== editBase.workspace.revision
+      ) {
+        await this.#resumeDrafts.proposeChange({
+          artifactId: editBase.artifactId,
+          base: editBase.workspace,
+          proposed,
+          summary: context.activeEdit?.summary ?? "AI 修改简历内容",
+        });
+      }
       return await this.#store.saveMessages(
         conversationId,
-        agent.getMessages(),
+        context.agent.getMessages(),
       );
     } finally {
+      context.activeEdit = undefined;
       this.#runningConversationId = undefined;
     }
   }
 
+  async #activateReferencedDraft(
+    context: ConversationAgentContext,
+    artifactId: string,
+  ) {
+    const draft = await this.#resumeDrafts.get(artifactId);
+    context.workspaceStore.restore(draft.workspace);
+    context.artifactIdByCandidate.set(
+      draft.workspace.candidateId,
+      draft.artifactId,
+    );
+    return draft;
+  }
+
   public cancel(): void {
     if (this.#runningConversationId) {
-      this.#agents.get(this.#runningConversationId)?.cancel();
+      this.#contexts.get(this.#runningConversationId)?.agent.cancel();
     }
   }
 
@@ -76,29 +140,33 @@ export class DesktopAgentRuntime {
     requestId: string,
     decision: ApprovalDecision,
   ): Promise<ConversationDetail> {
-    const agent = await this.#agentFor(conversationId);
+    const context = await this.#contextFor(conversationId);
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
     try {
-      await agent.resolveApproval(requestId, decision);
+      await context.agent.resolveApproval(requestId, decision);
       return await this.#store.saveMessages(
         conversationId,
-        agent.getMessages(),
+        context.agent.getMessages(),
       );
     } finally {
       this.#runningConversationId = undefined;
     }
   }
 
-  async #agentFor(conversationId: string): Promise<CooltoAgent> {
-    const existing = this.#agents.get(conversationId);
+  async #contextFor(
+    conversationId: string,
+  ): Promise<ConversationAgentContext> {
+    const existing = this.#contexts.get(conversationId);
     if (existing) {
       return existing;
     }
-    const agent = this.#createAgent(conversationId);
-    agent.replaceMessages(await this.#store.loadMessages(conversationId));
-    this.#agents.set(conversationId, agent);
-    return agent;
+    const context = this.#createContext(conversationId);
+    context.agent.replaceMessages(
+      await this.#store.loadMessages(conversationId),
+    );
+    this.#contexts.set(conversationId, context);
+    return context;
   }
 
   #assertCanRun(conversationId: string): void {
@@ -110,13 +178,15 @@ export class DesktopAgentRuntime {
     }
   }
 
-  #createAgent(conversationId: string): CooltoAgent {
+  #createContext(conversationId: string): ConversationAgentContext {
     const config = readConfig();
     const selectedFiles = new SelectedFileRegistry();
     const proposalStore = new ExperienceImportProposalStore();
     const approvalManager = createActionApprovalManager(
       this.#apiClient,
       proposalStore,
+      this.#apiClient.resumes,
+      this.#resumePdfExports,
     );
     const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: this.#apiClient,
@@ -144,6 +214,16 @@ export class DesktopAgentRuntime {
       resumeQualityEvaluator,
       resumeWorkspaceStore,
     );
+    const resumeSaveProposalBuilder = new ResumeSaveProposalBuilder(
+      resumeWorkspaceStore,
+    );
+    const resumePdfExportProposalBuilder = new ResumePdfExportProposalBuilder(
+      new ResumePdfExportSourceResolver(
+        resumeWorkspaceStore,
+        this.#apiClient.resumes,
+      ),
+      this.#resumeCompiler,
+    );
     const agent = createCooltoAgent({
       apiKey: config.apiKey,
       modelId: config.modelId,
@@ -153,17 +233,32 @@ export class DesktopAgentRuntime {
         userProfileReader: this.#apiClient,
         experienceReader: this.#apiClient,
         jdReader: this.#apiClient,
+        resumeReader: this.#apiClient.resumes,
         resumeSourceSnapshotBuilder,
         resumeCandidatePreparer,
         resumeCandidatePatcher,
         resumeCandidateReviewer,
         resumeAlternativeRepairer,
+        resumeSaveProposalBuilder,
+        resumePdfExportProposalBuilder,
         importProposalStore: proposalStore,
         approvalManager,
         selectedFileRegistry: selectedFiles,
       }),
     });
-    agent.subscribe((event) => {
+    const context: ConversationAgentContext = {
+      agent,
+      workspaceStore: resumeWorkspaceStore,
+      artifactIdByCandidate: new Map(),
+    };
+    agent.subscribe(async (event) => {
+      if (
+        event.type === "tool.completed" &&
+        isResumeWorkspaceTool(event.name) &&
+        !event.isError
+      ) {
+        await this.#syncLatestWorkspace(conversationId, context);
+      }
       if (this.#target.isDestroyed()) {
         return;
       }
@@ -172,6 +267,86 @@ export class DesktopAgentRuntime {
         event: event as DesktopAgentEvent,
       });
     });
-    return agent;
+    return context;
   }
+
+  async #syncLatestWorkspace(
+    conversationId: string,
+    context: ConversationAgentContext,
+  ): Promise<void> {
+    const workspace = context.workspaceStore.latest();
+    if (!workspace) return;
+    if (context.activeEdit) {
+      const draft = await this.#resumeDrafts.proposeChange({
+        artifactId: context.activeEdit.artifactId,
+        base: context.activeEdit.base,
+        proposed: workspace,
+        summary: context.activeEdit.summary,
+      });
+      await this.#notifyDraftUpdated(conversationId, draft.artifactId);
+      return;
+    }
+    const artifactId = context.artifactIdByCandidate.get(
+      workspace.candidateId,
+    );
+    const synced = await this.#resumeDrafts.syncWorkspace({
+      conversationId,
+      workspace,
+      ...(artifactId ? { artifactId } : {}),
+    });
+    context.artifactIdByCandidate.set(
+      workspace.candidateId,
+      synced.draft.artifactId,
+    );
+    const draft =
+      synced.created && workspace.status === "ready_for_approval"
+        ? await this.#resumeDrafts.ensureGeneratedCheckpoint(
+            synced.draft.artifactId,
+          )
+        : synced.draft;
+    await this.#store.addResumeArtifact(
+      conversationId,
+      this.#resumeDrafts.artifactReference(draft),
+    );
+    await this.#notifyDraftUpdated(conversationId, draft.artifactId);
+  }
+
+  async #notifyDraftUpdated(
+    conversationId: string,
+    artifactId: string,
+  ): Promise<void> {
+    if (this.#target.isDestroyed()) return;
+    this.#target.send("agent:event", {
+      conversationId,
+      event: {
+        type: "resume.draft.updated",
+        artifactId,
+      } satisfies DesktopAgentEvent,
+    });
+  }
+}
+
+function isResumeWorkspaceTool(name: string): boolean {
+  return [
+    "prepare_resume_candidate",
+    "patch_resume_candidate",
+    "review_resume_candidate",
+  ].includes(name);
+}
+
+function promptWithResumeReference(
+  text: string,
+  reference: NonNullable<AgentPromptInput["resumeReference"]>,
+): string {
+  return [
+    text.trim(),
+    "",
+    "<resume_reference>",
+    `artifact_id: ${reference.artifactId}`,
+    `target_type: ${reference.targetType}`,
+    `target_id: ${reference.targetId}`,
+    `label: ${reference.label}`,
+    "Use the restored ResumeWorkspace and stable target ID. Keep all unrelated content unchanged.",
+    "</resume_reference>",
+  ].join("\n");
 }

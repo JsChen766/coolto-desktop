@@ -68,7 +68,7 @@ function baseStructure(
     },
     layout_target_band: {
       minimum: 0.85,
-      target: 0.9,
+      target: 0.92,
       maximum: 0.98,
     },
   };

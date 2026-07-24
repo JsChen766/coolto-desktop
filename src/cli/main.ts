@@ -55,6 +55,7 @@ async function main(): Promise<void> {
   const approvalManager = createActionApprovalManager(
     apiClient,
     importProposalStore,
+    apiClient.resumes,
   );
   const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
     currentUser: apiClient,
@@ -71,6 +72,7 @@ async function main(): Promise<void> {
       userProfileReader: apiClient,
       experienceReader: apiClient,
       jdReader: apiClient,
+      resumeReader: apiClient.resumes,
       resumeSourceSnapshotBuilder,
       importProposalStore,
       approvalManager,

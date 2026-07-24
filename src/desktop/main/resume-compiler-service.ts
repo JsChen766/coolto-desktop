@@ -14,6 +14,7 @@ import {
   type ResumeCompileResult,
 } from "../../resume/compiler-types.js";
 import type { ResumeStructure } from "../../resume/types.js";
+import type { ResumePdfCompiler } from "../../resume/export/types.js";
 
 interface PendingCompile {
   resolve(result: ResumeCompileResult): void;
@@ -21,13 +22,7 @@ interface PendingCompile {
   timeout: ReturnType<typeof setTimeout>;
 }
 
-export interface ResumePdfCompilation {
-  result: ResumeCompileResult;
-  pdf: Buffer;
-  screenshot?: Buffer;
-}
-
-export class ElectronResumeCompilerService {
+export class ElectronResumeCompilerService implements ResumePdfCompiler {
   readonly #ipcMain: IpcMain;
   readonly #pending = new Map<string, PendingCompile>();
   #operationQueue: Promise<void> = Promise.resolve();

@@ -54,7 +54,7 @@ test("PDF font classification treats digits as Times New Roman content", () => {
 });
 
 test("hidden renderer uses real DOM geometry and an isolated Chromium host", async () => {
-  const [fontReadiness, bulletMeasurement, markdown, service] = await Promise.all([
+  const [fontReadiness, bulletMeasurement, markdown, service, saveDialog] = await Promise.all([
     readFile(
       new URL(
         "../src/desktop/renderer/src/resume-renderer/font-readiness.ts",
@@ -80,6 +80,10 @@ test("hidden renderer uses real DOM geometry and an isolated Chromium host", asy
       new URL("../src/desktop/main/resume-compiler-service.ts", import.meta.url),
       "utf8",
     ),
+    readFile(
+      new URL("../src/desktop/main/electron-pdf-save-dialog.ts", import.meta.url),
+      "utf8",
+    ),
   ]);
   assert.match(fontReadiness, /document\.fonts\.ready/);
   assert.match(bulletMeasurement, /range\.getClientRects\(\)/);
@@ -98,4 +102,7 @@ test("hidden renderer uses real DOM geometry and an isolated Chromium host", asy
   assert.match(service, /preferCSSPageSize: true/);
   assert.match(service, /#operationQueue/);
   assert.match(service, /Refusing to print an unqualified resume candidate/);
+  assert.match(saveDialog, /showSaveDialog/);
+  assert.match(saveDialog, /showOverwriteConfirmation/);
+  assert.match(saveDialog, /extensions: \["pdf"\]/);
 });

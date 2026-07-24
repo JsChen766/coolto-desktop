@@ -1,21 +1,24 @@
 <script setup lang="ts">
-import { ArrowUp, Paperclip, Square } from "@lucide/vue";
+import { ArrowUp, FileText, Paperclip, Square, X } from "@lucide/vue";
 import { nextTick, ref, watch } from "vue";
 
 import IconButton from "./IconButton.vue";
+import type { ResumeChatReference } from "@desktop/types";
 
 const props = defineProps<{
   disabled?: boolean;
   running?: boolean;
-  initialValue?: string;
+  initialValue?: string | undefined;
+  initialReference?: ResumeChatReference | undefined;
 }>();
 
 const emit = defineEmits<{
-  send: [text: string];
+  send: [text: string, reference?: ResumeChatReference];
   cancel: [];
 }>();
 
 const text = ref(props.initialValue ?? "");
+const reference = ref<ResumeChatReference | undefined>(props.initialReference);
 const textarea = ref<HTMLTextAreaElement>();
 
 watch(
@@ -28,6 +31,14 @@ watch(
   },
 );
 
+watch(
+  () => props.initialReference,
+  (value) => {
+    reference.value = value ? structuredClone(value) : undefined;
+  },
+  { deep: true },
+);
+
 function resize(): void {
   const element = textarea.value;
   if (!element) return;
@@ -38,8 +49,9 @@ function resize(): void {
 function send(): void {
   const value = text.value.trim();
   if (!value || props.disabled || props.running) return;
-  emit("send", value);
+  emit("send", value, reference.value);
   text.value = "";
+  reference.value = undefined;
   void nextTick(resize);
 }
 
@@ -49,11 +61,52 @@ function handleKeydown(event: KeyboardEvent): void {
     send();
   }
 }
+
+function handleDrop(event: DragEvent): void {
+  event.preventDefault();
+  const encoded = event.dataTransfer?.getData(
+    "application/x-coolto-resume-reference",
+  );
+  if (!encoded) return;
+  try {
+    const parsed = JSON.parse(encoded) as ResumeChatReference;
+    if (
+      parsed &&
+      typeof parsed.artifactId === "string" &&
+      typeof parsed.targetId === "string" &&
+      typeof parsed.label === "string"
+    ) {
+      reference.value = parsed;
+      if (!text.value.trim()) text.value = "请帮我修改这部分内容";
+      void nextTick(() => {
+        resize();
+        textarea.value?.focus();
+      });
+    }
+  } catch {
+    return;
+  }
+}
 </script>
 
 <template>
   <footer class="composer-dock">
-    <div class="composer">
+    <div class="composer" @dragover.prevent @drop="handleDrop">
+      <div v-if="reference" class="composer-resume-reference">
+        <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
+        <span>
+          <small>简历引用</small>
+          <strong>{{ reference.label }}</strong>
+        </span>
+        <button
+          type="button"
+          aria-label="移除简历引用"
+          title="移除简历引用"
+          @click="reference = undefined"
+        >
+          <X :size="14" :stroke-width="1.8" aria-hidden="true" />
+        </button>
+      </div>
       <textarea
         ref="textarea"
         v-model="text"

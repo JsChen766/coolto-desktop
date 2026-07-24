@@ -1,31 +1,45 @@
 import type { BrowserWindow, IpcMain } from "electron";
 
 import type { ApprovalDecision } from "../../approvals/types.js";
-import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
+import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import type {
   AgentPromptInput,
   ApprovalResolveInput,
   ConversationRenameInput,
+  ResumeDraftEditInput,
+  ResumeDraftRestoreInput,
 } from "../shared/types.js";
 import { DesktopAgentRuntime } from "./agent-runtime.js";
 import { DesktopAuthService } from "./auth-service.js";
 import { ConversationStore } from "./conversation-store.js";
+import { ElectronResumePdfSaveDialog } from "./electron-pdf-save-dialog.js";
+import { ResumePdfExportService } from "./resume-pdf-export-service.js";
+import { createElectronResumeDraftRepository } from "./resume-drafts/electron-draft-repository.js";
+import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+import { ResumeDraftEditingService } from "./resume-drafts/draft-editing-service.js";
+import { ResumeManualEditor } from "../../resume/draft/manual-editor.js";
 
 interface UserServices {
   ownerId: string;
   conversations: ConversationStore;
+  resumeDrafts: ResumeDraftService;
+  resumeDraftEditing: ResumeDraftEditingService;
   agent: DesktopAgentRuntime;
 }
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
   window: BrowserWindow,
-  resumeCompiler: ResumeCompiler,
+  resumeCompiler: ResumePdfCompiler,
 ): void {
   for (const channel of IPC_CHANNELS) {
     ipcMain.removeHandler(channel);
   }
   const auth = new DesktopAuthService();
+  const resumePdfExports = new ResumePdfExportService(
+    resumeCompiler,
+    new ElectronResumePdfSaveDialog(window),
+  );
   let services: UserServices | undefined;
 
   const servicesForCurrentUser = async (): Promise<UserServices> => {
@@ -34,14 +48,25 @@ export function registerDesktopIpc(
       return services;
     }
     const conversations = new ConversationStore(user.id);
+    const resumeDrafts = new ResumeDraftService(
+      user.id,
+      createElectronResumeDraftRepository(user.id),
+    );
     services = {
       ownerId: user.id,
       conversations,
+      resumeDrafts,
+      resumeDraftEditing: new ResumeDraftEditingService(
+        resumeDrafts,
+        new ResumeManualEditor(resumeCompiler),
+      ),
       agent: new DesktopAgentRuntime(
         auth.apiClient,
         conversations,
+        resumeDrafts,
         window.webContents,
         resumeCompiler,
+        resumePdfExports,
       ),
     };
     return services;
@@ -89,11 +114,31 @@ export function registerDesktopIpc(
     },
   );
 
+  ipcMain.handle("resume-drafts:list", async () =>
+    (await servicesForCurrentUser()).resumeDrafts.list(),
+  );
+  ipcMain.handle("resume-drafts:get", async (_event, artifactId: string) =>
+    (await servicesForCurrentUser()).resumeDraftEditing.get(artifactId),
+  );
+  ipcMain.handle(
+    "resume-drafts:edit",
+    async (_event, input: ResumeDraftEditInput) =>
+      (await servicesForCurrentUser()).resumeDraftEditing.edit(input),
+  );
+  ipcMain.handle(
+    "resume-drafts:restore",
+    async (_event, input: ResumeDraftRestoreInput) =>
+      (await servicesForCurrentUser()).resumeDraftEditing.restore(input),
+  );
+  ipcMain.handle("resume-drafts:accept", async (_event, artifactId: string) =>
+    (await servicesForCurrentUser()).resumeDraftEditing.accept(artifactId),
+  );
+  ipcMain.handle("resume-drafts:reject", async (_event, artifactId: string) =>
+    (await servicesForCurrentUser()).resumeDraftEditing.reject(artifactId),
+  );
+
   ipcMain.handle("agent:prompt", async (_event, input: AgentPromptInput) =>
-    (await servicesForCurrentUser()).agent.prompt(
-      input.conversationId,
-      input.text,
-    ),
+    (await servicesForCurrentUser()).agent.prompt(input),
   );
   ipcMain.handle("agent:cancel", async () => {
     (await servicesForCurrentUser()).agent.cancel();
@@ -128,6 +173,12 @@ const IPC_CHANNELS = [
   "conversations:get",
   "conversations:rename",
   "conversations:delete",
+  "resume-drafts:list",
+  "resume-drafts:get",
+  "resume-drafts:edit",
+  "resume-drafts:restore",
+  "resume-drafts:accept",
+  "resume-drafts:reject",
   "agent:prompt",
   "agent:cancel",
   "agent:resolve-approval",

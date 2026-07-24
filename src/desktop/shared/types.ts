@@ -1,3 +1,11 @@
+import type { ResumeCompileResult } from "../../resume/compiler-types.js";
+import type {
+  ResumeDraftArtifactReference,
+  ResumeDraftSummary,
+} from "../../resume/draft/types.js";
+import type { ResumeStructure } from "../../resume/types.js";
+import type { ResumeWorkspaceStatus } from "../../resume/workspace/types.js";
+
 export type ChatRole = "user" | "assistant";
 
 export interface DesktopUser {
@@ -22,6 +30,54 @@ export interface ConversationSummary {
 
 export interface ConversationDetail extends ConversationSummary {
   messages: ChatMessage[];
+  resumeArtifacts: ResumeDraftArtifactReference[];
+}
+
+export interface ResumeDraftCheckpointView {
+  id: string;
+  label: string;
+  reason: string;
+  createdAt: string;
+  revision: number;
+}
+
+export interface ResumeDraftQualityView {
+  pageUsageRatio: number;
+  minimumBulletTailRatio: number | null;
+  factIntegrity: "passed" | "needs_review" | "failed";
+  jdCoverage: {
+    covered: number;
+    total: number;
+    ratio: number;
+  } | null;
+}
+
+export interface ResumeDraftDetail extends ResumeDraftSummary {
+  structure: ResumeStructure;
+  compileResult: ResumeCompileResult;
+  workspaceStatus: ResumeWorkspaceStatus;
+  quality: ResumeDraftQualityView;
+  checkpoints: ResumeDraftCheckpointView[];
+  pendingChange: {
+    id: string;
+    summary: string;
+    changedBulletIds: string[];
+    createdAt: string;
+  } | null;
+}
+
+export interface ResumeDraftEditInput {
+  artifactId: string;
+  target:
+    | { type: "bullet"; bulletId: string }
+    | { type: "raw_text"; itemId: string };
+  text: string;
+  createCheckpoint?: boolean;
+}
+
+export interface ResumeDraftRestoreInput {
+  artifactId: string;
+  checkpointId: string;
 }
 
 export interface ApprovalPreviewField {
@@ -72,6 +128,7 @@ export type DesktopAgentEvent =
     }
   | { type: "run.failed"; message: string }
   | { type: "run.completed" }
+  | { type: "resume.draft.updated"; artifactId: string }
   | { type: "approval.required"; request: DesktopApprovalRequest }
   | {
       type: "approval.resolved";
@@ -99,6 +156,14 @@ export interface ConversationRenameInput {
 export interface AgentPromptInput {
   conversationId: string;
   text: string;
+  resumeReference?: ResumeChatReference;
+}
+
+export interface ResumeChatReference {
+  artifactId: string;
+  targetType: "resume" | "bullet" | "item" | "locked_field";
+  targetId: string;
+  label: string;
 }
 
 export interface ApprovalResolveInput {
@@ -133,6 +198,14 @@ export interface DesktopApi {
     get(conversationId: string): Promise<ConversationDetail>;
     rename(input: ConversationRenameInput): Promise<ConversationSummary>;
     delete(conversationId: string): Promise<void>;
+  };
+  resumeDrafts: {
+    list(): Promise<ResumeDraftSummary[]>;
+    get(artifactId: string): Promise<ResumeDraftDetail>;
+    edit(input: ResumeDraftEditInput): Promise<ResumeDraftDetail>;
+    restore(input: ResumeDraftRestoreInput): Promise<ResumeDraftDetail>;
+    accept(artifactId: string): Promise<ResumeDraftDetail>;
+    reject(artifactId: string): Promise<ResumeDraftDetail>;
   };
   agent: {
     prompt(input: AgentPromptInput): Promise<ConversationDetail>;
