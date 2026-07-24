@@ -5,6 +5,10 @@ import { createCooltoAgent } from "../../agent/create-agent.js";
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
+import {
+  buildJdContinuationPrompt,
+  prepareJdContinuation,
+} from "./jd-continuation.js";
 import { readConfig } from "../../config.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
 import { JdProposalStore } from "../../jd/proposal-store.js";
@@ -149,7 +153,16 @@ export class DesktopAgentRuntime {
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
     try {
+      const jdContinuation = prepareJdContinuation(
+        context.agent,
+        requestId,
+        decision,
+      );
       await context.agent.resolveApproval(requestId, decision);
+      const savedJd = jdContinuation?.getSavedJd();
+      if (savedJd) {
+        await context.agent.prompt(buildJdContinuationPrompt(savedJd));
+      }
       return await this.#store.saveMessages(
         conversationId,
         context.agent.getMessages(),
