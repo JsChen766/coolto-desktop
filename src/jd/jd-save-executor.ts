@@ -32,7 +32,7 @@ async function executeSave(
       importance: typeof r.importance;
       keywords: string[];
       v2Importance?: typeof r.v2Importance & {};
-      v2Category?: string;
+      v2Category?: typeof r.v2Category & {};
     } = {
       text: r.text,
       category: r.category,

@@ -5,6 +5,7 @@ import { createCooltoAgent } from "../../agent/create-agent.js";
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
+import type { BrowserPageReader } from "../../browser/types.js";
 import {
   buildJdContinuationPrompt,
   prepareJdContinuation,
@@ -59,6 +60,7 @@ export class DesktopAgentRuntime {
   readonly #resumeCompiler: ResumePdfCompiler;
   readonly #resumePdfExports: ResumePdfExportGateway;
   readonly #selectedFiles: ConversationSelectedFiles;
+  readonly #browserPageReader: BrowserPageReader;
   readonly #contexts = new Map<string, ConversationAgentContext>();
   #runningConversationId: string | undefined;
 
@@ -70,6 +72,7 @@ export class DesktopAgentRuntime {
     resumeCompiler: ResumePdfCompiler,
     resumePdfExports: ResumePdfExportGateway,
     selectedFiles: ConversationSelectedFiles,
+    browserPageReader: BrowserPageReader,
   ) {
     this.#apiClient = apiClient;
     this.#store = store;
@@ -78,6 +81,7 @@ export class DesktopAgentRuntime {
     this.#resumeCompiler = resumeCompiler;
     this.#resumePdfExports = resumePdfExports;
     this.#selectedFiles = selectedFiles;
+    this.#browserPageReader = browserPageReader;
   }
 
   public get isRunning(): boolean {
@@ -271,6 +275,7 @@ export class DesktopAgentRuntime {
         matchReportStore,
         approvalManager,
         selectedFileRegistry: selectedFiles,
+        browserPageReader: this.#browserPageReader,
       }),
     });
     const emitMatchReport = createMatchEmitter(this.#target, matchReportStore);

@@ -4,6 +4,7 @@ import {
   CloudUpload,
   Download,
   FileText,
+  Globe,
   Maximize2,
   Minus,
   PanelLeftClose,
@@ -19,6 +20,7 @@ defineProps<{
   title: string;
   sidebarOpen: boolean;
   artifactOpen: boolean;
+  browserOpen: boolean;
   resumeDraft: ResumeDraftDetail | undefined;
   platform: DesktopPlatform;
 }>();
@@ -26,6 +28,7 @@ defineProps<{
 defineEmits<{
   toggleSidebar: [];
   toggleArtifact: [];
+  toggleBrowser: [];
   saveResume: [];
   exportResume: [];
   rename: [];
@@ -61,6 +64,12 @@ function factLabel(value: ResumeDraftDetail["quality"]["factIntegrity"]): string
     </div>
 
     <div class="chat-header-actions no-drag">
+      <IconButton
+        :icon="Globe"
+        label="浏览器"
+        :active="browserOpen"
+        @click="$emit('toggleBrowser')"
+      />
       <div v-if="artifactOpen && resumeDraft" class="resume-header-tools">
         <IconButton
           :icon="ChartNoAxesCombined"

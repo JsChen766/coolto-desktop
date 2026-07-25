@@ -96,7 +96,7 @@ test("maps requirements to snake_case including v2 fields", async () => {
       keywords: ["React"],
       weight: null,
       v2Importance: "must_have",
-      v2Category: "technical",
+      v2Category: "technology",
     },
   ];
   const requester = makeRequester(async (_url, init) => {
@@ -116,7 +116,7 @@ test("maps requirements to snake_case including v2 fields", async () => {
         importance: "high",
         keywords: ["React"],
         v2Importance: "must_have",
-        v2Category: "technical",
+        v2Category: "technology",
       },
     ],
   };
@@ -127,7 +127,35 @@ test("maps requirements to snake_case including v2 fields", async () => {
   assert.equal(sentReqs?.[0]?.["text"], "5年以上经验");
   assert.equal(sentReqs?.[0]?.["category"], "experience");
   assert.equal(sentReqs?.[0]?.["v2_importance"], "must_have");
-  assert.equal(sentReqs?.[0]?.["v2_category"], "technical");
+  assert.equal(sentReqs?.[0]?.["v2_category"], "technology");
+});
+
+test("sanitizes out-of-enum v2 fields to null before sending", async () => {
+  let body: Record<string, unknown> | undefined;
+  const requester = makeRequester(async (_url, init) => {
+    body = JSON.parse(init.body as string) as Record<string, unknown>;
+    return new Response(JSON.stringify(makeServerResponse()), { status: 200 });
+  });
+  const api = new JdWriterApi(requester as never);
+
+  await api.createJd({
+    title: "前端工程师",
+    rawText: "文本",
+    requirements: [
+      {
+        text: "5年以上经验",
+        category: "experience",
+        importance: "high",
+        keywords: [],
+        v2Importance: "critical" as never,
+        v2Category: "technical" as never,
+      },
+    ],
+  });
+
+  const sentReqs = body?.["requirements"] as Array<Record<string, unknown>>;
+  assert.equal(sentReqs?.[0]?.["v2_importance"], null);
+  assert.equal(sentReqs?.[0]?.["v2_category"], null);
 });
 
 test("normalizes server response into JdRecord with camelCase fields", async () => {

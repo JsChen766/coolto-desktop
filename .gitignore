@@ -8,3 +8,4 @@ coverage/
 *.log
 /output
 .claude
+.DS_Store

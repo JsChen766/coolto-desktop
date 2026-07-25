@@ -24,6 +24,7 @@ import { useChatSession } from "./chat/use-chat-session";
 import { useConversationAttachment } from "./attachments/use-conversation-attachment";
 import { desktopApi } from "./lib/desktop-api";
 import { useResumeWorkspace } from "./resume-workspace/use-resume-workspace";
+import { useBrowserState } from "./browser/use-browser-state";
 
 const sidebarOpen = ref(true);
 const artifactOpen = ref(false);
@@ -62,6 +63,7 @@ const {
 const conversationAttachment = useConversationAttachment(
   () => current.value?.id,
 );
+const browser = useBrowserState();
 const scroller = ref<HTMLElement>();
 const dark = ref(localStorage.getItem("coolto-theme") === "dark");
 
@@ -113,6 +115,14 @@ async function toggleArtifact(): Promise<void> {
     if (!resumeWorkspace.activeDraft.value && first) {
       await resumeWorkspace.openDraft(first.artifactId);
     }
+  }
+}
+
+async function toggleBrowser(): Promise<void> {
+  if (browser.state.isOpen) {
+    await browser.close();
+  } else {
+    await browser.open({ theme: dark.value ? "dark" : "light" });
   }
 }
 
@@ -205,10 +215,12 @@ function scrollToBottom(): void {
         :title="current?.title ?? '新对话'"
         :sidebar-open="sidebarOpen"
         :artifact-open="artifactOpen"
+        :browser-open="browser.state.isOpen"
         :resume-draft="resumeWorkspace.activeDraft.value"
         :platform="desktopApi.platform"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
         @toggle-artifact="toggleArtifact"
+        @toggle-browser="toggleBrowser"
         @save-resume="saveResumeToCloud"
         @export-resume="exportResume"
         @rename="

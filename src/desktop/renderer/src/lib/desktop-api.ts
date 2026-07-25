@@ -1,4 +1,5 @@
 import type {
+  BrowserState,
   ChatMessage,
   ConversationDetail,
   ConversationSummary,
@@ -68,8 +69,29 @@ function createUnavailableDesktopApi(): DesktopApi {
       toggleMaximize: unavailable,
       close: unavailable,
     },
+    browser: {
+      open: unavailable,
+      close: unavailable,
+      navigate: unavailable,
+      goBack: unavailable,
+      goForward: unavailable,
+      reload: unavailable,
+      getState: unavailable,
+      onStateChanged: () => () => undefined,
+    },
   };
 }
+
+const IDLE_BROWSER_STATE: BrowserState = {
+  isOpen: false,
+  currentUrl: null,
+  pageTitle: null,
+  isLoading: false,
+  canGoBack: false,
+  canGoForward: false,
+  pageType: "unknown",
+  fillStatus: "idle",
+};
 
 function createBrowserDemoApi(): DesktopApi {
   const now = new Date();
@@ -321,6 +343,43 @@ function createBrowserDemoApi(): DesktopApi {
       minimize: async () => undefined,
       toggleMaximize: async () => undefined,
       close: async () => undefined,
+    },
+    browser: createBrowserDemoNamespace(),
+  };
+}
+
+function createBrowserDemoNamespace(): DesktopApi["browser"] {
+  const listeners = new Set<(state: BrowserState) => void>();
+  let state: BrowserState = { ...IDLE_BROWSER_STATE };
+  const emit = (): void => {
+    for (const listener of listeners) listener(structuredClone(state));
+  };
+  return {
+    open: async (input) => {
+      state = {
+        ...IDLE_BROWSER_STATE,
+        isOpen: true,
+        currentUrl: input?.url ?? null,
+        pageTitle: input?.url ? null : "Coolto 主页",
+      };
+      emit();
+      return structuredClone(state);
+    },
+    close: async () => {
+      state = { ...IDLE_BROWSER_STATE };
+      emit();
+    },
+    navigate: async ({ url }) => {
+      state = { ...state, currentUrl: url, isLoading: true };
+      emit();
+    },
+    goBack: async () => undefined,
+    goForward: async () => undefined,
+    reload: async () => undefined,
+    getState: async () => structuredClone(state),
+    onStateChanged: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
   };
 }

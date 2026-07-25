@@ -4,6 +4,9 @@ import type {
   AgentPromptInput,
   AttachmentRemoveInput,
   ApprovalResolveInput,
+  BrowserNavigateInput,
+  BrowserOpenInput,
+  BrowserState,
   ConversationRenameInput,
   DesktopAgentEvent,
   DesktopApi,
@@ -67,6 +70,25 @@ const api: DesktopApi = {
     minimize: () => ipcRenderer.invoke("window:minimize"),
     toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),
     close: () => ipcRenderer.invoke("window:close"),
+  },
+  browser: {
+    open: (input?: BrowserOpenInput) =>
+      ipcRenderer.invoke("browser:open", input),
+    close: () => ipcRenderer.invoke("browser:close"),
+    navigate: (input: BrowserNavigateInput) =>
+      ipcRenderer.invoke("browser:navigate", input),
+    goBack: () => ipcRenderer.invoke("browser:go-back"),
+    goForward: () => ipcRenderer.invoke("browser:go-forward"),
+    reload: () => ipcRenderer.invoke("browser:reload"),
+    getState: () => ipcRenderer.invoke("browser:get-state"),
+    onStateChanged: (listener: (state: BrowserState) => void) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        state: BrowserState,
+      ): void => listener(state);
+      ipcRenderer.on("browser:state-changed", handler);
+      return () => ipcRenderer.removeListener("browser:state-changed", handler);
+    },
   },
 };
 

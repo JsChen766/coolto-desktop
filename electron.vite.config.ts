@@ -19,6 +19,9 @@ export default defineConfig({
         entry: {
           index: resolve("src/desktop/preload/index.ts"),
           resume: resolve("src/desktop/resume-preload/index.ts"),
+          "browser-shell": resolve(
+            "src/desktop/browser-shell-preload/index.ts",
+          ),
         },
       },
       rollupOptions: {
@@ -37,6 +40,9 @@ export default defineConfig({
         input: {
           index: resolve("src/desktop/renderer/index.html"),
           resume: resolve("src/desktop/renderer/resume.html"),
+          "browser-shell": resolve(
+            "src/desktop/renderer/browser-shell.html",
+          ),
         },
       },
     },

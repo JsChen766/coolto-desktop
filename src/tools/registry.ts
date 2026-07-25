@@ -22,6 +22,7 @@ import { createGetCurrentUserTool } from "./get-current-user.js";
 import { createGetResumeSourceSnapshotTool } from "./get-resume-source-snapshot.js";
 import { createGetUserProfileTool } from "./get-user-profile.js";
 import { createPrepareExperienceImportTool } from "./import-experiences/prepare-import.js";
+import { createExtractPageTool } from "./extract-page.js";
 import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
@@ -34,6 +35,7 @@ import type { ResumePdfExportProposalBuilder } from "../resume/export/proposal-b
 import { createPrepareResumePdfExportTool } from "./resume-candidate/prepare-pdf-export.js";
 import { MatchReportStore } from "../match/report-store.js";
 import { createPrepareMatchAnalysisTool } from "./prepare-match-analysis.js";
+import type { BrowserPageReader } from "../browser/types.js";
 
 export interface ToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
@@ -53,6 +55,7 @@ export interface ToolRegistryDependencies {
   approvalManager?: ApprovalManager;
   selectedFileRegistry?: SelectedFileRegistry;
   matchReportStore?: MatchReportStore;
+  browserPageReader?: BrowserPageReader;
 }
 
 /**
@@ -158,6 +161,9 @@ export function createToolRegistry(
         dependencies.matchReportStore,
       ),
     );
+  }
+  if (dependencies.browserPageReader) {
+    businessTools.push(createExtractPageTool(dependencies.browserPageReader));
   }
 
   return [

@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 
 import { registerDesktopIpc } from "./ipc.js";
+import { registerBrowserIpc } from "./browser/browser-ipc.js";
 import { ElectronResumeCompilerService } from "./resume-compiler-service.js";
 import { runResumeWorkspaceQa } from "./resume-workspace-qa.js";
 import { getResumeFixture } from "../../resume/fixtures.js";
@@ -70,7 +71,8 @@ function createWindow(): void {
     mainWindow = undefined;
   });
 
-  registerDesktopIpc(ipcMain, window, resumeCompiler);
+  const browser = registerBrowserIpc(ipcMain, window);
+  registerDesktopIpc(ipcMain, window, resumeCompiler, browser);
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {

@@ -22,6 +22,22 @@ const v2ImportanceSchema = Type.Union([
   Type.Literal("optional"),
 ]);
 
+const v2CategorySchema = Type.Union(
+  [
+    Type.Literal("qualification"),
+    Type.Literal("responsibility"),
+    Type.Literal("technology"),
+    Type.Literal("domain"),
+    Type.Literal("soft_skill"),
+  ],
+  {
+    description:
+      "要求的 v2 分类，只能取以下之一：qualification（资质门槛）、" +
+      "responsibility（职责）、technology（技术栈）、domain（业务领域）、" +
+      "soft_skill（软技能）。无法归类时省略本字段。",
+  },
+);
+
 const requirementSchema = Type.Object({
   text: Type.String({
     minLength: 1,
@@ -38,7 +54,7 @@ const requirementSchema = Type.Object({
     maxItems: 20,
   }),
   v2Importance: Type.Optional(v2ImportanceSchema),
-  v2Category: Type.Optional(Type.String({ maxLength: 100 })),
+  v2Category: Type.Optional(v2CategorySchema),
 });
 
 const parameters = Type.Object({

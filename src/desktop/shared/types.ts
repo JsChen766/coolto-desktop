@@ -259,6 +259,68 @@ export interface ApprovalResolveInput {
   decision: DesktopApprovalDecision;
 }
 
+export type BrowserPageType =
+  | "jd"
+  | "job_application_form"
+  | "webmail_compose"
+  | "unknown";
+
+export type BrowserFillStatus = "idle" | "filling" | "reviewing" | "complete";
+
+export interface BrowserState {
+  isOpen: boolean;
+  currentUrl: string | null;
+  pageTitle: string | null;
+  isLoading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  pageType: BrowserPageType;
+  fillStatus: BrowserFillStatus;
+}
+
+export interface BrowserOpenInput {
+  url?: string;
+  theme?: "light" | "dark";
+}
+
+export interface BrowserNavigateInput {
+  url: string;
+}
+
+export interface BrowserTabState {
+  id: string;
+  title: string;
+  url: string | null;
+  isLoading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+}
+
+export interface BrowserShellState {
+  tabs: BrowserTabState[];
+  activeTabId: string | null;
+  theme: "light" | "dark";
+  platform: DesktopPlatform;
+  isMaximized: boolean;
+}
+
+export interface BrowserShellApi {
+  platform: DesktopPlatform;
+  ready(): void;
+  requestState(): void;
+  newTab(): void;
+  closeTab(tabId: string): void;
+  selectTab(tabId: string): void;
+  goBack(): void;
+  goForward(): void;
+  reload(): void;
+  reportChromeHeight(height: number): void;
+  minimizeWindow(): void;
+  toggleMaximizeWindow(): void;
+  closeWindow(): void;
+  onStateChanged(listener: (state: BrowserShellState) => void): () => void;
+}
+
 export type DesktopPlatform =
   | "aix"
   | "darwin"
@@ -322,5 +384,15 @@ export interface DesktopApi {
     minimize(): Promise<void>;
     toggleMaximize(): Promise<void>;
     close(): Promise<void>;
+  };
+  browser: {
+    open(input?: BrowserOpenInput): Promise<BrowserState>;
+    close(): Promise<void>;
+    navigate(input: BrowserNavigateInput): Promise<void>;
+    goBack(): Promise<void>;
+    goForward(): Promise<void>;
+    reload(): Promise<void>;
+    getState(): Promise<BrowserState>;
+    onStateChanged(listener: (state: BrowserState) => void): () => void;
   };
 }

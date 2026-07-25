@@ -46,6 +46,17 @@ export type JdRequirementV2Importance =
   | "preferred"
   | "optional";
 
+export const JD_REQUIREMENT_V2_CATEGORIES = [
+  "qualification",
+  "responsibility",
+  "technology",
+  "domain",
+  "soft_skill",
+] as const;
+
+export type JdRequirementV2Category =
+  (typeof JD_REQUIREMENT_V2_CATEGORIES)[number];
+
 export interface JdRequirement {
   id: string;
   text: string;
@@ -101,7 +112,7 @@ export interface JdCreateInput {
     importance: JdRequirementImportance;
     keywords: string[];
     v2Importance?: JdRequirementV2Importance;
-    v2Category?: string;
+    v2Category?: JdRequirementV2Category;
   }>;
 }
 

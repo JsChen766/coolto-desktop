@@ -8,6 +8,7 @@
 
 import type {
   JdRequirementImportance,
+  JdRequirementV2Category,
   JdRequirementV2Importance,
 } from "../api/types.js";
 
@@ -23,7 +24,7 @@ export interface JdProposalRequirement {
   importance: JdRequirementImportance;
   keywords: string[];
   v2Importance: JdRequirementV2Importance | null;
-  v2Category: string | null;
+  v2Category: JdRequirementV2Category | null;
 }
 
 // ---------------------------------------------------------------------------

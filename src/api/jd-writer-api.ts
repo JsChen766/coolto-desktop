@@ -1,6 +1,31 @@
 import type { AuthenticatedRequester } from "./api-transport.js";
 import { normalizeJdRecord } from "./normalizers.js";
-import type { JdCreateInput, JdRecord, JdWriter } from "./types.js";
+import {
+  JD_REQUIREMENT_V2_CATEGORIES,
+  type JdCreateInput,
+  type JdRecord,
+  type JdRequirementV2Category,
+  type JdRequirementV2Importance,
+  type JdWriter,
+} from "./types.js";
+
+const V2_IMPORTANCE_VALUES: readonly JdRequirementV2Importance[] = [
+  "must_have",
+  "preferred",
+  "optional",
+];
+
+function sanitizeV2Importance(
+  value: JdRequirementV2Importance | null | undefined,
+): JdRequirementV2Importance | null {
+  return value && V2_IMPORTANCE_VALUES.includes(value) ? value : null;
+}
+
+function sanitizeV2Category(
+  value: JdRequirementV2Category | null | undefined,
+): JdRequirementV2Category | null {
+  return value && JD_REQUIREMENT_V2_CATEGORIES.includes(value) ? value : null;
+}
 
 export class JdWriterApi implements JdWriter {
   public constructor(private readonly requester: AuthenticatedRequester) {}
@@ -21,8 +46,8 @@ export class JdWriterApi implements JdWriter {
         category: r.category,
         importance: r.importance,
         keywords: r.keywords,
-        v2_importance: r.v2Importance ?? null,
-        v2_category: r.v2Category ?? null,
+        v2_importance: sanitizeV2Importance(r.v2Importance),
+        v2_category: sanitizeV2Category(r.v2Category),
       }));
     }
     const value = await this.requester.request<unknown>("/v1/product/jds", {
