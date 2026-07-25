@@ -1,7 +1,7 @@
 import { dialog, type BrowserWindow, type IpcMain } from "electron";
 
 import type { ApprovalDecision } from "../../approvals/types.js";
-import type { BrowserPageReader } from "../../browser/types.js";
+import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import type {
   AgentPromptInput,
@@ -38,6 +38,7 @@ export function registerDesktopIpc(
   window: BrowserWindow,
   resumeCompiler: ResumePdfCompiler,
   browserPageReader: BrowserPageReader,
+  browserPageOperator: BrowserPageOperator,
 ): void {
   for (const channel of [...IPC_CHANNELS, ...LIBRARY_IPC_CHANNELS]) {
     ipcMain.removeHandler(channel);
@@ -77,6 +78,7 @@ export function registerDesktopIpc(
         resumePdfExports,
         selectedFiles,
         browserPageReader,
+        browserPageOperator,
       ),
       selectedFiles,
     };

@@ -5,11 +5,15 @@ import { createCooltoAgent } from "../../agent/create-agent.js";
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
-import type { BrowserPageReader } from "../../browser/types.js";
+import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
 import {
   buildJdContinuationPrompt,
   prepareJdContinuation,
 } from "./jd-continuation.js";
+import {
+  buildBrowserWriteAccessContinuationPrompt,
+  prepareBrowserWriteAccessContinuation,
+} from "./browser-write-access-continuation.js";
 import { readConfig } from "../../config.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
 import { JdProposalStore } from "../../jd/proposal-store.js";
@@ -61,6 +65,7 @@ export class DesktopAgentRuntime {
   readonly #resumePdfExports: ResumePdfExportGateway;
   readonly #selectedFiles: ConversationSelectedFiles;
   readonly #browserPageReader: BrowserPageReader;
+  readonly #browserPageOperator: BrowserPageOperator;
   readonly #contexts = new Map<string, ConversationAgentContext>();
   #runningConversationId: string | undefined;
 
@@ -73,6 +78,7 @@ export class DesktopAgentRuntime {
     resumePdfExports: ResumePdfExportGateway,
     selectedFiles: ConversationSelectedFiles,
     browserPageReader: BrowserPageReader,
+    browserPageOperator: BrowserPageOperator,
   ) {
     this.#apiClient = apiClient;
     this.#store = store;
@@ -82,6 +88,7 @@ export class DesktopAgentRuntime {
     this.#resumePdfExports = resumePdfExports;
     this.#selectedFiles = selectedFiles;
     this.#browserPageReader = browserPageReader;
+    this.#browserPageOperator = browserPageOperator;
   }
 
   public get isRunning(): boolean {
@@ -165,10 +172,21 @@ export class DesktopAgentRuntime {
         requestId,
         decision,
       );
+      const writeAccessContinuation = prepareBrowserWriteAccessContinuation(
+        context.agent,
+        requestId,
+        decision,
+      );
       await context.agent.resolveApproval(requestId, decision);
       const savedJd = jdContinuation?.getSavedJd();
       if (savedJd) {
         await context.agent.prompt(buildJdContinuationPrompt(savedJd));
+      }
+      const grantedReason = writeAccessContinuation?.getGrantedReason();
+      if (grantedReason) {
+        await context.agent.prompt(
+          buildBrowserWriteAccessContinuationPrompt(grantedReason),
+        );
       }
       return await this.#store.saveMessages(
         conversationId,
@@ -216,6 +234,7 @@ export class DesktopAgentRuntime {
       jdProposalStore,
       resumePublications: this.#apiClient.resumes,
       resumePdfExports: this.#resumePdfExports,
+      browserPageOperator: this.#browserPageOperator,
     });
     const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: this.#apiClient,
@@ -276,6 +295,7 @@ export class DesktopAgentRuntime {
         approvalManager,
         selectedFileRegistry: selectedFiles,
         browserPageReader: this.#browserPageReader,
+        browserPageOperator: this.#browserPageOperator,
       }),
     });
     const emitMatchReport = createMatchEmitter(this.#target, matchReportStore);

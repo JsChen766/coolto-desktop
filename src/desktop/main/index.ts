@@ -72,7 +72,7 @@ function createWindow(): void {
   });
 
   const browser = registerBrowserIpc(ipcMain, window);
-  registerDesktopIpc(ipcMain, window, resumeCompiler, browser);
+  registerDesktopIpc(ipcMain, window, resumeCompiler, browser, browser.pageOperator);
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {

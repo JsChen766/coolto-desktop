@@ -23,6 +23,7 @@ import { createGetResumeSourceSnapshotTool } from "./get-resume-source-snapshot.
 import { createGetUserProfileTool } from "./get-user-profile.js";
 import { createPrepareExperienceImportTool } from "./import-experiences/prepare-import.js";
 import { createExtractPageTool } from "./extract-page.js";
+import { createBrowserWriteTools } from "./browser/index.js";
 import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
@@ -35,7 +36,7 @@ import type { ResumePdfExportProposalBuilder } from "../resume/export/proposal-b
 import { createPrepareResumePdfExportTool } from "./resume-candidate/prepare-pdf-export.js";
 import { MatchReportStore } from "../match/report-store.js";
 import { createPrepareMatchAnalysisTool } from "./prepare-match-analysis.js";
-import type { BrowserPageReader } from "../browser/types.js";
+import type { BrowserPageOperator, BrowserPageReader } from "../browser/types.js";
 
 export interface ToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
@@ -56,6 +57,7 @@ export interface ToolRegistryDependencies {
   selectedFileRegistry?: SelectedFileRegistry;
   matchReportStore?: MatchReportStore;
   browserPageReader?: BrowserPageReader;
+  browserPageOperator?: BrowserPageOperator;
 }
 
 /**
@@ -164,6 +166,14 @@ export function createToolRegistry(
   }
   if (dependencies.browserPageReader) {
     businessTools.push(createExtractPageTool(dependencies.browserPageReader));
+  }
+  if (dependencies.browserPageOperator && dependencies.approvalManager) {
+    businessTools.push(
+      ...createBrowserWriteTools(
+        dependencies.browserPageOperator,
+        dependencies.approvalManager,
+      ),
+    );
   }
 
   return [

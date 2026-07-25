@@ -8,8 +8,22 @@ import type {
   BrowserState,
   DesktopPlatform,
 } from "../../shared/types.js";
-import type { BrowserPageReader, PageSnapshot } from "../../../browser/types.js";
+import type {
+  BrowserPageOperator,
+  BrowserPageReader,
+  PageSnapshot,
+} from "../../../browser/types.js";
+import {
+  BrowserActiveOriginTracker,
+  activeTabContext,
+} from "./browser-active-tab.js";
 import { readPageSnapshot } from "./browser-content-reader.js";
+import {
+  BrowserPageOperatorImpl,
+  type ActiveTabContext,
+  type ActiveTabResolver,
+} from "./browser-page-operator.js";
+import { BrowserWriteAccessGate } from "./browser-write-access-gate.js";
 import { getBrowserSession } from "./browser-session.js";
 import { BrowserTabManager } from "./browser-tab-manager.js";
 
@@ -41,9 +55,20 @@ export class BrowserWindowManager implements BrowserPageReader {
   #pendingUrl: string | undefined;
   #theme: "light" | "dark" = "light";
   readonly #emitters: BrowserWindowEmitters;
+  readonly #writeAccess = new BrowserWriteAccessGate();
+  readonly #operator: BrowserPageOperatorImpl;
+  readonly #originTracker: BrowserActiveOriginTracker;
 
   public constructor(emitters: BrowserWindowEmitters) {
     this.#emitters = emitters;
+    const resolver: ActiveTabResolver = { resolve: () => this.#resolveActive() };
+    this.#operator = new BrowserPageOperatorImpl(this.#writeAccess, resolver);
+    this.#originTracker = new BrowserActiveOriginTracker(this.#writeAccess);
+  }
+
+  /** B3: 暴露操作接口给 Agent 工具链（经 IPC 桥接注入 runtime）。 */
+  public get pageOperator(): BrowserPageOperator {
+    return this.#operator;
   }
 
   public open(input?: BrowserOpenInput): BrowserState {
@@ -118,7 +143,18 @@ export class BrowserWindowManager implements BrowserPageReader {
     return readPageSnapshot(active.view.webContents);
   }
 
+  // ---------- 内部：活跃标签解析 + 导航联动 ----------
+
+  #resolveActive(): ActiveTabContext {
+    const ctx = activeTabContext(this.#tabs);
+    if (!ctx) {
+      throw new Error("浏览器尚未打开或无活跃标签页，请先让用户打开要操作的页面");
+    }
+    return ctx;
+  }
+
   public pushState(): void {
+    this.#originTracker.sync(this.#tabs);
     this.#emitters.emitState(this.getState());
     if (this.#tabs) this.#emitters.emitShellState(this.#shellState());
   }

@@ -2,6 +2,9 @@ import type { ExperienceWriter, JdWriter } from "../api/types.js";
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import { ApprovalStore } from "../approvals/approval-store.js";
 import { ActionExecutorRegistry } from "../approvals/executor-registry.js";
+import type { BrowserPageOperator } from "../browser/types.js";
+import { createBrowserWriteAccessExecutor } from "../browser/browser-write-access-executor.js";
+import { BROWSER_WRITE_ACCESS_ACTION_TYPE } from "../browser/write-access-approval.js";
 import {
   EXPERIENCE_IMPORT_ACTION_TYPE,
 } from "../import/approval-draft.js";
@@ -24,6 +27,7 @@ export interface ActionApprovalDependencies {
   jdProposalStore?: JdProposalStore;
   resumePublications?: ResumePublicationGateway;
   resumePdfExports?: ResumePdfExportGateway;
+  browserPageOperator?: BrowserPageOperator;
 }
 
 export function createActionApprovalManager(
@@ -53,6 +57,12 @@ export function createActionApprovalManager(
     executors.register(
       RESUME_PDF_EXPORT_ACTION_TYPE,
       createResumePdfExportExecutor(deps.resumePdfExports),
+    );
+  }
+  if (deps.browserPageOperator) {
+    executors.register(
+      BROWSER_WRITE_ACCESS_ACTION_TYPE,
+      createBrowserWriteAccessExecutor(deps.browserPageOperator),
     );
   }
   return new ApprovalManager(new ApprovalStore(), executors);
