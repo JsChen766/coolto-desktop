@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import type { ResumeLibraryEntry } from "../../../../../resume/library/types";
+import type { ResumeLibraryEntry } from "@desktop/types";
 import { useResumeLibrary } from "../library/use-resume-library";
 import ResumeLibraryCard from "./ResumeLibraryCard.vue";
 

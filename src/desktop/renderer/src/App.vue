@@ -2,7 +2,7 @@
 import { nextTick, onMounted, ref, watch } from "vue";
 
 import type { ResumeChatReference } from "@desktop/types";
-import type { ResumeLibraryEntry } from "../../../../resume/library/types";
+import type { ResumeLibraryEntry } from "@desktop/types";
 import ApprovalCard from "./components/ApprovalCard.vue";
 import ArtifactPanel from "./components/ArtifactPanel.vue";
 import JdArtifactCard from "./components/JdArtifactCard.vue";

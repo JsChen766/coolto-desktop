@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ResumeDraftCheckpoint } from "../../../../../resume/draft/types";
+import type { ResumeDraftCheckpoint } from "@desktop/types";
 
 const props = defineProps<{
   checkpoints: ResumeDraftCheckpoint[];

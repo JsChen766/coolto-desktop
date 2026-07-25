@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ResumeLibraryEntry } from "../../../../../resume/library/types";
+import type { ResumeLibraryEntry } from "@desktop/types";
 
 const props = defineProps<{ entry: ResumeLibraryEntry }>();
 defineEmits<{ open: [entry: ResumeLibraryEntry] }>();

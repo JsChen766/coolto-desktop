@@ -7,6 +7,7 @@ import type {
   DesktopApi,
   JdArtifactData,
   MatchReportArtifactData,
+  ResumeLibraryEntry,
   ResumeDraftDetail,
 } from "@desktop/types";
 import { getResumeFixture } from "../../../../resume/fixtures";
@@ -324,7 +325,7 @@ function createBrowserDemoApi(): DesktopApi {
   };
 }
 
-function createDemoLibraryEntries() {
+function createDemoLibraryEntries(): ResumeLibraryEntry[] {
   const now = new Date().toISOString();
   return [
     {
@@ -347,7 +348,7 @@ function createDemoLibraryEntries() {
         hasPendingChange: false,
       },
       syncStatus: "local_changes" as const,
-      availableOperations: ["open", "rename", "archive", "continue_editing", "export_pdf", "delete_local_draft", "restore_checkpoint"] as const,
+      availableOperations: ["open", "rename", "archive", "continue_editing", "export_pdf", "delete_local_draft", "restore_checkpoint"],
     },
     {
       entryId: "cloud:resume-002",
@@ -363,7 +364,7 @@ function createDemoLibraryEntries() {
       },
       local: null,
       syncStatus: "cloud_only" as const,
-      availableOperations: ["open", "rename", "archive", "continue_editing", "export_pdf"] as const,
+      availableOperations: ["open", "rename", "archive", "continue_editing", "export_pdf"],
     },
     {
       entryId: "local:draft-002",
@@ -377,7 +378,7 @@ function createDemoLibraryEntries() {
         hasPendingChange: false,
       },
       syncStatus: "local_only" as const,
-      availableOperations: ["open", "delete_local_draft", "restore_checkpoint"] as const,
+      availableOperations: ["open", "delete_local_draft", "restore_checkpoint"],
     },
   ];
 }

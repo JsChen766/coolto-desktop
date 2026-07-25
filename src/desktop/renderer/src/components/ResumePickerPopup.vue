@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import type { ResumeChatReference } from "@desktop/types";
-import type { ResumeLibraryEntry } from "../../../../../resume/library/types";
+import type { ResumeLibraryEntry } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
 
 const emit = defineEmits<{

@@ -1,6 +1,5 @@
 import { ref } from "vue";
-import type { ResumeLibraryEntry } from "../../../../../resume/library/types";
-import type { ResumeDraftCheckpoint } from "../../../../../resume/draft/types";
+import type { ResumeLibraryEntry, ResumeDraftCheckpoint } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
 
 export function useResumeLibrary() {

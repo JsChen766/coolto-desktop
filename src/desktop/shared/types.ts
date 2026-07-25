@@ -1,9 +1,15 @@
 import type { ResumeCompileResult } from "../../resume/compiler-types.js";
+export type {
+  MatchDimensionScore,
+  MatchGap,
+  MatchHighlight,
+} from "../../match/types.js";
 import type {
   MatchDimensionScore,
   MatchGap,
   MatchHighlight,
 } from "../../match/types.js";
+export type { ResumeDraftCheckpoint } from "../../resume/draft/types.js";
 import type {
   LocalResumeDraft,
   ResumeDraftArtifactReference,
@@ -11,6 +17,11 @@ import type {
   ResumeDraftSummary,
 } from "../../resume/draft/types.js";
 import type { ResumeFull, ResumeStructure } from "../../resume/types.js";
+export type {
+  ResumeLibraryEntry,
+  ResumeLibrarySyncStatus,
+  ResumeLibraryOperation,
+} from "../../resume/library/types.js";
 import type { ResumeLibraryEntry } from "../../resume/library/types.js";
 
 export type MatchReportTier = "excellent" | "good" | "moderate" | "weak";
