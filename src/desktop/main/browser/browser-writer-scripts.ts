@@ -30,6 +30,7 @@ export function buildTagElementsScript(maxElements: number): string {
     if (tag === 'SELECT') return 'select';
     if (tag === 'BUTTON') return 'button';
     if (tag === 'A') return 'a';
+    if (el.isContentEditable) return 'contenteditable';
     return 'other';
   };
   const inputTypeOf = (el) => {
@@ -43,9 +44,22 @@ export function buildTagElementsScript(maxElements: number): string {
       const v = el.value;
       if (typeof v === 'string') return v.slice(0, 500);
     }
+    if (el.isContentEditable) {
+      const t = el.innerText;
+      if (typeof t === 'string') return t.slice(0, 500);
+    }
     if (el.getAttribute && el.getAttribute('aria-checked'))
       return el.getAttribute('aria-checked');
     return undefined;
+  };
+  // 只收顶层 contenteditable：自身可编辑但最近的可编辑祖先就是自己，
+  // 避免 Gmail 等嵌套 contenteditable 产生一堆重复 fillId。
+  const isTopEditable = (el) => {
+    if (!el.isContentEditable) return false;
+    const parent = el.parentElement && el.parentElement.closest
+      ? el.parentElement.closest('[contenteditable=""],[contenteditable="true"]')
+      : null;
+    return !parent;
   };
 
   let counter = 0;
@@ -59,7 +73,8 @@ export function buildTagElementsScript(maxElements: number): string {
     return id;
   };
 
-  const selector = 'input, textarea, select, button, a[href]';
+  const selector =
+    'input, textarea, select, button, a[href], [contenteditable=""], [contenteditable="true"]';
   const nodes = document.querySelectorAll(selector);
   const out = [];
   for (const el of nodes) {
@@ -67,6 +82,8 @@ export function buildTagElementsScript(maxElements: number): string {
     const type = inputTypeOf(el);
     if (type === 'hidden') continue;
     if (!isVisible(el)) continue;
+    // contenteditable 只保留顶层，跳过嵌套的可编辑子节点。
+    if (el.isContentEditable && !isTopEditable(el)) continue;
     const fillId = ensureId(el);
     const label = (labelFor(el) || '').slice(0, 200);
     const placeholder = (el.getAttribute('placeholder') || '').slice(0, 200);

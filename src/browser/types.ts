@@ -32,7 +32,14 @@ export interface BrowserPageReader {
  */
 export interface FormElementSummary {
   fillId: string;
-  elementType: "input" | "textarea" | "select" | "button" | "a" | "other";
+  elementType:
+    | "input"
+    | "textarea"
+    | "select"
+    | "button"
+    | "a"
+    | "contenteditable"
+    | "other";
   inputType?: string;
   label: string;
   placeholder: string;
@@ -54,7 +61,13 @@ export type WriteAccessCheck =
 export interface BrowserFieldWriteRecord {
   fillId: string;
   label: string;
-  elementType: "input" | "textarea" | "select" | "checkbox" | "radio";
+  elementType:
+    | "input"
+    | "textarea"
+    | "select"
+    | "checkbox"
+    | "radio"
+    | "contenteditable";
   valueBefore: string;
   valueAfter: string;
   writtenAt: string;

@@ -30,6 +30,51 @@ export function buildFillScript(fillId: string, value: string): string {
   ${HELPERS}
   const el = findEl(${q(fillId)});
   if (!el) return { ok: false, reason: 'element_not_found' };
+  const readLabel = () => {
+    if (el.id) {
+      const l = document.querySelector('label[for="' + el.id + '"]');
+      if (l && l.innerText) return l.innerText.trim();
+    }
+    const wrap = el.closest && el.closest('label');
+    if (wrap && wrap.innerText) return wrap.innerText.trim();
+    return el.getAttribute('aria-label') || el.getAttribute('placeholder') || '';
+  };
+  if (el.isContentEditable) {
+    if (el.getAttribute('aria-disabled') === 'true')
+      return { ok: false, reason: 'element_disabled' };
+    try {
+      const valueBefore = typeof el.innerText === 'string' ? el.innerText : '';
+      const label = readLabel();
+      el.focus();
+      // 全选原内容后用 insertText 覆盖：保留纯文本、触发框架监听（beforeinput/input）。
+      const sel = window.getSelection();
+      if (sel) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      let inserted = false;
+      try {
+        inserted = document.execCommand('insertText', false, ${q(value)});
+      } catch (e) { inserted = false; }
+      if (!inserted || el.innerText === valueBefore) {
+        // 降级：直接写 textContent 并派发 input 事件。
+        el.textContent = ${q(value)};
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      el.blur();
+      return {
+        ok: true,
+        valueBefore: valueBefore.slice(0, 500),
+        valueAfter: ${q(value)}.slice(0, 500),
+        label: (label || '').slice(0, 200),
+        elementType: 'contenteditable',
+      };
+    } catch (e) {
+      return { ok: false, reason: (e && e.message) || 'fill_failed' };
+    }
+  }
   const tag = el.tagName;
   if (tag !== 'INPUT' && tag !== 'TEXTAREA')
     return { ok: false, reason: 'not_text_input' };
@@ -42,15 +87,7 @@ export function buildFillScript(fillId: string, value: string): string {
     return { ok: false, reason: 'element_disabled' };
   try {
     const valueBefore = typeof el.value === 'string' ? el.value : '';
-    const label = (function () {
-      if (el.id) {
-        const l = document.querySelector('label[for="' + el.id + '"]');
-        if (l && l.innerText) return l.innerText.trim();
-      }
-      const wrap = el.closest && el.closest('label');
-      if (wrap && wrap.innerText) return wrap.innerText.trim();
-      return el.getAttribute('aria-label') || el.getAttribute('placeholder') || '';
-    })();
+    const label = readLabel();
     el.focus();
     setInputValue(el, ${q(value)});
     el.blur();

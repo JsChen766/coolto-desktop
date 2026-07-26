@@ -21,7 +21,13 @@ export interface WriteFieldMeta {
   valueBefore: string;
   valueAfter: string;
   label: string;
-  elementType: "input" | "textarea" | "select" | "checkbox" | "radio";
+  elementType:
+    | "input"
+    | "textarea"
+    | "select"
+    | "checkbox"
+    | "radio"
+    | "contenteditable";
 }
 
 /**
@@ -153,6 +159,7 @@ function normalizeMetaType(
     case "select":
     case "checkbox":
     case "radio":
+    case "contenteditable":
       return value;
     default:
       return fallback;
@@ -182,6 +189,7 @@ function normalizeElementType(
     case "select":
     case "button":
     case "a":
+    case "contenteditable":
       return value;
     default:
       return "other";

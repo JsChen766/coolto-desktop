@@ -13,7 +13,8 @@ const parameters = Type.Object({
   value: Type.String({
     maxLength: 20_000,
     description:
-      "要写入的文本值。会通过原生 setter + input/change 事件写入，兼容 React/Vue 受控组件。",
+      "要写入的文本值。input/textarea 通过原生 setter + input/change 事件写入；" +
+      "contenteditable 通过 insertText/textContent 写入。兼容 React/Vue 受控组件。",
   }),
 });
 
@@ -28,9 +29,11 @@ export function createBrowserFillFieldTool(
     name: "browser_fill_field",
     label: "填写文本字段",
     description:
-      "向 input（非 password/file）或 textarea 字段写入文本。fillId 由 browser_tag_elements" +
-      "返回。会派发 input/change 事件，兼容 React/Vue 受控组件。密码字段与文件字段禁止使用" +
-      "本工具。需已授予写权限。",
+      "向 input（非 password/file）、textarea 或 contenteditable 富文本区（如 Gmail/" +
+      "QQ/163 邮件正文）写入文本。fillId 由 browser_tag_elements 返回。input/textarea " +
+      "会派发 input/change 事件；contenteditable 优先用 execCommand('insertText') 注入" +
+      "纯文本、失败降级 textContent，均触发 input 事件，兼容 React/Vue 受控组件。" +
+      "密码字段与文件字段禁止使用本工具（文件用 browser_upload_file）。需已授予写权限。",
     parameters,
     execute: async (_toolCallId, params) =>
       runWriteOperation(

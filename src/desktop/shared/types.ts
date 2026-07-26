@@ -263,7 +263,13 @@ export type DesktopAgentEvent =
 export interface BrowserFillRecordView {
   fillId: string;
   label: string;
-  elementType: "input" | "textarea" | "select" | "checkbox" | "radio";
+  elementType:
+    | "input"
+    | "textarea"
+    | "select"
+    | "checkbox"
+    | "radio"
+    | "contenteditable";
   writtenValue: string;
   decision: "pending" | "accepted" | "rejected";
 }
