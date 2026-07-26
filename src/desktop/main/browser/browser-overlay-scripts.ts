@@ -43,7 +43,9 @@ export function buildOverlayInjectScript(
     #\${TOOLBAR_ID} button.danger{background:#ef4444;border-color:#ef4444}
     [\${BADGE_ATTR}]{position:absolute;z-index:2147483001;display:flex;gap:4px;
       background:#fff;border:1px solid #cbd5e1;border-radius:999px;padding:2px 4px;
-      box-shadow:0 2px 8px rgba(15,23,42,.15);pointer-events:auto;font:12px system-ui}
+      box-shadow:0 2px 8px rgba(15,23,42,.15);pointer-events:auto;font:12px system-ui;
+      opacity:.35;transition:opacity .12s ease}
+    [\${BADGE_ATTR}]:hover{opacity:1}
     [\${BADGE_ATTR}] button{width:22px;height:22px;border-radius:999px;border:none;
       cursor:pointer;font-size:14px;line-height:1;padding:0}
     [\${BADGE_ATTR}] .accept{background:#dcfce7;color:#166534}
@@ -64,6 +66,13 @@ export function buildOverlayInjectScript(
     '<button class="primary" data-action="accept-all">全部接受</button>' +
     '<button class="danger" data-action="reject-all">全部拒绝</button>';
   document.body.appendChild(toolbar);
+
+  // 顶部工具栏改为把页面整体下推，避免遮盖页面原有的顶部内容。
+  const prevPaddingTop = document.body.style.paddingTop;
+  document.body.dataset.cooltoPrevPad = prevPaddingTop;
+  const toolbarHeight = Math.ceil(toolbar.getBoundingClientRect().height) || 48;
+  document.body.style.paddingTop =
+    (parseFloat(prevPaddingTop || '0') + toolbarHeight) + 'px';
 
   const restoreValue = (fillId, valueBefore) => {
     const el = document.querySelector('[data-fill-id="' + fillId.replace(/"/g,'') + '"]');
@@ -88,9 +97,27 @@ export function buildOverlayInjectScript(
 
   const positionBadge = (badge, target) => {
     const r = target.getBoundingClientRect();
-    badge.style.top = (window.scrollY + r.top - 4) + 'px';
-    badge.style.left = (window.scrollX + r.right + 6) + 'px';
+    const bw = badge.offsetWidth || 56;
+    const bh = badge.offsetHeight || 28;
+    const gap = 6;
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const sx = window.scrollX;
+    const sy = window.scrollY;
+    // 候选顺序：右 → 左 → 上 → 下，取第一个落在视口内的位置。
+    // 徽章默认半透明（见 CSS opacity:.35），悬停才变实心，故不再做碰撞检测。
+    const candidates = [
+      { top: r.top + (r.height - bh) / 2, left: r.right + gap },
+      { top: r.top + (r.height - bh) / 2, left: r.left - bw - gap },
+      { top: r.top - bh - gap, left: r.left },
+      { top: r.bottom + gap, left: r.left },
+    ];
+    const inViewport = (c) =>
+      c.left >= 0 && c.left + bw <= vw && c.top >= 0 && c.top + bh <= vh;
+    const pick = candidates.find(inViewport) || candidates[0];
     badge.style.position = 'absolute';
+    badge.style.top = (sy + pick.top) + 'px';
+    badge.style.left = (sx + Math.max(0, Math.min(pick.left, vw - bw))) + 'px';
   };
 
   const badges = [];
@@ -170,6 +197,11 @@ export function buildOverlayRemoveScript(): string {
   document.getElementById(MASK_ID)?.remove();
   document.getElementById(TOOLBAR_ID)?.remove();
   document.querySelectorAll('[' + BADGE_ATTR + ']').forEach((el) => el.remove());
+  // 还原注入前的 body padding-top（顶部工具栏腾位）。
+  if (document.body.dataset.cooltoPrevPad !== undefined) {
+    document.body.style.paddingTop = document.body.dataset.cooltoPrevPad;
+    delete document.body.dataset.cooltoPrevPad;
+  }
   delete window[${JSON.stringify(STATE_KEY)}];
   return { ok: true };
 })();`;
