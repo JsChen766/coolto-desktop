@@ -34,5 +34,12 @@ test("system prompt defines autonomous tool choice and clarification behavior", 
   assert.match(COOLTO_SYSTEM_PROMPT, /needs_user_decision/);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得自行生成待决策卡片/);
   assert.match(COOLTO_SYSTEM_PROMPT, /接受、拒绝、自定义回答/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /Webmail/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_tag_elements/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_upload_file/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_start_review/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /contenteditable/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /永远不点/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /应聘\[岗位名称\]/);
   assert.match(SYSTEM_PROMPT_VERSION, /^coolto-local-agent\/v\d+$/);
 });
