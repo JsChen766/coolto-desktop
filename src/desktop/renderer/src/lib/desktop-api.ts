@@ -77,7 +77,12 @@ function createUnavailableDesktopApi(): DesktopApi {
       goForward: unavailable,
       reload: unavailable,
       getState: unavailable,
+      abortFill: unavailable,
       onStateChanged: () => () => undefined,
+      onFillProgress: () => () => undefined,
+      onReviewDecision: () => () => undefined,
+      onReviewComplete: () => () => undefined,
+      onCaptchaDetected: () => () => undefined,
     },
   };
 }
@@ -377,10 +382,15 @@ function createBrowserDemoNamespace(): DesktopApi["browser"] {
     goForward: async () => undefined,
     reload: async () => undefined,
     getState: async () => structuredClone(state),
+    abortFill: async () => undefined,
     onStateChanged: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    onFillProgress: () => () => undefined,
+    onReviewDecision: () => () => undefined,
+    onReviewComplete: () => () => undefined,
+    onCaptchaDetected: () => () => undefined,
   };
 }
 

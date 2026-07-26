@@ -18,6 +18,7 @@ export class BrowserWriteAccessGate {
   #origin: string | null = null;
   #expiresAt = 0;
   #reason = "";
+  #reviewing = false;
 
   public grant(
     reason: string,
@@ -29,6 +30,7 @@ export class BrowserWriteAccessGate {
     this.#origin = origin;
     this.#reason = reason;
     this.#expiresAt = Date.now() + IDLE_TIMEOUT_MS;
+    this.#reviewing = false;
   }
 
   public revoke(_cause: string): void {
@@ -37,6 +39,7 @@ export class BrowserWriteAccessGate {
     this.#origin = null;
     this.#expiresAt = 0;
     this.#reason = "";
+    this.#reviewing = false;
   }
 
   public isGranted(): boolean {
@@ -46,6 +49,19 @@ export class BrowserWriteAccessGate {
       return false;
     }
     return true;
+  }
+
+  /**
+   * B4: Overlay 审核阶段闸门。审核中任何新的写原语一律拒绝，
+   * 避免 Agent 在用户还没决定时又继续改动页面。exitReview 由主进程
+   * 在轮询到 globalAction 之后调用。
+   */
+  public setReviewing(reviewing: boolean): void {
+    this.#reviewing = reviewing;
+  }
+
+  public isReviewing(): boolean {
+    return this.#reviewing;
   }
 
   /** 主进程感知到标签导航到新 origin 时调用；若与授权 origin 不一致则硬收回。 */
@@ -66,6 +82,14 @@ export class BrowserWriteAccessGate {
       return {
         ok: false,
         message: "写权限尚未授予。请先调用 request_write_access 请求授权。",
+      };
+    }
+    if (this.#reviewing) {
+      return {
+        ok: false,
+        message:
+          "上一批写入正等待用户在页内 Overlay 上逐项审核，暂不接受新的写入。" +
+          "请等待 browser:review-complete 事件后再决定下一步。",
       };
     }
     if (Date.now() > this.#expiresAt) {
@@ -105,12 +129,14 @@ export class BrowserWriteAccessGate {
     tabId: string | null;
     origin: string | null;
     reason: string;
+    reviewing: boolean;
   } {
     return {
       granted: this.#granted,
       tabId: this.#tabId,
       origin: this.#origin,
       reason: this.#reason,
+      reviewing: this.#reviewing,
     };
   }
 }

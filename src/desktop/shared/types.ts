@@ -233,7 +233,40 @@ export type DesktopAgentEvent =
       message: string;
     }
   | { type: "jd.proposal.created"; data: JdArtifactData }
-  | { type: "match.report.created"; data: MatchReportArtifactData };
+  | { type: "match.report.created"; data: MatchReportArtifactData }
+  | {
+      type: "browser.fill.progress";
+      records: BrowserFillRecordView[];
+      reviewing: boolean;
+    }
+  | {
+      type: "browser.review.decision";
+      fillId: string;
+      decision: "accepted" | "rejected";
+    }
+  | {
+      type: "browser.review.complete";
+      action: "accepted" | "rejected" | "mixed";
+      acceptedCount: number;
+      rejectedCount: number;
+    }
+  | {
+      type: "browser.captcha.detected";
+      kind: "recaptcha" | "hcaptcha" | "geetest" | "slider" | "image" | "unknown";
+      detail?: string;
+    };
+
+/**
+ * B4: 面向渲染进程的填写记录视图；records 由 fillLog 派生，用于
+ * FillProgressCard 渲染徽章 / 已写入值预览。
+ */
+export interface BrowserFillRecordView {
+  fillId: string;
+  label: string;
+  elementType: "input" | "textarea" | "select" | "checkbox" | "radio";
+  writtenValue: string;
+  decision: "pending" | "accepted" | "rejected";
+}
 
 export interface ConversationRenameInput {
   conversationId: string;
@@ -393,6 +426,38 @@ export interface DesktopApi {
     goForward(): Promise<void>;
     reload(): Promise<void>;
     getState(): Promise<BrowserState>;
+    abortFill(): Promise<void>;
     onStateChanged(listener: (state: BrowserState) => void): () => void;
+    onFillProgress(
+      listener: (payload: {
+        records: BrowserFillRecordView[];
+        reviewing: boolean;
+      }) => void,
+    ): () => void;
+    onReviewDecision(
+      listener: (payload: {
+        fillId: string;
+        decision: "accepted" | "rejected";
+      }) => void,
+    ): () => void;
+    onReviewComplete(
+      listener: (payload: {
+        action: "accepted" | "rejected" | "mixed";
+        acceptedCount: number;
+        rejectedCount: number;
+      }) => void,
+    ): () => void;
+    onCaptchaDetected(
+      listener: (payload: {
+        kind:
+          | "recaptcha"
+          | "hcaptcha"
+          | "geetest"
+          | "slider"
+          | "image"
+          | "unknown";
+        detail?: string;
+      }) => void,
+    ): () => void;
   };
 }

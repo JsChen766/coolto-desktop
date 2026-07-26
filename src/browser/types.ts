@@ -48,6 +48,35 @@ export type WriteAccessCheck =
   | { ok: false; message: string };
 
 /**
+ * B4: 每一次成功的写原语记录。fillLog 用于 Overlay 审核阶段
+ * 逐项展示给用户以及全部拒绝时还原原值。click/scroll 不入 log。
+ */
+export interface BrowserFieldWriteRecord {
+  fillId: string;
+  label: string;
+  elementType: "input" | "textarea" | "select" | "checkbox" | "radio";
+  valueBefore: string;
+  valueAfter: string;
+  writtenAt: string;
+}
+
+/** B4: Overlay 逐字段决策。pending = 尚未处理；accepted/rejected 由用户点击产生。 */
+export type FieldReviewDecision = "pending" | "accepted" | "rejected";
+
+/** B4: Overlay 结束时的最终结果，供渲染进程呈现「已接受 X / 已拒绝 Y」。 */
+export interface ReviewOutcome {
+  action: "accepted" | "rejected" | "mixed";
+  acceptedCount: number;
+  rejectedCount: number;
+}
+
+/** B4: 验证码/滑块检测特征。命中则通知 Agent 暂停并提示用户手动通过。 */
+export interface CaptchaDetection {
+  kind: "recaptcha" | "hcaptcha" | "geetest" | "slider" | "image" | "unknown";
+  detail?: string;
+}
+
+/**
  * B3: 页面操作能力。BrowserWindowManager 实现，供 browser_* 写工具消费。
  * 写原语受主进程写权限闸门约束，未授予时以 isError 文本形式告知 Agent。
  * 页面 DOM 内容（label/文本）视为不可信数据。
@@ -70,4 +99,14 @@ export interface BrowserPageOperator {
   setChecked(fillId: string, checked: boolean): Promise<void>;
   clickElement(fillId: string): Promise<void>;
   scrollTo(fillId: string): Promise<void>;
+
+  /**
+   * B4: 审核阶段控制。enterReview 前 fillLog 必须非空；进入后 gate 转为
+   * reviewing，任何新的写原语调用返回 isError；exitReview 清空 fillLog 与
+   * reviewing 标志。isReviewing/getFillLog 供主进程编排 Overlay 使用。
+   */
+  isReviewing(): boolean;
+  getFillLog(): BrowserFieldWriteRecord[];
+  enterReview(): void;
+  exitReview(): void;
 }

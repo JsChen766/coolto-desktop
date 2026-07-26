@@ -7,6 +7,11 @@ export const BROWSER_IPC_CHANNELS = {
   reload: "browser:reload",
   getState: "browser:get-state",
   stateChanged: "browser:state-changed",
+  fillProgress: "browser:fill-progress",
+  reviewDecision: "browser:review-decision",
+  reviewComplete: "browser:review-complete",
+  captchaDetected: "browser:captcha-detected",
+  abortFill: "browser:abort-fill",
 } as const;
 
 /** 浏览器窗口内 chrome（标签栏 UI）与主进程之间的通道。 */
@@ -37,4 +42,5 @@ export const BROWSER_INVOKE_CHANNELS: BrowserIpcChannel[] = [
   BROWSER_IPC_CHANNELS.goForward,
   BROWSER_IPC_CHANNELS.reload,
   BROWSER_IPC_CHANNELS.getState,
+  BROWSER_IPC_CHANNELS.abortFill,
 ];

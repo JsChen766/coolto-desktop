@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import type { ResumeChatReference } from "@desktop/types";
 import type { ResumeLibraryEntry } from "@desktop/types";
 import ApprovalCard from "./components/ApprovalCard.vue";
 import ArtifactPanel from "./components/ArtifactPanel.vue";
+import FillProgressCard from "./components/FillProgressCard.vue";
 import JdArtifactCard from "./components/JdArtifactCard.vue";
 import JdDetailPanel from "./components/JdDetailPanel.vue";
 import MatchReportCard from "./components/MatchReportCard.vue";
@@ -25,6 +26,7 @@ import { useConversationAttachment } from "./attachments/use-conversation-attach
 import { desktopApi } from "./lib/desktop-api";
 import { useResumeWorkspace } from "./resume-workspace/use-resume-workspace";
 import { useBrowserState } from "./browser/use-browser-state";
+import { useFillProgress } from "./browser/use-fill-progress";
 
 const sidebarOpen = ref(true);
 const artifactOpen = ref(false);
@@ -64,13 +66,27 @@ const conversationAttachment = useConversationAttachment(
   () => current.value?.id,
 );
 const browser = useBrowserState();
+const fillProgress = useFillProgress();
 const scroller = ref<HTMLElement>();
 const dark = ref(localStorage.getItem("coolto-theme") === "dark");
 
-onMounted(applyTheme);
+onMounted(() => {
+  applyTheme();
+  fillProgress.mount();
+});
+onBeforeUnmount(() => fillProgress.unmount());
 
 watch(
-  [() => current.value?.messages.length, streamingText, pendingApproval, jdArtifacts, matchReports],
+  [
+    () => current.value?.messages.length,
+    streamingText,
+    pendingApproval,
+    jdArtifacts,
+    matchReports,
+    fillProgress.records,
+    fillProgress.lastOutcome,
+    fillProgress.captcha,
+  ],
   () => void nextTick(scrollToBottom),
 );
 
@@ -287,6 +303,18 @@ function scrollToBottom(): void {
                 :request="pendingApproval"
                 :busy="approvalBusy"
                 @decide="resolveApproval"
+              />
+              <FillProgressCard
+                :records="fillProgress.records.value"
+                :reviewing="fillProgress.reviewing.value"
+                :pending-count="fillProgress.pendingCount.value"
+                :accepted-count="fillProgress.acceptedCount.value"
+                :rejected-count="fillProgress.rejectedCount.value"
+                :last-outcome="fillProgress.lastOutcome.value"
+                :captcha="fillProgress.captcha.value"
+                @abort="fillProgress.abortFill"
+                @dismiss-outcome="fillProgress.dismissOutcome"
+                @dismiss-captcha="fillProgress.dismissCaptcha"
               />
             </div>
           </div>

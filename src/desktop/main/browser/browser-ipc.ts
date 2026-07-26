@@ -1,6 +1,13 @@
 import type { BrowserWindow, IpcMain } from "electron";
 
 import type {
+  BrowserFieldWriteRecord,
+  CaptchaDetection,
+  FieldReviewDecision,
+  ReviewOutcome,
+} from "../../../browser/types.js";
+import type {
+  BrowserFillRecordView,
   BrowserNavigateInput,
   BrowserOpenInput,
   BrowserShellState,
@@ -17,6 +24,8 @@ import { BrowserWindowManager } from "./browser-window-manager.js";
  * B1: 注册内置浏览器 IPC。
  * - 主窗口 invoke 通道：open/close/navigate/... + state-changed 推送
  * - chrome renderer 通道：ready / 新建/关闭/切换标签 / 导航 / shell-state 推送
+ * B4 追加：browser:fill-progress / review-decision / review-complete /
+ * captcha-detected 主进程→主窗口推送；browser:abort-fill 主窗口→主进程 invoke。
  * 主窗口关闭时销毁浏览器窗口。
  */
 export function registerBrowserIpc(
@@ -30,15 +39,27 @@ export function registerBrowserIpc(
     ipcMain.removeAllListeners(channel);
   }
 
+  const sendMain = (channel: string, payload?: unknown): void => {
+    if (mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send(channel, payload);
+  };
+
   const manager = new BrowserWindowManager({
-    emitState: (state: BrowserState) => {
-      if (!mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(BROWSER_IPC_CHANNELS.stateChanged, state);
-      }
-    },
-    emitShellState: (state: BrowserShellState) => {
-      broadcastShellState(manager, state);
-    },
+    emitState: (state: BrowserState) =>
+      sendMain(BROWSER_IPC_CHANNELS.stateChanged, state),
+    emitShellState: (state: BrowserShellState) =>
+      broadcastShellState(manager, state),
+    emitFillProgress: (records: BrowserFieldWriteRecord[], reviewing: boolean) =>
+      sendMain(BROWSER_IPC_CHANNELS.fillProgress, {
+        records: records.map(toRecordView),
+        reviewing,
+      }),
+    emitReviewDecision: (fillId: string, decision: FieldReviewDecision) =>
+      sendMain(BROWSER_IPC_CHANNELS.reviewDecision, { fillId, decision }),
+    emitReviewComplete: (outcome: ReviewOutcome) =>
+      sendMain(BROWSER_IPC_CHANNELS.reviewComplete, outcome),
+    emitCaptchaDetected: (detection: CaptchaDetection) =>
+      sendMain(BROWSER_IPC_CHANNELS.captchaDetected, detection),
   });
 
   registerMainWindowHandlers(ipcMain, manager);
@@ -46,6 +67,16 @@ export function registerBrowserIpc(
 
   mainWindow.on("closed", () => manager.dispose());
   return manager;
+}
+
+function toRecordView(record: BrowserFieldWriteRecord): BrowserFillRecordView {
+  return {
+    fillId: record.fillId,
+    label: record.label,
+    elementType: record.elementType,
+    writtenValue: record.valueAfter,
+    decision: "pending",
+  };
 }
 
 function registerMainWindowHandlers(
@@ -64,6 +95,7 @@ function registerMainWindowHandlers(
   ipcMain.handle(BROWSER_IPC_CHANNELS.goForward, () => manager.goForward());
   ipcMain.handle(BROWSER_IPC_CHANNELS.reload, () => manager.reload());
   ipcMain.handle(BROWSER_IPC_CHANNELS.getState, () => manager.getState());
+  ipcMain.handle(BROWSER_IPC_CHANNELS.abortFill, () => manager.abortFill());
 }
 
 function registerShellHandlers(

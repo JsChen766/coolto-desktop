@@ -1,17 +1,18 @@
-import { join } from "node:path";
-
 import { BrowserWindow, type WebContents } from "electron";
 
 import type {
   BrowserOpenInput,
   BrowserShellState,
   BrowserState,
-  DesktopPlatform,
 } from "../../shared/types.js";
 import type {
+  BrowserFieldWriteRecord,
   BrowserPageOperator,
   BrowserPageReader,
+  CaptchaDetection,
+  FieldReviewDecision,
   PageSnapshot,
+  ReviewOutcome,
 } from "../../../browser/types.js";
 import {
   BrowserActiveOriginTracker,
@@ -22,9 +23,15 @@ import {
   BrowserPageOperatorImpl,
   type ActiveTabContext,
   type ActiveTabResolver,
+  type ReviewStarter,
+  type WriteAccessLifecycle,
 } from "./browser-page-operator.js";
+import { BrowserReviewOrchestrator } from "./browser-review-orchestrator.js";
+import {
+  createBrowserWindow,
+  deriveShellState,
+} from "./browser-window-factory.js";
 import { BrowserWriteAccessGate } from "./browser-write-access-gate.js";
-import { getBrowserSession } from "./browser-session.js";
 import { BrowserTabManager } from "./browser-tab-manager.js";
 
 const IDLE_STATE: BrowserState = {
@@ -41,6 +48,10 @@ const IDLE_STATE: BrowserState = {
 export interface BrowserWindowEmitters {
   emitState: (state: BrowserState) => void;
   emitShellState: (state: BrowserShellState) => void;
+  emitFillProgress: (records: BrowserFieldWriteRecord[], reviewing: boolean) => void;
+  emitReviewDecision: (fillId: string, decision: FieldReviewDecision) => void;
+  emitReviewComplete: (outcome: ReviewOutcome) => void;
+  emitCaptchaDetected: (detection: CaptchaDetection) => void;
 }
 
 /**
@@ -58,12 +69,36 @@ export class BrowserWindowManager implements BrowserPageReader {
   readonly #writeAccess = new BrowserWriteAccessGate();
   readonly #operator: BrowserPageOperatorImpl;
   readonly #originTracker: BrowserActiveOriginTracker;
+  readonly #review: BrowserReviewOrchestrator;
 
   public constructor(emitters: BrowserWindowEmitters) {
     this.#emitters = emitters;
     const resolver: ActiveTabResolver = { resolve: () => this.#resolveActive() };
-    this.#operator = new BrowserPageOperatorImpl(this.#writeAccess, resolver);
+    const reviewStarter: ReviewStarter = {
+      start: (records) => this.#review.startReview(records),
+    };
+    const lifecycle: WriteAccessLifecycle = {
+      onGranted: () => this.#review.startCaptchaProbe(),
+      onRevoked: () => {
+        this.#review.stopCaptchaProbe();
+        this.#review.stopOverlay();
+      },
+    };
+    this.#operator = new BrowserPageOperatorImpl(
+      this.#writeAccess,
+      resolver,
+      reviewStarter,
+      lifecycle,
+    );
     this.#originTracker = new BrowserActiveOriginTracker(this.#writeAccess);
+    this.#review = new BrowserReviewOrchestrator({
+      operator: this.#operator,
+      activeWebContents: () => activeTabContext(this.#tabs)?.webContents,
+      emitFillProgress: emitters.emitFillProgress,
+      emitReviewDecision: emitters.emitReviewDecision,
+      emitReviewComplete: emitters.emitReviewComplete,
+      emitCaptchaDetected: emitters.emitCaptchaDetected,
+    });
   }
 
   /** B3: 暴露操作接口给 Agent 工具链（经 IPC 桥接注入 runtime）。 */
@@ -113,9 +148,7 @@ export class BrowserWindowManager implements BrowserPageReader {
     if (!this.#window || this.#window.isDestroyed()) return;
     if (this.#window.isMaximized()) this.#window.unmaximize();
     else this.#window.maximize();
-  }
-
-  public get tabs(): BrowserTabManager | undefined {
+  }  public get tabs(): BrowserTabManager | undefined {
     return this.#tabs;
   }
 
@@ -159,7 +192,16 @@ export class BrowserWindowManager implements BrowserPageReader {
     if (this.#tabs) this.#emitters.emitShellState(this.#shellState());
   }
 
+  /**
+   * B4: 用户点「中止填写」→ 转入 Overlay 让用户逐字段决定，
+   * 已写入字段不能绕过审核直接生效。
+   */
+  public abortFill(): void {
+    this.#review.abortFill();
+  }
+
   public dispose(): void {
+    this.#review.dispose();
     this.#tabs?.destroyAll();
     this.#tabs = undefined;
     if (this.#window && !this.#window.isDestroyed()) this.#window.destroy();
@@ -177,64 +219,27 @@ export class BrowserWindowManager implements BrowserPageReader {
   }
 
   #shellState(): BrowserShellState {
-    const base = this.#tabs?.shellState() ?? { tabs: [], activeTabId: null };
-    return {
-      ...base,
-      theme: this.#theme,
-      platform: process.platform as DesktopPlatform,
-      isMaximized: this.#window?.isMaximized() ?? false,
-    };
+    return deriveShellState(
+      this.#tabs,
+      this.#theme,
+      this.#window?.isMaximized() ?? false,
+    );
   }
 
   #createWindow(): BrowserWindow {
-    const isMac = process.platform === "darwin";
-    const window = new BrowserWindow({
-      width: 1180,
-      height: 820,
-      minWidth: 720,
-      minHeight: 520,
-      show: false,
-      backgroundColor: this.#theme === "dark" ? "#1b1b19" : "#fbfbfa",
-      title: "Coolto 浏览器",
-      ...(isMac
-        ? {
-            titleBarStyle: "hiddenInset",
-            trafficLightPosition: { x: 14, y: 20 },
-          }
-        : { frame: false }),
-      webPreferences: {
-        preload: join(__dirname, "../preload/browser-shell.cjs"),
-        session: getBrowserSession(),
-        contextIsolation: true,
-        nodeIntegration: false,
-        sandbox: true,
+    return createBrowserWindow({
+      theme: () => this.#theme,
+      onCreated: (tabs) => {
+        this.#tabs = tabs;
+      },
+      onLayoutChange: () => this.pushState(),
+      onClosed: (window) => {
+        if (this.#window !== window) return;
+        this.#tabs = undefined;
+        this.#window = undefined;
+        this.#emitters.emitState({ ...IDLE_STATE });
       },
     });
-    this.#tabs = new BrowserTabManager(window, () => this.pushState());
-    window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-    window.on("resize", () => this.#tabs?.layout());
-    window.on("maximize", () => this.pushState());
-    window.on("unmaximize", () => this.pushState());
-    window.once("ready-to-show", () => window.show());
-    window.on("closed", () => {
-      if (this.#window !== window) return;
-      this.#tabs = undefined;
-      this.#window = undefined;
-      this.#emitters.emitState({ ...IDLE_STATE });
-    });
-    void this.#loadShell(window);
-    return window;
-  }
-
-  #loadShell(window: BrowserWindow): Promise<void> {
-    if (process.env.ELECTRON_RENDERER_URL) {
-      return window.webContents.loadURL(
-        `${process.env.ELECTRON_RENDERER_URL}/browser-shell.html`,
-      );
-    }
-    return window.webContents.loadFile(
-      join(__dirname, "../renderer/browser-shell.html"),
-    );
   }
 
   #requireTabs(): BrowserTabManager {

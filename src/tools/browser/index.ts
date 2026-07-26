@@ -9,10 +9,11 @@ import { createBrowserSelectOptionTool } from "./browser-select-option.js";
 import { createBrowserSetCheckedTool } from "./browser-set-checked.js";
 import { createBrowserClickElementTool } from "./browser-click-element.js";
 import { createBrowserScrollToTool } from "./browser-scroll-to.js";
+import { createBrowserStartReviewTool } from "./browser-start-review.js";
 
 /**
- * B3: 组装浏览器写工具集。写权限闸门（request_write_access）依赖 ApprovalManager；
- * 写原语依赖 BrowserPageOperator。缺少任一依赖时对应工具不注册。
+ * B3+B4: 组装浏览器写工具集。写权限闸门（request_write_access）依赖
+ * ApprovalManager；写原语 + start_review 依赖 BrowserPageOperator。
  */
 export function createBrowserWriteTools(
   operator: BrowserPageOperator,
@@ -26,5 +27,6 @@ export function createBrowserWriteTools(
     createBrowserSetCheckedTool(operator),
     createBrowserClickElementTool(operator),
     createBrowserScrollToTool(operator),
+    createBrowserStartReviewTool(operator),
   ];
 }

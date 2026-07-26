@@ -81,15 +81,28 @@ const api: DesktopApi = {
     goForward: () => ipcRenderer.invoke("browser:go-forward"),
     reload: () => ipcRenderer.invoke("browser:reload"),
     getState: () => ipcRenderer.invoke("browser:get-state"),
-    onStateChanged: (listener: (state: BrowserState) => void) => {
-      const handler = (
-        _event: Electron.IpcRendererEvent,
-        state: BrowserState,
-      ): void => listener(state);
-      ipcRenderer.on("browser:state-changed", handler);
-      return () => ipcRenderer.removeListener("browser:state-changed", handler);
-    },
+    abortFill: () => ipcRenderer.invoke("browser:abort-fill"),
+    onStateChanged: (listener: (state: BrowserState) => void) =>
+      subscribeIpc("browser:state-changed", listener),
+    onFillProgress: (listener) =>
+      subscribeIpc("browser:fill-progress", listener),
+    onReviewDecision: (listener) =>
+      subscribeIpc("browser:review-decision", listener),
+    onReviewComplete: (listener) =>
+      subscribeIpc("browser:review-complete", listener),
+    onCaptchaDetected: (listener) =>
+      subscribeIpc("browser:captcha-detected", listener),
   },
 };
+
+function subscribeIpc<T>(
+  channel: string,
+  listener: (payload: T) => void,
+): () => void {
+  const handler = (_event: Electron.IpcRendererEvent, payload: T): void =>
+    listener(payload);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+}
 
 contextBridge.exposeInMainWorld("coolto", api);

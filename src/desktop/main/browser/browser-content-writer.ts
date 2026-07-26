@@ -14,6 +14,17 @@ import type { ClickTargetHint } from "./browser-click-guards.js";
 const MAX_TAG_ELEMENTS = 200;
 
 /**
+ * B4: 写脚本可选返回的字段级元数据。fill/select/setChecked 成功时携带；
+ * BrowserPageOperator 据此写入 fillLog 供 Overlay 审核阶段展示。
+ */
+export interface WriteFieldMeta {
+  valueBefore: string;
+  valueAfter: string;
+  label: string;
+  elementType: "input" | "textarea" | "select" | "checkbox" | "radio";
+}
+
+/**
  * B3: 通过 executeJavaScript 向页面注入写脚本。
  * 只做"注入 + 结果规范化"，不做闸门检查（闸门在 BrowserWindowManager 层）。
  * 页面重渲染后 selector 易失效，因此定位一律走注入的 data-fill-id 属性。
@@ -32,36 +43,39 @@ export async function fillPageField(
   contents: WebContents,
   fillId: string,
   value: string,
-): Promise<void> {
+): Promise<WriteFieldMeta> {
   const result = (await contents.executeJavaScript(
     buildFillScript(fillId, value),
     true,
   )) as WriteScriptResult;
   ensureOk(result, "fillField");
+  return extractMeta(result, "input");
 }
 
 export async function selectPageOption(
   contents: WebContents,
   fillId: string,
   value: string,
-): Promise<void> {
+): Promise<WriteFieldMeta> {
   const result = (await contents.executeJavaScript(
     buildSelectScript(fillId, value),
     true,
   )) as WriteScriptResult;
   ensureOk(result, "selectOption");
+  return extractMeta(result, "select");
 }
 
 export async function setPageChecked(
   contents: WebContents,
   fillId: string,
   checked: boolean,
-): Promise<void> {
+): Promise<WriteFieldMeta> {
   const result = (await contents.executeJavaScript(
     buildSetCheckedScript(fillId, checked),
     true,
   )) as WriteScriptResult;
   ensureOk(result, "setChecked");
+  return extractMeta(result, "checkbox");
 }
 
 export async function scrollPageToElement(
@@ -104,11 +118,45 @@ export async function performPageClick(
 interface WriteScriptResult {
   ok: boolean;
   reason?: string;
+  valueBefore?: string;
+  valueAfter?: string;
+  label?: string;
+  elementType?: string;
 }
 
 function ensureOk(result: WriteScriptResult, op: string): void {
   if (!result || result.ok) return;
   throw new Error(result.reason ?? `${op} 执行失败`);
+}
+
+function extractMeta(
+  result: WriteScriptResult,
+  fallbackType: WriteFieldMeta["elementType"],
+): WriteFieldMeta {
+  const raw = String(result.elementType ?? fallbackType);
+  const elementType = normalizeMetaType(raw, fallbackType);
+  return {
+    valueBefore: String(result.valueBefore ?? "").slice(0, 500),
+    valueAfter: String(result.valueAfter ?? "").slice(0, 500),
+    label: String(result.label ?? "").slice(0, 200),
+    elementType,
+  };
+}
+
+function normalizeMetaType(
+  value: string,
+  fallback: WriteFieldMeta["elementType"],
+): WriteFieldMeta["elementType"] {
+  switch (value) {
+    case "input":
+    case "textarea":
+    case "select":
+    case "checkbox":
+    case "radio":
+      return value;
+    default:
+      return fallback;
+  }
 }
 
 function normalizeSummary(raw: FormElementSummary): FormElementSummary {

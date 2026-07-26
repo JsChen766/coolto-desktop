@@ -41,10 +41,26 @@ export function buildFillScript(fillId: string, value: string): string {
   if (el.disabled)
     return { ok: false, reason: 'element_disabled' };
   try {
+    const valueBefore = typeof el.value === 'string' ? el.value : '';
+    const label = (function () {
+      if (el.id) {
+        const l = document.querySelector('label[for="' + el.id + '"]');
+        if (l && l.innerText) return l.innerText.trim();
+      }
+      const wrap = el.closest && el.closest('label');
+      if (wrap && wrap.innerText) return wrap.innerText.trim();
+      return el.getAttribute('aria-label') || el.getAttribute('placeholder') || '';
+    })();
     el.focus();
     setInputValue(el, ${q(value)});
     el.blur();
-    return { ok: true };
+    return {
+      ok: true,
+      valueBefore: valueBefore.slice(0, 500),
+      valueAfter: ${q(value)}.slice(0, 500),
+      label: (label || '').slice(0, 200),
+      elementType: tag === 'TEXTAREA' ? 'textarea' : 'input',
+    };
   } catch (e) {
     return { ok: false, reason: (e && e.message) || 'fill_failed' };
   }
@@ -62,11 +78,29 @@ export function buildSelectScript(fillId: string, value: string): string {
   const target = options.find((o) => o.value === ${q(value)})
     || options.find((o) => (o.textContent || '').trim() === ${q(value)});
   if (!target) return { ok: false, reason: 'option_not_found' };
+  const valueBefore = typeof el.value === 'string' ? el.value : '';
+  const labelBefore = (function () {
+    const opt = options.find((o) => o.value === valueBefore);
+    return opt ? (opt.textContent || valueBefore) : valueBefore;
+  })();
   const set = nativeSetter(HTMLSelectElement.prototype, 'value');
   if (set) set.call(el, target.value); else el.value = target.value;
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));
-  return { ok: true };
+  const label = (function () {
+    if (el.id) {
+      const l = document.querySelector('label[for="' + el.id + '"]');
+      if (l && l.innerText) return l.innerText.trim();
+    }
+    return el.getAttribute('aria-label') || '';
+  })();
+  return {
+    ok: true,
+    valueBefore: (labelBefore || '').slice(0, 500),
+    valueAfter: (target.textContent || target.value || '').slice(0, 500),
+    label: (label || '').slice(0, 200),
+    elementType: 'select',
+  };
 })();`;
 }
 
@@ -80,12 +114,28 @@ export function buildSetCheckedScript(fillId: string, checked: boolean): string 
   if (type !== 'checkbox' && type !== 'radio')
     return { ok: false, reason: 'not_checkable' };
   if (el.disabled) return { ok: false, reason: 'element_disabled' };
+  const wasChecked = !!el.checked;
   const set = nativeSetter(HTMLInputElement.prototype, 'checked');
   if (set) set.call(el, ${checked ? "true" : "false"});
   else el.checked = ${checked ? "true" : "false"};
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));
-  return { ok: true };
+  const label = (function () {
+    if (el.id) {
+      const l = document.querySelector('label[for="' + el.id + '"]');
+      if (l && l.innerText) return l.innerText.trim();
+    }
+    const wrap = el.closest && el.closest('label');
+    if (wrap && wrap.innerText) return wrap.innerText.trim();
+    return el.getAttribute('aria-label') || '';
+  })();
+  return {
+    ok: true,
+    valueBefore: wasChecked ? '选中' : '未选中',
+    valueAfter: ${checked ? "'选中'" : "'未选中'"},
+    label: (label || '').slice(0, 200),
+    elementType: type,
+  };
 })();`;
 }
 
