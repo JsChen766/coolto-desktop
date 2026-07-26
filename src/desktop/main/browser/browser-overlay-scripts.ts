@@ -3,7 +3,7 @@ import type { BrowserFieldWriteRecord } from "../../../browser/types.js";
 /**
  * B4: Overlay 注入脚本构造。三段脚本共享同一个 window.__coolto_review
  * 状态对象。inject 挂 mask + toolbar + 每字段徽章；poll 读快照；remove 清理。
- * 单个 ✗ = 清空字段（不还原 valueBefore）；全部接受 = 接受未拒绝的；
+ * 单个 ✗ = 文本/下拉清空、勾选框还原为填写前的原始勾选状态；全部接受 = 接受未拒绝的；
  * 全部拒绝 = 还原所有字段。任何字段处理完毕后 auto-unlock。
  */
 
@@ -74,20 +74,47 @@ export function buildOverlayInjectScript(
   document.body.style.paddingTop =
     (parseFloat(prevPaddingTop || '0') + toolbarHeight) + 'px';
 
-  const restoreValue = (fillId, valueBefore) => {
-    const el = document.querySelector('[data-fill-id="' + fillId.replace(/"/g,'') + '"]');
+  const isCheckable = (rec) => rec.elementType === 'checkbox' || rec.elementType === 'radio';
+
+  const restoreValue = (rec) => {
+    const el = document.querySelector('[data-fill-id="' + rec.fillId.replace(/"/g,'') + '"]');
     if (!el) return;
     try {
-      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
-        : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype
-        : HTMLInputElement.prototype;
-      const d = Object.getOwnPropertyDescriptor(proto, 'value');
-      if (d && d.set) d.set.call(el, valueBefore); else el.value = valueBefore;
+      if (isCheckable(rec)) {
+        const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked');
+        const was = rec.valueBefore === '选中';
+        if (d && d.set) d.set.call(el, was); else el.checked = was;
+      } else {
+        const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
+          : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype
+          : HTMLInputElement.prototype;
+        const d = Object.getOwnPropertyDescriptor(proto, 'value');
+        const v = rec.valueBefore || '';
+        if (d && d.set) d.set.call(el, v); else el.value = v;
+      }
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
     } catch (e) { /* ignore */ }
   };
-  const clearValue = (fillId) => restoreValue(fillId, '');
+
+  // 单个拒绝：勾选框还原为填写前的原始勾选状态；文本/下拉沿用「清空」。
+  const rejectValue = (rec) => {
+    const el = document.querySelector('[data-fill-id="' + rec.fillId.replace(/"/g,'') + '"]');
+    if (!el) return;
+    try {
+      if (isCheckable(rec)) {
+        restoreValue(rec);
+        return;
+      }
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype
+        : el instanceof HTMLSelectElement ? HTMLSelectElement.prototype
+        : HTMLInputElement.prototype;
+      const d = Object.getOwnPropertyDescriptor(proto, 'value');
+      if (d && d.set) d.set.call(el, ''); else el.value = '';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (e) { /* ignore */ }
+  };
 
   const markBadge = (badge, decision) => {
     badge.classList.remove('done-accept','done-reject');
@@ -147,7 +174,7 @@ export function buildOverlayInjectScript(
       checkAllDecided();
     });
     badge.querySelector('.reject').addEventListener('click', () => {
-      clearValue(rec.fillId);
+      rejectValue(rec);
       state.decisions[rec.fillId] = 'rejected';
       markBadge(badge, 'rejected');
       checkAllDecided();
@@ -165,7 +192,7 @@ export function buildOverlayInjectScript(
   });
   toolbar.querySelector('[data-action="reject-all"]').addEventListener('click', () => {
     for (const { badge, rec } of badges) {
-      restoreValue(rec.fillId, rec.valueBefore || '');
+      restoreValue(rec);
       state.decisions[rec.fillId] = 'rejected';
       markBadge(badge, 'rejected');
     }
