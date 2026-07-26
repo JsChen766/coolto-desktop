@@ -108,6 +108,7 @@ function registerShellHandlers(
   ipcMain.on(S.newTab, () => manager.tabs?.newTab());
   ipcMain.on(S.closeTab, (_e, tabId: string) => manager.tabs?.closeTab(tabId));
   ipcMain.on(S.selectTab, (_e, tabId: string) => manager.tabs?.select(tabId));
+  ipcMain.on(S.navigate, (_e, url: string) => manager.navigate(url));
   ipcMain.on(S.goBack, () => manager.goBack());
   ipcMain.on(S.goForward, () => manager.goForward());
   ipcMain.on(S.reload, () => manager.reload());

@@ -9,6 +9,7 @@ import { createBrowserSelectOptionTool } from "./browser-select-option.js";
 import { createBrowserSetCheckedTool } from "./browser-set-checked.js";
 import { createBrowserClickElementTool } from "./browser-click-element.js";
 import { createBrowserScrollToTool } from "./browser-scroll-to.js";
+import { createBrowserUploadFileTool } from "./browser-upload-file.js";
 import { createBrowserStartReviewTool } from "./browser-start-review.js";
 
 /**
@@ -27,6 +28,7 @@ export function createBrowserWriteTools(
     createBrowserSetCheckedTool(operator),
     createBrowserClickElementTool(operator),
     createBrowserScrollToTool(operator),
+    createBrowserUploadFileTool(operator),
     createBrowserStartReviewTool(operator),
   ];
 }

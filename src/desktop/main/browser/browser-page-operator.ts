@@ -3,10 +3,12 @@ import type { WebContents } from "electron";
 import type {
   BrowserFieldWriteRecord,
   BrowserPageOperator,
+  FileUploadOutcome,
   FormElementSummary,
   WriteAccessCheck,
 } from "../../../browser/types.js";
 import { evaluateClickTarget } from "./browser-click-guards.js";
+import { probeFileInput, setFileInputFiles } from "./browser-file-uploader.js";
 import {
   fillPageField,
   performPageClick,
@@ -40,6 +42,14 @@ export interface WriteAccessLifecycle {
 }
 
 /**
+ * B5: 弹出系统文件选择框，返回用户选中的本地路径。用户取消返回空数组。
+ * 抽成依赖便于测试，且把 Electron dialog 依赖挡在 operator 之外。
+ */
+export interface FilePicker {
+  pick(options: { accept: string; multiple: boolean }): Promise<string[]>;
+}
+
+/**
  * B3+B4: BrowserPageOperator 的实现。所有写原语调用前先经 gate 校验；
  * 成功执行后 touch() 刷新 5min TTL。tagElements 也纳入闸门。
  * B4 追加：fill/select/setChecked 成功后写入 fillLog；enterReview 通过
@@ -54,6 +64,7 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
     private readonly activeTab: ActiveTabResolver,
     private readonly reviewStarter: ReviewStarter,
     private readonly lifecycle: WriteAccessLifecycle,
+    private readonly filePicker: FilePicker,
   ) {}
 
   public isWriteAccessGranted(): boolean {
@@ -138,6 +149,39 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
     const ctx = this.#requireGranted();
     await scrollPageToElement(ctx.webContents, fillId);
     this.gate.touch();
+  }
+
+  public async uploadFile(fillId: string): Promise<FileUploadOutcome> {
+    const ctx = this.#requireGranted();
+    const probe = await probeFileInput(ctx.webContents, fillId);
+    if (!probe.ok) {
+      throw new Error(this.#uploadReason(probe.reason));
+    }
+    const paths = await this.filePicker.pick({
+      accept: probe.accept,
+      multiple: probe.multiple,
+    });
+    if (paths.length === 0) return { cancelled: true };
+    const result = await setFileInputFiles(ctx.webContents, fillId, paths);
+    this.gate.touch();
+    return {
+      cancelled: false,
+      filenames: paths.map((p) => p.split(/[\\/]/).pop() ?? p),
+      fileCount: result.fileCount,
+    };
+  }
+
+  #uploadReason(reason: string | undefined): string {
+    switch (reason) {
+      case "element_not_found":
+        return "目标元素不存在（element_not_found）";
+      case "not_file_input":
+        return "目标不是原生 <input type=file>，无法上传；请提示用户手动上传附件";
+      case "element_disabled":
+        return "目标文件输入框已禁用（element_disabled）";
+      default:
+        return reason ?? "文件上传失败";
+    }
   }
 
   public isReviewing(): boolean {

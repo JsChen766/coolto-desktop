@@ -19,10 +19,12 @@ import {
   activeTabContext,
 } from "./browser-active-tab.js";
 import { readPageSnapshot } from "./browser-content-reader.js";
+import { pickLocalFiles } from "./browser-file-uploader.js";
 import {
   BrowserPageOperatorImpl,
   type ActiveTabContext,
   type ActiveTabResolver,
+  type FilePicker,
   type ReviewStarter,
   type WriteAccessLifecycle,
 } from "./browser-page-operator.js";
@@ -84,11 +86,15 @@ export class BrowserWindowManager implements BrowserPageReader {
         this.#review.stopOverlay();
       },
     };
+    const filePicker: FilePicker = {
+      pick: (options) => pickLocalFiles(this.#activeWindow(), options),
+    };
     this.#operator = new BrowserPageOperatorImpl(
       this.#writeAccess,
       resolver,
       reviewStarter,
       lifecycle,
+      filePicker,
     );
     this.#originTracker = new BrowserActiveOriginTracker(this.#writeAccess);
     this.#review = new BrowserReviewOrchestrator({
@@ -184,6 +190,12 @@ export class BrowserWindowManager implements BrowserPageReader {
       throw new Error("浏览器尚未打开或无活跃标签页，请先让用户打开要操作的页面");
     }
     return ctx;
+  }
+
+  #activeWindow(): BrowserWindow | undefined {
+    return this.#window && !this.#window.isDestroyed()
+      ? this.#window
+      : undefined;
   }
 
   public pushState(): void {

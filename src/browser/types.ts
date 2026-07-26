@@ -60,6 +60,14 @@ export interface BrowserFieldWriteRecord {
   writtenAt: string;
 }
 
+/**
+ * B5: 文件上传结果。cancelled = 用户在系统文件选择框点了取消（非错误）。
+ * uploaded 时携带选中的文件名（展示用）与实际注入的文件数。
+ */
+export type FileUploadOutcome =
+  | { cancelled: true }
+  | { cancelled: false; filenames: string[]; fileCount: number };
+
 /** B4: Overlay 逐字段决策。pending = 尚未处理；accepted/rejected 由用户点击产生。 */
 export type FieldReviewDecision = "pending" | "accepted" | "rejected";
 
@@ -99,6 +107,12 @@ export interface BrowserPageOperator {
   setChecked(fillId: string, checked: boolean): Promise<void>;
   clickElement(fillId: string): Promise<void>;
   scrollTo(fillId: string): Promise<void>;
+  /**
+   * B5: 向原生 `<input type=file>` 上传本地文件。弹出系统文件选择框让用户
+   * 手动选取（Agent 不能自行指定任意本地路径），选中后经 CDP 注入。
+   * 用户取消选择时返回 { cancelled: true }，不视为错误。
+   */
+  uploadFile(fillId: string): Promise<FileUploadOutcome>;
 
   /**
    * B4: 审核阶段控制。enterReview 前 fillLog 必须非空；进入后 gate 转为

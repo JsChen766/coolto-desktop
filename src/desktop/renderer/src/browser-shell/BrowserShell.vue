@@ -21,6 +21,13 @@ const activeTab = computed<BrowserTabState | undefined>(() =>
   state.value.tabs.find((tab) => tab.id === state.value.activeTabId),
 );
 
+const addressInput = ref("");
+const addressFocused = ref(false);
+
+watch(activeTab, (tab) => {
+  if (!addressFocused.value) addressInput.value = tab?.url ?? "";
+});
+
 const isMac = computed(() => state.value.platform === "darwin");
 
 const unsubscribe = shell.onStateChanged((next) => {
@@ -54,6 +61,40 @@ function reportHeight(): void {
 function addressText(tab: BrowserTabState | undefined): string {
   if (!tab) return "";
   return tab.url ?? "Coolto 主页";
+}
+
+/**
+ * 把用户在地址栏输入的内容规范成可导航 URL：
+ *  - 已带协议（http/https/file/data 等）直接用
+ *  - 形如域名（含点且无空格）补 https://
+ *  - 其余当作搜索词走 Bing
+ */
+function toNavigableUrl(raw: string): string {
+  const value = raw.trim();
+  if (!value) return "";
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) || value.startsWith("data:")) {
+    return value;
+  }
+  const looksLikeDomain = /^[^\s]+\.[^\s]+$/.test(value) && !value.includes(" ");
+  if (looksLikeDomain) return `https://${value}`;
+  return `https://www.bing.com/search?q=${encodeURIComponent(value)}`;
+}
+
+function submitAddress(): void {
+  const url = toNavigableUrl(addressInput.value);
+  if (!url) return;
+  shell.navigate(url);
+  (document.activeElement as HTMLElement | null)?.blur();
+}
+
+function onAddressFocus(event: FocusEvent): void {
+  addressFocused.value = true;
+  (event.target as HTMLInputElement).select();
+}
+
+function onAddressBlur(): void {
+  addressFocused.value = false;
+  addressInput.value = activeTab.value?.url ?? "";
 }
 </script>
 
@@ -109,9 +150,19 @@ function addressText(tab: BrowserTabState | undefined): string {
           <RotateCw :size="16" :stroke-width="1.8" aria-hidden="true" />
         </button>
       </div>
-      <div class="address" :title="addressText(activeTab)">
-        {{ addressText(activeTab) }}
-      </div>
+      <input
+        class="address"
+        type="text"
+        :value="addressInput"
+        :placeholder="addressText(activeTab) || '搜索或输入网址'"
+        spellcheck="false"
+        autocomplete="off"
+        aria-label="地址栏"
+        @input="addressInput = ($event.target as HTMLInputElement).value"
+        @focus="onAddressFocus"
+        @blur="onAddressBlur"
+        @keydown.enter="submitAddress"
+      />
     </div>
   </div>
 </template>
@@ -200,16 +251,25 @@ function addressText(tab: BrowserTabState | undefined): string {
 .address {
   flex: 1;
   height: 30px;
-  display: flex;
-  align-items: center;
   padding: 0 14px;
   border-radius: 999px;
   background: var(--paper);
   border: 1px solid var(--border);
   font-size: 13px;
-  color: var(--muted);
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.address::placeholder {
+  color: var(--muted);
+}
+
+.address:focus {
+  border-color: var(--text-soft);
+  background: var(--paper);
 }
 </style>

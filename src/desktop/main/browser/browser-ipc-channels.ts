@@ -22,6 +22,7 @@ export const BROWSER_SHELL_CHANNELS = {
   newTab: "browser-shell:new-tab",
   closeTab: "browser-shell:close-tab",
   selectTab: "browser-shell:select-tab",
+  navigate: "browser-shell:navigate",
   goBack: "browser-shell:go-back",
   goForward: "browser-shell:go-forward",
   reload: "browser-shell:reload",

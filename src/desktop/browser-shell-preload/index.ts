@@ -15,6 +15,7 @@ const api: BrowserShellApi = {
   closeTab: (tabId) => ipcRenderer.send(BROWSER_SHELL_CHANNELS.closeTab, tabId),
   selectTab: (tabId) =>
     ipcRenderer.send(BROWSER_SHELL_CHANNELS.selectTab, tabId),
+  navigate: (url) => ipcRenderer.send(BROWSER_SHELL_CHANNELS.navigate, url),
   goBack: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.goBack),
   goForward: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.goForward),
   reload: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.reload),

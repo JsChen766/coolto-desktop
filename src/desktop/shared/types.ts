@@ -344,6 +344,7 @@ export interface BrowserShellApi {
   newTab(): void;
   closeTab(tabId: string): void;
   selectTab(tabId: string): void;
+  navigate(url: string): void;
   goBack(): void;
   goForward(): void;
   reload(): void;
