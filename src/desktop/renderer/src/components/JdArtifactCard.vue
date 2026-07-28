@@ -12,7 +12,7 @@ defineEmits<{
 }>();
 
 function statusLabel(status: JdArtifactData["status"]): string {
-  if (status === "saved") return "已保存到云端";
+  if (status === "saved") return "已保存，等待同步";
   if (status === "rejected") return "已拒绝";
   return "等待确认";
 }

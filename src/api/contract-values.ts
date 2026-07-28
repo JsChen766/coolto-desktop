@@ -53,6 +53,13 @@ export function nullableNumber(value: unknown, path: string): number | null {
   return value;
 }
 
+export function requiredPositiveInteger(value: unknown, path: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new ApiContractError(`${path} must be a positive integer`);
+  }
+  return value;
+}
+
 export function stringArray(value: unknown, path: string): string[] {
   const array = arrayValue(value, path);
   if (array.some((item) => typeof item !== "string")) {

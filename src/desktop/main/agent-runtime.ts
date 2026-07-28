@@ -33,6 +33,13 @@ import { ResumeQualityEvaluator } from "../../resume/quality/quality-evaluator.j
 import { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
 import { ResumeAlternativeRepairer } from "../../resume/quality/alternative-repairer.js";
 import { ResumeSaveProposalBuilder } from "../../resume/save/proposal-builder.js";
+import type { ResumePublicationGateway } from "../../resume/save/types.js";
+import type {
+  ExperienceReader,
+  ExperienceWriter,
+  JdReader,
+  JdWriter,
+} from "../../api/types.js";
 import { createToolRegistry } from "../../tools/registry.js";
 import type {
   AgentPromptInput,
@@ -66,6 +73,9 @@ export class DesktopAgentRuntime {
   readonly #selectedFiles: ConversationSelectedFiles;
   readonly #browserPageReader: BrowserPageReader;
   readonly #browserPageOperator: BrowserPageOperator;
+  readonly #resumePublications: ResumePublicationGateway;
+  readonly #experiences: ExperienceReader & ExperienceWriter;
+  readonly #jds: JdReader & JdWriter;
   readonly #contexts = new Map<string, ConversationAgentContext>();
   #runningConversationId: string | undefined;
 
@@ -79,6 +89,9 @@ export class DesktopAgentRuntime {
     selectedFiles: ConversationSelectedFiles,
     browserPageReader: BrowserPageReader,
     browserPageOperator: BrowserPageOperator,
+    resumePublications: ResumePublicationGateway,
+    experiences: ExperienceReader & ExperienceWriter,
+    jds: JdReader & JdWriter,
   ) {
     this.#apiClient = apiClient;
     this.#store = store;
@@ -89,6 +102,9 @@ export class DesktopAgentRuntime {
     this.#selectedFiles = selectedFiles;
     this.#browserPageReader = browserPageReader;
     this.#browserPageOperator = browserPageOperator;
+    this.#resumePublications = resumePublications;
+    this.#experiences = experiences;
+    this.#jds = jds;
   }
 
   public get isRunning(): boolean {
@@ -228,19 +244,19 @@ export class DesktopAgentRuntime {
     const jdProposalStore = new JdProposalStore();
     const matchReportStore = new MatchReportStore();
     const approvalManager = createActionApprovalManager({
-      experienceWriter: this.#apiClient,
+      experienceWriter: this.#experiences,
       importProposalStore: proposalStore,
-      jdWriter: this.#apiClient,
+      jdWriter: this.#jds,
       jdProposalStore,
-      resumePublications: this.#apiClient.resumes,
+      resumePublications: this.#resumePublications,
       resumePdfExports: this.#resumePdfExports,
       browserPageOperator: this.#browserPageOperator,
     });
     const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: this.#apiClient,
       profile: this.#apiClient,
-      jd: this.#apiClient,
-      experience: this.#apiClient,
+      jd: this.#jds,
+      experience: this.#experiences,
     });
     const resumeWorkspaceStore = new ResumeWorkspaceStore();
     const resumeCandidatePreparer = new ResumeCandidatePreparer(
@@ -268,7 +284,7 @@ export class DesktopAgentRuntime {
     const resumePdfExportProposalBuilder = new ResumePdfExportProposalBuilder(
       new ResumePdfExportSourceResolver(
         resumeWorkspaceStore,
-        this.#apiClient.resumes,
+        this.#resumePublications,
       ),
       this.#resumeCompiler,
     );
@@ -279,9 +295,9 @@ export class DesktopAgentRuntime {
       tools: createToolRegistry({
         currentUserReader: this.#apiClient,
         userProfileReader: this.#apiClient,
-        experienceReader: this.#apiClient,
-        jdReader: this.#apiClient,
-        resumeReader: this.#apiClient.resumes,
+        experienceReader: this.#experiences,
+        jdReader: this.#jds,
+        resumeReader: this.#resumePublications,
         resumeSourceSnapshotBuilder,
         resumeCandidatePreparer,
         resumeCandidatePatcher,

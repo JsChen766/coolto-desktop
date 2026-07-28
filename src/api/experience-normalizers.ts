@@ -11,6 +11,7 @@ import {
   nullableString,
   objectValue,
   optionalObject,
+  requiredPositiveInteger,
   requiredString,
   stringArray,
 } from "./contract-values.js";
@@ -91,6 +92,8 @@ export function normalizeExperienceSummary(
       : {}),
     createdAt: requiredString(record.createdAt, `${path}.createdAt`),
     updatedAt: requiredString(record.updatedAt, `${path}.updatedAt`),
+    entityVersion: requiredPositiveInteger(record.entityVersion, `${path}.entityVersion`),
+    deletedAt: nullableString(record.deletedAt, `${path}.deletedAt`),
   };
 }
 

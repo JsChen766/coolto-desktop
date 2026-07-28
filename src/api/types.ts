@@ -1,6 +1,14 @@
 export interface LoginCredentials {
   email: string;
   password: string;
+  device?: DeviceInput;
+}
+
+export interface DeviceInput {
+  id: string;
+  name: string;
+  platform: "macos" | "windows" | "linux";
+  appVersion: string;
 }
 
 export interface LoginUser {
@@ -8,9 +16,34 @@ export interface LoginUser {
   email: string;
 }
 
+export interface EmailChallengeInput {
+	challengeId: string;
+	email: string;
+	purpose: "login";
+	device: DeviceInput;
+}
+
+export interface EmailChallengeAccepted {
+	challengeId: string;
+	expiresAt: string;
+	retryAfterSeconds: number;
+}
+
+export interface EmailVerifyInput {
+	challengeId: string;
+	code: string;
+	device: DeviceInput;
+}
+
+export interface EmailLoginResult {
+	user: CurrentUser;
+}
+
 export interface CurrentUser {
   id: string;
   email: string;
+  status?: "active" | "suspended" | "pending_deletion" | "deleted";
+  deviceId?: string;
 }
 
 export interface CurrentUserReader {
@@ -81,6 +114,9 @@ export interface JdRecord {
   sourceThreadId: string | null;
   createdAt: string;
   updatedAt: string;
+  entityVersion: number;
+  deletedAt: string | null;
+  syncStatus?: "clean" | "pending" | "conflict";
 }
 
 export interface JdSearchResult {
@@ -114,6 +150,7 @@ export interface JdCreateInput {
     v2Importance?: JdRequirementV2Importance;
     v2Category?: JdRequirementV2Category;
   }>;
+  idempotencyKey?: string;
 }
 
 export interface JdWriter {
@@ -152,6 +189,9 @@ export interface ExperienceSummary {
   currentRevision?: ExperienceRevision;
   createdAt: string;
   updatedAt: string;
+  entityVersion: number;
+  deletedAt: string | null;
+  syncStatus?: "clean" | "pending" | "conflict";
 }
 
 export interface ExperienceDetail extends ExperienceSummary {
@@ -192,6 +232,7 @@ export interface ExperienceCreateInput {
   startDate?: string;
   endDate?: string;
   tags?: string[];
+  idempotencyKey?: string;
 }
 
 export interface ExperienceWriter {

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { AuthenticatedRequester } from "./api-transport.js";
 import { normalizeJdRecord } from "./normalizers.js";
 import {
@@ -52,7 +54,10 @@ export class JdWriterApi implements JdWriter {
     }
     const value = await this.requester.request<unknown>("/v1/product/jds", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "Idempotency-Key": input.idempotencyKey ?? randomUUID(),
+      },
       body: JSON.stringify(body),
       ...(signal ? { signal } : {}),
     });

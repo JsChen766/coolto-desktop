@@ -61,11 +61,14 @@ function normalizeResume(source: Record<string, unknown>): Resume {
     id: text(source.id, "resume.id"),
     title: text(source.title, "resume.title"),
     targetRole: nullableText(source.targetRole),
+    targetCompany: nullableText(source.targetCompany),
     jdId: nullableText(source.jdId),
     contentHash: text(source.contentHash, "resume.contentHash"),
     schemaVersion: text(source.schemaVersion, "resume.schemaVersion"),
     qualityStatus: text(source.qualityStatus, "resume.qualityStatus") as Resume["qualityStatus"],
     status: text(source.status, "resume.status") as Resume["status"],
+    entityVersion: positiveInteger(source.entityVersion, "resume.entityVersion"),
+    deletedAt: nullableText(source.deletedAt),
     createdAt: text(source.createdAt, "resume.createdAt"),
     updatedAt: text(source.updatedAt, "resume.updatedAt"),
   };
@@ -102,5 +105,11 @@ function nullableText(value: unknown): string | null {
 }
 function number(value: unknown, label: string): number {
   if (typeof value !== "number") throw new Error(`Malformed ${label}`);
+  return value;
+}
+function positiveInteger(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new Error(`Malformed ${label}`);
+  }
   return value;
 }

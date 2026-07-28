@@ -8,6 +8,7 @@ import type {
   DesktopApprovalDecision,
   DesktopApprovalRequest,
   DesktopUser,
+  EmailChallengeView,
   ResumeChatReference,
 } from "@desktop/types";
 import type { ToolRun } from "../components/ToolActivity.vue";
@@ -23,6 +24,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   const user = ref<DesktopUser>();
   const loginBusy = ref(false);
   const loginError = ref<string>();
+  const emailChallenge = ref<EmailChallengeView>();
   const conversations = ref<ConversationSummary[]>([]);
   const current = ref<ConversationDetail>();
   const running = ref(false);
@@ -65,6 +67,36 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     } finally {
       loginBusy.value = false;
     }
+  }
+
+  async function requestEmailCode(email: string): Promise<void> {
+	loginBusy.value = true;
+	loginError.value = undefined;
+	try {
+		emailChallenge.value = await desktopApi.auth.requestEmailCode(email);
+	} catch (error: unknown) {
+		loginError.value = errorMessage(error);
+	} finally {
+		loginBusy.value = false;
+	}
+  }
+
+  async function verifyEmailCode(
+	email: string,
+	challengeId: string,
+	code: string,
+  ): Promise<void> {
+	loginBusy.value = true;
+	loginError.value = undefined;
+	try {
+		user.value = await desktopApi.auth.verifyEmailCode(email, challengeId, code);
+		emailChallenge.value = undefined;
+		await loadConversations();
+	} catch (error: unknown) {
+		loginError.value = errorMessage(error);
+	} finally {
+		loginBusy.value = false;
+	}
   }
 
   async function logout(): Promise<void> {
@@ -276,6 +308,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     user,
     loginBusy,
     loginError,
+	emailChallenge,
     conversations,
     current,
     running,
@@ -290,6 +323,8 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     matchReports: match.matchReports,
     activeMatchReport: match.activeMatchReport,
     login,
+	requestEmailCode,
+	verifyEmailCode,
     logout,
     createConversation,
     selectConversation,

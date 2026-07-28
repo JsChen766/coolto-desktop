@@ -9,6 +9,7 @@ import {
   arrayValue,
   nullableNumber,
   nullableString,
+  requiredPositiveInteger,
   objectValue,
   requiredString,
   stringArray,
@@ -79,6 +80,8 @@ export function normalizeJdRecord(value: unknown): JdRecord {
     sourceThreadId: nullableString(record.sourceThreadId, "jd.sourceThreadId"),
     createdAt: requiredString(record.createdAt, "jd.createdAt"),
     updatedAt: requiredString(record.updatedAt, "jd.updatedAt"),
+    entityVersion: requiredPositiveInteger(record.entityVersion, "jd.entityVersion"),
+    deletedAt: nullableString(record.deletedAt, "jd.deletedAt"),
   };
 }
 

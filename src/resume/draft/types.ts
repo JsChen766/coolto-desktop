@@ -28,6 +28,7 @@ export interface ResumeDraftCloudLink {
   contentHash: string;
   syncedAt: string;
   syncedRevision: number;
+  entityVersion?: number;
 }
 
 export interface LocalResumeDraft {
@@ -59,6 +60,7 @@ export interface ResumeDraftSummary {
   checkpointCount: number;
   hasPendingChange: boolean;
   cloudState: "local_only" | "synced" | "local_changes";
+  cloudResumeId?: string | null;
 }
 
 export interface ResumeDraftCodec {

@@ -22,10 +22,7 @@ export function buildLibraryEntries(
 
   // Cloud resumes — try to find a linked local draft
   for (const cloud of clouds) {
-    const linkedDraft = drafts.find(
-      (d) => d.cloudState !== "local_only" &&
-        drafts.some((d2) => d2.artifactId === d.artifactId),
-    ) ?? findDraftLinkedTo(cloud.id, drafts);
+    const linkedDraft = findDraftLinkedTo(cloud.id, drafts);
 
     const cloudSummary = toCloudSummary(cloud);
     const localSummary = linkedDraft ? toLocalSummary(linkedDraft) : null;
@@ -113,9 +110,7 @@ function findDraftLinkedTo(
   resumeId: string,
   drafts: ResumeDraftSummary[],
 ): ResumeDraftSummary | undefined {
-  // ResumeDraftSummary doesn't expose resumeId; service layer provides full draft for precision.
-  // Here we only match by cloudState heuristic at summary level.
-  return drafts.find((d) => d.cloudState !== "local_only");
+  return drafts.find((draft) => draft.cloudResumeId === resumeId);
 }
 
 function cloudStateToSyncStatus(

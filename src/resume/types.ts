@@ -112,11 +112,14 @@ export interface Resume {
   id: string;
   title: string;
   targetRole: string | null;
+  targetCompany: string | null;
   jdId: string | null;
   contentHash: string;
   schemaVersion: string;
   qualityStatus: ResumeQualityStatus;
   status: ResumeStatus;
+  entityVersion: number;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

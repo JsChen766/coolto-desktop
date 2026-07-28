@@ -1,4 +1,11 @@
-import type { LoginCredentials, LoginUser } from "./types.js";
+import type {
+  EmailChallengeAccepted,
+  EmailChallengeInput,
+  EmailLoginResult,
+  EmailVerifyInput,
+  LoginCredentials,
+  LoginUser,
+} from "./types.js";
 import { CooltoApiError } from "./coolto-api-error.js";
 
 interface SuccessEnvelope<T> {
@@ -76,6 +83,39 @@ export class CooltoApiTransport implements AuthenticatedRequester {
     return data;
   }
 
+  public requestEmailChallenge(
+    input: EmailChallengeInput,
+    signal?: AbortSignal,
+  ): Promise<EmailChallengeAccepted> {
+    return this.publicRequest<EmailChallengeAccepted>(
+      "/v1/auth/email/challenges",
+      input,
+      signal,
+    );
+  }
+
+  public async verifyEmailChallenge(
+    input: EmailVerifyInput,
+    signal?: AbortSignal,
+  ): Promise<EmailLoginResult> {
+    const response = await this.#fetch(`${this.#baseUrl}/v1/auth/email/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+      ...(signal ? { signal } : {}),
+    });
+    const data = await readEnvelope<EmailLoginResult>(response);
+    const accessToken = extractAccessToken(response.headers);
+    if (!accessToken) {
+      throw new CooltoApiError(
+        "验证码登录响应没有返回 access_token Cookie",
+        response.status,
+      );
+    }
+    this.restoreSession(accessToken);
+    return data;
+  }
+
   public async logout(signal?: AbortSignal): Promise<void> {
     if (!this.#sessionCookie) return;
     try {
@@ -97,6 +137,20 @@ export class CooltoApiTransport implements AuthenticatedRequester {
     const response = await this.#fetch(`${this.#baseUrl}${path}`, {
       ...init,
       headers,
+    });
+    return readEnvelope<T>(response);
+  }
+
+  private async publicRequest<T>(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    const response = await this.#fetch(`${this.#baseUrl}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      ...(signal ? { signal } : {}),
     });
     return readEnvelope<T>(response);
   }

@@ -1,26 +1,29 @@
-import { randomUUID } from "node:crypto";
 import type { ResumeFull } from "../../../resume/types.js";
 import type { LocalResumeDraft, ResumeDraftCheckpoint } from "../../../resume/draft/types.js";
 import { appendDraftCheckpoint } from "../../../resume/draft/projection.js";
 import { buildLibraryEntries, buildEntryFromFull } from "../../../resume/library/projection.js";
 import type { ResumeLibraryEntry } from "../../../resume/library/types.js";
-import type { ResumeLibraryApi } from "../../../api/resume-library-api.js";
 import type { ResumeDraftFileRepository } from "../resume-drafts/draft-file-repository.js";
-import type { ResumePublicationGateway } from "../../../resume/save/types.js";
+import type { ResumeSyncStore } from "./resume-sync-store.js";
 
 export class ResumeLibraryService {
   public constructor(
-    private readonly cloudApi: ResumePublicationGateway,
-    private readonly libraryApi: ResumeLibraryApi,
+	private readonly resumes: ResumeSyncStore,
     private readonly draftRepo: ResumeDraftFileRepository,
   ) {}
 
   public async list(signal?: AbortSignal): Promise<ResumeLibraryEntry[]> {
     const [clouds, drafts] = await Promise.all([
-      this.cloudApi.listResumes(signal),
+	  this.resumes.listResumes(signal),
       this.draftRepo.list(),
     ]);
-    return buildLibraryEntries(clouds, drafts.map(summarizeDraftForProjection));
+	const entries = buildLibraryEntries(clouds, drafts.map(summarizeDraftForProjection));
+	return entries.map((entry) => {
+		const resumeId = entry.cloud?.resumeId;
+		return resumeId && this.resumes.syncStatus(resumeId) === "conflict"
+			? { ...entry, syncStatus: "conflict" as const }
+			: entry;
+	});
   }
 
   public async rename(
@@ -28,15 +31,15 @@ export class ResumeLibraryService {
     title: string,
     signal?: AbortSignal,
   ): Promise<ResumeFull> {
-    return this.libraryApi.rename(resumeId, title, signal);
+	return this.resumes.rename(resumeId, title);
   }
 
   public async archive(resumeId: string, signal?: AbortSignal): Promise<ResumeFull> {
-    return this.libraryApi.archive(resumeId, signal);
+	return this.resumes.setStatus(resumeId, "archived");
   }
 
   public async unarchive(resumeId: string, signal?: AbortSignal): Promise<ResumeFull> {
-    return this.libraryApi.unarchive(resumeId, signal);
+	return this.resumes.setStatus(resumeId, "active");
   }
 
   public async deleteLocalDraft(artifactId: string): Promise<void> {
@@ -74,7 +77,7 @@ export class ResumeLibraryService {
     signal?: AbortSignal,
   ): Promise<ResumeLibraryEntry> {
     const [cloud, draft] = await Promise.all([
-      resumeId ? this.cloudApi.getResume(resumeId, signal) : Promise.resolve(null),
+	  resumeId ? this.resumes.getResume(resumeId, signal) : Promise.resolve(null),
       artifactId ? this.draftRepo.get(artifactId) : Promise.resolve(null),
     ]);
     return buildEntryFromFull(cloud, draft);
@@ -97,5 +100,6 @@ function summarizeDraftForProjection(draft: LocalResumeDraft) {
           ? "synced"
           : "local_changes"
     ) as "local_only" | "synced" | "local_changes",
+	cloudResumeId: draft.cloudLink?.resumeId ?? null,
   };
 }

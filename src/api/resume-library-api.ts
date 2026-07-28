@@ -12,6 +12,7 @@ export class ResumeLibraryApi {
   public async rename(
     resumeId: string,
     title: string,
+    expectedVersion: number,
     signal?: AbortSignal,
   ): Promise<ResumeFull> {
     const value = await this.requester.request<unknown>(
@@ -19,24 +20,33 @@ export class ResumeLibraryApi {
       {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: title.trim() }),
+        body: JSON.stringify({ title: title.trim(), expectedVersion }),
         ...(signal ? { signal } : {}),
       },
     );
     return normalizeResumeFull(value);
   }
 
-  public async archive(resumeId: string, signal?: AbortSignal): Promise<ResumeFull> {
-    return this.patchStatus(resumeId, "archived", signal);
+  public async archive(
+    resumeId: string,
+    expectedVersion: number,
+    signal?: AbortSignal,
+  ): Promise<ResumeFull> {
+    return this.patchStatus(resumeId, "archived", expectedVersion, signal);
   }
 
-  public async unarchive(resumeId: string, signal?: AbortSignal): Promise<ResumeFull> {
-    return this.patchStatus(resumeId, "active", signal);
+  public async unarchive(
+    resumeId: string,
+    expectedVersion: number,
+    signal?: AbortSignal,
+  ): Promise<ResumeFull> {
+    return this.patchStatus(resumeId, "active", expectedVersion, signal);
   }
 
   private async patchStatus(
     resumeId: string,
     status: string,
+    expectedVersion: number,
     signal?: AbortSignal,
   ): Promise<ResumeFull> {
     const value = await this.requester.request<unknown>(
@@ -44,7 +54,7 @@ export class ResumeLibraryApi {
       {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, expectedVersion }),
         ...(signal ? { signal } : {}),
       },
     );

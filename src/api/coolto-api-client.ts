@@ -4,6 +4,7 @@ import { JdWriterApi } from "./jd-writer-api.js";
 import { ProfileJdApi } from "./profile-jd-api.js";
 import { ResumePublicationApi } from "./resume-publication-api.js";
 import { ResumeLibraryApi } from "./resume-library-api.js";
+import { SyncApi } from "./sync-api.js";
 import type { ResumePublicationGateway } from "../resume/save/types.js";
 import type {
   CurrentUser,
@@ -24,6 +25,10 @@ import type {
   LoginUser,
   UserProfile,
   UserProfileReader,
+  EmailChallengeAccepted,
+  EmailChallengeInput,
+  EmailLoginResult,
+  EmailVerifyInput,
 } from "./types.js";
 
 export { CooltoApiError } from "./coolto-api-error.js";
@@ -49,6 +54,7 @@ export class CooltoApiClient
   readonly #experiences: ExperienceApi;
   readonly #resumePublications: ResumePublicationApi;
   readonly #resumeLibrary: ResumeLibraryApi;
+  readonly #sync: SyncApi;
 
   public constructor(options: CooltoApiClientOptions) {
     this.#transport = new CooltoApiTransport(
@@ -60,6 +66,7 @@ export class CooltoApiClient
     this.#experiences = new ExperienceApi(this.#transport);
     this.#resumePublications = new ResumePublicationApi(this.#transport);
     this.#resumeLibrary = new ResumeLibraryApi(this.#transport);
+    this.#sync = new SyncApi(this.#transport);
   }
 
   public get isAuthenticated(): boolean {
@@ -72,6 +79,10 @@ export class CooltoApiClient
 
   public get resumeLibrary(): ResumeLibraryApi {
     return this.#resumeLibrary;
+  }
+
+  public get sync(): SyncApi {
+    return this.#sync;
   }
 
   public restoreSession(accessToken: string): void {
@@ -88,6 +99,20 @@ export class CooltoApiClient
 
   public login(credentials: LoginCredentials, signal?: AbortSignal): Promise<LoginUser> {
     return this.#transport.login(credentials, signal);
+  }
+
+  public requestEmailChallenge(
+    input: EmailChallengeInput,
+    signal?: AbortSignal,
+  ): Promise<EmailChallengeAccepted> {
+    return this.#transport.requestEmailChallenge(input, signal);
+  }
+
+  public verifyEmailChallenge(
+    input: EmailVerifyInput,
+    signal?: AbortSignal,
+  ): Promise<EmailLoginResult> {
+    return this.#transport.verifyEmailChallenge(input, signal);
   }
 
   public logout(signal?: AbortSignal): Promise<void> {

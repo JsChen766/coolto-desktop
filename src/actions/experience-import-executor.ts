@@ -44,7 +44,7 @@ async function executeImport(
     try {
       const { clientId, ...input } = item;
       const experience = await writer.createExperience(
-        input,
+        { ...input, idempotencyKey: `${payload.proposalId}:${clientId}` },
         context.signal,
       );
       proposalStore.markSaved(
@@ -75,8 +75,8 @@ async function executeImport(
   return {
     summary:
       failed.length === 0
-        ? `已写入 ${saved.length} 条经历`
-        : `已写入 ${saved.length} 条，${failed.length} 条失败`,
+        ? `已保存 ${saved.length} 条经历到本地，等待同步`
+        : `已保存 ${saved.length} 条到本地，${failed.length} 条失败`,
     details,
     ...(failed.length > 0
       ? {

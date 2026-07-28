@@ -1,23 +1,64 @@
 <script setup lang="ts">
 import { ArrowRight } from "@lucide/vue";
-import { ref } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 
-defineProps<{
+import type { EmailChallengeView } from "@desktop/types";
+
+const props = defineProps<{
   busy: boolean;
   error: string | undefined;
+  challenge: EmailChallengeView | undefined;
 }>();
 
 const emit = defineEmits<{
-  submit: [email: string, password: string];
+  requestCode: [email: string];
+  verifyCode: [email: string, challengeId: string, code: string];
+  passwordLogin: [email: string, password: string];
 }>();
 
+const mode = ref<"otp" | "password">("otp");
 const email = ref("");
+const code = ref("");
 const password = ref("");
+const retryAfter = ref(0);
+let retryTimer: ReturnType<typeof setInterval> | undefined;
+
+watch(
+  () => props.challenge?.challengeId,
+  () => {
+    if (retryTimer) clearInterval(retryTimer);
+    retryAfter.value = props.challenge?.retryAfterSeconds ?? 0;
+    if (retryAfter.value > 0) {
+      retryTimer = setInterval(() => {
+        retryAfter.value = Math.max(0, retryAfter.value - 1);
+        if (retryAfter.value === 0 && retryTimer) clearInterval(retryTimer);
+      }, 1_000);
+    }
+  },
+);
+
+onBeforeUnmount(() => {
+  if (retryTimer) clearInterval(retryTimer);
+});
 
 function submit(): void {
-  if (email.value.trim() && password.value) {
-    emit("submit", email.value.trim(), password.value);
+  const normalizedEmail = email.value.trim();
+  if (!normalizedEmail) return;
+  if (mode.value === "password") {
+    if (password.value) emit("passwordLogin", normalizedEmail, password.value);
+    return;
   }
+  if (!props.challenge) {
+    emit("requestCode", normalizedEmail);
+    return;
+  }
+  if (/^\d{6}$/u.test(code.value)) {
+    emit("verifyCode", normalizedEmail, props.challenge.challengeId, code.value);
+  }
+}
+
+function switchMode(): void {
+  mode.value = mode.value === "otp" ? "password" : "otp";
 }
 </script>
 
@@ -37,32 +78,57 @@ function submit(): void {
             type="email"
             autocomplete="username"
             placeholder="name@example.com"
+            :disabled="busy || (mode === 'otp' && Boolean(challenge))"
+          />
+        </label>
+        <label v-if="mode === 'otp' && challenge">
+          <span>邮箱验证码</span>
+          <input
+            v-model="code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="6 位验证码"
             :disabled="busy"
           />
         </label>
-        <label>
-          <span>密码</span>
+        <label v-else-if="mode === 'password'">
+          <span>开发密码</span>
           <input
             v-model="password"
             type="password"
             autocomplete="current-password"
-            placeholder="请输入密码"
+            placeholder="请输入开发密码"
             :disabled="busy"
           />
         </label>
+        <div v-if="challenge && mode === 'otp'" class="login-hint-row">
+          <p class="login-hint">验证码已发送；本地开发可在 Mailpit 查看。</p>
+          <button
+            class="login-inline-button"
+            type="button"
+            :disabled="busy || retryAfter > 0"
+            @click="emit('requestCode', email.trim())"
+          >
+            {{ retryAfter > 0 ? `${retryAfter}s` : "重新发送" }}
+          </button>
+        </div>
         <p v-if="error" class="form-error">{{ error }}</p>
         <button
           class="primary-button icon-label"
           type="submit"
-          :disabled="busy || !email.trim() || !password"
+          :disabled="busy || !email.trim() || (mode === 'password' ? !password : Boolean(challenge) && !/^\d{6}$/u.test(code))"
         >
-          <span>{{ busy ? "正在登录…" : "登录" }}</span>
+          <span>{{ busy ? "请稍候…" : mode === "password" ? "开发登录" : challenge ? "验证并登录" : "获取验证码" }}</span>
           <ArrowRight :size="16" :stroke-width="1.9" aria-hidden="true" />
+        </button>
+        <button class="login-mode-button" type="button" :disabled="busy" @click="switchMode">
+          {{ mode === "otp" ? "使用开发密码登录" : "使用邮箱验证码登录" }}
         </button>
       </form>
 
       <p class="login-footnote">
-        登录状态将安全保存在系统凭据库，密码不会保存在本机。
+        登录状态将安全保存在系统凭据库，验证码和密码均不会保存在本机。
       </p>
     </section>
   </main>

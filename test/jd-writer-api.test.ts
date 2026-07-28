@@ -18,6 +18,8 @@ function makeServerResponse(overrides: Record<string, unknown> = {}) {
       requirementMapId: null,
       requirementsOrigin: "extracted",
       sourceThreadId: null,
+      entityVersion: 1,
+      deletedAt: null,
       createdAt: "2026-07-24T00:00:00Z",
       updatedAt: "2026-07-24T00:00:00Z",
       ...overrides,

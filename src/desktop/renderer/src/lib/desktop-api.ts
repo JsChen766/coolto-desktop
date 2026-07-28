@@ -28,6 +28,8 @@ function createUnavailableDesktopApi(): DesktopApi {
     auth: {
       getCurrentUser: unavailable,
       login: unavailable,
+      requestEmailCode: unavailable,
+      verifyEmailCode: unavailable,
       logout: unavailable,
     },
     conversations: {
@@ -180,6 +182,15 @@ function createBrowserDemoApi(): DesktopApi {
         currentUser = { id: "preview-user", email };
         return currentUser;
       },
+      requestEmailCode: async () => ({
+		challengeId: crypto.randomUUID(),
+		expiresAt: new Date(Date.now() + 600_000).toISOString(),
+		retryAfterSeconds: 60,
+	  }),
+	  verifyEmailCode: async (email) => {
+		currentUser = { id: "preview-user", email };
+		return currentUser;
+	  },
       logout: async () => undefined,
     },
     conversations: {

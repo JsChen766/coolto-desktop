@@ -222,6 +222,37 @@ button:disabled {
   margin-top: 3px;
 }
 
+.login-hint {
+  margin: -3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.login-hint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.login-inline-button {
+  flex: none;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.login-mode-button {
+  align-self: center;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.login-mode-button:hover:not(:disabled) {
+  color: var(--text-soft);
+}
+
 .primary-button:hover:not(:disabled),
 .small-primary-button:hover:not(:disabled) {
   filter: brightness(0.88);

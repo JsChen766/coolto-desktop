@@ -41,9 +41,9 @@ export function prepareJdContinuation(
 
 export function buildJdContinuationPrompt(jd: { jdId: string; title: string }): string {
   return (
-    `JD「${jd.title}」已保存到云端（jdId: ${jd.jdId}）。` +
+    `JD「${jd.title}」已保存到本地同步队列（jdId: ${jd.jdId}）。` +
     `请根据对话历史中用户的原始意图继续下一步操作。` +
     `如果用户原本要求根据此 JD 生成简历，请使用 jdId 继续执行；` +
-    `否则简要确认 JD 已保存即可。`
+    `否则简要确认 JD 已保存并等待同步即可。`
   );
 }

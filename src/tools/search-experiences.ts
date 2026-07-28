@@ -59,7 +59,7 @@ export function createSearchExperiencesTool(
     name: "search_experiences",
     label: "搜索经历",
     description:
-      "列出或筛选当前登录用户的云端经历。用户询问“我有哪些经历”时可以不带筛选条件。结果主要是列表元数据；需要正文、完整版本或准确引用时，再使用 get_experience。",
+      "列出或筛选当前登录用户的经历库。用户询问“我有哪些经历”时可以不带筛选条件。结果主要是列表元数据和同步状态；需要正文、完整版本或准确引用时，再使用 get_experience。",
     parameters,
     execute: async (_toolCallId, params, signal) => {
       const result = await experienceReader.searchExperiences(params, signal);

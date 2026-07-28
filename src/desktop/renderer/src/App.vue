@@ -38,6 +38,7 @@ const {
   user,
   loginBusy,
   loginError,
+  emailChallenge,
   conversations,
   current,
   running,
@@ -52,6 +53,8 @@ const {
   matchReports,
   activeMatchReport,
   login,
+  requestEmailCode,
+  verifyEmailCode,
   logout,
   createConversation,
   selectConversation,
@@ -198,7 +201,10 @@ function scrollToBottom(): void {
     v-else-if="!user"
     :busy="loginBusy"
     :error="loginError"
-    @submit="login"
+    :challenge="emailChallenge"
+    @password-login="login"
+    @request-code="requestEmailCode"
+    @verify-code="verifyEmailCode"
   />
 
   <div

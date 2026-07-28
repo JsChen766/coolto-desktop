@@ -67,6 +67,12 @@ export interface DesktopUser {
   email: string;
 }
 
+export interface EmailChallengeView {
+  challengeId: string;
+  expiresAt: string;
+  retryAfterSeconds: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: ChatRole;
@@ -379,6 +385,12 @@ export interface DesktopApi {
   auth: {
     getCurrentUser(): Promise<DesktopUser | undefined>;
     login(email: string, password: string): Promise<DesktopUser>;
+    requestEmailCode(email: string): Promise<EmailChallengeView>;
+    verifyEmailCode(
+      email: string,
+      challengeId: string,
+      code: string,
+    ): Promise<DesktopUser>;
     logout(): Promise<void>;
   };
   conversations: {

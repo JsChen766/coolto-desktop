@@ -84,6 +84,7 @@ export function summarizeDraft(draft: LocalResumeDraft): ResumeDraftSummary {
         : syncedRevision === draft.workspace.revision
           ? "synced"
           : "local_changes",
+    cloudResumeId: draft.cloudLink?.resumeId ?? null,
   };
 }
 

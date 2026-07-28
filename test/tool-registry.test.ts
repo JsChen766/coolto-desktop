@@ -62,6 +62,8 @@ test("experience registry exposes list and detail tools", async () => {
       tags: [],
       status: "active" as const,
       currentRevisionId: null,
+      entityVersion: 1,
+      deletedAt: null,
       createdAt: "2026-07-01T00:00:00Z",
       updatedAt: "2026-07-01T00:00:00Z",
       revisions: [
@@ -161,6 +163,8 @@ const jdRecord = {
   requirementMapId: "map-1",
   requirementsOrigin: "parsed",
   sourceThreadId: null,
+  entityVersion: 1,
+  deletedAt: null,
   createdAt: "2026-07-01T00:00:00Z",
   updatedAt: "2026-07-02T00:00:00Z",
 };

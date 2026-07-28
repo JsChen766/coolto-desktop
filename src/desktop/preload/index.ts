@@ -18,6 +18,10 @@ const api: DesktopApi = {
     getCurrentUser: () => ipcRenderer.invoke("auth:current"),
     login: (email, password) =>
       ipcRenderer.invoke("auth:login", email, password),
+	requestEmailCode: (email) =>
+		ipcRenderer.invoke("auth:email-code:request", email),
+	verifyEmailCode: (email, challengeId, code) =>
+		ipcRenderer.invoke("auth:email-code:verify", email, challengeId, code),
     logout: () => ipcRenderer.invoke("auth:logout"),
   },
   conversations: {

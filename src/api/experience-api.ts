@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { AuthenticatedRequester } from "./api-transport.js";
 import {
   normalizeExperienceDetail,
@@ -55,7 +57,10 @@ export class ExperienceApi implements ExperienceReader, ExperienceWriter {
       "/v1/product/experiences",
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "Idempotency-Key": input.idempotencyKey ?? randomUUID(),
+        },
         body: JSON.stringify({
           category: input.category,
           title: input.title,

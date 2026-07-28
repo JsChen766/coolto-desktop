@@ -293,6 +293,8 @@ function createJd(): JdRecord {
     requirementMapId: "map-1",
     requirementsOrigin: "parsed",
     sourceThreadId: null,
+    entityVersion: 1,
+    deletedAt: null,
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-02T00:00:00Z",
   };
@@ -321,6 +323,8 @@ function createExperience(): ExperienceDetail {
     status: "active",
     currentRevisionId: revision.id,
     currentRevision: revision,
+    entityVersion: 1,
+    deletedAt: null,
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-02T00:00:00Z",
     revisions: [revision],

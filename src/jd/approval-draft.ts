@@ -13,7 +13,7 @@ export function createJdSaveApprovalDraft(
     risk: "write",
     title: "保存岗位描述到云端",
     description:
-      "接受后会把以下 JD 写入 Coolto 云端。",
+      "接受后会先保存到本机 JD 库，并由同步队列自动上传云端。",
     preview: {
       summary: [
         { label: "岗位", value: proposal.title },

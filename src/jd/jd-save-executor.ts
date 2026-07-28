@@ -50,18 +50,20 @@ async function executeSave(
       ...(payload.company ? { company: payload.company } : {}),
       ...(payload.targetRole ? { targetRole: payload.targetRole } : {}),
       requirements,
+      idempotencyKey: payload.idempotencyKey,
     },
     context.signal,
   );
 
   proposalStore.clear(payload.proposalId);
   return {
-    summary: `已保存岗位描述「${jdRecord.title}」到云端`,
+    summary: `已保存岗位描述「${jdRecord.title}」到本地，等待同步`,
     details: {
       jdId: jdRecord.id,
       title: jdRecord.title,
       requirementsCount: jdRecord.requirements.length,
       jdHash: jdRecord.jdHash,
+      syncStatus: jdRecord.syncStatus ?? "pending",
     },
   };
 }

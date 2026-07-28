@@ -28,7 +28,7 @@ export function createExperienceImportApprovalDraft(
     risk: "write",
     title: `写入 ${pending.length} 条经历`,
     description:
-      "接受后会把以下结构化经历写入 Coolto 云端经历库。",
+      "接受后会先保存到本机经历库，并由同步队列自动上传云端。",
     preview: {
       summary: [
         { label: "待写入", value: `${pending.length} 条` },
