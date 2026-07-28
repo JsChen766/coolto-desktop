@@ -17,11 +17,11 @@
 ## 当前 Roadmap
 
 - 唯一正式执行入口：`local-docs/p0-product-completion-roadmap/README.md`；其他阶段文档保留历史背景、契约和完成记录，不得形成第二条并行开发顺序。
-- 已完成阶段：N0、N1、S3、A0；当前下一阶段为 J0。
+- 已完成阶段：N0、N1、S3、A0、J0；当前下一阶段为 J1。
 - 后续固定顺序：`A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S5 → R1`。
 - 不得跳过阶段；每阶段开始先复核现状和工作树，并在真正开始该阶段时逐项向用户确认 Roadmap 已保留的确认点。
 - J1 只确认求职仓库 UI 方案，确认前不得进入 J2；E2 先确认经历仓库 UI 方案再实现；S4 的 Tracker 子实体布局也必须到阶段后先确认。
-- A0 已完成架构治理、超长文件拆分、250 行门禁和单一页面导航状态；后续从 J0 开始继续按固定顺序推进。
+- J0 已完成职责单一的 JD/Resume/Application 只读关系聚合与纯模型测试；后续从 J1 开始继续按固定顺序推进。
 
 ## 产品关系约束
 
@@ -29,6 +29,8 @@
 - JD 是岗位目标；一个 JD 可关联多份 Resume，也可在没有 Resume 时独立存在。
 - Resume 最多绑定一个 JD，也可作为不绑定 JD 的通用 Resume。
 - Application 才是一次真实投递事实，必须同时保存实际 `jdId`、`resumeId` 及投递时的标题快照。
+- 通用 Resume 可原样用于不同 JD 的 Application；关系录错走显式纠错，只有内容针对新 JD 改变时才另存为新 Resume。
+- J3 完成前必须补齐 Application 对实际提交 Resume 版本的稳定引用，不能只依赖可变 `resumeId` 和标题快照。
 - Interview、Note、Reminder 属于 Application；JD 和 Resume 只能展示由 Application 派生的投递摘要，禁止保存第二套投递状态。
 - 业务写入统一经过不可变 Proposal、宿主审批、LocalSyncStore/Outbox 和乐观锁；页面默认读取本地 projection，不绕过同步链路建立 Direct 写入。
 
