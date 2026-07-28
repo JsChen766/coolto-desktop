@@ -3,6 +3,7 @@ import type {
   ResumeSourceExperienceSnapshot,
   SourceEvidenceExcerpt,
 } from "./source-types.js";
+import { extractEvidenceNumbers } from "./evidence-numbers.js";
 
 export type EvidenceValidationErrorCode =
   | "source_snapshot_mismatch"
@@ -224,8 +225,8 @@ function validateNumbers(binding: BulletEvidenceBinding): void {
   const citedText = binding.excerpts
     .map((excerpt) => excerpt.sourceQuote)
     .join("\n");
-  const sourceNumbers = extractNumbers(citedText);
-  const unsupported = extractNumbers(binding.bulletText).filter(
+  const sourceNumbers = extractEvidenceNumbers(citedText);
+  const unsupported = extractEvidenceNumbers(binding.bulletText).filter(
     (value) => !sourceNumbers.includes(value),
   );
   if (unsupported.length) {
@@ -244,11 +245,4 @@ function rangesOverlap(
   rightEnd: number,
 ): boolean {
   return leftStart < rightEnd && rightStart < leftEnd;
-}
-
-function extractNumbers(value: string): string[] {
-  return Array.from(
-    value.matchAll(/(?:\p{Sc}\s*)?\d[\d,.]*(?:\s*%)?/gu),
-    (match) => match[0].replace(/\s+/g, ""),
-  );
 }

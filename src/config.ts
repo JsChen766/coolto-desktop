@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { DEFAULT_MODEL_ID } from "./agent/create-agent.js";
 
-export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
+export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8080";
 
 export interface AppConfig {
   apiKey: string;

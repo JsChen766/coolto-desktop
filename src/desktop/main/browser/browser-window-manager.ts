@@ -2,17 +2,12 @@ import { BrowserWindow, type WebContents } from "electron";
 
 import type {
   BrowserOpenInput,
-  BrowserShellState,
   BrowserState,
 } from "../../shared/types.js";
 import type {
-  BrowserFieldWriteRecord,
   BrowserPageOperator,
   BrowserPageReader,
-  CaptchaDetection,
-  FieldReviewDecision,
   PageSnapshot,
-  ReviewOutcome,
 } from "../../../browser/types.js";
 import {
   BrowserActiveOriginTracker,
@@ -35,26 +30,12 @@ import {
 } from "./browser-window-factory.js";
 import { BrowserWriteAccessGate } from "./browser-write-access-gate.js";
 import { BrowserTabManager } from "./browser-tab-manager.js";
+import {
+  IDLE_BROWSER_STATE,
+  type BrowserWindowEmitters,
+} from "./browser-window-state.js";
 
-const IDLE_STATE: BrowserState = {
-  isOpen: false,
-  currentUrl: null,
-  pageTitle: null,
-  isLoading: false,
-  canGoBack: false,
-  canGoForward: false,
-  pageType: "unknown",
-  fillStatus: "idle",
-};
-
-export interface BrowserWindowEmitters {
-  emitState: (state: BrowserState) => void;
-  emitShellState: (state: BrowserShellState) => void;
-  emitFillProgress: (records: BrowserFieldWriteRecord[], reviewing: boolean) => void;
-  emitReviewDecision: (fillId: string, decision: FieldReviewDecision) => void;
-  emitReviewComplete: (outcome: ReviewOutcome) => void;
-  emitCaptchaDetected: (detection: CaptchaDetection) => void;
-}
+export type { BrowserWindowEmitters } from "./browser-window-state.js";
 
 /**
  * B1（B0-D1 修订）: 内置浏览器窗口。主 webContents 加载 Vue chrome
@@ -165,7 +146,7 @@ export class BrowserWindowManager implements BrowserPageReader {
 
   public getState(): BrowserState {
     if (!this.#window || this.#window.isDestroyed() || !this.#tabs) {
-      return { ...IDLE_STATE };
+      return { ...IDLE_BROWSER_STATE };
     }
     return this.#tabs.browserState();
   }
@@ -249,7 +230,7 @@ export class BrowserWindowManager implements BrowserPageReader {
         if (this.#window !== window) return;
         this.#tabs = undefined;
         this.#window = undefined;
-        this.#emitters.emitState({ ...IDLE_STATE });
+        this.#emitters.emitState({ ...IDLE_BROWSER_STATE });
       },
     });
   }

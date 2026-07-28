@@ -11,33 +11,16 @@ import type {
   ResumeDraftEditInput,
   ResumeDraftRestoreInput,
 } from "../shared/types.js";
-import { DesktopAgentRuntime } from "./agent-runtime.js";
 import { DesktopAuthService } from "./auth-service.js";
-import { ConversationStore } from "./conversation-store.js";
-import { ConversationSelectedFiles } from "./conversation-selected-files.js";
-import { ElectronResumePdfSaveDialog } from "./electron-pdf-save-dialog.js";
-import { ResumePdfExportService } from "./resume-pdf-export-service.js";
 import { createElectronResumeDraftRepository } from "./resume-drafts/electron-draft-repository.js";
-import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
-import { ResumeDraftEditingService } from "./resume-drafts/draft-editing-service.js";
-import { ResumeManualEditor } from "../../resume/draft/manual-editor.js";
 import { ResumeLibraryService } from "./resume-library/resume-library-service.js";
 import { registerResumeLibraryIpc, LIBRARY_IPC_CHANNELS } from "./resume-library/resume-library-ipc.js";
-import { ResumeSyncStore } from "./resume-library/resume-sync-store.js";
-import { ResumeDraftCloudLinker } from "./resume-library/resume-draft-cloud-linker.js";
-import { ExperienceSyncStore } from "./experience-library/experience-sync-store.js";
-import { JdSyncStore } from "./jd-library/jd-sync-store.js";
 import { AUTH_IPC_CHANNELS, registerAuthIpc } from "./auth-ipc.js";
-
-interface UserServices {
-  ownerId: string;
-  conversations: ConversationStore;
-  resumeDrafts: ResumeDraftService;
-  resumeDraftEditing: ResumeDraftEditingService;
-  agent: DesktopAgentRuntime;
-  selectedFiles: ConversationSelectedFiles;
-  resumes: ResumeSyncStore;
-}
+import {
+  APPLICATION_IPC_CHANNELS,
+  registerApplicationIpc,
+} from "./application-library/application-ipc.js";
+import { UserServicesResolver } from "./user-services.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -50,6 +33,7 @@ export function registerDesktopIpc(
     ...AUTH_IPC_CHANNELS,
     ...IPC_CHANNELS,
     ...LIBRARY_IPC_CHANNELS,
+    ...APPLICATION_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -57,74 +41,16 @@ export function registerDesktopIpc(
   window.once("closed", () => {
     void auth.dispose();
   });
-  const resumePdfExports = new ResumePdfExportService(
+  const services = new UserServicesResolver(
+    auth,
+    window,
     resumeCompiler,
-    new ElectronResumePdfSaveDialog(window),
+    browserPageReader,
+    browserPageOperator,
   );
-  let services: UserServices | undefined;
+  const servicesForCurrentUser = () => services.get();
 
-  const servicesForCurrentUser = async (): Promise<UserServices> => {
-    const user = auth.requireCurrentUser();
-    if (services?.ownerId === user.id) {
-      return services;
-    }
-    const conversations = new ConversationStore(user.id);
-    const resumeDrafts = new ResumeDraftService(
-      user.id,
-      createElectronResumeDraftRepository(user.id),
-    );
-    const selectedFiles = new ConversationSelectedFiles();
-	const draftRepository = createElectronResumeDraftRepository(user.id);
-	const draftLinker = new ResumeDraftCloudLinker(draftRepository);
-	const resumes = new ResumeSyncStore(
-		auth.requireSyncStore(),
-		() => auth.triggerSync(),
-		() => auth.waitForInitialSync(),
-		(candidateId, resume) => draftLinker.link(candidateId, resume),
-	);
-	const experiences = new ExperienceSyncStore(
-		auth.requireSyncStore(),
-		() => auth.triggerSync(),
-		() => auth.waitForInitialSync(),
-	);
-	const jds = new JdSyncStore(
-		auth.requireSyncStore(),
-		() => auth.triggerSync(),
-		() => auth.waitForInitialSync(),
-	);
-    services = {
-      ownerId: user.id,
-      conversations,
-      resumeDrafts,
-      resumeDraftEditing: new ResumeDraftEditingService(
-        resumeDrafts,
-        new ResumeManualEditor(resumeCompiler),
-      ),
-      agent: new DesktopAgentRuntime(
-        auth.apiClient,
-        conversations,
-        resumeDrafts,
-        window.webContents,
-        resumeCompiler,
-        resumePdfExports,
-        selectedFiles,
-        browserPageReader,
-        browserPageOperator,
-		resumes,
-		experiences,
-		jds,
-      ),
-      selectedFiles,
-	  resumes,
-    };
-    return services;
-  };
-
-  registerAuthIpc(ipcMain, auth, () => {
-    services?.agent.cancel();
-    services?.selectedFiles.clear();
-    services = undefined;
-  });
+  registerAuthIpc(ipcMain, auth, () => services.clear());
 
   ipcMain.handle("conversations:list", async () =>
     (await servicesForCurrentUser()).conversations.list(),
@@ -249,6 +175,10 @@ export function registerDesktopIpc(
       createElectronResumeDraftRepository(user.id),
     );
   });
+  registerApplicationIpc(
+    ipcMain,
+    async () => (await servicesForCurrentUser()).applications,
+  );
 }
 
 const IPC_CHANNELS = [

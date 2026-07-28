@@ -62,6 +62,15 @@ const api: DesktopApi = {
     restoreCheckpoint: (input) =>
       ipcRenderer.invoke("library:restore-checkpoint", input),
   },
+  applications: {
+    list: (options) => ipcRenderer.invoke("applications:list", options),
+    references: () => ipcRenderer.invoke("applications:references"),
+    get: (applicationId) => ipcRenderer.invoke("applications:get", applicationId),
+    create: (input) => ipcRenderer.invoke("applications:create", input),
+    update: (input) => ipcRenderer.invoke("applications:update", input),
+    transition: (input) => ipcRenderer.invoke("applications:transition", input),
+    delete: (applicationId) => ipcRenderer.invoke("applications:delete", applicationId),
+  },
   agent: {
     prompt: (input: AgentPromptInput) =>
       ipcRenderer.invoke("agent:prompt", input),

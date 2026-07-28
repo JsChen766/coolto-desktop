@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Ellipsis,
+  BriefcaseBusiness,
   FileText,
   FolderOpen,
   LogOut,
@@ -16,6 +17,7 @@ import type {
   DesktopUser,
 } from "@desktop/types";
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
+import { relativeTime } from "../lib/relative-time";
 
 const props = defineProps<{
   conversations: ConversationSummary[];
@@ -24,6 +26,7 @@ const props = defineProps<{
   dark: boolean;
   resumeDrafts: ResumeDraftSummary[];
   currentDraftId: string | undefined;
+  activeView: "chat" | "library" | "tracker";
 }>();
 
 const emit = defineEmits<{
@@ -31,6 +34,7 @@ const emit = defineEmits<{
   select: [conversationId: string];
   selectDraft: [artifactId: string];
   openLibrary: [];
+  openTracker: [];
   rename: [conversation: ConversationSummary];
   delete: [conversation: ConversationSummary];
   toggleTheme: [];
@@ -39,21 +43,6 @@ const emit = defineEmits<{
 
 const openMenuId = ref<string>();
 const userMenuOpen = ref(false);
-
-function relativeTime(value: string): string {
-  const elapsed = Date.now() - new Date(value).getTime();
-  const minutes = Math.max(0, Math.floor(elapsed / 60_000));
-  if (minutes < 1) return "刚刚";
-  if (minutes < 60) return `${minutes} 分钟`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} 小时`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} 天`;
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "numeric",
-    day: "numeric",
-  }).format(new Date(value));
-}
 
 function toggleConversationMenu(
   event: MouseEvent,
@@ -99,9 +88,24 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
       <span>新对话</span>
     </button>
 
-    <button class="new-chat-button icon-label" type="button" @click="$emit('openLibrary')">
+    <button
+      class="new-chat-button icon-label"
+      :class="{ active: activeView === 'library' }"
+      type="button"
+      @click="$emit('openLibrary')"
+    >
       <FolderOpen :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span>简历仓库</span>
+    </button>
+
+    <button
+      class="new-chat-button icon-label"
+      :class="{ active: activeView === 'tracker' }"
+      type="button"
+      @click="$emit('openTracker')"
+    >
+      <BriefcaseBusiness :size="16" :stroke-width="1.8" aria-hidden="true" />
+      <span>投递追踪</span>
     </button>
 
     <section class="sidebar-section resume-draft-section">

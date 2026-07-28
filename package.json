@@ -12,6 +12,7 @@
     "dev": "node --import tsx src/cli/main.ts",
     "sync:resume-template": "node scripts/sync-resume-template-assets.mjs",
     "check:resume-template": "node scripts/sync-resume-template-assets.mjs --check",
+    "check:source-lines": "node scripts/check-source-lines.mjs",
     "desktop:dev": "electron-vite dev",
     "desktop:build": "electron-vite build",
     "desktop:preview": "electron-vite preview",
@@ -25,7 +26,7 @@
     "start": "node dist/src/cli/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test test/**/*.test.ts",
-    "check": "npm run check:resume-template && npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build"
+    "check": "npm run check:resume-template && npm run check:source-lines && npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.81.1",

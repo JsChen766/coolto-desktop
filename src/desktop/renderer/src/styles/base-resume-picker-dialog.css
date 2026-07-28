@@ -1,0 +1,141 @@
+/* Resume Picker Popup */
+.resume-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgb(20 20 18 / 25%);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+}
+
+.resume-picker {
+  width: min(360px, 90vw);
+  max-height: 400px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow-menu);
+  display: flex;
+  flex-direction: column;
+}
+
+.resume-picker-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.resume-picker-loading {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.resume-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.resume-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.resume-picker-item:hover,
+.resume-picker-item:focus-visible {
+  background: var(--surface);
+}
+
+.resume-picker-item-title {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.resume-picker-item-meta {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+/* Dialog */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 24px;
+  background: rgb(20 20 18 / 25%);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+}
+
+.dialog-card {
+  width: min(400px, 100%);
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow: var(--shadow-menu);
+}
+
+.dialog-card h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.dialog-card p {
+  margin: 7px 0 16px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.dialog-actions {
+  margin-top: 17px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 1040px) {
+  .artifact-panel {
+    width: 480px;
+    min-width: 420px;
+  }
+
+  .composer-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+  }
+
+  .artifact-panel,
+  .jd-detail-panel,
+  .match-report-panel {
+    display: none;
+  }
+
+  .message-stream {
+    width: calc(100% - 32px);
+  }
+}
+

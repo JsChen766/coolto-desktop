@@ -1,0 +1,186 @@
+/* A4 editable resume */
+.artifact-title-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.artifact-local-state {
+  color: var(--muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.artifact-error {
+  margin: 8px 12px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-size: 11.5px;
+}
+
+.artifact-loading {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.resume-editor-viewport {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  padding: 22px;
+  overflow: auto;
+}
+
+.resume-a4-stage {
+  position: relative;
+  margin: 0 auto;
+}
+
+.resume-a4-root {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: top left;
+}
+
+.resume-a4-root .resume-document-frame {
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.resume-editable-text {
+  border-radius: 1px;
+  outline: none;
+  cursor: text;
+}
+
+.resume-editable-text:hover,
+.resume-editable-text:focus {
+  background: rgb(88 153 106 / 7%);
+}
+
+.resume-locked-field {
+  border-radius: 1px;
+  outline: none;
+  cursor: not-allowed;
+}
+
+.resume-locked-field:hover,
+.resume-locked-field:focus {
+  background: rgb(116 113 104 / 8%);
+}
+
+.resume-has-drag-handle {
+  position: relative;
+}
+
+.resume-drag-handle {
+  position: absolute;
+  z-index: 4;
+  width: 18px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #87847d;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  cursor: grab;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.resume-drag-handle--bullet {
+  top: -2px;
+  left: -20px;
+}
+
+.resume-drag-handle--item {
+  top: -3px;
+  left: -23px;
+}
+
+.resume-has-drag-handle:hover > .resume-drag-handle,
+.resume-drag-handle:hover,
+.resume-drag-handle:focus-visible {
+  background: rgb(88 153 106 / 10%);
+  color: #4f7559;
+  opacity: 1;
+  outline: none;
+}
+
+.resume-drag-handle:active {
+  cursor: grabbing;
+}
+
+.resume-dragging-source {
+  background: rgb(88 153 106 / 6%);
+}
+
+.resume-change-highlight {
+  background-image: linear-gradient(
+    to bottom,
+    transparent 12%,
+    rgb(73 174 101 / 18%) 12%,
+    rgb(73 174 101 / 18%) 88%,
+    transparent 88%
+  );
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.resume-lock-popover {
+  position: absolute;
+  z-index: 70;
+  width: 252px;
+  padding: 12px;
+  border-radius: 11px;
+  background: var(--bg);
+  box-shadow: var(--shadow-menu);
+  color: var(--text-soft);
+}
+
+.resume-lock-title {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.resume-lock-popover p {
+  margin: 8px 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.resume-lock-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.resume-lock-actions button {
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.resume-lock-actions button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+

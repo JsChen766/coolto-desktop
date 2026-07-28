@@ -6,6 +6,7 @@ import IconButton from "./IconButton.vue";
 import ResumePickerPopup from "./ResumePickerPopup.vue";
 import type { ResumeChatReference } from "@desktop/types";
 import type { AttachmentView } from "../attachments/use-conversation-attachment";
+import { attachmentStatus, fileSize } from "../attachments/attachment-formatters";
 import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
 
 const props = defineProps<{
@@ -126,20 +127,6 @@ function handleDragLeave(event: DragEvent): void {
   }
 }
 
-function attachmentStatus(view: AttachmentView): string {
-  if (view.status === "parsing") return "解析中";
-  if (view.status === "parsed") return "已解析";
-  if (view.status === "partial") return "部分已保存";
-  if (view.status === "saved") return "经历已保存，等待同步";
-  if (view.status === "error") return "处理失败";
-  return "已选择";
-}
-
-function fileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 </script>
 
 <template>

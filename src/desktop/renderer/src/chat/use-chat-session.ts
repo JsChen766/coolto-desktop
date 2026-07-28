@@ -4,28 +4,27 @@ import type {
   ChatMessage,
   ConversationDetail,
   ConversationSummary,
-  DesktopAgentEvent,
   DesktopApprovalDecision,
   DesktopApprovalRequest,
-  DesktopUser,
-  EmailChallengeView,
   ResumeChatReference,
 } from "@desktop/types";
 import type { ToolRun } from "../components/ToolActivity.vue";
 import { desktopApi } from "../lib/desktop-api";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
+import { findReusableEmptyConversation } from "./conversation-list";
 import { useJdArtifacts } from "./use-jd-artifacts";
 import { useMatchReports } from "./use-match-reports";
-import { latestNewAssistantMessageId } from "@desktop/artifact-anchor";
+import { createAgentEventHandler } from "./agent-event-handler";
+import {
+  createArtifactAnchorer,
+  createRunStateReset,
+} from "./chat-session-helpers";
+import { desktopErrorMessage } from "./desktop-error-message";
+import { useChatAuth } from "./use-chat-auth";
 
 type ResumeWorkspace = ReturnType<typeof useResumeWorkspace>;
 
 export function useChatSession(resumeWorkspace: ResumeWorkspace) {
-  const booting = ref(true);
-  const user = ref<DesktopUser>();
-  const loginBusy = ref(false);
-  const loginError = ref<string>();
-  const emailChallenge = ref<EmailChallengeView>();
   const conversations = ref<ConversationSummary[]>([]);
   const current = ref<ConversationDetail>();
   const running = ref(false);
@@ -41,69 +40,42 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   const jd = useJdArtifacts();
   const match = useMatchReports();
   const approvalByConversation = new Map<string, DesktopApprovalRequest>();
+  let creatingConversation = false;
   let unsubscribeEvents: (() => void) | undefined;
+  const { clearLiveResponse, clearRunState } = createRunStateReset({
+    streamingText,
+    toolRuns,
+    runError,
+    pendingApproval,
+    approvalBusy,
+  });
+  const anchorResponseArtifacts = createArtifactAnchorer(current, jd, match);
+  const auth = useChatAuth(loadConversations, clearAuthenticatedState, cancelRunning);
+  const handleAgentEvent = createAgentEventHandler({
+    current,
+    running,
+    streamingText,
+    runError,
+    toolRuns,
+    pendingApproval,
+    approvalByConversation,
+    jd,
+    match,
+    resumeWorkspace,
+  });
 
   onMounted(async () => {
     unsubscribeEvents = desktopApi.agent.onEvent(handleAgentEvent);
-    try {
-      user.value = await desktopApi.auth.getCurrentUser();
-      if (user.value) await loadConversations();
-    } catch (error: unknown) {
-      loginError.value = errorMessage(error);
-    } finally {
-      booting.value = false;
-    }
+    await auth.restore();
   });
 
   onBeforeUnmount(() => unsubscribeEvents?.());
 
-  async function login(email: string, password: string): Promise<void> {
-    loginBusy.value = true;
-    loginError.value = undefined;
-    try {
-      user.value = await desktopApi.auth.login(email, password);
-      await loadConversations();
-    } catch (error: unknown) {
-      loginError.value = errorMessage(error);
-    } finally {
-      loginBusy.value = false;
-    }
-  }
-
-  async function requestEmailCode(email: string): Promise<void> {
-	loginBusy.value = true;
-	loginError.value = undefined;
-	try {
-		emailChallenge.value = await desktopApi.auth.requestEmailCode(email);
-	} catch (error: unknown) {
-		loginError.value = errorMessage(error);
-	} finally {
-		loginBusy.value = false;
-	}
-  }
-
-  async function verifyEmailCode(
-	email: string,
-	challengeId: string,
-	code: string,
-  ): Promise<void> {
-	loginBusy.value = true;
-	loginError.value = undefined;
-	try {
-		user.value = await desktopApi.auth.verifyEmailCode(email, challengeId, code);
-		emailChallenge.value = undefined;
-		await loadConversations();
-	} catch (error: unknown) {
-		loginError.value = errorMessage(error);
-	} finally {
-		loginBusy.value = false;
-	}
-  }
-
-  async function logout(): Promise<void> {
+  async function cancelRunning(): Promise<void> {
     if (running.value) await desktopApi.agent.cancel();
-    await desktopApi.auth.logout();
-    user.value = undefined;
+  }
+
+  function clearAuthenticatedState(): void {
     current.value = undefined;
     conversations.value = [];
     approvalByConversation.clear();
@@ -126,13 +98,23 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   }
 
   async function createConversation(): Promise<void> {
-    if (running.value) return;
-    current.value = await desktopApi.conversations.create();
-    clearRunState();
-    pendingApproval.value = undefined;
-    jd.switchConversation(current.value?.id);
-    match.switchConversation(current.value?.id);
-    await refreshConversationList();
+    if (running.value || creatingConversation) return;
+    const reusable = findReusableEmptyConversation(conversations.value);
+    if (reusable) {
+      await selectConversation(reusable.id);
+      return;
+    }
+    creatingConversation = true;
+    try {
+      current.value = await desktopApi.conversations.create();
+      clearRunState();
+      pendingApproval.value = undefined;
+      jd.switchConversation(current.value?.id);
+      match.switchConversation(current.value?.id);
+      await refreshConversationList();
+    } finally {
+      creatingConversation = false;
+    }
   }
 
   async function selectConversation(conversationId: string): Promise<void> {
@@ -208,7 +190,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       await refreshConversationList();
       await resumeWorkspace.refreshActive();
     } catch (error: unknown) {
-      runError.value = errorMessage(error);
+      runError.value = desktopErrorMessage(error);
     } finally {
       running.value = false;
     }
@@ -234,119 +216,14 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       pendingApproval.value = undefined;
       await refreshConversationList();
     } catch (error: unknown) {
-      runError.value = errorMessage(error);
+      runError.value = desktopErrorMessage(error);
     } finally {
       approvalBusy.value = false;
     }
   }
 
-  function handleAgentEvent(
-    conversationId: string,
-    event: DesktopAgentEvent,
-  ): void {
-    if (event.type === "approval.required") {
-      approvalByConversation.set(conversationId, event.request);
-      if (conversationId === current.value?.id) pendingApproval.value = event.request;
-      return;
-    }
-    if (event.type === "approval.resolved") {
-      approvalByConversation.delete(conversationId);
-      if (
-        conversationId === current.value?.id &&
-        pendingApproval.value?.id === event.requestId
-      ) pendingApproval.value = undefined;
-      if (event.decision === "reject") {
-        jd.updateStatus(conversationId, event.requestId, "rejected");
-      }
-      return;
-    }
-    if (event.type === "jd.proposal.created") {
-      jd.add(conversationId, event.data);
-      return;
-    }
-    if (event.type === "jd.saved") {
-      jd.updateStatus(
-        conversationId,
-        event.approvalRequestId,
-        "saved",
-        event.jdId,
-      );
-      return;
-    }
-    if (event.type === "match.report.created") {
-      match.add(conversationId, event.data);
-      return;
-    }
-    if (event.type === "approval.completed") {
-      const details = event.details as { jdId?: string } | undefined;
-      if (details?.jdId) {
-        jd.updateStatus(conversationId, event.requestId, "saved", details.jdId);
-      }
-      return;
-    }
-    if (conversationId !== current.value?.id) return;
-    switch (event.type) {
-      case "run.started":
-        running.value = true;
-        return;
-      case "message.delta":
-        streamingText.value += event.text;
-        return;
-      case "tool.started":
-        toolRuns.value.push({ callId: event.callId, name: event.name, status: "running" });
-        return;
-      case "tool.completed": {
-        const run = toolRuns.value.find((candidate) => candidate.callId === event.callId);
-        if (run) run.status = event.isError ? "error" : "completed";
-        return;
-      }
-      case "resume.draft.updated":
-        void resumeWorkspace.openDraft(event.artifactId);
-        return;
-      case "approval.failed":
-      case "run.failed":
-        runError.value = event.message;
-        if (event.type === "run.failed") running.value = false;
-        return;
-      case "run.completed":
-        running.value = false;
-        return;
-      default:
-        return;
-    }
-  }
-
-  function clearRunState(): void {
-    clearLiveResponse();
-    runError.value = undefined;
-    pendingApproval.value = undefined;
-    approvalBusy.value = false;
-  }
-
-  function clearLiveResponse(): void {
-    streamingText.value = "";
-    toolRuns.value = [];
-  }
-
-  function anchorResponseArtifacts(
-    conversationId: string,
-    previousMessageIds: ReadonlySet<string>,
-  ): void {
-    if (!current.value || current.value.id !== conversationId) return;
-    const messageId = latestNewAssistantMessageId(
-      current.value.messages,
-      previousMessageIds,
-    );
-    jd.anchorPending(conversationId, messageId);
-    match.anchorPending(conversationId, messageId);
-  }
-
   return {
-    booting,
-    user,
-    loginBusy,
-    loginError,
-	emailChallenge,
+    ...auth,
     conversations,
     current,
     running,
@@ -360,10 +237,6 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     activeJd: jd.activeJd,
     matchReports: match.matchReports,
     activeMatchReport: match.activeMatchReport,
-    login,
-	requestEmailCode,
-	verifyEmailCode,
-    logout,
     createConversation,
     selectConversation,
     openDialog,
@@ -373,11 +246,4 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     openJdDetail: jd.openDetail,
     openMatchDetail: match.openDetail,
   };
-}
-
-function errorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message
-    .replace(/^Error invoking remote method '[^']+':\s*/u, "")
-    .replace(/^Error:\s*/u, "");
 }

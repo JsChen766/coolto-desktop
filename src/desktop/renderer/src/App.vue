@@ -1,195 +1,43 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  ApplicationTrackerView,
+  ConversationDialog,
+  LoginScreen,
+  ResumeLibraryView,
+  Sidebar,
+} from "./app/app-components";
+import AppChatWorkspace from "./app/AppChatWorkspace.vue";
+import { useAppShell } from "./app/use-app-shell";
 
-import type { ResumeChatReference } from "@desktop/types";
-import type { ResumeLibraryEntry } from "@desktop/types";
-import ApprovalCard from "./components/ApprovalCard.vue";
-import ArtifactPanel from "./components/ArtifactPanel.vue";
-import FillProgressCard from "./components/FillProgressCard.vue";
-import JdArtifactCard from "./components/JdArtifactCard.vue";
-import JdDetailPanel from "./components/JdDetailPanel.vue";
-import MatchReportCard from "./components/MatchReportCard.vue";
-import MatchReportPanel from "./components/MatchReportPanel.vue";
-import ResumeArtifactCard from "./components/ResumeArtifactCard.vue";
-import ChatHeader from "./components/ChatHeader.vue";
-import ChatMessageView from "./components/ChatMessage.vue";
-import Composer from "./components/Composer.vue";
-import ConversationDialog from "./components/ConversationDialog.vue";
-import EmptyState from "./components/EmptyState.vue";
-import LoginScreen from "./components/LoginScreen.vue";
-import MarkdownContent from "./components/MarkdownContent.vue";
-import Sidebar from "./components/Sidebar.vue";
-import ToolActivity from "./components/ToolActivity.vue";
-import ResumeLibraryView from "./components/ResumeLibraryView.vue";
-import { useChatSession } from "./chat/use-chat-session";
-import { useConversationAttachment } from "./attachments/use-conversation-attachment";
-import { desktopApi } from "./lib/desktop-api";
-import { useResumeWorkspace } from "./resume-workspace/use-resume-workspace";
-import { useBrowserState } from "./browser/use-browser-state";
-import { useFillProgress } from "./browser/use-fill-progress";
-
-const sidebarOpen = ref(true);
-const artifactOpen = ref(false);
-const activeArtifactType = ref<"resume" | "jd" | "match">("resume");
-const libraryOpen = ref(false);
-const resumeWorkspace = useResumeWorkspace();
+const shell = useAppShell();
 const {
+  activeView,
   booting,
-  user,
+  confirmDialog,
+  conversations,
+  createChat,
+  current,
+  dark,
+  desktopApi,
+  dialog,
+  emailChallenge,
+  login,
   loginBusy,
   loginError,
-  emailChallenge,
-  conversations,
-  current,
-  running,
-  streamingText,
-  runError,
-  toolRuns,
-  pendingApproval,
-  approvalBusy,
-  dialog,
-  jdArtifacts,
-  activeJd,
-  matchReports,
-  activeMatchReport,
-  login,
-  requestEmailCode,
-  verifyEmailCode,
   logout,
-  createConversation,
-  selectConversation,
   openDialog,
-  confirmDialog,
-  send: sendPrompt,
-  resolveApproval,
-  openJdDetail,
-  openMatchDetail,
-} = useChatSession(resumeWorkspace);
-const conversationAttachment = useConversationAttachment(
-  () => current.value?.id,
-);
-const browser = useBrowserState();
-const fillProgress = useFillProgress();
-const scroller = ref<HTMLElement>();
-const dark = ref(localStorage.getItem("coolto-theme") === "dark");
-
-onMounted(() => {
-  applyTheme();
-  fillProgress.mount();
-});
-onBeforeUnmount(() => fillProgress.unmount());
-
-watch(
-  [
-    () => current.value?.messages.length,
-    streamingText,
-    pendingApproval,
-    jdArtifacts,
-    matchReports,
-    fillProgress.records,
-    fillProgress.lastOutcome,
-    fillProgress.captcha,
-  ],
-  () => void nextTick(scrollToBottom),
-);
-
-async function send(
-  text: string,
-  resumeReference?: ResumeChatReference,
-): Promise<void> {
-  await sendPrompt(text, resumeReference);
-}
-
-async function openResumeDraft(artifactId: string): Promise<void> {
-  activeArtifactType.value = "resume";
-  artifactOpen.value = true;
-  await resumeWorkspace.openDraft(artifactId);
-}
-
-async function openFromLibrary(entry: ResumeLibraryEntry): Promise<void> {
-  libraryOpen.value = false;
-  if (entry.local) {
-    await openResumeDraft(entry.local.artifactId);
-  }
-  // TODO: cloud_only — 拉取云端内容创建本地草稿后再打开
-}
-
-function openJdPanel(proposalId: string): void {
-  openJdDetail(proposalId);
-  activeArtifactType.value = "jd";
-  artifactOpen.value = true;
-}
-
-function openMatchPanel(reportId: string): void {
-  openMatchDetail(reportId);
-  activeArtifactType.value = "match";
-  artifactOpen.value = true;
-}
-
-async function toggleArtifact(): Promise<void> {
-  artifactOpen.value = !artifactOpen.value;
-  if (!artifactOpen.value) return;
-  if (activeArtifactType.value === "resume") {
-    const first = resumeWorkspace.drafts.value[0];
-    if (!resumeWorkspace.activeDraft.value && first) {
-      await resumeWorkspace.openDraft(first.artifactId);
-    }
-  }
-}
-
-async function toggleBrowser(): Promise<void> {
-  if (browser.state.isOpen) {
-    await browser.close();
-  } else {
-    await browser.open({ theme: dark.value ? "dark" : "light" });
-  }
-}
-
-function draftCloudState(artifactId: string) {
-  return resumeWorkspace.drafts.value.find(
-    (draft) => draft.artifactId === artifactId,
-  )?.cloudState;
-}
-
-function activeResumeReference(): ResumeChatReference | undefined {
-  const draft = resumeWorkspace.activeDraft.value;
-  return draft
-    ? {
-        artifactId: draft.artifactId,
-        targetType: "resume",
-        targetId: draft.artifactId,
-        label: draft.title,
-      }
-    : undefined;
-}
-
-function saveResumeToCloud(): void {
-  const reference = activeResumeReference();
-  if (reference) void send("请将右侧当前本地简历保存到云端。", reference);
-}
-
-function exportResume(): void {
-  const reference = activeResumeReference();
-  if (reference) void send("请将右侧当前简历导出为 PDF 到本地文件。", reference);
-}
-
-function toggleTheme(): void {
-  dark.value = !dark.value;
-  localStorage.setItem("coolto-theme", dark.value ? "dark" : "light");
-  applyTheme();
-}
-
-function applyTheme(): void {
-  document.documentElement.classList.toggle("dark", dark.value);
-}
-
-function scrollToBottom(): void {
-  scroller.value?.scrollTo({
-    top: scroller.value.scrollHeight,
-    behavior: "smooth",
-  });
-}
-
+  openFromLibrary,
+  openLibrary,
+  openResumeDraft,
+  openTracker,
+  requestEmailCode,
+  resumeWorkspace,
+  selectChat,
+  sidebarOpen,
+  toggleTheme,
+  user,
+  verifyEmailCode,
+} = shell;
 </script>
 
 <template>
@@ -220,10 +68,12 @@ function scrollToBottom(): void {
       :dark="dark"
       :resume-drafts="resumeWorkspace.drafts.value"
       :current-draft-id="resumeWorkspace.activeDraft.value?.artifactId"
-      @create="createConversation"
-      @select="selectConversation"
+      :active-view="activeView"
+      @create="createChat"
+      @select="selectChat"
       @select-draft="openResumeDraft"
-      @open-library="libraryOpen = true"
+      @open-library="openLibrary"
+      @open-tracker="openTracker"
       @rename="openDialog('rename', $event)"
       @delete="openDialog('delete', $event)"
       @toggle-theme="toggleTheme"
@@ -231,163 +81,9 @@ function scrollToBottom(): void {
     />
 
     <main class="main-workspace">
-      <ResumeLibraryView v-if="libraryOpen" @close="libraryOpen = false" @open="openFromLibrary" />
-      <template v-else>
-      <ChatHeader
-        :title="current?.title ?? '新对话'"
-        :sidebar-open="sidebarOpen"
-        :artifact-open="artifactOpen"
-        :browser-open="browser.state.isOpen"
-        :resume-draft="resumeWorkspace.activeDraft.value"
-        :platform="desktopApi.platform"
-        @toggle-sidebar="sidebarOpen = !sidebarOpen"
-        @toggle-artifact="toggleArtifact"
-        @toggle-browser="toggleBrowser"
-        @save-resume="saveResumeToCloud"
-        @export-resume="exportResume"
-        @rename="
-          current &&
-          openDialog('rename', {
-            id: current.id,
-            title: current.title,
-            createdAt: current.createdAt,
-            updatedAt: current.updatedAt,
-            messageCount: current.messageCount,
-          })
-        "
-        @minimize="desktopApi.window.minimize"
-        @maximize="desktopApi.window.toggleMaximize"
-        @close="desktopApi.window.close"
-      />
-
-      <div class="workspace-body">
-        <section class="chat-pane">
-          <div ref="scroller" class="message-scroller">
-            <div v-if="current" class="message-stream">
-              <EmptyState
-                v-if="current.messages.length === 0 && !running"
-                @use-prompt="send"
-              />
-              <template v-for="message in current.messages" :key="message.id">
-                <ChatMessageView :message="message" />
-                <ResumeArtifactCard
-                  v-for="artifact in current.resumeArtifacts.filter(
-                    (item) => item.anchorMessageId === message.id,
-                  )"
-                  :key="artifact.artifactId"
-                  :artifact="artifact"
-                  :cloud-state="draftCloudState(artifact.artifactId)"
-                  @open="openResumeDraft"
-                />
-                <JdArtifactCard
-                  v-for="jdArtifact in jdArtifacts.filter(
-                    (item) => item.anchorMessageId === message.id,
-                  )"
-                  :key="jdArtifact.proposalId"
-                  :artifact="jdArtifact"
-                  @open="openJdPanel"
-                />
-                <MatchReportCard
-                  v-for="report in matchReports.filter(
-                    (item) => item.anchorMessageId === message.id,
-                  )"
-                  :key="report.reportId"
-                  :report="report"
-                  @open="openMatchPanel"
-                />
-              </template>
-              <article
-                v-if="toolRuns.length || streamingText"
-                class="chat-message role-assistant live-response"
-              >
-                <ToolActivity :runs="toolRuns" />
-                <MarkdownContent
-                  v-if="streamingText"
-                  :content="streamingText"
-                />
-                <span v-if="running" class="stream-caret" aria-hidden="true" />
-              </article>
-              <ResumeArtifactCard
-                v-for="artifact in current.resumeArtifacts.filter(
-                  (item) => !item.anchorMessageId,
-                )"
-                :key="artifact.artifactId"
-                :artifact="artifact"
-                :cloud-state="draftCloudState(artifact.artifactId)"
-                @open="openResumeDraft"
-              />
-              <JdArtifactCard
-                v-for="jdArtifact in jdArtifacts.filter(
-                  (item) => !item.anchorMessageId,
-                )"
-                :key="jdArtifact.proposalId"
-                :artifact="jdArtifact"
-                @open="openJdPanel"
-              />
-              <MatchReportCard
-                v-for="report in matchReports.filter(
-                  (item) => !item.anchorMessageId,
-                )"
-                :key="report.reportId"
-                :report="report"
-                @open="openMatchPanel"
-              />
-              <p v-if="runError" class="run-error">{{ runError }}</p>
-              <ApprovalCard
-                v-if="pendingApproval"
-                :request="pendingApproval"
-                :busy="approvalBusy"
-                @decide="resolveApproval"
-              />
-              <FillProgressCard
-                :records="fillProgress.records.value"
-                :reviewing="fillProgress.reviewing.value"
-                :pending-count="fillProgress.pendingCount.value"
-                :accepted-count="fillProgress.acceptedCount.value"
-                :rejected-count="fillProgress.rejectedCount.value"
-                :last-outcome="fillProgress.lastOutcome.value"
-                :captcha="fillProgress.captcha.value"
-                @abort="fillProgress.abortFill"
-                @dismiss-outcome="fillProgress.dismissOutcome"
-                @dismiss-captcha="fillProgress.dismissCaptcha"
-              />
-            </div>
-          </div>
-          <Composer
-            :disabled="!current"
-            :running="running"
-            :attachment="conversationAttachment.attachment.value"
-            :attachment-busy="conversationAttachment.selecting.value"
-            :attachment-error="conversationAttachment.error.value"
-            @send="send"
-            @cancel="desktopApi.agent.cancel"
-            @select-attachment="conversationAttachment.select"
-            @remove-attachment="conversationAttachment.remove"
-          />
-        </section>
-
-        <ArtifactPanel
-          v-if="artifactOpen && activeArtifactType === 'resume'"
-          :draft="resumeWorkspace.activeDraft.value"
-          :busy="resumeWorkspace.busy.value"
-          :error="resumeWorkspace.error.value"
-          :local-save-state="resumeWorkspace.localSaveState.value"
-          @edit="resumeWorkspace.edit"
-          @autosave="resumeWorkspace.autosave"
-          @restore="resumeWorkspace.restore"
-          @accept="resumeWorkspace.resolvePending('accept')"
-          @reject="resumeWorkspace.resolvePending('reject')"
-        />
-        <JdDetailPanel
-          v-else-if="artifactOpen && activeArtifactType === 'jd' && activeJd"
-          :data="activeJd"
-        />
-        <MatchReportPanel
-          v-else-if="artifactOpen && activeArtifactType === 'match' && activeMatchReport"
-          :data="activeMatchReport"
-        />
-      </div>
-      </template>
+      <ApplicationTrackerView v-if="activeView === 'tracker'" @close="activeView = 'chat'" />
+      <ResumeLibraryView v-else-if="activeView === 'library'" @close="activeView = 'chat'" @open="openFromLibrary" />
+      <AppChatWorkspace v-else :shell="shell" />
     </main>
 
     <ConversationDialog

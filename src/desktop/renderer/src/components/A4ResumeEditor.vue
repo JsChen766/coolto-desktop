@@ -13,7 +13,7 @@ import {
   resolveResumeTemplate,
 } from "../resume-renderer/template";
 import { addResumeDragHandle } from "../resume-workspace/resume-drag-source";
-import { publishResumeReference } from "../resume-workspace/resume-reference-channel";
+import { useResumeLockPopover } from "../resume-workspace/use-resume-lock-popover";
 
 const props = defineProps<{
   draft: ResumeDraftDetail;
@@ -28,11 +28,10 @@ const viewport = ref<HTMLElement>();
 const resumeRoot = ref<HTMLElement>();
 const scale = ref(1);
 const pageSize = ref({ width: 794, height: 1123 });
-const locked = ref<{
-  left: number;
-  top: number;
-  reference: ResumeChatReference;
-}>();
+const { locked, makeLocked, sendLockedToChat } = useResumeLockPopover(
+  viewport,
+  () => props.draft,
+);
 let resizeObserver: ResizeObserver | undefined;
 const autosaveTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
 
@@ -189,46 +188,6 @@ function emitChangedText(
   else emit("autosave", input);
 }
 
-function makeLocked(element: HTMLElement): void {
-  if (element.classList.contains("resume-editable-text")) return;
-  element.classList.add("resume-locked-field");
-  element.tabIndex = 0;
-  element.title = "此内容来自固定资产";
-  const show = () => showLockedExplanation(element);
-  element.addEventListener("click", show);
-  element.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      show();
-    }
-  });
-}
-
-function showLockedExplanation(element: HTMLElement): void {
-  const container = viewport.value;
-  if (!container) return;
-  const containerRect = container.getBoundingClientRect();
-  const rect = element.getBoundingClientRect();
-  const itemId = element.closest<HTMLElement>("[data-item-id]")?.dataset.itemId;
-  const sectionId = element.closest<HTMLElement>("[data-section-id]")?.dataset
-    .sectionId;
-  locked.value = {
-    left: Math.max(12, Math.min(container.clientWidth - 264, rect.left - containerRect.left)),
-    top: Math.max(12, rect.bottom - containerRect.top + 8),
-    reference: {
-      artifactId: props.draft.artifactId,
-      targetType: "locked_field",
-      targetId: itemId ?? sectionId ?? "contact",
-      label: element.innerText.trim().slice(0, 64) || "固定信息",
-    },
-  };
-}
-
-function sendLockedToChat(): void {
-  if (!locked.value) return;
-  publishResumeReference(locked.value.reference);
-  locked.value = undefined;
-}
 </script>
 
 <template>

@@ -1,0 +1,140 @@
+/* Tools */
+.tool-activity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.tool-activity-header {
+  min-height: 27px;
+  padding: 0 8px 0 5px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.tool-activity-header:hover {
+  background: var(--surface);
+  color: var(--text-soft);
+}
+
+.tool-chevron {
+  transition: transform 120ms ease;
+}
+
+.tool-activity.expanded .tool-chevron {
+  transform: rotate(90deg);
+}
+
+.tool-list {
+  padding-left: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tool-row {
+  min-height: 24px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+
+.tool-row code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+/* Composer */
+.composer-dock {
+  padding: 0 20px 11px;
+  background: linear-gradient(to top, var(--bg) 78%, transparent);
+}
+
+.composer {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 10px 11px 8px;
+  border-radius: 17px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: background 100ms ease;
+}
+
+.composer:focus-within {
+  background: var(--surface-strong);
+}
+
+.composer textarea {
+  width: 100%;
+  min-height: 26px;
+  max-height: 180px;
+  padding: 2px 5px;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow-y: auto;
+  background: transparent;
+  color: var(--text);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.composer textarea::placeholder {
+  color: var(--muted-light);
+}
+
+.composer-actions {
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.composer-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.composer-hint {
+  color: var(--muted-light);
+  font-size: 10.5px;
+}
+
+.send-button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-button:hover:not(:disabled) {
+  filter: brightness(0.84);
+}
+
+.send-button:disabled {
+  background: var(--surface-strong);
+  color: var(--muted);
+}
+
+.composer-disclaimer {
+  margin: 7px auto 0;
+  color: var(--muted-light);
+  font-size: 10.5px;
+  text-align: center;
+}
+
