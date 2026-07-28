@@ -268,30 +268,34 @@ function scrollToBottom(): void {
                 v-if="current.messages.length === 0 && !running"
                 @use-prompt="send"
               />
-              <ChatMessageView
-                v-for="message in current.messages"
-                :key="message.id"
-                :message="message"
-              />
-              <ResumeArtifactCard
-                v-for="artifact in current.resumeArtifacts"
-                :key="artifact.artifactId"
-                :artifact="artifact"
-                :cloud-state="draftCloudState(artifact.artifactId)"
-                @open="openResumeDraft"
-              />
-              <JdArtifactCard
-                v-for="jdArtifact in jdArtifacts"
-                :key="jdArtifact.proposalId"
-                :artifact="jdArtifact"
-                @open="openJdPanel"
-              />
-              <MatchReportCard
-                v-for="report in matchReports"
-                :key="report.reportId"
-                :report="report"
-                @open="openMatchPanel"
-              />
+              <template v-for="message in current.messages" :key="message.id">
+                <ChatMessageView :message="message" />
+                <ResumeArtifactCard
+                  v-for="artifact in current.resumeArtifacts.filter(
+                    (item) => item.anchorMessageId === message.id,
+                  )"
+                  :key="artifact.artifactId"
+                  :artifact="artifact"
+                  :cloud-state="draftCloudState(artifact.artifactId)"
+                  @open="openResumeDraft"
+                />
+                <JdArtifactCard
+                  v-for="jdArtifact in jdArtifacts.filter(
+                    (item) => item.anchorMessageId === message.id,
+                  )"
+                  :key="jdArtifact.proposalId"
+                  :artifact="jdArtifact"
+                  @open="openJdPanel"
+                />
+                <MatchReportCard
+                  v-for="report in matchReports.filter(
+                    (item) => item.anchorMessageId === message.id,
+                  )"
+                  :key="report.reportId"
+                  :report="report"
+                  @open="openMatchPanel"
+                />
+              </template>
               <article
                 v-if="toolRuns.length || streamingText"
                 class="chat-message role-assistant live-response"
@@ -303,6 +307,31 @@ function scrollToBottom(): void {
                 />
                 <span v-if="running" class="stream-caret" aria-hidden="true" />
               </article>
+              <ResumeArtifactCard
+                v-for="artifact in current.resumeArtifacts.filter(
+                  (item) => !item.anchorMessageId,
+                )"
+                :key="artifact.artifactId"
+                :artifact="artifact"
+                :cloud-state="draftCloudState(artifact.artifactId)"
+                @open="openResumeDraft"
+              />
+              <JdArtifactCard
+                v-for="jdArtifact in jdArtifacts.filter(
+                  (item) => !item.anchorMessageId,
+                )"
+                :key="jdArtifact.proposalId"
+                :artifact="jdArtifact"
+                @open="openJdPanel"
+              />
+              <MatchReportCard
+                v-for="report in matchReports.filter(
+                  (item) => !item.anchorMessageId,
+                )"
+                :key="report.reportId"
+                :report="report"
+                @open="openMatchPanel"
+              />
               <p v-if="runError" class="run-error">{{ runError }}</p>
               <ApprovalCard
                 v-if="pendingApproval"

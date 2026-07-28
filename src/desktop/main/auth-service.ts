@@ -9,6 +9,7 @@ import type {
 import { loadLocalEnv, readApiBaseUrl } from "../../config.js";
 import { createUuidV7 } from "../../sync/uuid-v7.js";
 import { ElectronAuthSessionStore } from "./electron-auth-session-store.js";
+import { canRestoreOffline } from "../../auth/offline-session.js";
 import type { LocalSyncStore } from "./sync/local-sync-store.js";
 import { DeviceIdentityStore } from "./sync/device-identity-store.js";
 import { SyncRuntime } from "./sync/sync-runtime.js";
@@ -53,16 +54,22 @@ export class DesktopAuthService {
         await this.#sessionStore.clear();
         return undefined;
       }
+      await this.#saveSession(currentUser);
       await this.#startSync(currentUser);
       this.#currentUser = currentUser;
       return currentUser;
     } catch (error: unknown) {
-      if (!(error instanceof CooltoApiError) || error.status !== 401) {
+      if (error instanceof CooltoApiError && error.status === 401) {
+        this.apiClient.clearSession();
+        await this.#sessionStore.clear();
+        return undefined;
+      }
+      if (!canRestoreOffline(error, stored.currentUser)) {
         throw error;
       }
-      this.apiClient.clearSession();
-      await this.#sessionStore.clear();
-      return undefined;
+      await this.#startSync(stored.currentUser);
+      this.#currentUser = stored.currentUser;
+      return stored.currentUser;
     }
   }
 
@@ -110,11 +117,7 @@ export class DesktopAuthService {
       status: remoteUser.status ?? "active",
       deviceId: remoteUser.deviceId ?? device.id,
     };
-    await this.#sessionStore.save({
-      version: 1,
-      apiBaseUrl: this.#apiBaseUrl,
-      accessToken: this.apiClient.getSessionToken(),
-    });
+    await this.#saveSession(user);
     await this.#startSync(user);
     this.#currentUser = user;
     return user;
@@ -168,6 +171,15 @@ export class DesktopAuthService {
       user.deviceId,
       this.apiClient.sync,
     );
+  }
+
+  #saveSession(user: CurrentUser): Promise<void> {
+    return this.#sessionStore.save({
+      version: 1,
+      apiBaseUrl: this.#apiBaseUrl,
+      accessToken: this.apiClient.getSessionToken(),
+      currentUser: user,
+    });
   }
 }
 

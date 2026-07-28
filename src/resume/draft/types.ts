@@ -50,6 +50,7 @@ export interface ResumeDraftArtifactReference {
   checkpointId: string | null;
   title: string;
   createdAt: string;
+  anchorMessageId?: string;
 }
 
 export interface ResumeDraftSummary {

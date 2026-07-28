@@ -77,11 +77,17 @@ function normalizeResume(source: Record<string, unknown>): Resume {
 function normalizeScore(value: unknown): ResumeScore {
   const source = record(value, "resume.score");
   return {
-    overall: number(source.overall, "score.overall"),
-    relevance: number(source.relevance, "score.relevance"),
-    clarity: number(source.clarity, "score.clarity"),
-    evidenceStrength: number(source.evidence_strength, "score.evidence_strength"),
-    quantifiedImpact: number(source.quantified_impact, "score.quantified_impact"),
+    overall: optionalScore(source.overall, "score.overall"),
+    relevance: optionalScore(source.relevance, "score.relevance"),
+    clarity: optionalScore(source.clarity, "score.clarity"),
+    evidenceStrength: optionalScore(
+      source.evidence_strength,
+      "score.evidence_strength",
+    ),
+    quantifiedImpact: optionalScore(
+      source.quantified_impact,
+      "score.quantified_impact",
+    ),
   };
 }
 
@@ -106,6 +112,9 @@ function nullableText(value: unknown): string | null {
 function number(value: unknown, label: string): number {
   if (typeof value !== "number") throw new Error(`Malformed ${label}`);
   return value;
+}
+function optionalScore(value: unknown, label: string): number {
+  return value === undefined || value === null ? 0 : number(value, label);
 }
 function positiveInteger(value: unknown, label: string): number {
   if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {

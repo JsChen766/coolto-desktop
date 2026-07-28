@@ -1,6 +1,7 @@
 import { ref } from "vue";
 
 import type { JdArtifactData } from "@desktop/types";
+import { anchorUnassigned } from "@desktop/artifact-anchor";
 
 export function useJdArtifacts() {
   const jdArtifacts = ref<JdArtifactData[]>([]);
@@ -23,19 +24,35 @@ export function useJdArtifacts() {
     jdId?: string,
   ): void {
     const list = byConversation.get(conversationId);
-    const item = list?.find((j) => j.approvalRequestId === approvalRequestId);
+    const index = list?.findIndex(
+      (item) => item.approvalRequestId === approvalRequestId,
+    );
+    if (!list || index === undefined || index < 0) return;
+    const item = list[index];
     if (!item) return;
-    item.status = status;
-    if (jdId) item.jdId = jdId;
+    const updated: JdArtifactData = {
+      ...item,
+      status,
+      ...(jdId ? { jdId } : {}),
+    };
+    list[index] = updated;
+    byConversation.set(conversationId, list);
     syncView(conversationId);
     if (activeJd.value?.approvalRequestId === approvalRequestId) {
-      activeJd.value = { ...item };
+      activeJd.value = { ...updated };
     }
   }
 
   function openDetail(proposalId: string): void {
     const found = jdArtifacts.value.find((j) => j.proposalId === proposalId);
     if (found) activeJd.value = { ...found };
+  }
+
+  function anchorPending(conversationId: string, messageId?: string): void {
+    const list = byConversation.get(conversationId);
+    if (!list) return;
+    anchorUnassigned(list, messageId);
+    syncView(conversationId);
   }
 
   let activeConversationId: string | undefined;
@@ -66,6 +83,7 @@ export function useJdArtifacts() {
     activeJd,
     add,
     updateStatus,
+    anchorPending,
     openDetail,
     switchConversation,
     clear,

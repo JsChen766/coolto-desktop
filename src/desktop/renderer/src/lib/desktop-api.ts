@@ -671,5 +671,6 @@ function createDemoJdArtifact(): JdArtifactData {
       { text: "计算机相关专业本科及以上学历", category: "education", importance: "high" },
     ],
     status: "pending",
+    createdAt: new Date().toISOString(),
   };
 }

@@ -52,6 +52,16 @@ const api: DesktopApi = {
     reject: (artifactId) =>
       ipcRenderer.invoke("resume-drafts:reject", artifactId),
   },
+  library: {
+    list: () => ipcRenderer.invoke("library:list"),
+    rename: (input) => ipcRenderer.invoke("library:rename", input),
+    archive: (input) => ipcRenderer.invoke("library:archive", input),
+    deleteDraft: (input) => ipcRenderer.invoke("library:delete-draft", input),
+    getCheckpoints: (artifactId) =>
+      ipcRenderer.invoke("library:get-checkpoints", artifactId),
+    restoreCheckpoint: (input) =>
+      ipcRenderer.invoke("library:restore-checkpoint", input),
+  },
   agent: {
     prompt: (input: AgentPromptInput) =>
       ipcRenderer.invoke("agent:prompt", input),

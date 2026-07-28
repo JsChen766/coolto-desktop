@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.web.json",
+  "compilerOptions": {
+    "types": ["node", "electron"]
+  },
+  "include": [
+    "src/desktop/preload/**/*.ts",
+    "src/desktop/resume-preload/**/*.ts",
+    "src/desktop/browser-preload/**/*.ts",
+    "src/desktop/shared/**/*.ts"
+  ]
+}

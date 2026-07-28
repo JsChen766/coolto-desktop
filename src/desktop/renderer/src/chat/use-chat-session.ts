@@ -16,6 +16,7 @@ import { desktopApi } from "../lib/desktop-api";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useJdArtifacts } from "./use-jd-artifacts";
 import { useMatchReports } from "./use-match-reports";
+import { latestNewAssistantMessageId } from "@desktop/artifact-anchor";
 
 type ResumeWorkspace = ReturnType<typeof useResumeWorkspace>;
 
@@ -181,6 +182,9 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   ): Promise<void> {
     if (!current.value || running.value) return;
     const conversationId = current.value.id;
+    const previousMessageIds = new Set(
+      current.value.messages.map((message) => message.id),
+    );
     const optimistic: ChatMessage = {
       id: `pending-${crypto.randomUUID()}`,
       role: "user",
@@ -199,6 +203,8 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
         text,
         ...(resumeReference ? { resumeReference } : {}),
       });
+      anchorResponseArtifacts(conversationId, previousMessageIds);
+      clearLiveResponse();
       await refreshConversationList();
       await resumeWorkspace.refreshActive();
     } catch (error: unknown) {
@@ -212,13 +218,19 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     decision: DesktopApprovalDecision,
   ): Promise<void> {
     if (!current.value || !pendingApproval.value) return;
+    const conversationId = current.value.id;
+    const previousMessageIds = new Set(
+      current.value.messages.map((message) => message.id),
+    );
     approvalBusy.value = true;
     try {
       current.value = await desktopApi.agent.resolveApproval({
-        conversationId: current.value.id,
+        conversationId,
         requestId: pendingApproval.value.id,
         decision,
       });
+      anchorResponseArtifacts(conversationId, previousMessageIds);
+      clearLiveResponse();
       pendingApproval.value = undefined;
       await refreshConversationList();
     } catch (error: unknown) {
@@ -250,6 +262,15 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     }
     if (event.type === "jd.proposal.created") {
       jd.add(conversationId, event.data);
+      return;
+    }
+    if (event.type === "jd.saved") {
+      jd.updateStatus(
+        conversationId,
+        event.approvalRequestId,
+        "saved",
+        event.jdId,
+      );
       return;
     }
     if (event.type === "match.report.created") {
@@ -296,11 +317,28 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   }
 
   function clearRunState(): void {
-    streamingText.value = "";
+    clearLiveResponse();
     runError.value = undefined;
-    toolRuns.value = [];
     pendingApproval.value = undefined;
     approvalBusy.value = false;
+  }
+
+  function clearLiveResponse(): void {
+    streamingText.value = "";
+    toolRuns.value = [];
+  }
+
+  function anchorResponseArtifacts(
+    conversationId: string,
+    previousMessageIds: ReadonlySet<string>,
+  ): void {
+    if (!current.value || current.value.id !== conversationId) return;
+    const messageId = latestNewAssistantMessageId(
+      current.value.messages,
+      previousMessageIds,
+    );
+    jd.anchorPending(conversationId, messageId);
+    match.anchorPending(conversationId, messageId);
   }
 
   return {

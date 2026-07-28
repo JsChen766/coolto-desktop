@@ -15,7 +15,7 @@
     "desktop:dev": "electron-vite dev",
     "desktop:build": "electron-vite build",
     "desktop:preview": "electron-vite preview",
-    "desktop:typecheck": "vue-tsc -p tsconfig.web.json --noEmit",
+    "desktop:typecheck": "tsc -p tsconfig.preload.json --noEmit && vue-tsc -p tsconfig.web.json --noEmit",
     "qa:resume-renderer": "npm run desktop:build && node scripts/run-resume-renderer-qa.mjs",
     "smoke:resume-source": "node --import tsx scripts/run-resume-source-smoke.ts",
     "eval:resume-agent": "node --import tsx scripts/run-resume-agent-eval.ts",

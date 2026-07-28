@@ -40,6 +40,7 @@ export interface MatchReportArtifactData {
   evidenceCompleteness: number;
   generatedAt: string;
   expired: boolean;
+  anchorMessageId?: string;
 }
 
 export interface JdArtifactRequirement {
@@ -56,6 +57,8 @@ export interface JdArtifactData {
   targetRole: string | null;
   requirements: JdArtifactRequirement[];
   status: "pending" | "saved" | "rejected";
+  createdAt: string;
+  anchorMessageId?: string;
   jdId?: string;
 }
 import type { ResumeWorkspaceStatus } from "../../resume/workspace/types.js";
@@ -239,6 +242,7 @@ export type DesktopAgentEvent =
       message: string;
     }
   | { type: "jd.proposal.created"; data: JdArtifactData }
+  | { type: "jd.saved"; approvalRequestId: string; jdId: string }
   | { type: "match.report.created"; data: MatchReportArtifactData }
   | {
       type: "browser.fill.progress";

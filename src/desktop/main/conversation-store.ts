@@ -19,6 +19,8 @@ import type {
   ConversationSummary,
 } from "../shared/types.js";
 import type { ResumeDraftArtifactReference } from "../../resume/draft/types.js";
+import { inferArtifactAnchor } from "../shared/artifact-anchor.js";
+import { projectConversationMessages } from "./conversation-presentation.js";
 
 interface StoredConversation {
   version: 1 | 2;
@@ -101,6 +103,10 @@ export class ConversationStore {
     const record = await this.getRecord(conversationId);
     record.version = 2;
     record.agentMessages = sanitizeAgentMessagesForPersistence(messages);
+    const visibleMessages = projectConversationMessages(record.agentMessages);
+    record.resumeArtifacts = (record.resumeArtifacts ?? []).map((artifact) =>
+      withArtifactAnchor(artifact, visibleMessages),
+    );
     record.updatedAt = new Date().toISOString();
     if (record.title === UNTITLED) {
       record.title = deriveTitle(messages);
@@ -120,7 +126,13 @@ export class ConversationStore {
       (candidate) => candidate.artifactId === artifact.artifactId,
     );
     if (existing >= 0) {
-      artifacts[existing] = structuredClone(artifact);
+      const previous = artifacts[existing];
+      artifacts[existing] = {
+        ...structuredClone(artifact),
+        ...(previous?.anchorMessageId
+          ? { anchorMessageId: previous.anchorMessageId }
+          : {}),
+      };
     } else {
       artifacts.push(structuredClone(artifact));
     }
@@ -198,76 +210,39 @@ function toSummary(record: StoredConversation): ConversationSummary {
     title: record.title,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    messageCount: extractChatMessages(record.agentMessages).length,
+    messageCount: projectConversationMessages(record.agentMessages).length,
   };
 }
 
 function toDetail(record: StoredConversation): ConversationDetail {
+  const messages = projectConversationMessages(record.agentMessages);
   return {
     ...toSummary(record),
-    messages: extractChatMessages(record.agentMessages),
-    resumeArtifacts: structuredClone(record.resumeArtifacts ?? []),
+    messages,
+    resumeArtifacts: structuredClone(record.resumeArtifacts ?? []).map(
+      (artifact) => withArtifactAnchor(artifact, messages),
+    ),
   };
 }
 
-function extractChatMessages(messages: AgentMessage[]): ChatMessage[] {
-  const visible: ChatMessage[] = [];
-  messages.forEach((message, index) => {
-    if (message.role !== "user" && message.role !== "assistant") {
-      return;
-    }
-    const content = stripInternalResumeReference(extractText(message.content));
-    if (!content.trim()) {
-      return;
-    }
-    const timestamp =
-      typeof message.timestamp === "number"
-        ? new Date(message.timestamp).toISOString()
-        : new Date().toISOString();
-    visible.push({
-      id: `${message.role}-${message.timestamp ?? index}-${index}`,
-      role: message.role,
-      content,
-      createdAt: timestamp,
-    });
-  });
-  return visible;
-}
-
-function stripInternalResumeReference(value: string): string {
-  return value
-    .replace(/\n*<resume_reference>[\s\S]*?<\/resume_reference>\s*$/u, "")
-    .trimEnd();
-}
-
-function extractText(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (!Array.isArray(content)) {
-    return "";
-  }
-  return content
-    .map((part) => {
-      if (
-        part &&
-        typeof part === "object" &&
-        "type" in part &&
-        part.type === "text" &&
-        "text" in part &&
-        typeof part.text === "string"
-      ) {
-        return part.text;
-      }
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n");
+function withArtifactAnchor(
+  artifact: ResumeDraftArtifactReference,
+  messages: ChatMessage[],
+): ResumeDraftArtifactReference {
+  const anchorMessageId =
+    artifact.anchorMessageId ??
+    inferArtifactAnchor(messages, artifact.createdAt);
+  return {
+    ...artifact,
+    ...(anchorMessageId ? { anchorMessageId } : {}),
+  };
 }
 
 function deriveTitle(messages: AgentMessage[]): string {
-  const firstUser = messages.find((message) => message.role === "user");
-  const text = firstUser ? extractText(firstUser.content) : "";
+  const firstUser = projectConversationMessages(messages).find(
+    (message) => message.role === "user",
+  );
+  const text = firstUser?.content ?? "";
   const normalized = text.replace(/\s+/g, " ").trim();
   return normalized ? normalized.slice(0, 28) : UNTITLED;
 }

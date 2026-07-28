@@ -1,6 +1,7 @@
 import { ref } from "vue";
 
 import type { MatchReportArtifactData } from "@desktop/types";
+import { anchorUnassigned } from "@desktop/artifact-anchor";
 
 export function useMatchReports() {
   const matchReports = ref<MatchReportArtifactData[]>([]);
@@ -21,6 +22,13 @@ export function useMatchReports() {
   function openDetail(reportId: string): void {
     const found = matchReports.value.find((r) => r.reportId === reportId);
     if (found) activeMatchReport.value = { ...found };
+  }
+
+  function anchorPending(conversationId: string, messageId?: string): void {
+    const list = byConversation.get(conversationId);
+    if (!list) return;
+    anchorUnassigned(list, messageId);
+    syncView(conversationId);
   }
 
   function switchConversation(conversationId: string | undefined): void {
@@ -48,6 +56,7 @@ export function useMatchReports() {
     matchReports,
     activeMatchReport,
     add,
+    anchorPending,
     openDetail,
     switchConversation,
     clear,

@@ -89,7 +89,26 @@ function isStoredSession(
     candidate.apiBaseUrl === apiBaseUrl &&
     typeof candidate.accessToken === "string" &&
     candidate.accessToken.length > 0 &&
-    /^[A-Za-z0-9._~-]+$/.test(candidate.accessToken)
+    /^[A-Za-z0-9._~-]+$/.test(candidate.accessToken) &&
+    isStoredUser(candidate.currentUser)
+  );
+}
+
+function isStoredUser(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object") return false;
+  const user = value as {
+    id?: unknown;
+    email?: unknown;
+    deviceId?: unknown;
+  };
+  return (
+    typeof user.id === "string" &&
+    user.id.length > 0 &&
+    typeof user.email === "string" &&
+    user.email.length > 0 &&
+    typeof user.deviceId === "string" &&
+    user.deviceId.length > 0
   );
 }
 

@@ -196,6 +196,7 @@ export class DesktopAgentRuntime {
       await context.agent.resolveApproval(requestId, decision);
       const savedJd = jdContinuation?.getSavedJd();
       if (savedJd) {
+        this.#emitJdSaved(conversationId, requestId, savedJd.jdId);
         await context.agent.prompt(buildJdContinuationPrompt(savedJd));
       }
       const grantedReason = writeAccessContinuation?.getGrantedReason();
@@ -421,7 +422,24 @@ export class DesktopAgentRuntime {
             importance: r.importance,
           })),
           status: "pending",
+          createdAt: jdApproval.createdAt,
         },
+      } satisfies DesktopAgentEvent,
+    });
+  }
+
+  #emitJdSaved(
+    conversationId: string,
+    approvalRequestId: string,
+    jdId: string,
+  ): void {
+    if (this.#target.isDestroyed()) return;
+    this.#target.send("agent:event", {
+      conversationId,
+      event: {
+        type: "jd.saved",
+        approvalRequestId,
+        jdId,
       } satisfies DesktopAgentEvent,
     });
   }
