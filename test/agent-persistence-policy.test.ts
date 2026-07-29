@@ -63,3 +63,23 @@ test("in-memory resume candidates are redacted with a rebuild instruction", () =
   assert.match(serialized, /prepare_resume_candidate again/);
   assert.match(serialized, /do not reuse the old candidateId/);
 });
+
+test("cloud Resume content is transient and must be read again", () => {
+  const messages = [
+    {
+      role: "toolResult",
+      toolCallId: "resume-call",
+      toolName: "get_resume",
+      content: [{ type: "text", text: "private cloud Resume content" }],
+      details: { structured: { private: "cloud Resume content" } },
+      isError: false,
+      timestamp: 1,
+    },
+  ] satisfies AgentMessage[];
+
+  const persisted = sanitizeAgentMessagesForPersistence(messages);
+  const serialized = JSON.stringify(persisted);
+
+  assert.doesNotMatch(serialized, /private cloud Resume content/);
+  assert.match(serialized, /Call get_resume again/);
+});

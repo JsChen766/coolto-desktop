@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ArrowUp, FileText, Paperclip, Plus, Square, X } from "@lucide/vue";
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
+import ComposerResumeContext from "./ComposerResumeContext.vue";
 import IconButton from "./IconButton.vue";
 import ResumePickerPopup from "./ResumePickerPopup.vue";
 import type { ResumeChatReference } from "@desktop/types";
@@ -15,6 +16,8 @@ const props = defineProps<{
   attachment?: AttachmentView | undefined;
   attachmentBusy?: boolean;
   attachmentError?: string | undefined;
+  resumeContext?: ResumeChatReference | undefined;
+  cloudCopyRequested?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -22,6 +25,8 @@ const emit = defineEmits<{
   cancel: [];
   selectAttachment: [];
   removeAttachment: [];
+  clearResumeContext: [];
+  requestLocalCopy: [];
 }>();
 
 const text = ref("");
@@ -30,6 +35,7 @@ const reference = ref<ResumeChatReference>();
 const pickerOpen = ref(false);
 const textarea = ref<HTMLTextAreaElement>();
 const dragActive = ref(false);
+const effectiveReference = computed(() => reference.value ?? props.resumeContext);
 let unsubscribeReference: (() => void) | undefined;
 
 onMounted(() => {
@@ -64,10 +70,15 @@ function resize(): void {
 function send(): void {
   const value = text.value.trim();
   if (!value || props.disabled || props.running) return;
-  emit("send", value, reference.value);
+  emit("send", value, effectiveReference.value);
   text.value = "";
   reference.value = undefined;
   void nextTick(resize);
+}
+
+function clearReference(): void {
+  if (reference.value) reference.value = undefined;
+  else emit("clearResumeContext");
 }
 
 function handleKeydown(event: KeyboardEvent): void {
@@ -126,7 +137,6 @@ function handleDragLeave(event: DragEvent): void {
     dragActive.value = false;
   }
 }
-
 </script>
 
 <template>
@@ -170,21 +180,14 @@ function handleDragLeave(event: DragEvent): void {
       <p v-if="attachmentError" class="composer-attachment-error">
         {{ attachmentError }}
       </p>
-      <div v-if="reference" class="composer-resume-reference">
-        <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
-        <span>
-          <small>简历引用</small>
-          <strong>{{ reference.label }}</strong>
-        </span>
-        <button
-          type="button"
-          aria-label="移除简历引用"
-          title="移除简历引用"
-          @click="reference = undefined"
-        >
-          <X :size="14" :stroke-width="1.8" aria-hidden="true" />
-        </button>
-      </div>
+      <ComposerResumeContext
+        v-if="effectiveReference"
+        :reference="effectiveReference"
+        :context="!reference && Boolean(resumeContext)"
+        :copy-requested="cloudCopyRequested"
+        @clear="clearReference"
+        @create-local-copy="$emit('requestLocalCopy')"
+      />
       <textarea
         ref="textarea"
         v-model="text"

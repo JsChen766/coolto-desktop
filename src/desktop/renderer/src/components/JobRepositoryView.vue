@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { BriefcaseBusiness, FileText, Menu, RefreshCw, Search } from "@lucide/vue";
-import { computed, ref, watch } from "vue";
+import { BriefcaseBusiness } from "@lucide/vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 import type {
   ApplicationCreateInput,
@@ -19,6 +19,7 @@ import { useJobRepository } from "../job-assets/use-job-repository";
 import type { JobRepositoryNavigationState } from "../job-assets/job-repository-navigation";
 import type { TrackerAssetTarget } from "../tracker/tracker-navigation";
 import JobRepositoryAssetList from "./JobRepositoryAssetList.vue";
+import JobRepositoryHeader from "./JobRepositoryHeader.vue";
 import JobRepositoryJdDetail from "./JobRepositoryJdDetail.vue";
 import JobRepositoryResumeDetail from "./JobRepositoryResumeDetail.vue";
 
@@ -88,6 +89,16 @@ function selectResume(id: string): void {
   detailOpen.value = true;
 }
 
+function showResumeFromJd(entryId: string): void {
+  view.value = "resumes";
+  query.value = "";
+  resumeFilter.value = "";
+  selectedResumeId.value = entryId;
+  void nextTick(() => {
+    detailOpen.value = true;
+  });
+}
+
 function jdAsset(jd: JobRepositoryJd): TrackerAssetTarget {
   return { kind: "jd", id: jd.id, title: jd.title };
 }
@@ -123,64 +134,15 @@ function trackResume(resume: JobRepositoryResume): void {
 
 <template>
   <div class="tracker-view job-repository-view" :class="{ 'detail-open': detailOpen }">
-    <header class="repository-header window-drag">
-      <button
-        class="repository-sidebar-toggle icon-button no-drag"
-        type="button"
-        aria-label="打开侧栏"
-        title="打开侧栏"
-        @click="$emit('toggleSidebar')"
-      >
-        <Menu :size="17" aria-hidden="true" />
-      </button>
-      <div class="repository-heading">
-        <h1>求职仓库</h1>
-        <p>岗位、简历与实际投递关系</p>
-      </div>
-      <nav class="tracker-view-switcher no-drag" aria-label="求职仓库视角">
-        <button type="button" :class="{ active: view === 'jobs' }" @click="view = 'jobs'">
-          <BriefcaseBusiness :size="14" aria-hidden="true" />岗位
-        </button>
-        <button type="button" :class="{ active: view === 'resumes' }" @click="view = 'resumes'">
-          <FileText :size="14" aria-hidden="true" />简历
-        </button>
-      </nav>
-      <div class="repository-tools no-drag">
-        <label class="repository-search">
-          <Search :size="15" aria-hidden="true" />
-          <input
-            v-model="query"
-            :placeholder="view === 'jobs' ? '搜索公司、岗位或 JD' : '搜索简历或目标岗位'"
-            :aria-label="view === 'jobs' ? '搜索岗位' : '搜索简历'"
-          />
-        </label>
-        <select v-if="view === 'jobs'" v-model="jobFilter" aria-label="筛选岗位">
-          <option value="">全部岗位</option>
-          <option value="with_resumes">有简历</option>
-          <option value="without_resumes">无简历</option>
-          <option value="applied">已有投递</option>
-          <option value="conflict">同步冲突</option>
-        </select>
-        <select v-else v-model="resumeFilter" aria-label="筛选简历">
-          <option value="">全部简历</option>
-          <option value="targeted">针对性</option>
-          <option value="generic">通用</option>
-          <option value="archived">归档</option>
-          <option value="local_only">仅本机</option>
-          <option value="conflict">同步冲突</option>
-        </select>
-        <button
-          class="repository-refresh icon-button"
-          type="button"
-          :disabled="repository.loading.value"
-          aria-label="刷新求职仓库"
-          title="刷新求职仓库"
-          @click="repository.load()"
-        >
-          <RefreshCw :size="16" :class="{ spin: repository.loading.value }" aria-hidden="true" />
-        </button>
-      </div>
-    </header>
+    <JobRepositoryHeader
+      v-model:view="view"
+      v-model:query="query"
+      v-model:job-filter="jobFilter"
+      v-model:resume-filter="resumeFilter"
+      :loading="repository.loading.value"
+      @refresh="repository.load()"
+      @toggle-sidebar="$emit('toggleSidebar')"
+    />
 
     <div v-if="repository.error.value" class="tracker-error-banner" role="alert">
       <span>{{ repository.error.value }}</span>
@@ -217,6 +179,7 @@ function trackResume(resume: JobRepositoryResume): void {
           @match="$emit('agent', 'match', selectedJd.id, selectedJd.title)"
           @record="recordJd(selectedJd)"
           @tracker="$emit('tracker', jdAsset(selectedJd))"
+          @resume="showResumeFromJd"
         />
         <JobRepositoryResumeDetail
           v-else-if="view === 'resumes' && selectedResume"

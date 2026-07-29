@@ -62,6 +62,10 @@ export interface ResumeChatReference {
   targetType: "resume" | "bullet" | "item" | "locked_field";
   targetId: string;
   label: string;
+  source?: "local" | "cloud";
+  resumeId?: string;
+  contentHash?: string;
+  operationMode?: "read_only" | "create_local_copy";
 }
 
 export interface ApprovalResolveInput {

@@ -1,3 +1,14 @@
+.repository-application-list,
+.repository-requirements {
+  display: flex;
+  flex-direction: column;
+}
+
+.repository-application-list > article {
+  min-width: 0;
+  padding: 10px 0;
+}
+
 .repository-application-heading {
   display: flex;
   align-items: flex-start;
@@ -17,8 +28,7 @@
 }
 
 .repository-application-heading span,
-.repository-application-meta,
-.repository-application-reference {
+.repository-application-meta {
   color: var(--muted);
   font-size: 9.5px;
 }
@@ -26,20 +36,23 @@
 .repository-application-meta {
   margin-top: 6px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 5px 8px;
 }
 
-.repository-application-reference {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-  display: flex;
+.repository-application-meta svg {
+  flex: 0 0 auto;
+}
+
+.repository-application-meta > span {
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .repository-requirements > div {
+  padding: 8px 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -60,54 +73,123 @@
 }
 
 .repository-raw-text {
-  margin-top: 8px;
-  padding: 9px 10px;
-  border-radius: 8px;
-  background: var(--surface);
+  margin-top: 18px;
+}
+
+.repository-raw-text h4 {
+  margin: 0;
   color: var(--text-soft);
   font-size: 11px;
 }
 
-.repository-raw-text summary {
-  cursor: pointer;
-}
-
 .repository-raw-text p {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: var(--muted);
-  line-height: 1.6;
+  font-size: 10.5px;
+  line-height: 1.65;
   white-space: pre-wrap;
 }
 
-.repository-resume-meta {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+.repository-section > .repository-section-empty,
+.repository-collapsible .repository-section-empty {
+  padding: 10px 0;
+  text-align: left;
 }
 
-.repository-resume-meta > div {
-  padding: 9px;
-  border-radius: 8px;
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+.repository-more-actions {
+  position: relative;
 }
 
-.repository-resume-meta span {
+.repository-more-actions > summary {
+  list-style: none;
+}
+
+.repository-more-trigger {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 7px;
+  background: transparent;
   color: var(--muted);
-  font-size: 9.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.repository-resume-meta strong {
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.repository-section > .repository-section-empty {
-  padding: 18px 8px;
-  border-radius: 8px;
+.repository-more-trigger:hover {
   background: var(--surface);
+  color: var(--text);
+}
+
+.repository-more-actions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.repository-action-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 8;
+  width: max-content;
+  min-width: 138px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: var(--shadow-menu);
+  background: var(--bg);
+}
+
+.repository-action-menu button {
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-soft);
+  justify-content: flex-start;
+  text-align: left;
+  font-size: 11px;
+}
+
+.repository-action-menu button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.repository-collapsible {
+  margin-top: 28px;
+}
+
+.repository-collapsible > summary {
+  padding: 8px 0;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.repository-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.repository-collapsible > summary small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.repository-collapsible > summary::after {
+  margin-left: auto;
+  color: var(--muted);
+  content: "展开";
+  font-size: 10.5px;
+}
+
+.repository-collapsible[open] > summary::after {
+  content: "收起";
+}
+
+.repository-collapsible-body {
+  padding-top: 8px;
 }

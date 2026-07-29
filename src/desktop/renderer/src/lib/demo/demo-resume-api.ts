@@ -5,6 +5,7 @@ import {
   createDemoLibraryEntries,
   draftSummary,
 } from "./demo-resume-data";
+import { getResumeFixture } from "../../../../../resume/fixtures";
 
 export function createDemoResumeDraftApi(
   draft: ResumeDraftDetail,
@@ -62,6 +63,13 @@ export function createDemoResumeDraftApi(
 export function createDemoLibraryApi(): DesktopApi["library"] {
   return {
     list: async () => createDemoLibraryEntries(),
+    preview: async (resumeId) => ({
+      resumeId,
+      title: resumeId === "resume-002" ? "AI 产品经理简历" : "高级前端工程师简历",
+      contentHash: `demo-${resumeId}`,
+      updatedAt: new Date().toISOString(),
+      structure: getResumeFixture("zh-qualified"),
+    }),
     rename: async (input) => ({ id: input.resumeId, title: input.title }) as never,
     archive: async () => ({}) as never,
     deleteDraft: async () => undefined,

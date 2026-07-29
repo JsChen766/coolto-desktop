@@ -25,16 +25,20 @@ defineProps<{
       </div>
       <div class="repository-application-meta">
         <span>{{ shortDate(application.appliedAt ?? application.createdAt) }}</span>
-        <span class="tracker-sync-state" :class="application.syncStatus">
-          {{ syncLabel(application.syncStatus) }}
-        </span>
-      </div>
-      <div class="repository-application-reference">
         <Link v-if="context === 'resume'" :size="12" aria-hidden="true" />
         <FileText v-else :size="12" aria-hidden="true" />
-        {{ context === 'resume'
-          ? (application.jdTitleSnapshot ?? '未关联 JD')
-          : (application.resumeTitleSnapshot ?? '未关联 Resume') }}
+        <span>
+          {{ context === 'resume'
+            ? (application.jdTitleSnapshot ?? '未关联 JD')
+            : (application.resumeTitleSnapshot ?? '未关联 Resume') }}
+        </span>
+        <span
+          v-if="application.syncStatus !== 'clean'"
+          class="tracker-sync-state"
+          :class="application.syncStatus"
+        >
+          {{ syncLabel(application.syncStatus) }}
+        </span>
       </div>
     </article>
   </div>

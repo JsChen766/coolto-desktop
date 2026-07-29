@@ -38,7 +38,7 @@ export function createResumeReadTools(
     name: "get_resume",
     label: "读取简历",
     description:
-      "读取指定云端简历的当前完整文档和 contentHash，用于确认覆盖目标；不调用后端 Agent。",
+      "读取指定云端简历的当前结构化正文和 contentHash，用于只读分析、导出或确认覆盖目标；不调用后端 Agent。",
     parameters: getParameters,
     execute: async (_toolCallId, params, signal) => {
       const resume = await reader.getResume(params.resumeId, signal);
@@ -52,6 +52,7 @@ export function createResumeReadTools(
         qualityStatus: resume.qualityStatus,
         status: resume.status,
         updatedAt: resume.updatedAt,
+        structured: structuredClone(resume.structured),
       };
       return {
         content: [{ type: "text", text: JSON.stringify(projection) }],

@@ -41,6 +41,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
     },
     library: {
       list: unavailable,
+      preview: unavailable,
       rename: unavailable,
       archive: unavailable,
       deleteDraft: unavailable,

@@ -42,6 +42,7 @@ import type {
   LibraryDeleteDraftInput,
   LibraryRenameInput,
   LibraryRestoreCheckpointInput,
+  CloudResumePreview,
   ResumeDraftDetail,
   ResumeDraftEditInput,
   ResumeDraftRestoreInput,
@@ -84,6 +85,7 @@ export interface DesktopApi {
   };
   library: {
     list(): Promise<ResumeLibraryEntry[]>;
+    preview(resumeId: string): Promise<CloudResumePreview>;
     rename(input: LibraryRenameInput): Promise<ResumeFull>;
     archive(input: LibraryArchiveInput): Promise<ResumeFull>;
     deleteDraft(input: LibraryDeleteDraftInput): Promise<void>;

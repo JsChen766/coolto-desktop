@@ -72,7 +72,9 @@ export class DesktopAgentRuntime {
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
     try {
-      const editBase = input.resumeReference
+      const editBase =
+        input.resumeReference &&
+        input.resumeReference.source !== "cloud"
         ? await this.#activateReferencedDraft(
             context,
             input.resumeReference.artifactId,

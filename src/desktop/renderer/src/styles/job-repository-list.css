@@ -1,13 +1,13 @@
 .repository-asset-list {
   min-height: 100%;
-  padding: 10px;
+  padding: 8px;
 }
 
 .repository-asset-row {
   width: 100%;
   min-width: 0;
-  padding: 11px;
-  border-radius: 9px;
+  padding: 12px 10px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text);
   display: grid;
@@ -22,7 +22,7 @@
 }
 
 .repository-asset-row.active {
-  background: var(--surface-strong);
+  background: var(--surface);
 }
 
 .repository-asset-row.archived {
@@ -78,7 +78,7 @@
 .library-sync-badge {
   padding: 2px 6px;
   border-radius: 5px;
-  background: var(--bg);
+  background: var(--surface);
   color: var(--muted);
   font-size: 9.5px;
   white-space: nowrap;
@@ -98,7 +98,7 @@
 .repository-list-empty,
 .repository-section-empty {
   margin: 0;
-  padding: 32px 16px;
+  padding: 24px 8px;
   color: var(--muted);
   font-size: 12px;
   text-align: center;

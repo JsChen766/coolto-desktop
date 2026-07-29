@@ -128,3 +128,12 @@
   color: var(--text);
 }
 
+.composer-resume-reference .resume-context-copy {
+  width: auto;
+  padding: 0 8px;
+  gap: 5px;
+  color: var(--text-soft);
+  display: inline-flex;
+  font-size: 10.5px;
+  white-space: nowrap;
+}

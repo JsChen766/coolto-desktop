@@ -1,22 +1,51 @@
 <script setup lang="ts">
-import { ArrowLeft, FileText, Link, Link2Off, Send } from "@lucide/vue";
+import {
+  ArrowLeft,
+  Ellipsis,
+  Eye,
+  Link,
+  Link2Off,
+  Send,
+} from "@lucide/vue";
+import { computed } from "vue";
 
 import type { JobRepositoryResume, ResumeLibraryEntry } from "@desktop/types";
+import { STATUS_LABELS } from "../tracker/application-labels";
 import {
   resumeKindLabel,
   resumeSyncLabel,
   shortDate,
 } from "../job-assets/job-repository-labels";
 import JobRepositoryApplicationList from "./JobRepositoryApplicationList.vue";
-import JobRepositorySummary from "./JobRepositorySummary.vue";
 
-defineProps<{ resume: JobRepositoryResume }>();
+const props = defineProps<{ resume: JobRepositoryResume }>();
 defineEmits<{
   back: [];
   open: [entry: ResumeLibraryEntry];
   record: [];
   tracker: [];
 }>();
+
+const showPrimaryJd = computed(
+  () => props.resume.kind !== "generic" && props.resume.primaryJd.state !== "empty",
+);
+const primaryJdId = computed(() =>
+  props.resume.primaryJd.state === "linked" ? props.resume.primaryJd.id : null,
+);
+const primaryWasApplied = computed(() =>
+  props.resume.appliedJds.some((jd) =>
+    jd.state === "linked" && jd.id === primaryJdId.value,
+  ),
+);
+const otherAppliedJds = computed(() =>
+  props.resume.appliedJds.filter((jd) =>
+    jd.state !== "linked" || jd.id !== primaryJdId.value,
+  ),
+);
+const relatedJobCount = computed(
+  () => (showPrimaryJd.value ? 1 : 0) + otherAppliedJds.value.length,
+);
+const recentApplications = computed(() => props.resume.applications.slice(0, 3));
 </script>
 
 <template>
@@ -26,24 +55,28 @@ defineEmits<{
         <ArrowLeft :size="16" aria-hidden="true" />返回简历列表
       </button>
       <div class="repository-detail-title">
-        <span class="repository-detail-icon"><FileText :size="18" aria-hidden="true" /></span>
         <div>
           <h2>{{ resume.entry.displayTitle }}</h2>
-          <p>{{ resume.entry.cloud?.targetRole ?? resumeKindLabel(resume) }}</p>
+          <p>
+            {{ resume.entry.cloud?.targetRole ?? resumeKindLabel(resume) }}
+            <template v-if="resume.entry.cloud?.status === 'archived'"> · 已归档</template>
+          </p>
         </div>
-        <span class="library-sync-badge" :class="resume.entry.syncStatus">
+        <span
+          v-if="!['synced', 'cloud_only'].includes(resume.entry.syncStatus)"
+          class="library-sync-badge"
+          :class="resume.entry.syncStatus"
+        >
           {{ resumeSyncLabel(resume.entry.syncStatus) }}
         </span>
       </div>
       <div class="repository-detail-actions">
-        <span v-if="resume.entry.cloud?.status === 'archived'" class="repository-neutral-badge">已归档</span>
         <button
-          v-if="resume.entry.local"
           class="secondary-button icon-label"
           type="button"
           @click="$emit('open', resume.entry)"
         >
-          <FileText :size="14" aria-hidden="true" />打开简历
+          <Eye :size="15" :stroke-width="1.8" aria-hidden="true" />预览简历
         </button>
         <button
           class="primary-button icon-label"
@@ -54,63 +87,92 @@ defineEmits<{
         >
           <Send :size="14" aria-hidden="true" />记录投递
         </button>
-        <button
-          class="secondary-button icon-label"
-          type="button"
-          :disabled="!resume.resumeId"
-          @click="$emit('tracker')"
-        >
-          查看相关投递
-        </button>
+        <details class="repository-more-actions">
+          <summary
+            class="repository-more-trigger"
+            aria-label="更多简历操作"
+            :aria-disabled="!resume.resumeId"
+          >
+            <Ellipsis :size="17" :stroke-width="1.8" aria-hidden="true" />
+          </summary>
+          <div class="repository-action-menu">
+            <button
+              type="button"
+              :disabled="!resume.resumeId"
+              @click="$emit('tracker')"
+            >
+              查看全部投递
+            </button>
+          </div>
+        </details>
       </div>
     </header>
 
     <div class="repository-detail-scroll">
-      <JobRepositorySummary :summary="resume.applicationSummary" />
+      <div class="repository-overview" aria-label="简历概览">
+        <span>
+          <strong>主要目标</strong>
+          {{ resume.kind === 'generic' ? '通用简历' : resume.primaryJd.title }}
+        </span>
+        <span><strong>{{ resume.appliedJds.length }}</strong> 个投递岗位</span>
+        <span v-if="resume.applicationSummary.latest">
+          最近 {{ STATUS_LABELS[resume.applicationSummary.latest.status] }}
+          · {{ shortDate(resume.applicationSummary.latest.occurredAt) }}
+        </span>
+      </div>
 
       <section class="repository-section">
         <div class="repository-section-heading">
-          <div><h3>主要目标 JD</h3><p>表示这份简历最初针对的岗位</p></div>
+          <h3>关联岗位</h3>
+          <span>{{ relatedJobCount }}</span>
         </div>
-        <div class="repository-reference-list">
-          <div :class="resume.primaryJd.state">
+        <div v-if="relatedJobCount" class="repository-reference-list">
+          <div v-if="showPrimaryJd" :class="resume.primaryJd.state">
             <Link2Off v-if="resume.primaryJd.state !== 'linked'" :size="15" aria-hidden="true" />
             <Link v-else :size="15" aria-hidden="true" />
             <span>
-              <strong>{{ resume.kind === 'generic' ? '不绑定岗位' : resume.primaryJd.title }}</strong>
-              <small>{{ resume.kind === 'local_only' ? '尚未发布为云端 Resume' : resume.kind === 'generic' ? '通用 Resume' : resume.primaryJd.state === 'missing' ? '引用资产已缺失' : '主要目标绑定' }}</small>
+              <strong>{{ resume.primaryJd.title }}</strong>
+              <small v-if="resume.primaryJd.state === 'missing'">引用资产已缺失</small>
+            </span>
+            <span class="repository-relation-badge">
+              {{ primaryWasApplied ? '主要目标 · 实际投递' : '主要目标' }}
             </span>
           </div>
-        </div>
-      </section>
-
-      <section class="repository-section">
-        <div class="repository-section-heading">
-          <div><h3>实际投递过的 JD</h3><p>同一份简历可通过 Application 投递多个岗位</p></div>
-          <span>{{ resume.appliedJds.length }}</span>
-        </div>
-        <div v-if="resume.appliedJds.length" class="repository-reference-list">
-          <div v-for="jd in resume.appliedJds" :key="`${jd.state}:${jd.id ?? jd.title}`" :class="jd.state">
+          <div
+            v-for="jd in otherAppliedJds"
+            :key="`${jd.state}:${jd.id ?? jd.title}`"
+            :class="jd.state"
+          >
             <Link2Off v-if="jd.state !== 'linked'" :size="15" aria-hidden="true" />
             <Link v-else :size="15" aria-hidden="true" />
-            <span><strong>{{ jd.title }}</strong><small>{{ jd.state === 'missing' ? '引用资产已缺失' : jd.state === 'empty' ? '投递记录未关联 JD' : '实际投递关系' }}</small></span>
+            <span>
+              <strong>{{ jd.title }}</strong>
+              <small v-if="jd.state === 'missing'">引用资产已缺失</small>
+            </span>
+            <span class="repository-relation-badge">实际投递</span>
           </div>
         </div>
-        <p v-else class="repository-section-empty">尚未用于投递</p>
+        <p v-else class="repository-section-empty">
+          {{ resume.kind === 'generic' ? '通用简历，尚未用于投递。' : '尚未关联岗位。' }}
+        </p>
       </section>
 
       <section class="repository-section">
         <div class="repository-section-heading">
-          <div><h3>投递历史</h3><p>按实际投递时间倒序</p></div>
-          <span>{{ resume.applications.length }}</span>
+          <h3>最近投递</h3>
+          <button
+            v-if="resume.applications.length"
+            class="repository-link-action"
+            type="button"
+            @click="$emit('tracker')"
+          >
+            查看全部
+          </button>
         </div>
-        <JobRepositoryApplicationList :applications="resume.applications" context="resume" />
-      </section>
-
-      <section class="repository-section repository-resume-meta">
-        <div><span>类型</span><strong>{{ resumeKindLabel(resume) }}</strong></div>
-        <div><span>更新时间</span><strong>{{ shortDate(resume.entry.cloud?.updatedAt ?? resume.entry.local?.updatedAt ?? null) }}</strong></div>
-        <div><span>本地版本</span><strong>{{ resume.entry.local ? `${resume.entry.local.checkpointCount} 个检查点` : '无本地草稿' }}</strong></div>
+        <JobRepositoryApplicationList
+          :applications="recentApplications"
+          context="resume"
+        />
       </section>
     </div>
   </article>

@@ -4,12 +4,12 @@
 }
 
 .repository-header {
-  min-height: 78px;
-  padding: 14px 20px;
+  min-height: 68px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .platform-darwin .repository-header {
@@ -21,21 +21,15 @@
 }
 
 .repository-heading {
-  min-width: 132px;
+  min-width: max-content;
 }
 
 .repository-heading h1 {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 650;
   letter-spacing: -0.02em;
-}
-
-.repository-heading p {
-  margin: 3px 0 0;
-  color: var(--muted);
-  font-size: 10.5px;
 }
 
 .repository-tools {
@@ -86,7 +80,7 @@
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(285px, 35%) minmax(0, 1fr);
+  grid-template-columns: clamp(280px, 27vw, 340px) minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -98,7 +92,7 @@
 
 .repository-list-pane {
   border-right: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--bg);
   overflow-y: auto;
 }
 

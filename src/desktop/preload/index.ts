@@ -54,6 +54,7 @@ const api: DesktopApi = {
   },
   library: {
     list: () => ipcRenderer.invoke("library:list"),
+    preview: (resumeId) => ipcRenderer.invoke("library:preview", resumeId),
     rename: (input) => ipcRenderer.invoke("library:rename", input),
     archive: (input) => ipcRenderer.invoke("library:archive", input),
     deleteDraft: (input) => ipcRenderer.invoke("library:delete-draft", input),

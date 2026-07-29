@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { FileClock, FileText, GripVertical, LoaderCircle } from "@lucide/vue";
+import {
+  ArrowLeft,
+  FileClock,
+  FileText,
+  GripVertical,
+  LoaderCircle,
+} from "@lucide/vue";
 import { computed, ref } from "vue";
 
 import type {
@@ -15,6 +21,7 @@ const props = defineProps<{
   busy?: boolean;
   error?: string | undefined;
   localSaveState: "idle" | "saving" | "saved" | "error";
+  repositoryPreview?: boolean;
 }>();
 
 defineEmits<{
@@ -23,6 +30,7 @@ defineEmits<{
   restore: [input: ResumeDraftRestoreInput];
   accept: [];
   reject: [];
+  back: [];
 }>();
 
 const historyOpen = ref(false);
@@ -43,6 +51,15 @@ const localState = computed(() => {
   <aside class="artifact-panel">
     <header class="artifact-header">
       <div class="artifact-title-wrap">
+        <button
+          v-if="repositoryPreview"
+          class="artifact-back-button icon-label"
+          type="button"
+          @click="$emit('back')"
+        >
+          <ArrowLeft :size="15" :stroke-width="1.8" aria-hidden="true" />
+          返回求职仓库
+        </button>
         <div class="artifact-title icon-label">
           <FileText :size="16" :stroke-width="1.8" aria-hidden="true" />
           <span>{{ draft?.title ?? "简历预览" }}</span>

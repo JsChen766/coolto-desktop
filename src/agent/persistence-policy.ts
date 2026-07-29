@@ -1,6 +1,7 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 const TRANSIENT_TOOL_NAMES = new Set([
+  "get_resume",
   "get_resume_source_snapshot",
   "prepare_resume_candidate",
   "patch_resume_candidate",
@@ -48,6 +49,9 @@ export function sanitizeAgentMessagesForPersistence(
 }
 
 function expirationInstruction(toolName: string): string {
+  if (toolName === "get_resume") {
+    return "This cloud Resume content expired when the task was persisted. Call get_resume again with the exact resumeId before using it.";
+  }
   if (toolName === "get_resume_source_snapshot") {
     return "This source snapshot expired when the task was persisted. Call get_resume_source_snapshot again before using source evidence.";
   }

@@ -8,6 +8,8 @@ import {
 } from "./app/app-components";
 import AppChatWorkspace from "./app/AppChatWorkspace.vue";
 import { useAppShell } from "./app/use-app-shell";
+import ResumePreviewChoiceDialog from "./components/ResumePreviewChoiceDialog.vue";
+import CloudResumeCopyDialog from "./components/CloudResumeCopyDialog.vue";
 
 const shell = useAppShell();
 const {
@@ -25,8 +27,10 @@ const {
   loginBusy,
   loginError,
   logout,
+  chooseResumePreview,
+  cloudCopyConfirmation,
+  confirmCloudResumeCopy,
   openDialog,
-  openFromLibrary,
   openLibrary,
   openResumeDraft,
   openTracker,
@@ -38,6 +42,9 @@ const {
   jobRepositoryNavigation,
   updateRepositoryNavigation,
   requestEmailCode,
+  requestResumePreview,
+  resumePreviewChoice,
+  resumeOperationContext,
   resumeWorkspace,
   selectChat,
   sidebarOpen,
@@ -112,7 +119,7 @@ function recordFromRepository(
       <JobRepositoryView
         v-else-if="activeView === 'library'"
         :navigation="jobRepositoryNavigation"
-        @open="openFromLibrary"
+        @open="requestResumePreview"
         @toggle-sidebar="showSidebar"
         @navigate="updateRepositoryNavigation"
         @agent="startJdAction"
@@ -128,6 +135,19 @@ function recordFromRepository(
       :title="dialog.conversation.title"
       @close="dialog = undefined"
       @confirm="confirmDialog"
+    />
+    <ResumePreviewChoiceDialog
+      v-if="resumePreviewChoice"
+      :entry="resumePreviewChoice"
+      @close="resumePreviewChoice = undefined"
+      @local="chooseResumePreview('local')"
+      @cloud="chooseResumePreview('cloud')"
+    />
+    <CloudResumeCopyDialog
+      v-if="cloudCopyConfirmation && resumeOperationContext"
+      :title="resumeOperationContext.label"
+      @close="cloudCopyConfirmation = false"
+      @confirm="confirmCloudResumeCopy"
     />
   </div>
 </template>

@@ -17,6 +17,19 @@
   justify-content: space-between;
 }
 
+.artifact-back-button {
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.artifact-back-button:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
 .artifact-title {
   color: var(--text-soft);
   font-size: 12.5px;
@@ -159,4 +172,3 @@
   color: var(--muted);
   font-size: 10px;
 }
-

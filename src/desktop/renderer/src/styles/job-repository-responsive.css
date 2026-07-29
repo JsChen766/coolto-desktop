@@ -110,8 +110,13 @@
     padding-right: 14px;
   }
 
-  .repository-summary-primary,
-  .repository-resume-meta {
-    grid-template-columns: 1fr;
+  .repository-overview {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .repository-overview span + span::before {
+    display: none;
   }
 }

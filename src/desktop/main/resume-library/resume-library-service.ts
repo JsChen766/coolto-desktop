@@ -1,4 +1,5 @@
 import type { ResumeFull } from "../../../resume/types.js";
+import type { CloudResumePreview } from "../../shared/types.js";
 import type { LocalResumeDraft, ResumeDraftCheckpoint } from "../../../resume/draft/types.js";
 import { appendDraftCheckpoint } from "../../../resume/draft/projection.js";
 import { buildLibraryEntries, buildEntryFromFull } from "../../../resume/library/projection.js";
@@ -24,6 +25,20 @@ export class ResumeLibraryService {
 			? { ...entry, syncStatus: "conflict" as const }
 			: entry;
 	});
+  }
+
+  public async preview(
+    resumeId: string,
+    signal?: AbortSignal,
+  ): Promise<CloudResumePreview> {
+    const resume = await this.resumes.getResume(resumeId, signal);
+    return {
+      resumeId: resume.id,
+      title: resume.title,
+      contentHash: resume.contentHash,
+      updatedAt: resume.updatedAt,
+      structure: structuredClone(resume.structured),
+    };
   }
 
   public async rename(

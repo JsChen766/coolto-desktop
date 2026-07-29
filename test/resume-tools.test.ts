@@ -31,6 +31,11 @@ test("resume read tools expose one current cloud document and its content hash",
     qualityStatus: "passed",
     status: "published",
     updatedAt: "2026-07-24T00:00:00Z",
+    structured: {
+      language: "zh-CN",
+      contact: null,
+      sections: [],
+    },
   });
 });
 

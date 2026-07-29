@@ -1,6 +1,6 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import type { ResumeChatReference, ResumeLibraryEntry } from "@desktop/types";
+import type { ResumeChatReference } from "@desktop/types";
 import { useConversationAttachment } from "../attachments/use-conversation-attachment";
 import { useBrowserState } from "../browser/use-browser-state";
 import { useFillProgress } from "../browser/use-fill-progress";
@@ -8,6 +8,7 @@ import { useChatSession } from "../chat/use-chat-session";
 import { desktopApi } from "../lib/desktop-api";
 import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useJobFlowNavigation } from "./use-job-flow-navigation";
+import { useResumeLibraryPreview } from "./use-resume-library-preview";
 
 export type AppView = "chat" | "library" | "tracker";
 
@@ -52,6 +53,22 @@ export function useAppShell() {
     () => void nextTick(scrollToBottom),
   );
 
+  const resumePreview = useResumeLibraryPreview({
+    activeView,
+    activeArtifactType,
+    artifactOpen,
+    closeNarrowSidebar,
+    draftIds: () => resumeWorkspace.drafts.value.map((draft) => draft.artifactId),
+    openLocalDraft: resumeWorkspace.openDraft,
+    sendInstruction: (text, reference) => send(text, reference),
+  });
+  watch(
+    () => resumeWorkspace.activeDraft.value,
+    (draft) => {
+      if (draft) resumePreview.adoptCreatedLocalDraft(draft);
+    },
+  );
+
   async function send(
     text: string,
     resumeReference?: ResumeChatReference,
@@ -60,6 +77,7 @@ export function useAppShell() {
   }
 
   async function openResumeDraft(artifactId: string): Promise<void> {
+    resumePreview.resetResumePreview();
     closeNarrowSidebar();
     activeView.value = "chat";
     activeArtifactType.value = "resume";
@@ -67,42 +85,42 @@ export function useAppShell() {
     await resumeWorkspace.openDraft(artifactId);
   }
 
-  async function openFromLibrary(entry: ResumeLibraryEntry): Promise<void> {
-    activeView.value = "chat";
-    if (entry.local) await openResumeDraft(entry.local.artifactId);
-    // TODO: cloud_only — 拉取云端内容创建本地草稿后再打开
-  }
-
   function openLibrary(): void {
+    resumePreview.resetResumePreview();
     closeNarrowSidebar();
     activeView.value = "library";
   }
 
   function openTracker(): void {
+    resumePreview.resetResumePreview();
     closeNarrowSidebar();
     jobFlow.trackerContext.value = {};
     activeView.value = "tracker";
   }
 
   async function createChat(): Promise<void> {
+    resumePreview.resetResumePreview();
     closeNarrowSidebar();
     activeView.value = "chat";
     await session.createConversation();
   }
 
   async function selectChat(conversationId: string): Promise<void> {
+    resumePreview.resetResumePreview();
     closeNarrowSidebar();
     activeView.value = "chat";
     await session.selectConversation(conversationId);
   }
 
   function openJdPanel(proposalId: string): void {
+    resumePreview.resetResumePreview();
     session.openJdDetail(proposalId);
     activeArtifactType.value = "jd";
     artifactOpen.value = true;
   }
 
   function openMatchPanel(reportId: string): void {
+    resumePreview.resetResumePreview();
     session.openMatchDetail(reportId);
     activeArtifactType.value = "match";
     artifactOpen.value = true;
@@ -110,7 +128,11 @@ export function useAppShell() {
 
   async function toggleArtifact(): Promise<void> {
     artifactOpen.value = !artifactOpen.value;
-    if (!artifactOpen.value || activeArtifactType.value !== "resume") return;
+    if (!artifactOpen.value) {
+      resumePreview.resetResumePreview();
+      return;
+    }
+    if (activeArtifactType.value !== "resume") return;
     const first = resumeWorkspace.drafts.value[0];
     if (!resumeWorkspace.activeDraft.value && first) {
       await resumeWorkspace.openDraft(first.artifactId);
@@ -136,6 +158,7 @@ export function useAppShell() {
           targetType: "resume",
           targetId: draft.artifactId,
           label: draft.title,
+          source: "local",
         }
       : undefined;
   }
@@ -201,7 +224,7 @@ export function useAppShell() {
     draftCloudState,
     exportResume,
     fillProgress,
-    openFromLibrary,
+    ...resumePreview,
     openJdPanel,
     openLibrary,
     openMatchPanel,

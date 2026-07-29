@@ -37,6 +37,14 @@ export interface ResumeDraftDetail extends ResumeDraftSummary {
   } | null;
 }
 
+export interface CloudResumePreview {
+  resumeId: string;
+  title: string;
+  contentHash: string;
+  updatedAt: string;
+  structure: ResumeStructure;
+}
+
 export interface ResumeDraftEditInput {
   artifactId: string;
   target:

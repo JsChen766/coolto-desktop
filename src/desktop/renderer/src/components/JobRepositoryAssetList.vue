@@ -5,6 +5,7 @@ import type { JobRepositoryJd, JobRepositoryResume } from "@desktop/types";
 import { STATUS_LABELS } from "../tracker/application-labels";
 import {
   assetSyncLabel,
+  jobSubtitle,
   resumeKindLabel,
   resumeSyncLabel,
   shortDate,
@@ -38,7 +39,7 @@ defineEmits<{
       <BriefcaseBusiness :size="17" aria-hidden="true" />
       <span class="repository-asset-copy">
         <strong>{{ jd.title }}</strong>
-        <small>{{ [jd.company, jd.targetRole].filter(Boolean).join(' · ') || '未填写岗位信息' }}</small>
+        <small v-if="jobSubtitle(jd)">{{ jobSubtitle(jd) }}</small>
         <span class="repository-row-facts">
           <span>{{ jd.targetedResumeIds.length }} 份针对性简历</span>
           <span>{{ jd.applicationSummary.total }} 次投递</span>
@@ -48,7 +49,11 @@ defineEmits<{
           </span>
         </span>
       </span>
-      <span class="tracker-sync-state" :class="jd.syncStatus">
+      <span
+        v-if="jd.syncStatus !== 'clean'"
+        class="tracker-sync-state"
+        :class="jd.syncStatus"
+      >
         {{ assetSyncLabel(jd.syncStatus) }}
       </span>
       </button>
@@ -73,7 +78,11 @@ defineEmits<{
           <span v-if="resume.entry.cloud?.status === 'archived'">已归档</span>
         </span>
       </span>
-      <span class="library-sync-badge" :class="resume.entry.syncStatus">
+      <span
+        v-if="!['synced', 'cloud_only'].includes(resume.entry.syncStatus)"
+        class="library-sync-badge"
+        :class="resume.entry.syncStatus"
+      >
         {{ resumeSyncLabel(resume.entry.syncStatus) }}
       </span>
       </button>

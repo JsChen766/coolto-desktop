@@ -55,13 +55,20 @@ function statusLabel(entry: ResumeLibraryEntry): string {
 }
 
 function pick(entry: ResumeLibraryEntry): void {
-  const artifactId = entry.local?.artifactId ?? entry.cloud?.resumeId ?? entry.entryId;
-  const targetId = artifactId;
+  const local = entry.local;
+  const cloud = entry.cloud;
+  const artifactId = local?.artifactId ?? `cloud:${cloud?.resumeId ?? entry.entryId}`;
+  const targetId = local?.artifactId ?? cloud?.resumeId ?? entry.entryId;
   emit("select", {
     artifactId,
     targetType: "resume",
     targetId,
     label: entry.displayTitle,
+    source: local ? "local" : "cloud",
+    ...(cloud
+      ? { resumeId: cloud.resumeId, contentHash: cloud.contentHash }
+      : {}),
+    ...(!local ? { operationMode: "read_only" as const } : {}),
   });
 }
 </script>

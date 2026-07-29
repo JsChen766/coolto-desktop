@@ -18,6 +18,12 @@ export function registerResumeLibraryIpc(
     return svc.list();
   });
 
+  ipcMain.handle("library:preview", async (_event, resumeId: string) => {
+    if (!resumeId.trim()) throw new Error("缺少简历 ID");
+    const svc = await getService();
+    return svc.preview(resumeId);
+  });
+
   ipcMain.handle("library:rename", async (_event, input: LibraryRenameInput) => {
     const svc = await getService();
     return svc.rename(input.resumeId, input.title);
@@ -51,6 +57,7 @@ export function registerResumeLibraryIpc(
 
 export const LIBRARY_IPC_CHANNELS = [
   "library:list",
+  "library:preview",
   "library:rename",
   "library:archive",
   "library:delete-draft",

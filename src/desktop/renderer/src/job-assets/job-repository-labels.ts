@@ -1,8 +1,21 @@
 import type {
+  JobRepositoryJd,
   JobRepositoryResume,
   ResumeLibrarySyncStatus,
   TrackerSyncStatus,
 } from "@desktop/types";
+
+export function jobSubtitle(
+  jd: Pick<JobRepositoryJd, "title" | "company" | "targetRole">,
+): string {
+  const title = jd.title.trim();
+  const company = jd.company?.trim();
+  const targetRole = jd.targetRole?.trim();
+  return [
+    company,
+    targetRole && targetRole !== title ? targetRole : undefined,
+  ].filter(Boolean).join(" · ");
+}
 
 export function assetSyncLabel(status: TrackerSyncStatus): string {
   if (status === "pending") return "等待同步";

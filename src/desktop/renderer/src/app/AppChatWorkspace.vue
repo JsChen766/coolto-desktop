@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   ApprovalCard,
-  ArtifactPanel,
   ChatHeader,
   ChatMessageView,
   Composer,
@@ -16,6 +15,7 @@ import {
   ToolActivity,
 } from "./app-components";
 import type { AppShell } from "./use-app-shell";
+import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
 
 const props = defineProps<{ shell: AppShell }>();
 const {
@@ -38,6 +38,10 @@ const {
   openMatchPanel,
   openResumeDraft,
   pendingApproval,
+  cloudCopyRequested,
+  clearResumeOperationContext,
+  requestCloudResumeCopy,
+  resumeOperationContext,
   resolveApproval,
   resumeWorkspace,
   runError,
@@ -180,24 +184,20 @@ const {
             :attachment="conversationAttachment.attachment.value"
             :attachment-busy="conversationAttachment.selecting.value"
             :attachment-error="conversationAttachment.error.value"
+            :resume-context="resumeOperationContext"
+            :cloud-copy-requested="cloudCopyRequested"
             @send="send"
             @cancel="desktopApi.agent.cancel"
             @select-attachment="conversationAttachment.select"
             @remove-attachment="conversationAttachment.remove"
+            @clear-resume-context="clearResumeOperationContext"
+            @request-local-copy="requestCloudResumeCopy"
           />
         </section>
 
-        <ArtifactPanel
+        <ResumePreviewOutlet
           v-if="artifactOpen && activeArtifactType === 'resume'"
-          :draft="resumeWorkspace.activeDraft.value"
-          :busy="resumeWorkspace.busy.value"
-          :error="resumeWorkspace.error.value"
-          :local-save-state="resumeWorkspace.localSaveState.value"
-          @edit="resumeWorkspace.edit"
-          @autosave="resumeWorkspace.autosave"
-          @restore="resumeWorkspace.restore"
-          @accept="resumeWorkspace.resolvePending('accept')"
-          @reject="resumeWorkspace.resolvePending('reject')"
+          :shell="shell"
         />
         <JdDetailPanel
           v-else-if="artifactOpen && activeArtifactType === 'jd' && activeJd"
