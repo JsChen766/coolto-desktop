@@ -18,6 +18,10 @@ import type {
   ConversationSummary,
 } from "../shared/types.js";
 import type { ResumeDraftArtifactReference } from "../../resume/draft/types.js";
+import {
+  mergeExperienceImportResult,
+  type ExperienceImportResultDetails,
+} from "../../import/result-artifact.js";
 import { projectConversationMessages } from "./conversation-presentation.js";
 import {
   UNTITLED_CONVERSATION,
@@ -72,6 +76,7 @@ export class ConversationStore {
       updatedAt: now,
       agentMessages: [],
       resumeArtifacts: [],
+      experienceImportArtifacts: [],
     };
     await this.#write(conversation);
     return conversationDetail(conversation);
@@ -135,6 +140,25 @@ export class ConversationStore {
       artifacts.push(structuredClone(artifact));
     }
     record.resumeArtifacts = artifacts;
+    record.updatedAt = new Date().toISOString();
+    await this.#write(record);
+    return conversationDetail(record);
+  }
+
+  public async addExperienceImportResult(
+    conversationId: string,
+    result: ExperienceImportResultDetails,
+  ): Promise<ConversationDetail> {
+    const record = await this.getRecord(conversationId);
+    record.version = 2;
+    const artifacts = record.experienceImportArtifacts ?? [];
+    const index = artifacts.findIndex(
+      (artifact) => artifact.proposalId === result.proposalId,
+    );
+    const merged = mergeExperienceImportResult(artifacts[index], result);
+    if (index >= 0) artifacts[index] = merged;
+    else artifacts.push(merged);
+    record.experienceImportArtifacts = artifacts;
     record.updatedAt = new Date().toISOString();
     await this.#write(record);
     return conversationDetail(record);

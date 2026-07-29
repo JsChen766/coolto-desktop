@@ -5,6 +5,7 @@ import ExperienceTimelineItem from "./ExperienceTimelineItem.vue";
 defineProps<{
   groups: ExperienceTimelineGroup[];
   selectedId: string | undefined;
+  highlightedIds?: string[];
   query: string;
   emptyLabel: string;
 }>();
@@ -21,6 +22,7 @@ defineEmits<{ select: [experienceId: string] }>();
           :key="experience.id"
           :experience="experience"
           :selected="selectedId === experience.id"
+          :highlighted="Boolean(highlightedIds?.includes(experience.id))"
           :query="query"
           @select="$emit('select', $event)"
         />

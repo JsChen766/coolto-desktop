@@ -8,6 +8,7 @@ import type {
   ConversationSummary,
 } from "../shared/types.js";
 import type { ResumeDraftArtifactReference } from "../../resume/draft/types.js";
+import type { ExperienceImportResultArtifact } from "../../import/result-artifact.js";
 import { projectConversationMessages } from "./conversation-presentation.js";
 
 export interface StoredConversation {
@@ -19,6 +20,7 @@ export interface StoredConversation {
   updatedAt: string;
   agentMessages: AgentMessage[];
   resumeArtifacts?: ResumeDraftArtifactReference[];
+  experienceImportArtifacts?: ExperienceImportResultArtifact[];
 }
 
 export const UNTITLED_CONVERSATION = "新对话";
@@ -59,6 +61,21 @@ export function conversationDetail(
     resumeArtifacts: structuredClone(record.resumeArtifacts ?? []).map(
       (artifact) => withArtifactAnchor(artifact, messages),
     ),
+    experienceImportArtifacts: structuredClone(
+      record.experienceImportArtifacts ?? [],
+    ).map((artifact) => withImportArtifactAnchor(artifact, messages)),
+  };
+}
+
+function withImportArtifactAnchor(
+  artifact: ExperienceImportResultArtifact,
+  messages: ChatMessage[],
+): ExperienceImportResultArtifact {
+  const anchorMessageId = artifact.anchorMessageId
+    ?? inferArtifactAnchor(messages, artifact.createdAt);
+  return {
+    ...artifact,
+    ...(anchorMessageId ? { anchorMessageId } : {}),
   };
 }
 
@@ -102,7 +119,9 @@ export function isStoredConversation(
     typeof candidate.updatedAt === "string" &&
     Array.isArray(candidate.agentMessages) &&
     (candidate.resumeArtifacts === undefined ||
-      Array.isArray(candidate.resumeArtifacts))
+      Array.isArray(candidate.resumeArtifacts)) &&
+    (candidate.experienceImportArtifacts === undefined ||
+      Array.isArray(candidate.experienceImportArtifacts))
   );
 }
 

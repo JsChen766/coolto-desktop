@@ -30,6 +30,7 @@ export function createDemoChatApis(draft: ResumeDraftDetail, now: Date) {
         updatedAt: timestamp,
         messageCount: 0,
         resumeArtifacts: [],
+        experienceImportArtifacts: [],
         messages: [],
       };
       conversations = [created, ...conversations];
@@ -117,6 +118,7 @@ function initialConversations(draft: ResumeDraftDetail, now: Date): Conversation
         title: draft.title,
         createdAt: draft.updatedAt,
       }],
+      experienceImportArtifacts: [],
       messages: [
         message("user", "请根据我的全部经历，帮我准备一份面向 AI 产品经理岗位的简历。", -6),
         message(
@@ -153,6 +155,7 @@ function emptyConversation(
     updatedAt: new Date(now.getTime() - updatedDaysAgo * 86_400_000).toISOString(),
     messageCount,
     resumeArtifacts: [],
+    experienceImportArtifacts: [],
     messages: [],
   };
 }
@@ -162,7 +165,12 @@ function message(role: ChatMessage["role"], content: string, minuteOffset = 0): 
 }
 
 function summary(conversation: ConversationDetail): ConversationSummary {
-  const { messages: _messages, resumeArtifacts: _artifacts, ...rest } = conversation;
+  const {
+    messages: _messages,
+    resumeArtifacts: _artifacts,
+    experienceImportArtifacts: _imports,
+    ...rest
+  } = conversation;
   return structuredClone(rest);
 }
 

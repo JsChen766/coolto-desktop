@@ -8,7 +8,9 @@ import { useChatSession } from "../chat/use-chat-session";
 import { desktopApi } from "../lib/desktop-api";
 import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useJobFlowNavigation } from "./use-job-flow-navigation";
+import { useExperienceImportNavigation } from "./use-experience-import-navigation";
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
+import { useResumeInstructionActions } from "./use-resume-instruction-actions";
 
 export type AppView = "chat" | "experiences" | "library" | "tracker";
 
@@ -150,32 +152,6 @@ export function useAppShell() {
     )?.cloudState;
   }
 
-  function activeResumeReference(): ResumeChatReference | undefined {
-    const draft = resumeWorkspace.activeDraft.value;
-    return draft
-      ? {
-          artifactId: draft.artifactId,
-          targetType: "resume",
-          targetId: draft.artifactId,
-          label: draft.title,
-          source: "local",
-        }
-      : undefined;
-  }
-
-  function sendResumeInstruction(text: string): void {
-    const reference = activeResumeReference();
-    if (reference) void send(text, reference);
-  }
-
-  function saveResumeToCloud(): void {
-    sendResumeInstruction("请将右侧当前本地简历保存到云端。");
-  }
-
-  function exportResume(): void {
-    sendResumeInstruction("请将右侧当前简历导出为 PDF 到本地文件。");
-  }
-
   function toggleTheme(): void {
     dark.value = !dark.value;
     localStorage.setItem("coolto-theme", dark.value ? "dark" : "light");
@@ -211,6 +187,15 @@ export function useAppShell() {
     createChat,
     send: (text) => send(text),
   });
+  const experienceImport = useExperienceImportNavigation({
+    activeView,
+    closeNarrowSidebar,
+    selectConversation: session.selectConversation,
+  });
+  const resumeInstructions = useResumeInstructionActions({
+    workspace: resumeWorkspace,
+    send,
+  });
 
   return {
     ...session,
@@ -222,7 +207,7 @@ export function useAppShell() {
     dark,
     desktopApi,
     draftCloudState,
-    exportResume,
+    exportResume: resumeInstructions.exportPdf,
     fillProgress,
     ...resumePreview,
     openJdPanel,
@@ -231,9 +216,13 @@ export function useAppShell() {
     openResumeDraft,
     openTracker,
     ...jobFlow,
+    clearExperienceImportFocus: experienceImport.clear,
     createChat,
+    experienceImportFocus: experienceImport.focus,
+    openExperienceImportResult: experienceImport.open,
+    returnToImportConversation: experienceImport.returnToConversation,
     resumeWorkspace,
-    saveResumeToCloud,
+    saveResumeToCloud: resumeInstructions.saveToCloud,
     scroller,
     selectChat,
     send,

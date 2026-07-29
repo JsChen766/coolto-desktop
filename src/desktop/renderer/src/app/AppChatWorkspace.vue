@@ -5,6 +5,7 @@ import {
   ChatMessageView,
   Composer,
   EmptyState,
+  ExperienceImportResultCard,
   FillProgressCard,
   JdArtifactCard,
   JdDetailPanel,
@@ -34,6 +35,7 @@ const {
   jdArtifacts,
   matchReports,
   openDialog,
+  openExperienceImportResult,
   openJdPanel,
   openMatchPanel,
   openResumeDraft,
@@ -120,6 +122,14 @@ const {
                   :report="report"
                   @open="openMatchPanel"
                 />
+                <ExperienceImportResultCard
+                  v-for="artifact in current.experienceImportArtifacts.filter(
+                    (item) => item.anchorMessageId === message.id,
+                  )"
+                  :key="artifact.proposalId"
+                  :artifact="artifact"
+                  @open="openExperienceImportResult(current.id, $event)"
+                />
               </template>
               <article
                 v-if="toolRuns.length || streamingText"
@@ -156,6 +166,14 @@ const {
                 :key="report.reportId"
                 :report="report"
                 @open="openMatchPanel"
+              />
+              <ExperienceImportResultCard
+                v-for="artifact in current.experienceImportArtifacts.filter(
+                  (item) => !item.anchorMessageId,
+                )"
+                :key="artifact.proposalId"
+                :artifact="artifact"
+                @open="openExperienceImportResult(current.id, $event)"
               />
               <p v-if="runError" class="run-error">{{ runError }}</p>
               <ApprovalCard

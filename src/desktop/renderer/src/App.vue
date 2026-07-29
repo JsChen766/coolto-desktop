@@ -27,6 +27,7 @@ const {
   desktopApi,
   dialog,
   emailChallenge,
+  experienceImportFocus,
   login,
   loginBusy,
   loginError,
@@ -50,6 +51,8 @@ const {
   resumePreviewChoice,
   resumeOperationContext,
   resumeWorkspace,
+  returnToImportConversation,
+  clearExperienceImportFocus,
   selectChat,
   sidebarOpen,
   showSidebar,
@@ -139,6 +142,9 @@ function requestPrimaryView(view: "experiences" | "library"): void {
       <ExperienceLibraryView
         v-else-if="activeView === 'experiences'"
         ref="experienceLibraryView"
+        :import-focus="experienceImportFocus"
+        @return-import="returnToImportConversation"
+        @clear-import-focus="clearExperienceImportFocus"
         @toggle-sidebar="showSidebar"
       />
       <JobRepositoryView

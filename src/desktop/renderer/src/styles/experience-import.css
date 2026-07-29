@@ -1,0 +1,99 @@
+.experience-import-result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.experience-import-result-card.partial .approval-icon,
+.experience-import-result-card:not(:has(.approval-button)) .approval-icon {
+  color: var(--stage-applied);
+}
+
+.experience-import-result-summary {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.experience-import-result-card .approval-button {
+  width: fit-content;
+  min-width: 190px;
+  gap: 8px;
+}
+
+.experience-import-focus-bar {
+  min-height: 42px;
+  padding: 6px 20px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+}
+
+.experience-import-focus-bar > button,
+.experience-import-focus-actions button {
+  min-height: 28px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.experience-import-focus-bar button:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.experience-import-focus-bar > span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.experience-import-focus-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.experience-import-focus-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.experience-timeline-item.import-highlight:not(.active) {
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.experience-timeline-item.import-highlight .experience-timeline-marker i {
+  background: var(--text-soft);
+}
+
+@media (max-width: 620px) {
+  .experience-import-focus-bar {
+    padding-right: 14px;
+    padding-left: 14px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .experience-import-focus-bar > span {
+    padding-top: 7px;
+  }
+
+  .experience-import-focus-actions {
+    width: 100%;
+  }
+
+  .experience-import-focus-actions .icon-label {
+    margin-left: auto;
+  }
+}

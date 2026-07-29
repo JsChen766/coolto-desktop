@@ -1,4 +1,5 @@
 import type { ResumeDraftArtifactReference } from "../../../resume/draft/types.js";
+import type { ExperienceImportResultArtifact } from "../../../import/result-artifact.js";
 import type { DesktopApprovalDecision } from "./approvals.js";
 
 export type ChatRole = "user" | "assistant";
@@ -32,6 +33,7 @@ export interface ConversationSummary {
 export interface ConversationDetail extends ConversationSummary {
   messages: ChatMessage[];
   resumeArtifacts: ResumeDraftArtifactReference[];
+  experienceImportArtifacts: ExperienceImportResultArtifact[];
 }
 
 export interface DesktopAttachment {

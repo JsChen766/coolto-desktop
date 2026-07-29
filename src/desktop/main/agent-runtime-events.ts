@@ -5,6 +5,7 @@ import type { DesktopAgentEvent } from "../shared/types.js";
 import { ConversationStore } from "./conversation-store.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
+import { parseExperienceImportResult } from "../../import/result-artifact.js";
 
 export class AgentRuntimeEvents {
   public constructor(
@@ -42,6 +43,12 @@ export class AgentRuntimeEvents {
         !event.isError
       ) {
         emitMatchReport(conversationId);
+      }
+      if (event.type === "approval.completed") {
+        const result = parseExperienceImportResult(event.details);
+        if (result) {
+          await this.store.addExperienceImportResult(conversationId, result);
+        }
       }
       if (!this.target.isDestroyed()) {
         this.target.send("agent:event", {

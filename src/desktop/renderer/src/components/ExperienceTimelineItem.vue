@@ -13,6 +13,7 @@ import ExperienceHighlightedText from "./ExperienceHighlightedText.vue";
 const props = defineProps<{
   experience: ExperienceSummary;
   selected: boolean;
+  highlighted: boolean;
   query: string;
 }>();
 defineEmits<{ select: [experienceId: string] }>();
@@ -24,7 +25,11 @@ const context = computed(() => experienceMatchContext(props.experience, props.qu
 <template>
   <button
     class="experience-timeline-item"
-    :class="{ active: selected, archived: experience.status === 'archived' }"
+    :class="{
+      active: selected,
+      archived: experience.status === 'archived',
+      'import-highlight': highlighted,
+    }"
     type="button"
     :aria-current="selected ? 'true' : undefined"
     @click="$emit('select', experience.id)"

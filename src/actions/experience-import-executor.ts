@@ -35,8 +35,12 @@ async function executeImport(
     throw new Error("没有可保存的候选经历");
   }
 
-  const saved: Array<{ clientId: string; experienceId: string }> = [];
-  const failed: Array<{ clientId: string; message: string }> = [];
+  const saved: Array<{
+    clientId: string;
+    experienceId: string;
+    title: string;
+  }> = [];
+  const failed: Array<{ clientId: string; title: string; message: string }> = [];
   for (const item of pending) {
     if (context.signal?.aborted) {
       throw new Error("经历导入已取消");
@@ -55,10 +59,12 @@ async function executeImport(
       saved.push({
         clientId,
         experienceId: experience.id,
+        title: item.title,
       });
     } catch (error: unknown) {
       failed.push({
         clientId: item.clientId,
+        title: item.title,
         message: error instanceof Error ? error.message : String(error),
       });
     }
@@ -69,8 +75,13 @@ async function executeImport(
   }
   const details = {
     proposalId: proposal.id,
+    sourceLabel: proposal.sourceLabel ?? null,
     saved,
     failed,
+    skippedDuplicateCount: proposal.candidates.filter(
+      (item) => !item.selected && item.duplicateOf,
+    ).length,
+    completedAt: new Date().toISOString(),
   };
   return {
     summary:

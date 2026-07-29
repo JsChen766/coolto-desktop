@@ -1,5 +1,6 @@
 export { default as ApplicationTrackerView } from "../components/ApplicationTrackerView.vue";
 export { default as ApprovalCard } from "../components/ApprovalCard.vue";
+export { default as ExperienceImportResultCard } from "../components/ExperienceImportResultCard.vue";
 export { default as ArtifactPanel } from "../components/ArtifactPanel.vue";
 export { default as ChatHeader } from "../components/ChatHeader.vue";
 export { default as ChatMessageView } from "../components/ChatMessage.vue";

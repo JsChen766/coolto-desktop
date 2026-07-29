@@ -1,71 +1,42 @@
 <script setup lang="ts">
 import { Library } from "@lucide/vue";
-
-import type {
-  ExperienceExecutionResult,
-} from "@desktop/types";
-import type { ExperienceProposalKind } from "../../../../experience/maintenance-types";
-import { useExperienceLibrary } from "../experiences/use-experience-library";
-import { useExperienceMaintenance } from "../experiences/use-experience-maintenance";
+import type { ExperienceImportFocus } from "../experiences/experience-import-focus";
+import { useExperienceLibraryController } from "../experiences/use-experience-library-controller";
 import ExperienceDetail from "./ExperienceDetail.vue";
 import ExperienceEditor from "./ExperienceEditor.vue";
+import ExperienceImportFocusBar from "./ExperienceImportFocusBar.vue";
 import ExperienceLibraryHeader from "./ExperienceLibraryHeader.vue";
 import ExperienceProposalDialog from "./ExperienceProposalDialog.vue";
 import ExperienceSyncIssueDialog from "./ExperienceSyncIssueDialog.vue";
 import ExperienceTimeline from "./ExperienceTimeline.vue";
 import ExperienceUnsavedDialog from "./ExperienceUnsavedDialog.vue";
 
-defineEmits<{ toggleSidebar: [] }>();
-const page = useExperienceLibrary();
-const maintenance = useExperienceMaintenance(applied);
+const props = defineProps<{
+  importFocus: ExperienceImportFocus | undefined;
+}>();
+const emit = defineEmits<{
+  clearImportFocus: [];
+  returnImport: [];
+  toggleSidebar: [];
+}>();
+const {
+  clearImportFocus,
+  editExperience,
+  focusPosition,
+  leaveEditor,
+  maintenance,
+  newExperience,
+  page,
+  prepareDetailAction,
+  refresh,
+  selectExperience,
+  updateFilter,
+} = useExperienceLibraryController(
+  () => props.importFocus,
+  () => emit("clearImportFocus"),
+);
 
 defineExpose({ confirmLeave: maintenance.confirmLeave });
-
-async function applied(
-  result: ExperienceExecutionResult,
-  kind: ExperienceProposalKind,
-): Promise<void> {
-  const experience = result.experience;
-  if (experience && (kind === "create" || kind === "save_as_new")) {
-    page.status.value = experience.status;
-  }
-  if (!experience) {
-    page.selectedId.value = undefined;
-    page.selected.value = undefined;
-  }
-  await page.load(experience?.id);
-  if (experience && page.status.value === experience.status) {
-    await page.select(experience.id);
-  } else {
-    page.detailOpen.value = false;
-  }
-}
-
-async function leaveEditor(action: () => void | Promise<void>): Promise<void> {
-  if (!(await maintenance.confirmLeave())) return;
-  maintenance.discardEditor();
-  await action();
-}
-
-function newExperience(): void {
-  if (!maintenance.editorMode.value) {
-    maintenance.startCreate();
-    page.detailOpen.value = true;
-    return;
-  }
-  void leaveEditor(() => {
-    maintenance.startCreate();
-    page.detailOpen.value = true;
-  });
-}
-
-function editExperience(): void {
-  if (page.selected.value) maintenance.startEdit(page.selected.value);
-}
-
-function updateFilter(action: () => void): void {
-  void leaveEditor(action);
-}
 </script>
 
 <template>
@@ -86,9 +57,20 @@ function updateFilter(action: () => void): void {
       @update:status="updateFilter(() => { page.status.value = $event })"
       @toggle-tag="updateFilter(() => page.toggleTag($event))"
       @clear-filters="updateFilter(page.clearFilters)"
-      @refresh="leaveEditor(() => page.load())"
+      @refresh="refresh"
       @new-experience="newExperience"
       @toggle-sidebar="$emit('toggleSidebar')"
+    />
+
+    <ExperienceImportFocusBar
+      v-if="importFocus"
+      :count="page.focusedIds.value.length"
+      :position="focusPosition"
+      :missing-count="page.focusMissingCount.value"
+      :loading="page.focusLoading.value"
+      @back="$emit('returnImport')"
+      @clear="clearImportFocus"
+      @move="page.moveImportedFocus"
     />
 
     <div
@@ -134,9 +116,10 @@ function updateFilter(action: () => void): void {
         <ExperienceTimeline
           :groups="page.groups.value"
           :selected-id="page.selectedId.value"
+          :highlighted-ids="page.focusedIds.value"
           :query="page.query.value"
           empty-label="没有符合当前搜索或筛选条件的经历"
-          @select="leaveEditor(() => page.select($event))"
+          @select="selectExperience"
         />
       </aside>
       <section class="experience-detail-pane">
@@ -160,7 +143,7 @@ function updateFilter(action: () => void): void {
           :busy="maintenance.busy.value"
           @back="leaveEditor(() => { page.detailOpen.value = false })"
           @edit="editExperience"
-          @action="maintenance.prepareAction(page.selected.value!.id, $event)"
+          @action="prepareDetailAction"
           @resolve-sync="maintenance.openSyncIssue(page.selected.value!.id)"
         />
         <div v-else class="experience-page-state">
