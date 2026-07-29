@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from "vue";
 import type {
   ExperienceDetail,
   ExperienceExecutionResult,
+  ExperienceRevision,
   ExperienceSyncIssueView,
   ExperienceWriteProposal,
 } from "@desktop/types";
@@ -81,6 +82,18 @@ export function useExperienceMaintenance(
         : action === "restore"
           ? await desktopApi.experiences.prepareRestore(experienceId)
           : await desktopApi.experiences.prepareDelete(experienceId);
+    });
+  }
+
+  async function prepareRestoreRevision(
+    experienceId: string,
+    revision: ExperienceRevision,
+  ): Promise<void> {
+    await run(async () => {
+      proposal.value = await desktopApi.experiences.prepareRestoreRevision({
+        experienceId,
+        revisionId: revision.id,
+      });
     });
   }
 
@@ -176,7 +189,7 @@ export function useExperienceMaintenance(
   return {
     answerLeave, busy, closeProposal, confirmLeave, dirty, discardEditor,
     editorMode, error, executeProposal, initialDraft, openSyncIssue, prepareAction,
-    prepareSyncAction, proposal, requestCancelEditor, review, startCreate,
+    prepareRestoreRevision, prepareSyncAction, proposal, requestCancelEditor, review, startCreate,
     startEdit, syncIssue, unsavedOpen,
   };
 }

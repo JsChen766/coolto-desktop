@@ -148,6 +148,22 @@ test("explicit null clears one field and content change pins a local revision id
   assert.equal(local.writes[0]?.payload.revisionId, proposal.next?.revisionId);
 });
 
+test("history restore freezes only a new body revision", async () => {
+  const local = new FakeLocalSyncStore();
+  const proposals = service(local);
+  const proposal = await proposals.prepareUpdate(
+    "exp-1",
+    { content: "Historical body" },
+    "restore_revision",
+  );
+  assert.equal(proposal.kind, "restore_revision");
+  assert.equal(proposal.next?.title, proposal.current?.title);
+  assert.equal(proposal.next?.content, "Historical body");
+  assert.notEqual(proposal.next?.revisionId, proposal.current?.revisionId);
+  proposals.execute(proposal.id);
+  assert.equal(local.writes[0]?.payload.source, "manual");
+});
+
 test("proposal execution rejects local-version drift", async () => {
   const local = new FakeLocalSyncStore();
   const proposals = service(local);

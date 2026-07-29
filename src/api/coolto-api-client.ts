@@ -12,6 +12,8 @@ import type {
   ExperienceCreateInput,
   ExperienceDetail,
   ExperienceReader,
+  ExperienceRevisionPage,
+  ExperienceRevisionReader,
   ExperienceSearchOptions,
   ExperienceSearchResult,
   ExperienceWriter,
@@ -44,6 +46,7 @@ export class CooltoApiClient
     CurrentUserReader,
     UserProfileReader,
     ExperienceReader,
+    ExperienceRevisionReader,
     ExperienceWriter,
     JdReader,
     JdWriter
@@ -152,6 +155,20 @@ export class CooltoApiClient
     signal?: AbortSignal,
   ): Promise<ExperienceDetail> {
     return this.#experiences.getExperience(experienceId, signal);
+  }
+
+  public listExperienceRevisions(
+    experienceId: string,
+    cursor?: string,
+    limit?: number,
+    signal?: AbortSignal,
+  ): Promise<ExperienceRevisionPage> {
+    return this.#experiences.listExperienceRevisions(
+      experienceId,
+      cursor,
+      limit,
+      signal,
+    );
   }
 
   public createExperience(

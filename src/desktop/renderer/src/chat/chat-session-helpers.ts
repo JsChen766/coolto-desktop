@@ -2,12 +2,22 @@ import type { Ref } from "vue";
 
 import { latestNewAssistantMessageId } from "@desktop/artifact-anchor";
 import type {
+  ChatMessage,
   ConversationDetail,
   DesktopApprovalRequest,
 } from "@desktop/types";
 import type { ToolRun } from "../components/ToolActivity.vue";
 import type { useJdArtifacts } from "./use-jd-artifacts";
 import type { useMatchReports } from "./use-match-reports";
+
+export function optimisticUserMessage(text: string): ChatMessage {
+  return {
+    id: `pending-${crypto.randomUUID()}`,
+    role: "user",
+    content: text,
+    createdAt: new Date().toISOString(),
+  };
+}
 
 export function createRunStateReset(state: {
   streamingText: Ref<string>;

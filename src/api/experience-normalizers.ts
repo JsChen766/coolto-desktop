@@ -2,6 +2,7 @@ import type {
   ExperienceCategory,
   ExperienceDetail,
   ExperienceRevision,
+  ExperienceRevisionPage,
   ExperienceSearchResult,
   ExperienceSummary,
 } from "./types.js";
@@ -46,6 +47,24 @@ export function normalizeExperienceDetail(value: unknown): ExperienceDetail {
     ...summary,
     revisions: arrayValue(record.revisions, "experience.revisions").map(
       (revision) => normalizeExperienceRevision(revision, "experience.revisions[]"),
+    ),
+  };
+}
+
+export function normalizeExperienceRevisionPage(
+  value: unknown,
+): ExperienceRevisionPage {
+  const record = objectValue(value, "experience revision page");
+  return {
+    items: arrayValue(record.items, "experienceRevisions.items").map(
+      (revision) => normalizeExperienceRevision(
+        revision,
+        "experienceRevisions.items[]",
+      ),
+    ),
+    nextCursor: nullableString(
+      record.nextCursor,
+      "experienceRevisions.nextCursor",
     ),
   };
 }
@@ -97,7 +116,7 @@ export function normalizeExperienceSummary(
   };
 }
 
-function normalizeExperienceRevision(
+export function normalizeExperienceRevision(
   value: unknown,
   path: string,
 ): ExperienceRevision {

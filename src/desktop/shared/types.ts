@@ -33,6 +33,9 @@ export type {
 } from "../../job-assets/repository-types.js";
 export type {
   ExperienceExecutionResult,
+  ExperienceHistoryPage,
+  ExperienceHistoryRequest,
+  ExperiencePrepareRevisionRestoreRequest,
   ExperiencePrepareUpdateRequest,
   ExperienceSyncIssueView,
   ExperienceWriteProposal,
@@ -41,6 +44,7 @@ export type {
   ExperienceCategory,
   ExperienceCreateInput,
   ExperienceDetail,
+  ExperienceRevision,
   ExperienceSearchOptions,
   ExperienceSearchResult,
   ExperienceSummary,

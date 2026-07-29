@@ -1,6 +1,7 @@
 import { computed, watch } from "vue";
 
 import type { ExperienceExecutionResult } from "@desktop/types";
+import type { ExperienceRevision } from "@desktop/types";
 import type { ExperienceProposalKind } from "../../../../experience/maintenance-types";
 import { useExperienceLibrary } from "./use-experience-library";
 import { useExperienceMaintenance } from "./use-experience-maintenance";
@@ -93,6 +94,13 @@ export function useExperienceLibraryController(
     void maintenance.prepareAction(experienceId, action);
   }
 
+  function restoreRevision(revision: ExperienceRevision): void {
+    const experienceId = page.selected.value?.id;
+    if (!experienceId) return;
+    clearImportFocus();
+    void maintenance.prepareRestoreRevision(experienceId, revision);
+  }
+
   async function refresh(): Promise<void> {
     await leaveEditor(async () => {
       await page.load();
@@ -108,7 +116,7 @@ export function useExperienceLibraryController(
 
   return {
     clearImportFocus, editExperience, focusPosition, leaveEditor, maintenance,
-    newExperience, page, prepareDetailAction, refresh, selectExperience,
+    newExperience, page, prepareDetailAction, refresh, restoreRevision, selectExperience,
     updateFilter,
   };
 }

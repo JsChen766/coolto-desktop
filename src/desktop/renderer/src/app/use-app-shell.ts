@@ -1,6 +1,6 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
-import type { ResumeChatReference } from "@desktop/types";
+import type { JdChatReference, ResumeChatReference } from "@desktop/types";
 import { useConversationAttachment } from "../attachments/use-conversation-attachment";
 import { useBrowserState } from "../browser/use-browser-state";
 import { useFillProgress } from "../browser/use-fill-progress";
@@ -74,8 +74,9 @@ export function useAppShell() {
   async function send(
     text: string,
     resumeReference?: ResumeChatReference,
+    jdReference?: JdChatReference,
   ): Promise<void> {
-    await session.send(text, resumeReference);
+    await session.send(text, resumeReference, jdReference);
   }
 
   async function openResumeDraft(artifactId: string): Promise<void> {
@@ -185,7 +186,7 @@ export function useAppShell() {
     activeView,
     closeNarrowSidebar,
     createChat,
-    send: (text) => send(text),
+    send: (text, reference) => send(text, undefined, reference),
   });
   const experienceImport = useExperienceImportNavigation({
     activeView,

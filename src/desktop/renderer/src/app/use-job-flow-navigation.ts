@@ -1,11 +1,12 @@
 import type { Ref } from "vue";
 import { ref } from "vue";
 
-import type { ApplicationCreateInput } from "@desktop/types";
+import type { ApplicationCreateInput, JdChatReference } from "@desktop/types";
 import {
   defaultJobRepositoryNavigation,
   type JobRepositoryNavigationState,
 } from "../job-assets/job-repository-navigation";
+import { buildJdActionInstruction } from "../../../../job-assets/job-action-instruction.js";
 import type {
   TrackerAssetTarget,
   TrackerNavigationContext,
@@ -16,7 +17,7 @@ interface JobFlowDependencies {
   activeView: Ref<AppView>;
   closeNarrowSidebar(): void;
   createChat(): Promise<void>;
-  send(text: string): Promise<void>;
+  send(text: string, reference: JdChatReference): Promise<void>;
 }
 
 export function useJobFlowNavigation(deps: JobFlowDependencies) {
@@ -68,10 +69,11 @@ export function useJobFlowNavigation(deps: JobFlowDependencies) {
     title: string,
   ): Promise<void> {
     await deps.createChat();
-    const instruction = action === "generate"
-      ? `请针对 JD「${title}」（jdId: ${jdId}）生成针对性简历。`
-      : `请针对 JD「${title}」（jdId: ${jdId}）匹配经历库并给出匹配结果。`;
-    await deps.send(instruction);
+    await deps.send(buildJdActionInstruction(action, title), {
+      action,
+      jdId,
+      title,
+    });
   }
 
   return {

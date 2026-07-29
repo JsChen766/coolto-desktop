@@ -9,7 +9,10 @@ import type {
 } from "../shared/types.js";
 import type { ResumeDraftArtifactReference } from "../../resume/draft/types.js";
 import type { ExperienceImportResultArtifact } from "../../import/result-artifact.js";
-import { projectConversationMessages } from "./conversation-presentation.js";
+import {
+  presentConversationTitle,
+  projectConversationMessages,
+} from "./conversation-presentation.js";
 
 export interface StoredConversation {
   version: 1 | 2;
@@ -44,7 +47,7 @@ export function conversationSummary(
 ): ConversationSummary {
   return {
     id: record.id,
-    title: record.title,
+    title: presentConversationTitle(record.title, record.agentMessages),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     messageCount: projectConversationMessages(record.agentMessages).length,

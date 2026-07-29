@@ -1,0 +1,151 @@
+.experience-history {
+  max-width: 760px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.experience-history-heading,
+.experience-history-heading > div,
+.experience-revision-item header,
+.experience-revision-item header > div {
+  display: flex;
+  align-items: center;
+}
+
+.experience-history-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.experience-history-heading > div {
+  gap: 7px;
+  color: var(--muted);
+}
+
+.experience-history-heading h3 {
+  margin: 0;
+}
+
+.experience-history-heading > button,
+.experience-revision-expand,
+.experience-history-error button,
+.experience-history-more {
+  padding: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.experience-history-heading > button:hover,
+.experience-revision-expand:hover,
+.experience-history-error button:hover,
+.experience-history-more:hover {
+  color: var(--text);
+}
+
+.experience-history-list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.experience-revision-item {
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+}
+
+.experience-revision-item.pending {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.experience-revision-item header {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.experience-revision-item header > div {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.experience-revision-item header strong {
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.experience-revision-expand {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.experience-revision-content {
+  margin: 11px 0 0;
+  color: var(--text-soft);
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: 12px;
+  line-height: 1.68;
+  white-space: pre-wrap;
+}
+
+.experience-revision-content.expanded {
+  display: block;
+  overflow: visible;
+}
+
+.experience-revision-item footer {
+  margin-top: 11px;
+}
+
+.experience-revision-item footer button {
+  min-height: 28px;
+  padding: 0 9px;
+  font-size: 10.5px;
+}
+
+.experience-history-state,
+.experience-history-error {
+  margin: 0;
+  padding: 9px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.experience-history-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.experience-history-error button {
+  flex: 0 0 auto;
+}
+
+.experience-history-more {
+  width: fit-content;
+  min-height: 30px;
+}
+
+@media (max-width: 460px) {
+  .experience-history-heading,
+  .experience-revision-item header {
+    align-items: flex-start;
+  }
+
+  .experience-revision-item footer button {
+    width: 100%;
+    justify-content: center;
+  }
+}

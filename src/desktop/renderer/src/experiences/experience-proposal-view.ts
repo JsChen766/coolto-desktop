@@ -31,6 +31,7 @@ export function experienceProposalTitle(
     accept_server: "确认接受服务端版本",
     reapply: "确认重新应用本地修改",
     save_as_new: "确认另存为新经历",
+    restore_revision: "确认恢复历史正文",
   };
   return titles[proposal.kind];
 }
@@ -55,6 +56,9 @@ export function experienceProposalImpact(
   }
   if (proposal.kind === "save_as_new") {
     return "本地内容会保存为一条新的独立经历，原同步问题按服务端事实处理。";
+  }
+  if (proposal.kind === "restore_revision") {
+    return "只恢复所选历史正文；其他字段保持当前值，并创建新的不可变正文版本。原历史不会被覆盖。";
   }
   return proposal.kind === "create"
     ? "确认后先保存到本机并写入 Outbox，随后由同步链路提交。"

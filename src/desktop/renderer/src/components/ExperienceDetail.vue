@@ -2,18 +2,20 @@
 import { ArrowLeft, Ellipsis, MapPin, Pencil } from "@lucide/vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
-import type { ExperienceDetail } from "@desktop/types";
+import type { ExperienceDetail, ExperienceRevision } from "@desktop/types";
 import {
   EXPERIENCE_CATEGORY_LABELS,
   EXPERIENCE_SYNC_LABELS,
   experienceDateRange,
 } from "../../../../experience/timeline-labels";
+import ExperienceHistory from "./ExperienceHistory.vue";
 
 defineProps<{ experience: ExperienceDetail; busy?: boolean }>();
 const emit = defineEmits<{
   action: [value: "archive" | "restore" | "delete"];
   back: [];
   edit: [];
+  restoreRevision: [revision: ExperienceRevision];
   resolveSync: [];
 }>();
 const menuOpen = ref(false);
@@ -144,6 +146,12 @@ function closeMenu(): void {
         </p>
         <p v-else class="experience-content-missing">当前内容不可用。</p>
       </section>
+
+      <ExperienceHistory
+        :experience="experience"
+        :busy="busy"
+        @restore="$emit('restoreRevision', $event)"
+      />
     </div>
   </article>
 </template>

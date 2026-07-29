@@ -54,11 +54,13 @@ export function createUnavailableDesktopApi(): DesktopApi {
     experiences: {
       search: unavailable,
       get: unavailable,
+      history: unavailable,
       prepareCreate: unavailable,
       prepareUpdate: unavailable,
       prepareArchive: unavailable,
       prepareRestore: unavailable,
       prepareDelete: unavailable,
+      prepareRestoreRevision: unavailable,
       syncIssue: unavailable,
       prepareAcceptServer: unavailable,
       prepareReapply: unavailable,

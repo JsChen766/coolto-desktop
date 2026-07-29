@@ -69,11 +69,14 @@ const api: DesktopApi = {
   experiences: {
     search: (options) => ipcRenderer.invoke("experiences:search", options),
     get: (experienceId) => ipcRenderer.invoke("experiences:get", experienceId),
+    history: (input) => ipcRenderer.invoke("experiences:history", input),
     prepareCreate: (input) => ipcRenderer.invoke("experiences:prepare-create", input),
     prepareUpdate: (input) => ipcRenderer.invoke("experiences:prepare-update", input),
     prepareArchive: (id) => ipcRenderer.invoke("experiences:prepare-archive", id),
     prepareRestore: (id) => ipcRenderer.invoke("experiences:prepare-restore", id),
     prepareDelete: (id) => ipcRenderer.invoke("experiences:prepare-delete", id),
+    prepareRestoreRevision: (input) =>
+      ipcRenderer.invoke("experiences:prepare-restore-revision", input),
     syncIssue: (id) => ipcRenderer.invoke("experiences:sync-issue", id),
     prepareAcceptServer: (id) =>
       ipcRenderer.invoke("experiences:prepare-accept-server", id),

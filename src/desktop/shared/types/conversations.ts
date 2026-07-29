@@ -57,6 +57,13 @@ export interface AgentPromptInput {
   conversationId: string;
   text: string;
   resumeReference?: ResumeChatReference;
+  jdReference?: JdChatReference;
+}
+
+export interface JdChatReference {
+  jdId: string;
+  title: string;
+  action: "generate" | "match";
 }
 
 export interface ResumeChatReference {

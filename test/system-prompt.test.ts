@@ -15,6 +15,9 @@ test("system prompt defines autonomous tool choice and clarification behavior", 
   assert.match(COOLTO_SYSTEM_PROMPT, /nextCursor/);
   assert.match(COOLTO_SYSTEM_PROMPT, /覆盖全部经历/);
   assert.match(COOLTO_SYSTEM_PROMPT, /currentRevision\.content/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /candidate、workspace、item、bullet/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得复述 UUID、内部 ID、cursor 或引用标记/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不要逐次播报内部 patch ID、像素差值或工具重试过程/);
   assert.match(COOLTO_SYSTEM_PROMPT, /sourceQuote/);
   assert.match(COOLTO_SYSTEM_PROMPT, /UTF-16/);
   assert.match(COOLTO_SYSTEM_PROMPT, /prepare_resume_candidate/);

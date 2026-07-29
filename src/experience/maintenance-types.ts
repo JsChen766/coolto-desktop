@@ -1,6 +1,7 @@
 import type {
   ExperienceCategory,
   ExperienceDetail,
+  ExperienceRevision,
   ExperienceUpdateInput,
 } from "../api/types.js";
 
@@ -12,7 +13,8 @@ export type ExperienceProposalKind =
   | "delete"
   | "accept_server"
   | "reapply"
-  | "save_as_new";
+  | "save_as_new"
+  | "restore_revision";
 
 export interface ExperienceProposalSnapshot {
   id: string;
@@ -45,6 +47,23 @@ export interface ExperienceWriteProposal {
 export interface ExperiencePrepareUpdateRequest {
   experienceId: string;
   changes: ExperienceUpdateInput;
+}
+
+export interface ExperienceHistoryPage {
+  items: ExperienceRevision[];
+  nextCursor: string | null;
+  pendingRevision: ExperienceRevision | null;
+  unavailable: boolean;
+}
+
+export interface ExperienceHistoryRequest {
+  experienceId: string;
+  cursor?: string;
+}
+
+export interface ExperiencePrepareRevisionRestoreRequest {
+  experienceId: string;
+  revisionId: string;
 }
 
 export interface ExperienceSyncIssueView {

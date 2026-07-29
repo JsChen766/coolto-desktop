@@ -23,6 +23,9 @@ import type {
 } from "../../../api/types.js";
 import type {
   ExperienceExecutionResult,
+  ExperienceHistoryPage,
+  ExperienceHistoryRequest,
+  ExperiencePrepareRevisionRestoreRequest,
   ExperiencePrepareUpdateRequest,
   ExperienceSyncIssueView,
   ExperienceWriteProposal,
@@ -110,11 +113,15 @@ export interface DesktopApi {
   experiences: {
     search(options?: ExperienceSearchOptions): Promise<ExperienceSearchResult>;
     get(experienceId: string): Promise<ExperienceDetail>;
+    history(input: ExperienceHistoryRequest): Promise<ExperienceHistoryPage>;
     prepareCreate(input: ExperienceCreateInput): Promise<ExperienceWriteProposal>;
     prepareUpdate(input: ExperiencePrepareUpdateRequest): Promise<ExperienceWriteProposal>;
     prepareArchive(experienceId: string): Promise<ExperienceWriteProposal>;
     prepareRestore(experienceId: string): Promise<ExperienceWriteProposal>;
     prepareDelete(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareRestoreRevision(
+      input: ExperiencePrepareRevisionRestoreRequest,
+    ): Promise<ExperienceWriteProposal>;
     syncIssue(experienceId: string): Promise<ExperienceSyncIssueView>;
     prepareAcceptServer(experienceId: string): Promise<ExperienceWriteProposal>;
     prepareReapply(experienceId: string): Promise<ExperienceWriteProposal>;

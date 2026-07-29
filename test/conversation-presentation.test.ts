@@ -4,7 +4,10 @@ import test from "node:test";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import { wrapInternalPrompt } from "../src/agent/internal-prompt.js";
-import { projectConversationMessages } from "../src/desktop/main/conversation-presentation.js";
+import {
+  presentConversationTitle,
+  projectConversationMessages,
+} from "../src/desktop/main/conversation-presentation.js";
 
 test("conversation projection hides wrapped host continuation prompts", () => {
   const messages = projectConversationMessages([
@@ -46,6 +49,34 @@ test("resume reference metadata is hidden while user text stays visible", () => 
   ]);
   assert.equal(messages[0]?.content, "修改这份简历");
   assert.doesNotMatch(JSON.stringify(messages), /internal-id/);
+});
+
+test("JD reference metadata is hidden while the exact ID remains Agent-only", () => {
+  const messages = projectConversationMessages([
+    user(
+      "请为岗位「测试」匹配经历库，并给出匹配结果。\n" +
+        "<jd_reference>\njd_id: jd-secret\n</jd_reference>",
+      1,
+    ),
+  ]);
+  assert.equal(messages[0]?.content, "请为岗位「测试」匹配经历库，并给出匹配结果。");
+  assert.doesNotMatch(JSON.stringify(messages), /jd-secret|jd_reference/);
+});
+
+test("legacy generated JD actions redact IDs from messages and stored titles", () => {
+  const agentMessages = [user(
+    "请针对 JD「测试岗位」（jdId: legacy-secret）匹配经历库并给出匹配结果。",
+    1,
+  )];
+  const messages = projectConversationMessages(agentMessages);
+  assert.equal(
+    messages[0]?.content,
+    "请为岗位「测试岗位」匹配经历库，并给出匹配结果。",
+  );
+  assert.equal(
+    presentConversationTitle("请针对 JD「测试岗位」（jdId: legacy", agentMessages),
+    "请为岗位「测试岗位」匹配经历库，并给出匹配结果。".slice(0, 28),
+  );
 });
 
 function user(content: string, timestamp: number): AgentMessage {

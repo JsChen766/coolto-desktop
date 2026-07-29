@@ -44,6 +44,11 @@ export interface ExperienceSearchResult {
   nextCursor: string | null;
 }
 
+export interface ExperienceRevisionPage {
+  items: ExperienceRevision[];
+  nextCursor: string | null;
+}
+
 export interface ExperienceSearchOptions {
   q?: string;
   category?: ExperienceCategory;
@@ -62,6 +67,15 @@ export interface ExperienceReader {
     experienceId: string,
     signal?: AbortSignal,
   ): Promise<ExperienceDetail>;
+}
+
+export interface ExperienceRevisionReader {
+  listExperienceRevisions(
+    experienceId: string,
+    cursor?: string,
+    limit?: number,
+    signal?: AbortSignal,
+  ): Promise<ExperienceRevisionPage>;
 }
 
 export interface ExperienceCreateInput {

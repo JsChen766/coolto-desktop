@@ -3,7 +3,11 @@ import type {
   ExperienceSearchOptions,
   ExperienceUpdateInput,
 } from "../../../api/types.js";
-import type { ExperiencePrepareUpdateRequest } from "../../../experience/maintenance-types.js";
+import type {
+  ExperienceHistoryRequest,
+  ExperiencePrepareRevisionRestoreRequest,
+  ExperiencePrepareUpdateRequest,
+} from "../../../experience/maintenance-types.js";
 
 const CATEGORIES = new Set(["work", "project", "education", "volunteer", "other"]);
 const STATUSES = new Set(["active", "archived"]);
@@ -24,6 +28,30 @@ export function parseProposalId(value: unknown): string {
     throw new Error("proposalId 不能为空");
   }
   return value.trim();
+}
+
+export function parseExperienceHistory(
+  value: unknown,
+): ExperienceHistoryRequest {
+  const record = object(value, "版本记录请求");
+  exactKeys(record, new Set(["experienceId", "cursor"]));
+  return {
+    experienceId: parseExperienceId(record.experienceId),
+    ...(record.cursor !== undefined
+      ? { cursor: nonEmptyString(record.cursor, "cursor") }
+      : {}),
+  };
+}
+
+export function parseRevisionRestore(
+  value: unknown,
+): ExperiencePrepareRevisionRestoreRequest {
+  const record = object(value, "版本恢复请求");
+  exactKeys(record, new Set(["experienceId", "revisionId"]));
+  return {
+    experienceId: parseExperienceId(record.experienceId),
+    revisionId: nonEmptyString(record.revisionId, "revisionId"),
+  };
 }
 
 export function parseExperienceSearch(
@@ -128,6 +156,12 @@ function exactKeys(
 function string(value: unknown, label: string): string {
   if (typeof value !== "string") throw new Error(`${label} 必须是字符串`);
   return value;
+}
+
+function nonEmptyString(value: unknown, label: string): string {
+  const result = string(value, label).trim();
+  if (!result) throw new Error(`${label} 不能为空`);
+  return result;
 }
 
 function nullableString(value: unknown, label: string): string | null {

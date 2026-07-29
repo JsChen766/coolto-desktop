@@ -3,8 +3,10 @@ import test from "node:test";
 
 import {
   parseExperienceCreate,
+  parseExperienceHistory,
   parseExperienceSearch,
   parseExperienceUpdate,
+  parseRevisionRestore,
 } from "../src/desktop/main/experience-library/experience-ipc-validation.js";
 
 test("Experience IPC create accepts only Renderer-maintained fields", () => {
@@ -63,5 +65,20 @@ test("Experience IPC fails closed on unknown and malformed fields", () => {
   assert.throws(
     () => parseExperienceSearch({ status: "deleted" }),
     /status 不合法/,
+  );
+});
+
+test("Experience history IPC accepts IDs and rejects Renderer content", () => {
+  assert.deepEqual(parseExperienceHistory({
+    experienceId: " exp-1 ", cursor: "2",
+  }), { experienceId: "exp-1", cursor: "2" });
+  assert.deepEqual(parseRevisionRestore({
+    experienceId: "exp-1", revisionId: "rev-2",
+  }), { experienceId: "exp-1", revisionId: "rev-2" });
+  assert.throws(
+    () => parseRevisionRestore({
+      experienceId: "exp-1", revisionId: "rev-2", content: "forged",
+    }),
+    /不支持字段/,
   );
 });

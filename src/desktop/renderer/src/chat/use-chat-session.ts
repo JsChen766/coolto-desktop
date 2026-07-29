@@ -6,6 +6,7 @@ import type {
   ConversationSummary,
   DesktopApprovalDecision,
   DesktopApprovalRequest,
+  JdChatReference,
   ResumeChatReference,
 } from "@desktop/types";
 import type { ToolRun } from "../components/ToolActivity.vue";
@@ -18,6 +19,7 @@ import { createAgentEventHandler } from "./agent-event-handler";
 import {
   createArtifactAnchorer,
   createRunStateReset,
+  optimisticUserMessage,
 } from "./chat-session-helpers";
 import { desktopErrorMessage } from "./desktop-error-message";
 import { useChatAuth } from "./use-chat-auth";
@@ -161,19 +163,14 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   async function send(
     text: string,
     resumeReference?: ResumeChatReference,
+    jdReference?: JdChatReference,
   ): Promise<void> {
     if (!current.value || running.value) return;
     const conversationId = current.value.id;
     const previousMessageIds = new Set(
       current.value.messages.map((message) => message.id),
     );
-    const optimistic: ChatMessage = {
-      id: `pending-${crypto.randomUUID()}`,
-      role: "user",
-      content: text,
-      createdAt: new Date().toISOString(),
-    };
-    current.value.messages.push(optimistic);
+    current.value.messages.push(optimisticUserMessage(text));
     running.value = true;
     streamingText.value = "";
     runError.value = undefined;
@@ -184,6 +181,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
         conversationId,
         text,
         ...(resumeReference ? { resumeReference } : {}),
+        ...(jdReference ? { jdReference } : {}),
       });
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();

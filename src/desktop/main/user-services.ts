@@ -11,6 +11,7 @@ import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
 import { ElectronResumePdfSaveDialog } from "./electron-pdf-save-dialog.js";
 import { ExperienceSyncStore } from "./experience-library/experience-sync-store.js";
+import { ExperienceHistoryService } from "./experience-library/experience-history-service.js";
 import { ExperienceMutationExecutor } from "./experience-library/experience-mutation-executor.js";
 import { ExperienceProposalService } from "./experience-library/experience-proposal-service.js";
 import { JdSyncStore } from "./jd-library/jd-sync-store.js";
@@ -33,6 +34,7 @@ export interface UserServices {
   applications: ApplicationSyncStore;
   applicationProposals: ApplicationProposalService;
   experiences: ExperienceSyncStore;
+  experienceHistory: ExperienceHistoryService;
   experienceProposals: ExperienceProposalService;
 }
 
@@ -71,6 +73,10 @@ export class UserServicesResolver {
       syncStore,
       triggerSync,
       waitForInitialSync,
+    );
+    const experienceHistory = new ExperienceHistoryService(
+      syncStore,
+      this.auth.apiClient,
     );
     const experienceProposals = new ExperienceProposalService(
       syncStore,
@@ -116,6 +122,7 @@ export class UserServicesResolver {
       applications,
       applicationProposals,
       experiences,
+      experienceHistory,
       experienceProposals,
     };
     return this.services;

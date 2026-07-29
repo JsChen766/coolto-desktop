@@ -20,6 +20,22 @@ export function promptWithResumeReference(
   ].join("\n");
 }
 
+export function promptWithJdReference(
+  text: string,
+  reference: NonNullable<AgentPromptInput["jdReference"]>,
+): string {
+  return [
+    text.trim(),
+    "",
+    "<jd_reference>",
+    `jd_id: ${reference.jdId}`,
+    `title: ${reference.title}`,
+    `requested_action: ${reference.action}`,
+    "Use this exact JD for the requested action. Never expose jd_id in user-facing text.",
+    "</jd_reference>",
+  ].join("\n");
+}
+
 function cloudResumePrompt(
   text: string,
   reference: NonNullable<AgentPromptInput["resumeReference"]>,

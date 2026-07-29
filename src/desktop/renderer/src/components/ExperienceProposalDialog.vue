@@ -23,6 +23,12 @@ const dangerous = computed(
   () => props.proposal.kind === "delete"
     || (props.proposal.kind === "accept_server" && !props.proposal.next),
 );
+const confirmLabel = computed(() => {
+  if (props.busy) return "正在处理…";
+  return props.proposal.kind === "restore_revision"
+    ? "确认恢复"
+    : "确认并写入 Outbox";
+});
 
 function dismiss(): void {
   editable.value ? emit("back") : emit("close");
@@ -69,7 +75,7 @@ function dismiss(): void {
           :disabled="busy"
           @click="$emit('confirm')"
         >
-          {{ busy ? "正在处理…" : "确认并写入 Outbox" }}
+          {{ confirmLabel }}
         </button>
       </div>
     </section>

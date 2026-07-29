@@ -14,7 +14,7 @@ export function projectConversationMessages(
     if (message.role !== "user" && message.role !== "assistant") return;
     const raw = extractText(message.content);
     if (isHiddenInternalPrompt(raw)) return;
-    const content = stripInternalResumeReference(raw);
+    const content = presentConversationContent(raw, message.role);
     if (!content.trim()) return;
     const timestamp =
       typeof message.timestamp === "number"
@@ -42,10 +42,34 @@ function isHiddenInternalPrompt(value: string): boolean {
   );
 }
 
-function stripInternalResumeReference(value: string): string {
-  return value
+export function presentConversationContent(
+  value: string,
+  role: "user" | "assistant",
+): string {
+  const stripped = value
     .replace(/\n*<resume_reference>[\s\S]*?<\/resume_reference>\s*$/u, "")
+    .replace(/\n*<jd_reference>[\s\S]*?<\/jd_reference>\s*$/u, "")
     .trimEnd();
+  if (role !== "user") return stripped;
+  return stripped.replace(
+    /^请针对 JD「([^」]+)」（jdId:\s*[^）]+）(生成针对性简历。|匹配经历库并给出匹配结果。)$/u,
+    (_match, title: string, action: string) =>
+      `请为岗位「${title}」${action === "生成针对性简历。"
+        ? action
+        : "匹配经历库，并给出匹配结果。"}`,
+  );
+}
+
+export function presentConversationTitle(
+  storedTitle: string,
+  messages: AgentMessage[],
+): string {
+  if (!storedTitle.includes("jdId:")) return storedTitle;
+  const firstUser = projectConversationMessages(messages).find(
+    (message) => message.role === "user",
+  );
+  const normalized = (firstUser?.content ?? "").replace(/\s+/g, " ").trim();
+  return normalized ? normalized.slice(0, 28) : storedTitle;
 }
 
 function extractText(content: unknown): string {

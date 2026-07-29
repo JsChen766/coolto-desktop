@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { promptWithResumeReference } from "../src/desktop/main/agent-prompt-reference.js";
+import {
+  promptWithJdReference,
+  promptWithResumeReference,
+} from "../src/desktop/main/agent-prompt-reference.js";
 
 test("local Resume reference restores its editable draft", () => {
   const prompt = promptWithResumeReference("修改标题", {
@@ -15,6 +18,17 @@ test("local Resume reference restores its editable draft", () => {
   assert.match(prompt, /artifact_id: draft-1/);
   assert.match(prompt, /stable target ID/);
   assert.doesNotMatch(prompt, /source: cloud/);
+});
+
+test("JD reference keeps the exact ID in hidden Agent metadata", () => {
+  const prompt = promptWithJdReference("请为岗位「测试」匹配经历库。", {
+    jdId: "jd-secret-1",
+    title: "测试",
+    action: "match",
+  });
+  assert.match(prompt, /<jd_reference>/);
+  assert.match(prompt, /jd_id: jd-secret-1/);
+  assert.match(prompt, /Never expose jd_id/);
 });
 
 test("cloud Resume reference is read-only until copy creation is confirmed", () => {

@@ -16,7 +16,10 @@ import type { ResumePdfCompiler, ResumePdfExportGateway } from "../../resume/exp
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import type { AgentPromptInput, ConversationDetail } from "../shared/types.js";
 import { AgentContextFactory } from "./agent-context-factory.js";
-import { promptWithResumeReference } from "./agent-prompt-reference.js";
+import {
+  promptWithJdReference,
+  promptWithResumeReference,
+} from "./agent-prompt-reference.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
@@ -72,6 +75,9 @@ export class DesktopAgentRuntime {
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
     try {
+      if (input.resumeReference && input.jdReference) {
+        throw new Error("一次消息不能同时引用 JD 和 Resume");
+      }
       const editBase =
         input.resumeReference &&
         input.resumeReference.source !== "cloud"
@@ -87,11 +93,12 @@ export class DesktopAgentRuntime {
           summary: `AI 修改：${input.resumeReference?.label ?? "简历内容"}`,
         };
       }
-      await context.agent.prompt(
-        input.resumeReference
+      const prompt = input.jdReference
+        ? promptWithJdReference(input.text, input.jdReference)
+        : input.resumeReference
           ? promptWithResumeReference(input.text, input.resumeReference)
-          : input.text,
-      );
+          : input.text;
+      await context.agent.prompt(prompt);
       const proposed = context.workspaceStore.latest();
       if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
         await this.#resumeDrafts.proposeChange({

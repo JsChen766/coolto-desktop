@@ -204,6 +204,7 @@ export function registerDesktopIpc(
     ipcMain,
     async () => (await servicesForCurrentUser()).experiences,
     async () => (await servicesForCurrentUser()).experienceProposals,
+    async () => (await servicesForCurrentUser()).experienceHistory,
   );
 }
 

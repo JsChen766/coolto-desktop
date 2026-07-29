@@ -29,6 +29,7 @@ const {
   page,
   prepareDetailAction,
   refresh,
+  restoreRevision,
   selectExperience,
   updateFilter,
 } = useExperienceLibraryController(
@@ -145,6 +146,7 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
           @edit="editExperience"
           @action="prepareDetailAction"
           @resolve-sync="maintenance.openSyncIssue(page.selected.value!.id)"
+          @restore-revision="restoreRevision"
         />
         <div v-else class="experience-page-state">
           {{ page.visible.value.length ? '选择一条经历查看详情' : '调整搜索或筛选条件后重试' }}

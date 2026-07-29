@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { AuthenticatedRequester } from "./api-transport.js";
 import {
   normalizeExperienceDetail,
+  normalizeExperienceRevisionPage,
   normalizeExperienceSearchResult,
   normalizeExperienceSummary,
 } from "./experience-normalizers.js";
@@ -10,12 +11,18 @@ import type {
   ExperienceCreateInput,
   ExperienceDetail,
   ExperienceReader,
+  ExperienceRevisionPage,
+  ExperienceRevisionReader,
   ExperienceSearchOptions,
   ExperienceSearchResult,
   ExperienceWriter,
 } from "./types.js";
 
-export class ExperienceApi implements ExperienceReader, ExperienceWriter {
+export class ExperienceApi implements
+  ExperienceReader,
+  ExperienceRevisionReader,
+  ExperienceWriter
+{
   public constructor(private readonly requester: AuthenticatedRequester) {}
 
   public async searchExperiences(
@@ -48,6 +55,23 @@ export class ExperienceApi implements ExperienceReader, ExperienceWriter {
       { ...(signal ? { signal } : {}) },
     );
     return normalizeExperienceDetail(value);
+  }
+
+  public async listExperienceRevisions(
+    experienceId: string,
+    cursor?: string,
+    limit = 10,
+    signal?: AbortSignal,
+  ): Promise<ExperienceRevisionPage> {
+    const normalizedId = experienceId.trim();
+    if (!normalizedId) throw new Error("experienceId 不能为空");
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (cursor) query.set("cursor", cursor);
+    const value = await this.requester.request<unknown>(
+      `/v1/product/experiences/${encodeURIComponent(normalizedId)}/revisions?${query}`,
+      { ...(signal ? { signal } : {}) },
+    );
+    return normalizeExperienceRevisionPage(value);
   }
 
   public async createExperience(
