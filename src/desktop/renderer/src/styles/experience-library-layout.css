@@ -37,6 +37,13 @@
   gap: 8px;
 }
 
+.experience-new-button {
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .experience-search {
   width: min(290px, 30vw);
   height: 34px;

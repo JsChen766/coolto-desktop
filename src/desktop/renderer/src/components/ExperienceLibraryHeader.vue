@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Menu, RefreshCw, Search } from "@lucide/vue";
+import { Menu, Plus, RefreshCw, Search } from "@lucide/vue";
 
 import type { ExperienceCategory } from "@desktop/types";
 import ExperienceFilterPopover from "./ExperienceFilterPopover.vue";
@@ -19,6 +19,7 @@ defineEmits<{
   "update:status": [value: "active" | "archived"];
   toggleTag: [tag: string];
   clearFilters: [];
+  newExperience: [];
   refresh: [];
   toggleSidebar: [];
 }>();
@@ -37,6 +38,14 @@ defineEmits<{
     </button>
     <h1>经历仓库</h1>
     <div class="experience-header-tools no-drag">
+      <button
+        class="primary-button icon-label experience-new-button"
+        type="button"
+        @click="$emit('newExperience')"
+      >
+        <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />
+        新建经历
+      </button>
       <label class="experience-search">
         <Search :size="15" aria-hidden="true" />
         <input

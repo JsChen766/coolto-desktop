@@ -16,6 +16,7 @@ import type {
   ApplicationWriteProposal,
 } from "../../../tracker/types.js";
 import type {
+  ExperienceCreateInput,
   ExperienceDetail,
   ExperienceSearchOptions,
   ExperienceSearchResult,
@@ -109,6 +110,7 @@ export interface DesktopApi {
   experiences: {
     search(options?: ExperienceSearchOptions): Promise<ExperienceSearchResult>;
     get(experienceId: string): Promise<ExperienceDetail>;
+    prepareCreate(input: ExperienceCreateInput): Promise<ExperienceWriteProposal>;
     prepareUpdate(input: ExperiencePrepareUpdateRequest): Promise<ExperienceWriteProposal>;
     prepareArchive(experienceId: string): Promise<ExperienceWriteProposal>;
     prepareRestore(experienceId: string): Promise<ExperienceWriteProposal>;

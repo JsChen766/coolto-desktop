@@ -47,7 +47,7 @@ export function useExperienceLibrary() {
       + Number(status.value === "archived"),
   );
 
-  async function load(): Promise<void> {
+  async function load(preferredId = selectedId.value): Promise<void> {
     const version = ++loadVersion;
     loading.value = true;
     error.value = undefined;
@@ -60,7 +60,7 @@ export function useExperienceLibrary() {
       });
       if (version !== loadVersion) return;
       catalog.value = result.items;
-      ensureSelection();
+      ensureSelection(preferredId);
     } catch (cause) {
       if (version === loadVersion) error.value = messageOf(cause, "经历仓库加载失败");
     } finally {
@@ -90,16 +90,17 @@ export function useExperienceLibrary() {
     }
   }
 
-  function ensureSelection(): void {
+  function ensureSelection(preferredId = selectedId.value): void {
     const first = visible.value[0];
     if (!first) {
       selectedId.value = undefined;
       selected.value = undefined;
       return;
     }
+    const preferred = visible.value.find((item) => item.id === preferredId);
     if (!visible.value.some((item) => item.id === selectedId.value)) {
-      selectedId.value = first.id;
-      void loadDetail(first.id, false);
+      selectedId.value = preferred?.id ?? first.id;
+      void loadDetail(selectedId.value, false);
     }
   }
 

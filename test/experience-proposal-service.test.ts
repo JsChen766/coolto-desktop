@@ -77,6 +77,8 @@ class FakeLocalSyncStore {
   private apply(mutation: EnqueueMutation): void {
     this.entity = {
       ...this.entity,
+      entityId: mutation.entityId,
+      entityVersion: mutation.action === "create" ? 0 : this.entity.entityVersion,
       localVersion: this.entity.localVersion + 1,
       syncStatus: "pending",
       operation: mutation.action === "delete" ? "delete" : "upsert",
@@ -94,13 +96,35 @@ function service(local: FakeLocalSyncStore) {
   );
 }
 
+test("Experience create is an immutable proposal before enqueue", async () => {
+  const local = new FakeLocalSyncStore();
+  const proposals = service(local);
+  const proposal = await proposals.prepareCreate({
+    category: "project",
+    title: "Desktop experience editor",
+    content: "Built an approval-first editor",
+    startDate: "2026-07",
+    tags: ["Electron"],
+  });
+
+  assert.equal(proposal.kind, "create");
+  assert.equal(proposal.current, null);
+  assert.equal(proposal.expectedEntityVersion, null);
+  assert.equal(local.writes.length, 0);
+  const result = proposals.execute(proposal.id);
+  assert.equal(local.writes.length, 1);
+  assert.equal(local.writes[0]?.action, "create");
+  assert.equal(result.experience?.title, "Desktop experience editor");
+  assert.equal(result.experience?.status, "active");
+});
+
 test("Experience update freezes a full payload and writes only after execute", async () => {
   const local = new FakeLocalSyncStore();
   const proposals = service(local);
   const proposal = await proposals.prepareUpdate("exp-1", { title: "Staff Engineer" });
 
   assert.equal(local.writes.length, 0);
-  assert.equal(proposal.current.organization, "Coolto");
+  assert.equal(proposal.current?.organization, "Coolto");
   assert.equal(proposal.next?.organization, "Coolto");
   const result = proposals.execute(proposal.id);
   assert.equal(local.writes.length, 1);
@@ -118,7 +142,7 @@ test("explicit null clears one field and content change pins a local revision id
     content: "Built a resilient sync engine",
   });
   assert.equal(proposal.next?.location, null);
-  assert.notEqual(proposal.next?.revisionId, proposal.current.revisionId);
+  assert.notEqual(proposal.next?.revisionId, proposal.current?.revisionId);
   const result = proposals.execute(proposal.id);
   assert.equal(result.experience?.currentRevisionId, proposal.next?.revisionId);
   assert.equal(local.writes[0]?.payload.revisionId, proposal.next?.revisionId);

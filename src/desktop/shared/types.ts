@@ -39,6 +39,7 @@ export type {
 } from "../../experience/maintenance-types.js";
 export type {
   ExperienceCategory,
+  ExperienceCreateInput,
   ExperienceDetail,
   ExperienceSearchOptions,
   ExperienceSearchResult,

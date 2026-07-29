@@ -69,6 +69,7 @@ const api: DesktopApi = {
   experiences: {
     search: (options) => ipcRenderer.invoke("experiences:search", options),
     get: (experienceId) => ipcRenderer.invoke("experiences:get", experienceId),
+    prepareCreate: (input) => ipcRenderer.invoke("experiences:prepare-create", input),
     prepareUpdate: (input) => ipcRenderer.invoke("experiences:prepare-update", input),
     prepareArchive: (id) => ipcRenderer.invoke("experiences:prepare-archive", id),
     prepareRestore: (id) => ipcRenderer.invoke("experiences:prepare-restore", id),

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ArrowLeft, MapPin } from "@lucide/vue";
+import { ArrowLeft, Ellipsis, MapPin, Pencil } from "@lucide/vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 
 import type { ExperienceDetail } from "@desktop/types";
 import {
@@ -8,8 +9,27 @@ import {
   experienceDateRange,
 } from "../../../../experience/timeline-labels";
 
-defineProps<{ experience: ExperienceDetail }>();
-defineEmits<{ back: [] }>();
+defineProps<{ experience: ExperienceDetail; busy?: boolean }>();
+const emit = defineEmits<{
+  action: [value: "archive" | "restore" | "delete"];
+  back: [];
+  edit: [];
+  resolveSync: [];
+}>();
+const menuOpen = ref(false);
+const editable = (experience: ExperienceDetail) =>
+  experience.syncStatus !== "conflict" && experience.syncStatus !== "failed";
+
+function action(value: "archive" | "restore" | "delete"): void {
+  menuOpen.value = false;
+  emit("action", value);
+}
+
+onMounted(() => window.addEventListener("click", closeMenu));
+onBeforeUnmount(() => window.removeEventListener("click", closeMenu));
+function closeMenu(): void {
+  menuOpen.value = false;
+}
 </script>
 
 <template>
@@ -32,6 +52,40 @@ defineEmits<{ back: [] }>();
           <span v-if="experience.status === 'archived'">已归档</span>
         </p>
       </div>
+      <div v-if="editable(experience)" class="experience-detail-actions">
+        <button
+          class="secondary-button icon-label"
+          type="button"
+          :disabled="busy"
+          @click="$emit('edit')"
+        >
+          <Pencil :size="15" :stroke-width="1.8" aria-hidden="true" />
+          编辑
+        </button>
+        <div class="experience-more-wrap" @click.stop>
+          <button
+            class="experience-more-trigger"
+            type="button"
+            :disabled="busy"
+            aria-label="更多经历操作"
+            title="更多经历操作"
+            @click="menuOpen = !menuOpen"
+          >
+            <Ellipsis :size="17" :stroke-width="1.8" aria-hidden="true" />
+          </button>
+          <div v-if="menuOpen" class="popover experience-more-menu">
+            <button
+              type="button"
+              @click="action(experience.status === 'archived' ? 'restore' : 'archive')"
+            >
+              {{ experience.status === "archived" ? "恢复" : "归档" }}
+            </button>
+            <button class="destructive" type="button" @click="action('delete')">
+              删除
+            </button>
+          </div>
+        </div>
+      </div>
     </header>
 
     <div class="experience-detail-scroll">
@@ -44,9 +98,17 @@ defineEmits<{ back: [] }>();
         <strong>{{ EXPERIENCE_SYNC_LABELS[experience.syncStatus] }}</strong>
         <span v-if="experience.syncStatus === 'pending'">这条经历已保存在本机，正在等待同步。</span>
         <span v-else-if="experience.syncStatus === 'conflict'">
-          服务端与本地内容存在冲突，E3 将提供处理入口。
+          服务端与本地内容存在冲突，需要先处理后才能继续编辑。
         </span>
-        <span v-else>最近一次同步未能写入，E3 将提供处理入口。</span>
+        <span v-else>最近一次同步未能写入，需要先处理后才能继续编辑。</span>
+        <button
+          v-if="experience.syncStatus === 'conflict' || experience.syncStatus === 'failed'"
+          type="button"
+          :disabled="busy"
+          @click="$emit('resolveSync')"
+        >
+          处理同步问题
+        </button>
       </div>
 
       <dl class="experience-facts">

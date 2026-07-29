@@ -5,6 +5,7 @@ import type {
 } from "../api/types.js";
 
 export type ExperienceProposalKind =
+  | "create"
   | "update"
   | "archive"
   | "restore"
@@ -33,9 +34,9 @@ export interface ExperienceWriteProposal {
   id: string;
   kind: ExperienceProposalKind;
   experienceId: string;
-  expectedEntityVersion: number;
-  expectedLocalVersion: number;
-  current: ExperienceProposalSnapshot;
+  expectedEntityVersion: number | null;
+  expectedLocalVersion: number | null;
+  current: ExperienceProposalSnapshot | null;
   next: ExperienceProposalSnapshot | null;
   errorCode: string | null;
   preparedAt: string;

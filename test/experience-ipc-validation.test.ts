@@ -2,9 +2,35 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  parseExperienceCreate,
   parseExperienceSearch,
   parseExperienceUpdate,
 } from "../src/desktop/main/experience-library/experience-ipc-validation.js";
+
+test("Experience IPC create accepts only Renderer-maintained fields", () => {
+  assert.deepEqual(parseExperienceCreate({
+    category: "project",
+    title: "Editor",
+    content: "Built an editor",
+    startDate: "2026-07",
+    tags: ["Electron"],
+  }), {
+    category: "project",
+    title: "Editor",
+    content: "Built an editor",
+    startDate: "2026-07",
+    tags: ["Electron"],
+  });
+  assert.throws(
+    () => parseExperienceCreate({
+      category: "project",
+      title: "Editor",
+      content: "Built an editor",
+      idempotencyKey: "renderer-controlled",
+    }),
+    /不支持字段/,
+  );
+});
 
 test("Experience IPC update preserves omitted fields and explicit null", () => {
   const parsed = parseExperienceUpdate({

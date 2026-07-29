@@ -46,6 +46,7 @@ export function createBrowserDemoApi(): DesktopApi {
     experiences: {
       search: async () => ({ items: [], nextCursor: null }),
       get: async () => { throw new Error("Demo 中没有经历"); },
+      prepareCreate: async () => { throw new Error("Demo 不支持经历维护"); },
       prepareUpdate: async () => { throw new Error("Demo 不支持经历维护"); },
       prepareArchive: async () => { throw new Error("Demo 不支持经历维护"); },
       prepareRestore: async () => { throw new Error("Demo 不支持经历维护"); },

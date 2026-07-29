@@ -1,4 +1,5 @@
 import type {
+  ExperienceCreateInput,
   ExperienceSearchOptions,
   ExperienceUpdateInput,
 } from "../../../api/types.js";
@@ -51,6 +52,28 @@ export function parseExperienceSearch(
     }
     result.limit = Math.min(record.limit as number, 500);
   }
+  return result;
+}
+
+export function parseExperienceCreate(value: unknown): ExperienceCreateInput {
+  const record = object(value, "新建请求");
+  exactKeys(record, new Set([
+    "category", "title", "content", "organization", "role", "location",
+    "startDate", "endDate", "tags",
+  ]));
+  const category = string(record.category, "category");
+  if (!CATEGORIES.has(category)) throw new Error("category 不合法");
+  const result: ExperienceCreateInput = {
+    category: category as ExperienceCreateInput["category"],
+    title: string(record.title, "title"),
+    content: string(record.content, "content"),
+  };
+  for (const key of [
+    "organization", "role", "location", "startDate", "endDate",
+  ] as const) {
+    if (record[key] !== undefined) result[key] = string(record[key], key);
+  }
+  if (record.tags !== undefined) result.tags = strings(record.tags, "tags");
   return result;
 }
 

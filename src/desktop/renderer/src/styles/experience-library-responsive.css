@@ -24,6 +24,11 @@
 
   .experience-detail-back {
     display: inline-flex;
+    flex-basis: 100%;
+  }
+
+  .experience-detail-header {
+    flex-wrap: wrap;
   }
 
   .experience-timeline {
@@ -102,8 +107,68 @@
     padding-top: 22px;
   }
 
+  .experience-editor-header {
+    padding: 20px 18px 16px;
+    flex-direction: column;
+  }
+
+  .experience-editor-actions {
+    width: 100%;
+  }
+
+  .experience-editor-actions button {
+    flex: 1;
+  }
+
+  .experience-editor-scroll {
+    padding: 0 18px 32px;
+  }
+
+  .experience-form-grid,
+  .experience-form-date-grid,
+  .experience-form-grid-three,
+  .experience-sync-compare {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-form-error-summary {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+
+  .experience-new-button {
+    width: 100%;
+  }
+
   .experience-facts {
     grid-template-columns: 1fr;
     gap: 14px;
+  }
+}
+
+@media (max-width: 460px) {
+  .experience-detail-header {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .experience-detail-actions {
+    width: 100%;
+  }
+
+  .experience-detail-actions .secondary-button {
+    flex: 1;
+  }
+
+  .experience-date-control {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-date-control select:only-child {
+    grid-column: auto;
+  }
+
+  .experience-sync-actions button {
+    width: 100%;
   }
 }

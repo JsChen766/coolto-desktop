@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from "vue";
+
 import {
   ApplicationTrackerView,
   ConversationDialog,
@@ -13,6 +15,7 @@ import ResumePreviewChoiceDialog from "./components/ResumePreviewChoiceDialog.vu
 import CloudResumeCopyDialog from "./components/CloudResumeCopyDialog.vue";
 
 const shell = useAppShell();
+const experienceLibraryView = ref<InstanceType<typeof ExperienceLibraryView>>();
 const {
   activeView,
   booting,
@@ -61,6 +64,21 @@ function recordFromRepository(
 ): void {
   openRepositoryTracker(asset, initial);
 }
+
+function guardNavigation(action: () => void | Promise<void>): void {
+  void (async () => {
+    if (
+      activeView.value === "experiences"
+      && (await experienceLibraryView.value?.confirmLeave()) === false
+    ) return;
+    await action();
+  })();
+}
+
+function requestPrimaryView(view: "experiences" | "library"): void {
+  if (activeView.value === view) return;
+  guardNavigation(() => openPrimaryView(view));
+}
 </script>
 
 <template>
@@ -92,16 +110,16 @@ function recordFromRepository(
       :resume-drafts="resumeWorkspace.drafts.value"
       :current-draft-id="resumeWorkspace.activeDraft.value?.artifactId"
       :active-view="activeView"
-      @create="createChat"
-      @select="selectChat"
-      @select-draft="openResumeDraft"
-      @open-experiences="openPrimaryView('experiences')"
-      @open-library="openPrimaryView('library')"
-      @open-tracker="openTracker"
+      @create="guardNavigation(createChat)"
+      @select="guardNavigation(() => selectChat($event))"
+      @select-draft="guardNavigation(() => openResumeDraft($event))"
+      @open-experiences="requestPrimaryView('experiences')"
+      @open-library="requestPrimaryView('library')"
+      @open-tracker="guardNavigation(openTracker)"
       @rename="openDialog('rename', $event)"
       @delete="openDialog('delete', $event)"
       @toggle-theme="toggleTheme"
-      @logout="logout"
+      @logout="guardNavigation(logout)"
     />
     <button
       v-if="sidebarOpen"
@@ -120,6 +138,7 @@ function recordFromRepository(
       />
       <ExperienceLibraryView
         v-else-if="activeView === 'experiences'"
+        ref="experienceLibraryView"
         @toggle-sidebar="showSidebar"
       />
       <JobRepositoryView

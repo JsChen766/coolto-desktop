@@ -54,6 +54,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
     experiences: {
       search: unavailable,
       get: unavailable,
+      prepareCreate: unavailable,
       prepareUpdate: unavailable,
       prepareArchive: unavailable,
       prepareRestore: unavailable,

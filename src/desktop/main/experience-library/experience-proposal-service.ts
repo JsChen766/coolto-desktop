@@ -1,4 +1,5 @@
 import type {
+  ExperienceCreateInput,
   ExperienceDetail,
   ExperienceUpdateInput,
 } from "../../../api/types.js";
@@ -13,6 +14,7 @@ import type { LocalEntity, SyncIssue } from "../sync/local-sync-types.js";
 import type { LocalSyncStore } from "../sync/local-sync-store.js";
 import type { ExperienceExecution } from "./experience-mutation-executor.js";
 import { ExperienceMutationExecutor } from "./experience-mutation-executor.js";
+import { buildExperienceCreateProposal } from "./experience-create-proposal.js";
 import {
   buildLocalExperience,
   toExperienceDetail,
@@ -41,6 +43,18 @@ export class ExperienceProposalService {
     private readonly initialSync: () => Promise<void>,
   ) {
     this.#registry = new ExperienceProposalRegistry(local, executor);
+  }
+
+  public async prepareCreate(
+    input: ExperienceCreateInput,
+  ): Promise<ExperienceWriteProposal> {
+    await this.initialSync();
+    const draft = buildExperienceCreateProposal(input);
+    return this.#registry.addCreate(
+      draft.experienceId,
+      draft.next,
+      draft.execution,
+    );
   }
 
   public async prepareUpdate(

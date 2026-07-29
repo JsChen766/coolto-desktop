@@ -48,15 +48,37 @@ export class ExperienceProposalRegistry {
     return structuredClone(view);
   }
 
+  public addCreate(
+    experienceId: string,
+    next: ExperienceProposalSnapshot,
+    execution: ExperienceExecution,
+  ): ExperienceWriteProposal {
+    const view: ExperienceWriteProposal = {
+      id: createUuidV7(),
+      kind: "create",
+      experienceId,
+      expectedEntityVersion: null,
+      expectedLocalVersion: null,
+      current: null,
+      next,
+      errorCode: null,
+      preparedAt: new Date().toISOString(),
+    };
+    this.#proposals.set(view.id, { view, execution });
+    return structuredClone(view);
+  }
+
   public execute(proposalId: string): ExperienceExecutionResult {
     const stored = this.#proposals.get(proposalId);
     if (!stored) throw new Error("确认内容已失效，请重新检查");
     const current = this.local.getEntity("experience", stored.view.experienceId);
-    if (
-      !current ||
-      current.localVersion !== stored.view.expectedLocalVersion ||
-      current.entityVersion !== stored.view.expectedEntityVersion
-    ) {
+    const createDrift = stored.view.kind === "create" && Boolean(current);
+    const updateDrift = stored.view.kind !== "create" && (
+      !current
+      || current.localVersion !== stored.view.expectedLocalVersion
+      || current.entityVersion !== stored.view.expectedEntityVersion
+    );
+    if (createDrift || updateDrift) {
       throw new Error("经历已变化，请重新检查后再确认");
     }
     const result = this.executor.execute(stored.execution);

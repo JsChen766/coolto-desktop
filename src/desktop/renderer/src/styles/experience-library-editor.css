@@ -1,0 +1,165 @@
+.experience-editor {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.experience-editor-header {
+  padding: 26px 38px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.experience-editor-header h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 650;
+}
+
+.experience-editor-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.experience-editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.experience-editor-scroll {
+  min-height: 0;
+  padding: 0 38px 42px;
+  overflow-y: auto;
+}
+
+.experience-form-grid,
+.experience-form-date-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.experience-form-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.experience-form-field {
+  min-width: 0;
+  margin-bottom: 18px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 11px;
+}
+
+.experience-form-field input,
+.experience-form-field select,
+.experience-form-field textarea {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  outline: none;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.experience-form-field input,
+.experience-form-field select {
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.experience-form-field textarea {
+  min-height: 190px;
+  padding: 11px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.experience-form-field input:focus,
+.experience-form-field select:focus,
+.experience-form-field textarea:focus,
+.experience-tag-editor:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border) 58%, transparent);
+}
+
+.experience-date-control {
+  display: grid;
+  grid-template-columns: minmax(105px, 0.8fr) minmax(140px, 1.2fr);
+  gap: 7px;
+}
+
+.experience-date-control select:only-child {
+  grid-column: 1 / -1;
+}
+
+.experience-tag-editor {
+  min-height: 42px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.experience-tag-editor input {
+  width: 150px;
+  min-height: 28px;
+  padding: 0 5px;
+  border: 0;
+  box-shadow: none;
+  flex: 1;
+}
+
+.experience-tag-chip {
+  min-height: 25px;
+  padding: 0 5px 0 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+}
+
+.experience-tag-chip button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.experience-field-error {
+  color: var(--danger);
+  font-size: 10px;
+}
+
+.experience-form-error-summary {
+  margin: 0 38px 18px;
+  color: var(--danger);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.experience-form-error-summary strong {
+  font-size: 12px;
+}

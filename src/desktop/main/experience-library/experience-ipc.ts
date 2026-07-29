@@ -4,6 +4,7 @@ import type { ExperienceSyncStore } from "./experience-sync-store.js";
 import type { ExperienceProposalService } from "./experience-proposal-service.js";
 import {
   parseExperienceId,
+  parseExperienceCreate,
   parseExperienceSearch,
   parseExperienceUpdate,
   parseProposalId,
@@ -12,6 +13,7 @@ import {
 export const EXPERIENCE_IPC_CHANNELS = [
   "experiences:search",
   "experiences:get",
+  "experiences:prepare-create",
   "experiences:prepare-update",
   "experiences:prepare-archive",
   "experiences:prepare-restore",
@@ -32,6 +34,8 @@ export function registerExperienceIpc(
     (await getStore()).searchExperiences(parseExperienceSearch(options)));
   ipcMain.handle("experiences:get", async (_event, id: unknown) =>
     (await getStore()).getExperience(parseExperienceId(id)));
+  ipcMain.handle("experiences:prepare-create", async (_event, value: unknown) =>
+    (await getProposals()).prepareCreate(parseExperienceCreate(value)));
   ipcMain.handle("experiences:prepare-update", async (_event, value: unknown) => {
     const input = parseExperienceUpdate(value);
     return (await getProposals()).prepareUpdate(input.experienceId, input.changes);
