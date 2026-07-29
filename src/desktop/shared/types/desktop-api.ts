@@ -5,6 +5,7 @@ import type {
 } from "../../../resume/draft/types.js";
 import type { ResumeLibraryEntry } from "../../../resume/library/types.js";
 import type { ResumeFull } from "../../../resume/types.js";
+import type { JobRepositorySnapshot } from "../../../job-assets/repository-types.js";
 import type {
   ApplicationCreateInput,
   ApplicationListOptions,
@@ -12,6 +13,7 @@ import type {
   ApplicationRecord,
   ApplicationReferenceOptions,
   ApplicationTombstone,
+  ApplicationWriteProposal,
 } from "../../../tracker/types.js";
 import type { DesktopAgentEvent } from "./approvals.js";
 import type {
@@ -34,6 +36,7 @@ import type {
 } from "./conversations.js";
 import type {
   ApplicationTransitionRequest,
+  ApplicationPrepareUpdateRequest,
   ApplicationUpdateRequest,
   LibraryArchiveInput,
   LibraryDeleteDraftInput,
@@ -87,11 +90,17 @@ export interface DesktopApi {
     getCheckpoints(artifactId: string): Promise<ResumeDraftCheckpoint[]>;
     restoreCheckpoint(input: LibraryRestoreCheckpointInput): Promise<LocalResumeDraft>;
   };
+  jobAssets: {
+    get(): Promise<JobRepositorySnapshot>;
+  };
   applications: {
     list(options?: ApplicationListOptions): Promise<ApplicationListResult>;
     references(): Promise<ApplicationReferenceOptions>;
     get(applicationId: string): Promise<ApplicationRecord>;
     create(input: ApplicationCreateInput): Promise<ApplicationRecord>;
+    prepareCreate(input: ApplicationCreateInput): Promise<ApplicationWriteProposal>;
+    prepareUpdate(input: ApplicationPrepareUpdateRequest): Promise<ApplicationWriteProposal>;
+    executeProposal(proposalId: string): Promise<ApplicationRecord>;
     update(input: ApplicationUpdateRequest): Promise<ApplicationRecord>;
     transition(input: ApplicationTransitionRequest): Promise<ApplicationRecord>;
     delete(applicationId: string): Promise<ApplicationTombstone>;

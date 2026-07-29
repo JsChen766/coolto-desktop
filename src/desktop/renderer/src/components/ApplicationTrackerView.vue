@@ -1,92 +1,36 @@
 <script setup lang="ts">
 import { ArrowLeft, Plus, RefreshCw, Search } from "@lucide/vue";
-import { computed, onMounted, ref } from "vue";
 
-import type {
-  ApplicationRecord,
-  ApplicationStatus,
-  ApplicationUpdateInput,
-} from "@desktop/types";
-import { useApplicationTracker } from "../tracker/use-application-tracker";
+import type { TrackerNavigationContext } from "../tracker/tracker-navigation";
+import { useApplicationTrackerPage } from "../tracker/use-application-tracker-page";
 import { desktopApi } from "../lib/desktop-api";
-import {
-  APPLICATION_BOARD_COLUMNS,
-  applicationsInColumn,
-  type TrackerViewMode,
-} from "../tracker/application-board";
+import { APPLICATION_BOARD_COLUMNS } from "../tracker/application-board";
 import ApplicationBoardColumn from "./ApplicationBoardColumn.vue";
 import ApplicationCalendarView from "./ApplicationCalendarView.vue";
 import ApplicationCreateDialog from "./ApplicationCreateDialog.vue";
+import ApplicationCorrectionDialog from "./ApplicationCorrectionDialog.vue";
 import ApplicationDeleteDialog from "./ApplicationDeleteDialog.vue";
 import ApplicationDetailPanel from "./ApplicationDetailPanel.vue";
 import ApplicationTransitionDialog from "./ApplicationTransitionDialog.vue";
 import ApplicationTimelineView from "./ApplicationTimelineView.vue";
 import ApplicationViewSwitcher from "./ApplicationViewSwitcher.vue";
 
-defineEmits<{ close: [] }>();
+const props = defineProps<{ context?: TrackerNavigationContext }>();
+const emit = defineEmits<{
+  close: [];
+  openAsset: [kind: "jd" | "resume", id: string];
+}>();
 
-const tracker = useApplicationTracker();
-const query = ref("");
-const activeView = ref<TrackerViewMode>("board");
-const createOpen = ref(false);
-const transitionTarget = ref<ApplicationStatus>();
-const transitionApplication = ref<ApplicationRecord>();
-const deleteTarget = ref<ApplicationRecord>();
+const page = useApplicationTrackerPage(() => props.context);
+const {
+  activeView, applicationsFor, confirmDelete, confirmTransition,
+  correctionProposal, createInitial, createOpen, createProposal, deleteTarget,
+  executeCorrection, executeCreate, filtered, prepareCreate, prepareTransition,
+  query, tracker, transitionApplication, transitionTarget, updateSelected,
+} = page;
 
-const filtered = computed(() => {
-  const value = query.value.trim().toLocaleLowerCase();
-  return !value
-    ? tracker.applications.value
-    : tracker.applications.value.filter((application) =>
-        [application.companyName, application.roleName].some((text) =>
-          text.toLocaleLowerCase().includes(value),
-        ),
-      );
-});
-
-onMounted(() => tracker.load());
-
-function applicationsFor(statuses: readonly ApplicationStatus[]): ApplicationRecord[] {
-  return applicationsInColumn(filtered.value, statuses);
-}
-
-function prepareTransition(application: ApplicationRecord, target: ApplicationStatus): void {
-  transitionApplication.value = application;
-  transitionTarget.value = target;
-}
-
-async function confirmTransition(reason: string | null): Promise<void> {
-  if (!transitionApplication.value || !transitionTarget.value) return;
-  try {
-    await tracker.transition(
-      transitionApplication.value,
-      transitionTarget.value,
-      reason,
-    );
-    transitionApplication.value = undefined;
-    transitionTarget.value = undefined;
-  } catch {
-    // The composable exposes the server error in the board banner.
-  }
-}
-
-async function updateSelected(changes: ApplicationUpdateInput): Promise<void> {
-  if (!tracker.selected.value) return;
-  try {
-    await tracker.update(tracker.selected.value.id, changes);
-  } catch {
-    // Keep the editor open so the user can retry or cancel.
-  }
-}
-
-async function confirmDelete(): Promise<void> {
-  if (!deleteTarget.value) return;
-  try {
-    await tracker.remove(deleteTarget.value);
-    deleteTarget.value = undefined;
-  } catch {
-    // Keep the confirmation open and surface the error banner.
-  }
+function openAsset(kind: "jd" | "resume", id: string): void {
+  emit("openAsset", kind, id);
 }
 </script>
 
@@ -94,7 +38,8 @@ async function confirmDelete(): Promise<void> {
   <div class="tracker-view">
     <header class="tracker-view-header">
       <button class="tracker-back-button" type="button" @click="$emit('close')">
-        <ArrowLeft :size="16" aria-hidden="true" />返回对话
+        <ArrowLeft :size="16" aria-hidden="true" />
+        {{ context?.returnToRepository ? '返回求职仓库' : '返回对话' }}
       </button>
       <label class="tracker-search">
         <Search :size="15" aria-hidden="true" />
@@ -114,6 +59,9 @@ async function confirmDelete(): Promise<void> {
         <Plus :size="15" aria-hidden="true" />记录投递
       </button>
     </header>
+    <div v-if="context?.asset" class="tracker-context-filter">
+      仅显示与 {{ context.asset.title }} 精确关联的投递
+    </div>
 
     <div v-if="tracker.error.value" class="tracker-error-banner" role="alert">
       <span>{{ tracker.error.value }}</span>
@@ -166,15 +114,28 @@ async function confirmDelete(): Promise<void> {
       @transition="prepareTransition(tracker.selected.value!, $event)"
       @delete="deleteTarget = tracker.selected.value"
       @open-url="desktopApi.browser.open({ url: $event })"
+      @open-asset="openAsset"
     />
 
     <ApplicationCreateDialog
       v-if="createOpen"
       :references="tracker.references.value"
+      :initial="createInitial"
+      :proposal="createProposal"
       :busy="tracker.busy.value"
       :error="tracker.error.value"
-      @close="createOpen = false"
-      @submit="tracker.create($event).then(() => { createOpen = false }).catch(() => undefined)"
+      @close="createOpen = false; createProposal = undefined"
+      @back="createProposal = undefined"
+      @review="prepareCreate"
+      @confirm="executeCreate"
+    />
+    <ApplicationCorrectionDialog
+      v-if="correctionProposal"
+      :proposal="correctionProposal"
+      :busy="tracker.busy.value"
+      :error="tracker.error.value"
+      @close="correctionProposal = undefined"
+      @confirm="executeCorrection"
     />
     <ApplicationTransitionDialog
       v-if="transitionApplication && transitionTarget"

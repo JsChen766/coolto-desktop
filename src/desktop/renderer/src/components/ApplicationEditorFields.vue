@@ -5,6 +5,7 @@ import type { ApplicationFormModel } from "../tracker/application-form";
 defineProps<{
   references: ApplicationReferenceOptions;
   includeRejectionReason?: boolean;
+  requireReferences?: boolean;
 }>();
 
 const model = defineModel<ApplicationFormModel>({ required: true });
@@ -35,8 +36,8 @@ const model = defineModel<ApplicationFormModel>({ required: true });
     </label>
     <label>
       <span>关联 JD</span>
-      <select v-model="model.jdId">
-        <option value="">不关联</option>
+      <select v-model="model.jdId" :required="requireReferences">
+        <option value="">{{ requireReferences ? '请选择 JD' : '不关联' }}</option>
         <option v-for="item in references.jds" :key="item.id" :value="item.id">
           {{ item.title }}
         </option>
@@ -44,8 +45,8 @@ const model = defineModel<ApplicationFormModel>({ required: true });
     </label>
     <label>
       <span>投递简历</span>
-      <select v-model="model.resumeId">
-        <option value="">不关联</option>
+      <select v-model="model.resumeId" :required="requireReferences">
+        <option value="">{{ requireReferences ? '请选择实际投递 Resume' : '不关联' }}</option>
         <option v-for="item in references.resumes" :key="item.id" :value="item.id">
           {{ item.title }}
         </option>

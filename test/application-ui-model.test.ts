@@ -94,6 +94,7 @@ function record(status: ApplicationRecord["status"]): ApplicationRecord {
     roleName: "Engineer",
     jdTitleSnapshot: "JD",
     resumeTitleSnapshot: "Resume",
+    resumeContentHashSnapshot: "a".repeat(64),
     deliveryMethod: "manual",
     targetUrl: null,
     appliedAt: now,

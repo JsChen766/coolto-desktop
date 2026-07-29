@@ -2,8 +2,8 @@
 import {
   ApplicationTrackerView,
   ConversationDialog,
+  JobRepositoryView,
   LoginScreen,
-  ResumeLibraryView,
   Sidebar,
 } from "./app/app-components";
 import AppChatWorkspace from "./app/AppChatWorkspace.vue";
@@ -30,14 +30,29 @@ const {
   openLibrary,
   openResumeDraft,
   openTracker,
+  openRepositoryTracker,
+  closeTracker,
+  openTrackerAsset,
+  startJdAction,
+  trackerContext,
+  jobRepositoryNavigation,
+  updateRepositoryNavigation,
   requestEmailCode,
   resumeWorkspace,
   selectChat,
   sidebarOpen,
+  showSidebar,
   toggleTheme,
   user,
   verifyEmailCode,
 } = shell;
+
+function recordFromRepository(
+  initial: Parameters<typeof openRepositoryTracker>[1],
+  asset: Parameters<typeof openRepositoryTracker>[0],
+): void {
+  openRepositoryTracker(asset, initial);
+}
 </script>
 
 <template>
@@ -79,10 +94,31 @@ const {
       @toggle-theme="toggleTheme"
       @logout="logout"
     />
+    <button
+      v-if="sidebarOpen"
+      class="sidebar-scrim"
+      type="button"
+      aria-label="关闭侧栏"
+      @click="sidebarOpen = false"
+    />
 
     <main class="main-workspace">
-      <ApplicationTrackerView v-if="activeView === 'tracker'" @close="activeView = 'chat'" />
-      <ResumeLibraryView v-else-if="activeView === 'library'" @close="activeView = 'chat'" @open="openFromLibrary" />
+      <ApplicationTrackerView
+        v-if="activeView === 'tracker'"
+        :context="trackerContext"
+        @close="closeTracker"
+        @open-asset="openTrackerAsset"
+      />
+      <JobRepositoryView
+        v-else-if="activeView === 'library'"
+        :navigation="jobRepositoryNavigation"
+        @open="openFromLibrary"
+        @toggle-sidebar="showSidebar"
+        @navigate="updateRepositoryNavigation"
+        @agent="startJdAction"
+        @record="recordFromRepository"
+        @tracker="openRepositoryTracker"
+      />
       <AppChatWorkspace v-else :shell="shell" />
     </main>
 

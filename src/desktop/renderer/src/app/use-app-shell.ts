@@ -7,6 +7,7 @@ import { useFillProgress } from "../browser/use-fill-progress";
 import { useChatSession } from "../chat/use-chat-session";
 import { desktopApi } from "../lib/desktop-api";
 import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
+import { useJobFlowNavigation } from "./use-job-flow-navigation";
 
 export type AppView = "chat" | "library" | "tracker";
 
@@ -24,12 +25,18 @@ export function useAppShell() {
   const fillProgress = useFillProgress();
   const scroller = ref<HTMLElement>();
   const dark = ref(localStorage.getItem("coolto-theme") === "dark");
+  const narrowScreen = window.matchMedia("(max-width: 820px)");
 
   onMounted(() => {
     applyTheme();
     fillProgress.mount();
+    if (narrowScreen.matches) sidebarOpen.value = false;
+    narrowScreen.addEventListener("change", handleNarrowScreen);
   });
-  onBeforeUnmount(() => fillProgress.unmount());
+  onBeforeUnmount(() => {
+    fillProgress.unmount();
+    narrowScreen.removeEventListener("change", handleNarrowScreen);
+  });
 
   watch(
     [
@@ -53,6 +60,7 @@ export function useAppShell() {
   }
 
   async function openResumeDraft(artifactId: string): Promise<void> {
+    closeNarrowSidebar();
     activeView.value = "chat";
     activeArtifactType.value = "resume";
     artifactOpen.value = true;
@@ -66,19 +74,24 @@ export function useAppShell() {
   }
 
   function openLibrary(): void {
+    closeNarrowSidebar();
     activeView.value = "library";
   }
 
   function openTracker(): void {
+    closeNarrowSidebar();
+    jobFlow.trackerContext.value = {};
     activeView.value = "tracker";
   }
 
   async function createChat(): Promise<void> {
+    closeNarrowSidebar();
     activeView.value = "chat";
     await session.createConversation();
   }
 
   async function selectChat(conversationId: string): Promise<void> {
+    closeNarrowSidebar();
     activeView.value = "chat";
     await session.selectConversation(conversationId);
   }
@@ -146,6 +159,18 @@ export function useAppShell() {
     applyTheme();
   }
 
+  function showSidebar(): void {
+    sidebarOpen.value = true;
+  }
+
+  function closeNarrowSidebar(): void {
+    if (narrowScreen.matches) sidebarOpen.value = false;
+  }
+
+  function handleNarrowScreen(event: MediaQueryListEvent): void {
+    if (event.matches) sidebarOpen.value = false;
+  }
+
   function applyTheme(): void {
     document.documentElement.classList.toggle("dark", dark.value);
   }
@@ -156,6 +181,13 @@ export function useAppShell() {
       behavior: "smooth",
     });
   }
+
+  const jobFlow = useJobFlowNavigation({
+    activeView,
+    closeNarrowSidebar,
+    createChat,
+    send: (text) => send(text),
+  });
 
   return {
     ...session,
@@ -175,12 +207,14 @@ export function useAppShell() {
     openMatchPanel,
     openResumeDraft,
     openTracker,
+    ...jobFlow,
     createChat,
     resumeWorkspace,
     saveResumeToCloud,
     scroller,
     selectChat,
     send,
+    showSidebar,
     sidebarOpen,
     toggleArtifact,
     toggleBrowser,

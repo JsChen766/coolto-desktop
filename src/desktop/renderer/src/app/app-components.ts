@@ -14,6 +14,6 @@ export { default as MarkdownContent } from "../components/MarkdownContent.vue";
 export { default as MatchReportCard } from "../components/MatchReportCard.vue";
 export { default as MatchReportPanel } from "../components/MatchReportPanel.vue";
 export { default as ResumeArtifactCard } from "../components/ResumeArtifactCard.vue";
-export { default as ResumeLibraryView } from "../components/ResumeLibraryView.vue";
+export { default as JobRepositoryView } from "../components/JobRepositoryView.vue";
 export { default as Sidebar } from "../components/Sidebar.vue";
 export { default as ToolActivity } from "../components/ToolActivity.vue";

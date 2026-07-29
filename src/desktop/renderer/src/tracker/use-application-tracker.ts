@@ -6,6 +6,7 @@ import type {
   ApplicationReferenceOptions,
   ApplicationStatus,
   ApplicationUpdateInput,
+  ApplicationWriteProposal,
 } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
 
@@ -43,6 +44,26 @@ export function useApplicationTracker() {
     await mutate(() => desktopApi.applications.create(input));
   }
 
+  async function prepareCreate(
+    input: ApplicationCreateInput,
+  ): Promise<ApplicationWriteProposal> {
+    return run(() => desktopApi.applications.prepareCreate(input), "检查投递信息失败");
+  }
+
+  async function prepareUpdate(
+    id: string,
+    changes: ApplicationUpdateInput,
+  ): Promise<ApplicationWriteProposal> {
+    return run(
+      () => desktopApi.applications.prepareUpdate({ applicationId: id, changes }),
+      "检查关联纠正失败",
+    );
+  }
+
+  async function executeProposal(proposalId: string): Promise<ApplicationRecord> {
+    return mutate(() => desktopApi.applications.executeProposal(proposalId));
+  }
+
   async function update(id: string, changes: ApplicationUpdateInput): Promise<void> {
     await mutate(() => desktopApi.applications.update({ applicationId: id, changes }));
   }
@@ -73,7 +94,7 @@ export function useApplicationTracker() {
     }
   }
 
-  async function mutate(action: () => Promise<ApplicationRecord>): Promise<void> {
+  async function mutate(action: () => Promise<ApplicationRecord>): Promise<ApplicationRecord> {
     busy.value = true;
     error.value = undefined;
     try {
@@ -82,8 +103,22 @@ export function useApplicationTracker() {
       if (index >= 0) applications.value[index] = updated;
       else applications.value.unshift(updated);
       if (selected.value?.id === updated.id) selected.value = updated;
+      return updated;
     } catch (cause: unknown) {
       error.value = messageOf(cause, "保存投递记录失败");
+      throw cause;
+    } finally {
+      busy.value = false;
+    }
+  }
+
+  async function run<T>(action: () => Promise<T>, fallback: string): Promise<T> {
+    busy.value = true;
+    error.value = undefined;
+    try {
+      return await action();
+    } catch (cause: unknown) {
+      error.value = messageOf(cause, fallback);
       throw cause;
     } finally {
       busy.value = false;
@@ -99,6 +134,9 @@ export function useApplicationTracker() {
     error,
     load,
     create,
+    prepareCreate,
+    prepareUpdate,
+    executeProposal,
     update,
     transition,
     remove,

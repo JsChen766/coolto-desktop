@@ -95,7 +95,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
       @click="$emit('openLibrary')"
     >
       <FolderOpen :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span>简历仓库</span>
+      <span>求职仓库</span>
     </button>
 
     <button

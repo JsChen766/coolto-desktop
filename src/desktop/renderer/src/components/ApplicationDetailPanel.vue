@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ExternalLink, Pencil, Trash2, X } from "@lucide/vue";
+import { BriefcaseBusiness, ExternalLink, FileText, Pencil, Trash2, X } from "@lucide/vue";
 import { ref, watch } from "vue";
 
 import type {
@@ -34,6 +34,7 @@ const emit = defineEmits<{
   transition: [status: ApplicationStatus];
   delete: [];
   openUrl: [url: string];
+  openAsset: [kind: "jd" | "resume", id: string];
 }>();
 
 const editing = ref(false);
@@ -83,6 +84,7 @@ function save(): void {
         v-model="form"
         :references="references"
         include-rejection-reason
+        require-references
       />
       <div class="tracker-detail-edit-actions">
         <button class="secondary-button" type="button" @click="editing = false">取消</button>
@@ -96,6 +98,12 @@ function save(): void {
         <div><dt>投递方式</dt><dd>{{ deliveryLabel(application.deliveryMethod) }}</dd></div>
         <div><dt>关联 JD</dt><dd>{{ application.jdTitleSnapshot ?? '未关联' }}</dd></div>
         <div><dt>投递简历</dt><dd>{{ application.resumeTitleSnapshot ?? '未关联' }}</dd></div>
+        <div>
+          <dt>简历版本</dt>
+          <dd>{{ application.resumeContentHashSnapshot
+            ? `${application.resumeContentHashSnapshot.slice(0, 12)}…`
+            : '历史记录未锁定版本' }}</dd>
+        </div>
         <div><dt>公司业务</dt><dd>{{ application.companyBusiness ?? '—' }}</dd></div>
         <div><dt>岗位摘要</dt><dd>{{ application.roleSummary ?? '—' }}</dd></div>
         <div><dt>公司文化</dt><dd>{{ application.companyCulture ?? '—' }}</dd></div>
@@ -109,6 +117,24 @@ function save(): void {
       >
         <ExternalLink :size="14" aria-hidden="true" />查看岗位链接
       </button>
+      <div class="tracker-asset-links">
+        <button
+          v-if="application.jdId"
+          class="secondary-button icon-label"
+          type="button"
+          @click="$emit('openAsset', 'jd', application.jdId)"
+        >
+          <BriefcaseBusiness :size="14" aria-hidden="true" />查看 JD
+        </button>
+        <button
+          v-if="application.resumeId"
+          class="secondary-button icon-label"
+          type="button"
+          @click="$emit('openAsset', 'resume', application.resumeId)"
+        >
+          <FileText :size="14" aria-hidden="true" />查看 Resume
+        </button>
+      </div>
     </div>
 
     <footer v-if="!editing" class="tracker-detail-footer">

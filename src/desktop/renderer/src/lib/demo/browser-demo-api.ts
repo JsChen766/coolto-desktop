@@ -1,6 +1,7 @@
 import type { DesktopApi, DesktopUser } from "@desktop/types";
 
 import { createDemoApplicationApi } from "./demo-application-api";
+import { createDemoJobAssetsApi } from "./demo-job-assets-api";
 import { createDemoBrowserApi } from "./demo-browser-api";
 import { createDemoChatApis } from "./demo-chat-api";
 import {
@@ -41,6 +42,7 @@ export function createBrowserDemoApi(): DesktopApi {
     resumeDrafts: createDemoResumeDraftApi(draft),
     agent: chat.agent,
     library: createDemoLibraryApi(),
+    jobAssets: createDemoJobAssetsApi(now),
     applications: createDemoApplicationApi(now),
     window: {
       minimize: async () => undefined,

@@ -5,6 +5,7 @@ import { ResumeManualEditor } from "../../resume/draft/manual-editor.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import { DesktopAgentRuntime } from "./agent-runtime.js";
 import { ApplicationSyncStore } from "./application-library/application-sync-store.js";
+import { ApplicationProposalService } from "./application-library/application-proposal-service.js";
 import { DesktopAuthService } from "./auth-service.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
@@ -26,7 +27,9 @@ export interface UserServices {
   agent: DesktopAgentRuntime;
   selectedFiles: ConversationSelectedFiles;
   resumes: ResumeSyncStore;
+  jds: JdSyncStore;
   applications: ApplicationSyncStore;
+  applicationProposals: ApplicationProposalService;
 }
 
 export class UserServicesResolver {
@@ -71,6 +74,7 @@ export class UserServicesResolver {
       triggerSync,
       waitForInitialSync,
     );
+    const applicationProposals = new ApplicationProposalService(syncStore, applications);
     const resumePdfExports = new ResumePdfExportService(
       this.resumeCompiler,
       new ElectronResumePdfSaveDialog(this.window),
@@ -99,7 +103,9 @@ export class UserServicesResolver {
       ),
       selectedFiles,
       resumes,
+      jds,
       applications,
+      applicationProposals,
     };
     return this.services;
   }

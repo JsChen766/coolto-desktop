@@ -1,0 +1,139 @@
+.job-repository-view {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.repository-header {
+  min-height: 78px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.platform-darwin .repository-header {
+  padding-top: 24px;
+}
+
+.repository-sidebar-toggle {
+  display: none;
+}
+
+.repository-heading {
+  min-width: 132px;
+}
+
+.repository-heading h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.repository-heading p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.repository-tools {
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.repository-search {
+  width: min(250px, 25vw);
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.repository-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+.repository-tools select {
+  height: 34px;
+  max-width: 116px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 12px;
+}
+
+.repository-layout {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(285px, 35%) minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.repository-list-pane,
+.repository-detail-pane {
+  min-width: 0;
+  min-height: 0;
+}
+
+.repository-list-pane {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.repository-detail-pane {
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.repository-page-state {
+  min-height: 0;
+  flex: 1;
+  padding: 32px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.repository-page-state strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.repository-page-state p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.repository-detail-empty {
+  height: 100%;
+}
+
+.sidebar-scrim {
+  display: none;
+}

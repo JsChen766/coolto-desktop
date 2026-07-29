@@ -5,6 +5,7 @@ import { WebContentsView, type Rectangle } from "electron";
 import type { BrowserTabState } from "../../shared/types.js";
 import { BROWSER_HOME_URL, isBrowserHomeUrl } from "./browser-home-page.js";
 import { getBrowserSession } from "./browser-session.js";
+import { buildBrowserUserAgent } from "./browser-user-agent.js";
 
 /**
  * B1: 单个标签页，封装一个 WebContentsView。
@@ -24,6 +25,12 @@ export class BrowserTab {
       },
     });
     const contents = this.view.webContents;
+    contents.setUserAgent(
+      buildBrowserUserAgent({
+        chromeVersion: process.versions.chrome,
+        platform: process.platform,
+      }),
+    );
     contents.setWindowOpenHandler(({ url }) => {
       onOpenUrl(url);
       return { action: "deny" };

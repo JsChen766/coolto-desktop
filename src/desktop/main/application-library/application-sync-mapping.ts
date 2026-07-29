@@ -10,6 +10,7 @@ import {
 export interface ApplicationSnapshots {
   jdTitle: string | null;
   resumeTitle: string | null;
+  resumeContentHash: string | null;
 }
 
 export function toApplicationCreatePayload(
@@ -23,6 +24,7 @@ export function toApplicationCreatePayload(
     roleName: input.roleName.trim(),
     jdTitleSnapshot: snapshots.jdTitle,
     resumeTitleSnapshot: snapshots.resumeTitle,
+    resumeContentHashSnapshot: snapshots.resumeContentHash,
     deliveryMethod: input.deliveryMethod,
     targetUrl: input.targetUrl ?? null,
     appliedAt: input.appliedAt ?? null,
@@ -41,6 +43,7 @@ export function toApplicationUpdatePayload(
   return {
     jdId: input.jdId,
     resumeId: input.resumeId,
+    resumeContentHashSnapshot: input.resumeContentHashSnapshot,
     companyName: input.companyName.trim(),
     roleName: input.roleName.trim(),
     deliveryMethod: input.deliveryMethod,
@@ -92,6 +95,7 @@ export function buildUpdatedApplication(
     ...toApplicationUpdatePayload(input),
     jdTitleSnapshot: snapshots.jdTitle,
     resumeTitleSnapshot: snapshots.resumeTitle,
+    resumeContentHashSnapshot: snapshots.resumeContentHash,
     updatedAt: now,
   };
 }
@@ -111,6 +115,8 @@ export function filterApplications(
   const query = options.query?.trim().toLocaleLowerCase();
   const filtered = applications.filter((item) => {
     if (options.status && item.status !== options.status) return false;
+    if (options.jdId && item.jdId !== options.jdId) return false;
+    if (options.resumeId && item.resumeId !== options.resumeId) return false;
     return !query || [item.companyName, item.roleName].some(
       (value) => value.toLocaleLowerCase().includes(query),
     );

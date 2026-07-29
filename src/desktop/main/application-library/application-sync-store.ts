@@ -177,6 +177,8 @@ export class ApplicationSyncStore {
     return {
       jdTitle: this.#assetTitle("job_description", input.jdId, input.jdTitleSnapshot),
       resumeTitle: this.#assetTitle("resume", input.resumeId, input.resumeTitleSnapshot),
+      resumeContentHash: input.resumeContentHashSnapshot
+        ?? this.#resumeContentHash(input.resumeId),
     };
   }
 
@@ -191,6 +193,9 @@ export class ApplicationSyncStore {
       resumeTitle: input.resumeId === current.resumeId
         ? current.resumeTitleSnapshot
         : this.#assetTitle("resume", input.resumeId, null),
+      resumeContentHash: input.resumeId === current.resumeId
+        ? current.resumeContentHashSnapshot
+        : input.resumeContentHashSnapshot ?? this.#resumeContentHash(input.resumeId),
     };
   }
 
@@ -212,10 +217,7 @@ export class ApplicationSyncStore {
   ): ApplicationReferenceOptions["jds"] {
     return this.store
       .listEntities(entityType)
-      .filter(
-        (entity) =>
-          entity.operation !== "delete" && entity.payload.status !== "archived",
-      )
+      .filter((entity) => entity.operation !== "delete")
       .flatMap((entity) => {
         const title = entity.payload.title;
         return typeof title === "string" && title.trim()
@@ -223,6 +225,16 @@ export class ApplicationSyncStore {
           : [];
       })
       .sort((left, right) => left.title.localeCompare(right.title, "zh-CN"));
+  }
+
+  #resumeContentHash(id: string | null | undefined): string | null {
+    if (!id) return null;
+    const entity = this.store.getEntity("resume", id);
+    const hash = entity?.payload.contentHash;
+    if (entity?.operation === "delete" || typeof hash !== "string") {
+      throw new Error(`Resume ${id} 缺少内容指纹`);
+    }
+    return hash;
   }
 }
 

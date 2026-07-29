@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ApplicationSyncStore } from "../src/desktop/main/application-library/application-sync-store.js";
+import { ApplicationProposalService } from "../src/desktop/main/application-library/application-proposal-service.js";
 import type {
   EnqueueMutation,
   LocalEntity,
@@ -13,7 +14,10 @@ const now = "2026-07-28T08:00:00.000Z";
 test("ApplicationSyncStore creates from local asset snapshots through Outbox", async () => {
   const storage = new FakeStorage();
   storage.seed("job_description", "jd-1", { title: "JD snapshot" });
-  storage.seed("resume", "resume-1", { title: "Resume snapshot" });
+  storage.seed("resume", "resume-1", {
+    title: "Resume snapshot",
+    contentHash: "a".repeat(64),
+  });
   let triggers = 0;
   const store = new ApplicationSyncStore(storage, () => { triggers += 1; }, async () => {});
 
@@ -29,11 +33,72 @@ test("ApplicationSyncStore creates from local asset snapshots through Outbox", a
 
   assert.equal(created.jdTitleSnapshot, "JD snapshot");
   assert.equal(created.resumeTitleSnapshot, "Resume snapshot");
+  assert.equal(created.resumeContentHashSnapshot, "a".repeat(64));
   assert.equal(created.status, "applied");
   assert.equal(created.syncStatus, "pending");
   assert.equal(storage.operations[0]?.action, "create");
   assert.equal(storage.operations[0]?.expectedVersion, null);
   assert.equal(triggers, 1);
+});
+
+test("Application proposal freezes Resume hash before Outbox execution", async () => {
+  const storage = new FakeStorage();
+  storage.seed("job_description", "jd-1", { title: "JD snapshot" });
+  storage.seed("resume", "resume-1", {
+    title: "Resume snapshot",
+    contentHash: "b".repeat(64),
+  });
+  const store = new ApplicationSyncStore(storage, () => {}, async () => {});
+  const proposals = new ApplicationProposalService(storage, store);
+  const proposal = await proposals.prepareCreate({
+    jdId: "jd-1",
+    resumeId: "resume-1",
+    companyName: "Coolto",
+    roleName: "Engineer",
+    deliveryMethod: "manual",
+    appliedAt: now,
+  });
+
+  storage.seed("resume", "resume-1", {
+    title: "Resume renamed",
+    contentHash: "c".repeat(64),
+  });
+  const created = await proposals.execute(proposal.id);
+  assert.equal(proposal.resumeContentHashSnapshot, "b".repeat(64));
+  assert.equal(created.resumeContentHashSnapshot, "b".repeat(64));
+  assert.equal(storage.operations.at(-1)?.action, "create");
+});
+
+test("Application duplicate warning uses latest applied fact", async () => {
+  const storage = new FakeStorage();
+  storage.seed("job_description", "jd-1", { title: "JD snapshot" });
+  storage.seed("resume", "resume-1", {
+    title: "Resume snapshot",
+    contentHash: "d".repeat(64),
+  });
+  storage.seed(
+    "application",
+    "app-old",
+    linkedApplicationPayload("app-old", "2026-07-20T08:00:00.000Z", "offer"),
+  );
+  storage.seed(
+    "application",
+    "app-new",
+    linkedApplicationPayload("app-new", "2026-07-28T08:00:00.000Z", "applied"),
+  );
+  const store = new ApplicationSyncStore(storage, () => {}, async () => {});
+  const proposals = new ApplicationProposalService(storage, store);
+  const proposal = await proposals.prepareCreate({
+    jdId: "jd-1",
+    resumeId: "resume-1",
+    companyName: "Coolto",
+    roleName: "Engineer",
+    deliveryMethod: "manual",
+    appliedAt: now,
+  });
+  assert.equal(proposal.duplicate?.count, 2);
+  assert.equal(proposal.duplicate?.latestStatus, "applied");
+  assert.equal(proposal.duplicate?.latestAppliedAt, "2026-07-28T08:00:00.000Z");
 });
 
 test("ApplicationSyncStore updates metadata, transitions, then tombstones", async () => {
@@ -79,6 +144,20 @@ test("ApplicationSyncStore updates metadata, transitions, then tombstones", asyn
   assert.equal(deleted.id, "app-1");
   assert.equal(storage.operations.at(-1)?.action, "delete");
   assert.deepEqual(storage.operations.at(-1)?.payload, {});
+});
+
+test("Application references keep archived Resume selectable", async () => {
+  const storage = new FakeStorage();
+  storage.seed("resume", "resume-archived", {
+    title: "Archived Resume",
+    status: "archived",
+    contentHash: "e".repeat(64),
+  });
+  const store = new ApplicationSyncStore(storage, () => {}, async () => {});
+  const references = await store.listReferenceOptions();
+  assert.deepEqual(references.resumes, [
+    { id: "resume-archived", title: "Archived Resume" },
+  ]);
 });
 
 class FakeStorage {
@@ -145,6 +224,7 @@ function applicationPayload(): Record<string, unknown> {
     roleName: "Engineer",
     jdTitleSnapshot: null,
     resumeTitleSnapshot: null,
+    resumeContentHashSnapshot: null,
     deliveryMethod: "manual",
     targetUrl: null,
     appliedAt: now,
@@ -159,5 +239,24 @@ function applicationPayload(): Record<string, unknown> {
     entityVersion: 3,
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+function linkedApplicationPayload(
+  id: string,
+  appliedAt: string,
+  status: "applied" | "offer",
+): Record<string, unknown> {
+  return {
+    ...applicationPayload(),
+    id,
+    jdId: "jd-1",
+    resumeId: "resume-1",
+    jdTitleSnapshot: "JD snapshot",
+    resumeTitleSnapshot: "Resume snapshot",
+    resumeContentHashSnapshot: "d".repeat(64),
+    appliedAt,
+    status,
+    createdAt: appliedAt,
   };
 }

@@ -17,20 +17,20 @@
 ## 当前 Roadmap
 
 - 唯一正式执行入口：`local-docs/p0-product-completion-roadmap/README.md`；其他阶段文档保留历史背景、契约和完成记录，不得形成第二条并行开发顺序。
-- 已完成阶段：N0、N1、S3、A0、J0；当前下一阶段为 J1。
+- 已完成阶段：N0、N1、S3、A0、J0、J1、J2、J3；当前下一阶段为 E0。
 - 后续固定顺序：`A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S5 → R1`。
 - 不得跳过阶段；每阶段开始先复核现状和工作树，并在真正开始该阶段时逐项向用户确认 Roadmap 已保留的确认点。
-- J1 只确认求职仓库 UI 方案，确认前不得进入 J2；E2 先确认经历仓库 UI 方案再实现；S4 的 Tracker 子实体布局也必须到阶段后先确认。
-- J0 已完成职责单一的 JD/Resume/Application 只读关系聚合与纯模型测试；后续从 J1 开始继续按固定顺序推进。
+- J0–J3 已完成求职仓库关系模型、UI 方案、只读展示和跨模块写入闭环；E0 先冻结经历仓库体验与领域规则，E2 先确认经历仓库 UI 方案再实现；S4 的 Tracker 子实体布局也必须到阶段后先确认。
+- 后续从 E0 开始继续按固定顺序推进；不得因 J3 已提供 Application 主记录写入而提前把 Interview、Note、Reminder 或通知混入求职仓库。
 
 ## 产品关系约束
 
 - Experience 是独立、可复用的长期事实资产，不永久隶属于 JD、Resume 或 Application。
 - JD 是岗位目标；一个 JD 可关联多份 Resume，也可在没有 Resume 时独立存在。
-- Resume 最多绑定一个 JD，也可作为不绑定 JD 的通用 Resume。
+- Resume 最多有一个主要目标 JD，也可作为不绑定 JD 的通用 Resume；任何 Resume 均可通过不同 Application 实际投递多个 JD，该事实不反向改写主要目标绑定。
 - Application 才是一次真实投递事实，必须同时保存实际 `jdId`、`resumeId` 及投递时的标题快照。
 - 通用 Resume 可原样用于不同 JD 的 Application；关系录错走显式纠错，只有内容针对新 JD 改变时才另存为新 Resume。
-- J3 完成前必须补齐 Application 对实际提交 Resume 版本的稳定引用，不能只依赖可变 `resumeId` 和标题快照。
+- 新建 Application 必须冻结实际提交 Resume 的 `contentHash` 到 `resumeContentHashSnapshot`；普通更新保持该值，只有显式纠正 Resume 关联时才随标题快照一起刷新。历史空值必须明确显示未锁定版本。
 - Interview、Note、Reminder 属于 Application；JD 和 Resume 只能展示由 Application 派生的投递摘要，禁止保存第二套投递状态。
 - 业务写入统一经过不可变 Proposal、宿主审批、LocalSyncStore/Outbox 和乐观锁；页面默认读取本地 projection，不绕过同步链路建立 Direct 写入。
 

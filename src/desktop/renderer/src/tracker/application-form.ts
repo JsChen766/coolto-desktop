@@ -34,6 +34,19 @@ export function emptyApplicationForm(): ApplicationFormModel {
   };
 }
 
+export function prefilledApplicationForm(
+  input?: Partial<ApplicationCreateInput>,
+): ApplicationFormModel {
+  const empty = emptyApplicationForm();
+  return {
+    ...empty,
+    companyName: input?.companyName ?? empty.companyName,
+    roleName: input?.roleName ?? empty.roleName,
+    jdId: input?.jdId ?? empty.jdId,
+    resumeId: input?.resumeId ?? empty.resumeId,
+  };
+}
+
 export function applicationFormOf(value: ApplicationRecord): ApplicationFormModel {
   return {
     companyName: value.companyName,

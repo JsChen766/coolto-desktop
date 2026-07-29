@@ -31,7 +31,12 @@ const createInput: ApplicationCreateInput = {
   appliedAt: now,
   source: "manual",
 };
-const snapshots = { jdTitle: "Backend JD", resumeTitle: "Backend Resume" };
+const hash = "a".repeat(64);
+const snapshots = {
+  jdTitle: "Backend JD",
+  resumeTitle: "Backend Resume",
+  resumeContentHash: hash,
+};
 
 test("Application create payload matches backend sync command keys", () => {
   assert.deepEqual(toApplicationCreatePayload(createInput, snapshots), {
@@ -41,6 +46,7 @@ test("Application create payload matches backend sync command keys", () => {
     roleName: "Engineer",
     jdTitleSnapshot: "Backend JD",
     resumeTitleSnapshot: "Backend Resume",
+    resumeContentHashSnapshot: hash,
     deliveryMethod: "manual",
     targetUrl: "https://example.com/jobs/1",
     appliedAt: now,
@@ -71,6 +77,12 @@ test("Application normalizer fails closed on malformed backend enums", () => {
   );
 });
 
+test("legacy Application projection without Resume hash remains readable", () => {
+  const payload = buildLocalApplication("app-1", createInput, snapshots, now);
+  delete payload.resumeContentHashSnapshot;
+  assert.equal(toApplicationRecord(entity(payload)).resumeContentHashSnapshot, null);
+});
+
 test("update and transition payloads exclude server-owned fields", () => {
   assert.deepEqual(Object.keys(toApplicationUpdatePayload({
     jdId: null,
@@ -86,7 +98,8 @@ test("update and transition payloads exclude server-owned fields", () => {
     companyCulture: null,
     rejectionReason: null,
   })), [
-    "jdId", "resumeId", "companyName", "roleName", "deliveryMethod",
+    "jdId", "resumeId", "resumeContentHashSnapshot",
+    "companyName", "roleName", "deliveryMethod",
     "targetUrl", "appliedAt", "pendingConfirmation", "companyBusiness",
     "roleSummary", "companyCulture", "rejectionReason",
   ]);

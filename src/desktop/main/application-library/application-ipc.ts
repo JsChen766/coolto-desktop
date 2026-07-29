@@ -4,15 +4,20 @@ import type {
   ApplicationCreateInput,
   ApplicationListOptions,
   ApplicationTransitionRequest,
+  ApplicationPrepareUpdateRequest,
   ApplicationUpdateRequest,
 } from "../../shared/types.js";
 import type { ApplicationSyncStore } from "./application-sync-store.js";
+import type { ApplicationProposalService } from "./application-proposal-service.js";
 
 export const APPLICATION_IPC_CHANNELS = [
   "applications:list",
   "applications:references",
   "applications:get",
   "applications:create",
+  "applications:prepare-create",
+  "applications:prepare-update",
+  "applications:execute-proposal",
   "applications:update",
   "applications:transition",
   "applications:delete",
@@ -21,6 +26,7 @@ export const APPLICATION_IPC_CHANNELS = [
 export function registerApplicationIpc(
   ipcMain: IpcMain,
   getStore: () => Promise<ApplicationSyncStore>,
+  getProposals: () => Promise<ApplicationProposalService>,
 ): void {
   ipcMain.handle(
     "applications:list",
@@ -37,6 +43,21 @@ export function registerApplicationIpc(
     "applications:create",
     async (_event, input: ApplicationCreateInput) =>
       (await getStore()).createApplication(input),
+  );
+  ipcMain.handle(
+    "applications:prepare-create",
+    async (_event, input: ApplicationCreateInput) =>
+      (await getProposals()).prepareCreate(input),
+  );
+  ipcMain.handle(
+    "applications:prepare-update",
+    async (_event, input: ApplicationPrepareUpdateRequest) =>
+      (await getProposals()).prepareUpdate(input.applicationId, input.changes),
+  );
+  ipcMain.handle(
+    "applications:execute-proposal",
+    async (_event, proposalId: string) =>
+      (await getProposals()).execute(proposalId),
   );
   ipcMain.handle(
     "applications:update",

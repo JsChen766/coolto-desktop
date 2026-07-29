@@ -19,7 +19,18 @@ export type {
   ApplicationTombstone,
   ApplicationTransitionInput,
   ApplicationUpdateInput,
+  ApplicationWriteProposal,
+  ApplicationDuplicateWarning,
+  TrackerSyncStatus,
 } from "../../tracker/types.js";
+export type {
+  JobRepositoryApplication,
+  JobRepositoryJd,
+  JobRepositoryReference,
+  JobRepositoryResume,
+  JobRepositoryResumeKind,
+  JobRepositorySnapshot,
+} from "../../job-assets/repository-types.js";
 export type * from "./types/approvals.js";
 export type * from "./types/artifacts.js";
 export type * from "./types/browser.js";

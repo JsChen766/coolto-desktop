@@ -18,6 +18,12 @@ export function toApplicationRecord(entity: LocalEntity): ApplicationRecord {
     roleName: requiredString(value.roleName, "application.roleName"),
     jdTitleSnapshot: nullableString(value.jdTitleSnapshot, "application.jdTitleSnapshot"),
     resumeTitleSnapshot: nullableString(value.resumeTitleSnapshot, "application.resumeTitleSnapshot"),
+    resumeContentHashSnapshot: value.resumeContentHashSnapshot === undefined
+      ? null
+      : nullableString(
+          value.resumeContentHashSnapshot,
+          "application.resumeContentHashSnapshot",
+        ),
     deliveryMethod: deliveryMethod(value.deliveryMethod),
     targetUrl: nullableString(value.targetUrl, "application.targetUrl"),
     appliedAt: nullableDate(value.appliedAt, "application.appliedAt"),

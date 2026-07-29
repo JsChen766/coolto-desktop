@@ -21,6 +21,11 @@ import {
   registerApplicationIpc,
 } from "./application-library/application-ipc.js";
 import { UserServicesResolver } from "./user-services.js";
+import {
+  JOB_ASSET_IPC_CHANNELS,
+  registerJobAssetIpc,
+} from "./job-assets/job-asset-ipc.js";
+import { JobAssetReadService } from "./job-assets/job-asset-read-service.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -34,6 +39,7 @@ export function registerDesktopIpc(
     ...IPC_CHANNELS,
     ...LIBRARY_IPC_CHANNELS,
     ...APPLICATION_IPC_CHANNELS,
+    ...JOB_ASSET_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -167,17 +173,27 @@ export function registerDesktopIpc(
   });
   ipcMain.handle("window:close", () => window.close());
 
-  registerResumeLibraryIpc(ipcMain, async () => {
+  const resumeLibraryForCurrentUser = async () => {
     const user = auth.requireCurrentUser();
-	const currentServices = await servicesForCurrentUser();
+    const currentServices = await servicesForCurrentUser();
     return new ResumeLibraryService(
-	  currentServices.resumes,
+      currentServices.resumes,
       createElectronResumeDraftRepository(user.id),
+    );
+  };
+  registerResumeLibraryIpc(ipcMain, resumeLibraryForCurrentUser);
+  registerJobAssetIpc(ipcMain, async () => {
+    const current = await servicesForCurrentUser();
+    return new JobAssetReadService(
+      current.jds,
+      await resumeLibraryForCurrentUser(),
+      current.applications,
     );
   });
   registerApplicationIpc(
     ipcMain,
     async () => (await servicesForCurrentUser()).applications,
+    async () => (await servicesForCurrentUser()).applicationProposals,
   );
 }
 

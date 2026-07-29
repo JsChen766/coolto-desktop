@@ -2,7 +2,11 @@ import type { ResumeCompileResult } from "../../../resume/compiler-types.js";
 import type { ResumeDraftSummary } from "../../../resume/draft/types.js";
 import type { ResumeStructure } from "../../../resume/types.js";
 import type { ResumeWorkspaceStatus } from "../../../resume/workspace/types.js";
-import type { ApplicationTransitionInput, ApplicationUpdateInput } from "../../../tracker/types.js";
+import type {
+  ApplicationCreateInput,
+  ApplicationTransitionInput,
+  ApplicationUpdateInput,
+} from "../../../tracker/types.js";
 
 export interface ResumeDraftCheckpointView {
   id: string;
@@ -75,3 +79,10 @@ export interface ApplicationTransitionRequest {
   applicationId: string;
   transition: ApplicationTransitionInput;
 }
+
+export interface ApplicationPrepareUpdateRequest {
+  applicationId: string;
+  changes: ApplicationUpdateInput;
+}
+
+export type ApplicationPrepareCreateRequest = ApplicationCreateInput;

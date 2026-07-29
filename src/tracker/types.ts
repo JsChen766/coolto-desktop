@@ -24,6 +24,7 @@ export interface ApplicationRecord {
   roleName: string;
   jdTitleSnapshot: string | null;
   resumeTitleSnapshot: string | null;
+  resumeContentHashSnapshot: string | null;
   deliveryMethod: ApplicationDeliveryMethod;
   targetUrl: string | null;
   appliedAt: string | null;
@@ -49,6 +50,7 @@ export interface ApplicationCreateInput {
   roleName: string;
   jdTitleSnapshot?: string | null;
   resumeTitleSnapshot?: string | null;
+  resumeContentHashSnapshot?: string | null;
   deliveryMethod: ApplicationDeliveryMethod;
   targetUrl?: string | null;
   appliedAt?: string | null;
@@ -64,6 +66,7 @@ export interface ApplicationCreateInput {
 export interface ApplicationUpdateInput {
   jdId: string | null;
   resumeId: string | null;
+  resumeContentHashSnapshot?: string | null;
   companyName: string;
   roleName: string;
   deliveryMethod: ApplicationDeliveryMethod;
@@ -85,6 +88,8 @@ export interface ApplicationTransitionInput {
 export interface ApplicationListOptions {
   status?: ApplicationStatus;
   query?: string;
+  jdId?: string;
+  resumeId?: string;
   cursor?: string;
   limit?: number;
 }
@@ -102,6 +107,27 @@ export interface ApplicationReferenceOption {
 export interface ApplicationReferenceOptions {
   jds: ApplicationReferenceOption[];
   resumes: ApplicationReferenceOption[];
+}
+
+export interface ApplicationDuplicateWarning {
+  count: number;
+  latestStatus: ApplicationStatus;
+  latestAppliedAt: string | null;
+}
+
+export interface ApplicationWriteProposal {
+  id: string;
+  kind: "create" | "relation_correction";
+  applicationId: string | null;
+  companyName: string;
+  roleName: string;
+  jd: ApplicationReferenceOption;
+  resume: ApplicationReferenceOption;
+  previousJd: ApplicationReferenceOption | null;
+  previousResume: ApplicationReferenceOption | null;
+  resumeContentHashSnapshot: string;
+  duplicate: ApplicationDuplicateWarning | null;
+  preparedAt: string;
 }
 
 export interface ApplicationTombstone {

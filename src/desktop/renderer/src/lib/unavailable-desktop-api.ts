@@ -47,11 +47,17 @@ export function createUnavailableDesktopApi(): DesktopApi {
       getCheckpoints: unavailable,
       restoreCheckpoint: unavailable,
     },
+    jobAssets: {
+      get: unavailable,
+    },
     applications: {
       list: unavailable,
       references: unavailable,
       get: unavailable,
       create: unavailable,
+      prepareCreate: unavailable,
+      prepareUpdate: unavailable,
+      executeProposal: unavailable,
       update: unavailable,
       transition: unavailable,
       delete: unavailable,

@@ -1,0 +1,113 @@
+.repository-application-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.repository-application-heading > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.repository-application-heading strong {
+  font-size: 11.5px;
+}
+
+.repository-application-heading span,
+.repository-application-meta,
+.repository-application-reference {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.repository-application-meta {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.repository-application-reference {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.repository-requirements > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.repository-requirements p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.repository-requirements span {
+  color: var(--muted);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.repository-raw-text {
+  margin-top: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.repository-raw-text summary {
+  cursor: pointer;
+}
+
+.repository-raw-text p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.repository-resume-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.repository-resume-meta > div {
+  padding: 9px;
+  border-radius: 8px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.repository-resume-meta span {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+
+.repository-resume-meta strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repository-section > .repository-section-empty {
+  padding: 18px 8px;
+  border-radius: 8px;
+  background: var(--surface);
+}
