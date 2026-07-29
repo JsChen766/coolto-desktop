@@ -10,6 +10,7 @@ import type {
 } from "./source-types.js";
 import { ResumeSourceSnapshotError } from "./source-snapshot-error.js";
 import { sha256, stableStringify } from "./stable-snapshot.js";
+import { experienceEvidenceEligibility } from "../experience/evidence-eligibility.js";
 
 export function normalizeSourceProfile(
   userId: string,
@@ -78,7 +79,8 @@ export function normalizeSourceExperience(
   experience: ExperienceDetail,
   expectedId: string,
 ): ResumeSourceExperienceSnapshot {
-  if (experience.id !== expectedId || experience.status !== "active") {
+  const eligibility = experienceEvidenceEligibility(experience);
+  if (experience.id !== expectedId || !eligibility.eligible) {
     throw new ResumeSourceSnapshotError(
       "inactive_experience",
       `Experience ${expectedId} is missing or inactive.`,

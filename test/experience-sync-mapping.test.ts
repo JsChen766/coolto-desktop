@@ -8,10 +8,10 @@ import type {
 import type { LocalEntity } from "../src/desktop/main/sync/local-sync-types.js";
 import {
   buildLocalExperience,
-  filterExperiences,
   toExperienceDetail,
   toExperienceWritePayload,
 } from "../src/desktop/main/experience-library/experience-sync-mapping.js";
+import { filterExperiences } from "../src/desktop/main/experience-library/experience-search.js";
 
 const baseInput: ExperienceCreateInput = {
   category: "work",
@@ -42,7 +42,7 @@ function entity(
 }
 
 test("toExperienceWritePayload matches backend createPayload keys", () => {
-  const payload = toExperienceWritePayload(baseInput);
+  const payload = toExperienceWritePayload(baseInput, "rev-1");
   assert.deepEqual(Object.keys(payload).sort(), [
     "category",
     "content",
@@ -50,6 +50,7 @@ test("toExperienceWritePayload matches backend createPayload keys", () => {
     "location",
     "organization",
     "role",
+    "revisionId",
     "source",
     "startDate",
     "status",
@@ -57,6 +58,7 @@ test("toExperienceWritePayload matches backend createPayload keys", () => {
     "title",
   ].sort());
   assert.equal(payload.status, "active");
+  assert.equal(payload.revisionId, "rev-1");
   assert.equal(payload.source, "manual");
   assert.equal(payload.startDate, "2022-01");
 });
@@ -125,6 +127,44 @@ test("filterExperiences applies category, query and tag filters", () => {
   assert.deepEqual(
     filterExperiences(all, { tags: ["ml"] }).items.map((e) => e.id),
     ["c"],
+  );
+});
+
+test("filterExperiences normalizes full text, requires every tag and defaults active", () => {
+  const all = [
+    detailFixture("active", {
+      location: "Ｈｏｎｇ　Ｋｏｎｇ",
+      tags: ["Go", "Sync"],
+      currentRevisionId: "rev-active",
+      currentRevision: {
+        id: "rev-active",
+        experienceId: "active",
+        content: "Built an offline queue",
+        source: "manual",
+        revisionHash: null,
+        factBankStatus: "not_applicable",
+        createdAt: "2026-07-01T00:00:00Z",
+      },
+    }),
+    detailFixture("archived", {
+      status: "archived",
+      title: "Archived role",
+      tags: ["Go", "Sync"],
+    }),
+  ];
+  assert.deepEqual(
+    filterExperiences(all, { q: "hong kong", tags: [" go ", "SYNC"] })
+      .items.map((item) => item.id),
+    ["active"],
+  );
+  assert.deepEqual(
+    filterExperiences(all, { q: "offline queue" }).items.map((item) => item.id),
+    ["active"],
+  );
+  assert.deepEqual(filterExperiences(all, { tags: ["Go", "missing"] }).items, []);
+  assert.deepEqual(
+    filterExperiences(all, { status: "archived" }).items.map((item) => item.id),
+    ["archived"],
   );
 });
 

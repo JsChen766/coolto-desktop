@@ -66,6 +66,22 @@ const api: DesktopApi = {
   jobAssets: {
     get: () => ipcRenderer.invoke("job-assets:get"),
   },
+  experiences: {
+    search: (options) => ipcRenderer.invoke("experiences:search", options),
+    get: (experienceId) => ipcRenderer.invoke("experiences:get", experienceId),
+    prepareUpdate: (input) => ipcRenderer.invoke("experiences:prepare-update", input),
+    prepareArchive: (id) => ipcRenderer.invoke("experiences:prepare-archive", id),
+    prepareRestore: (id) => ipcRenderer.invoke("experiences:prepare-restore", id),
+    prepareDelete: (id) => ipcRenderer.invoke("experiences:prepare-delete", id),
+    syncIssue: (id) => ipcRenderer.invoke("experiences:sync-issue", id),
+    prepareAcceptServer: (id) =>
+      ipcRenderer.invoke("experiences:prepare-accept-server", id),
+    prepareReapply: (id) => ipcRenderer.invoke("experiences:prepare-reapply", id),
+    prepareSaveAsNew: (id) =>
+      ipcRenderer.invoke("experiences:prepare-save-as-new", id),
+    executeProposal: (id) =>
+      ipcRenderer.invoke("experiences:execute-proposal", id),
+  },
   applications: {
     list: (options) => ipcRenderer.invoke("applications:list", options),
     references: () => ipcRenderer.invoke("applications:references"),

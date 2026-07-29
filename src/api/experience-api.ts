@@ -25,6 +25,7 @@ export class ExperienceApi implements ExperienceReader, ExperienceWriter {
     const query = new URLSearchParams();
     if (options.q) query.set("q", options.q);
     if (options.category) query.set("category", options.category);
+    if (options.status) query.set("status", options.status);
     for (const tag of options.tags ?? []) query.append("tags", tag);
     if (options.limit !== undefined) query.set("limit", String(options.limit));
     if (options.cursor) query.set("cursor", options.cursor);
@@ -71,6 +72,7 @@ export class ExperienceApi implements ExperienceReader, ExperienceWriter {
           start_date: input.startDate ?? null,
           end_date: input.endDate ?? null,
           tags: input.tags ?? [],
+          status: input.status ?? "active",
         }),
         ...(signal ? { signal } : {}),
       },

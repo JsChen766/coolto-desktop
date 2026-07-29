@@ -31,6 +31,17 @@ export type {
   JobRepositoryResumeKind,
   JobRepositorySnapshot,
 } from "../../job-assets/repository-types.js";
+export type {
+  ExperienceExecutionResult,
+  ExperiencePrepareUpdateRequest,
+  ExperienceSyncIssueView,
+  ExperienceWriteProposal,
+} from "../../experience/maintenance-types.js";
+export type {
+  ExperienceDetail,
+  ExperienceSearchOptions,
+  ExperienceSearchResult,
+} from "../../api/types.js";
 export type * from "./types/approvals.js";
 export type * from "./types/artifacts.js";
 export type * from "./types/browser.js";

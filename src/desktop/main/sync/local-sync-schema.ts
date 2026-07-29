@@ -1,4 +1,23 @@
 import type { DatabaseSync } from "node:sqlite";
+import { migrateLocalSyncSchema } from "./local-sync-migrations.js";
+
+export const SYNC_ENTITIES_TABLE_SQL = `
+  CREATE TABLE sync_entities (
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    entity_version INTEGER NOT NULL CHECK (entity_version >= 0),
+    local_version INTEGER NOT NULL DEFAULT 1 CHECK (local_version >= 1),
+    sync_status TEXT NOT NULL DEFAULT 'clean'
+      CHECK (sync_status IN ('clean', 'pending', 'conflict', 'failed')),
+    operation TEXT NOT NULL CHECK (operation IN ('upsert', 'delete')),
+    changed_at TEXT NOT NULL,
+    payload BLOB NOT NULL,
+    last_server_operation TEXT
+      CHECK (last_server_operation IS NULL OR last_server_operation IN ('upsert', 'delete')),
+    last_server_payload BLOB,
+    last_error_code TEXT,
+    PRIMARY KEY (entity_type, entity_id)
+  ) STRICT`;
 
 export function initializeLocalSyncSchema(database: DatabaseSync): void {
   database.exec(`
@@ -7,18 +26,7 @@ export function initializeLocalSyncSchema(database: DatabaseSync): void {
     PRAGMA foreign_keys = ON;
     PRAGMA busy_timeout = 5000;
 
-    CREATE TABLE IF NOT EXISTS sync_entities (
-      entity_type TEXT NOT NULL,
-      entity_id TEXT NOT NULL,
-      entity_version INTEGER NOT NULL CHECK (entity_version >= 0),
-      local_version INTEGER NOT NULL DEFAULT 1 CHECK (local_version >= 1),
-      sync_status TEXT NOT NULL DEFAULT 'clean'
-        CHECK (sync_status IN ('clean', 'pending', 'conflict')),
-      operation TEXT NOT NULL CHECK (operation IN ('upsert', 'delete')),
-      changed_at TEXT NOT NULL,
-      payload BLOB NOT NULL,
-      PRIMARY KEY (entity_type, entity_id)
-    ) STRICT;
+    ${SYNC_ENTITIES_TABLE_SQL.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS")};
 
     CREATE TABLE IF NOT EXISTS local_outbox (
       operation_id TEXT PRIMARY KEY,
@@ -63,6 +71,8 @@ export function initializeLocalSyncSchema(database: DatabaseSync): void {
       entity_id TEXT NOT NULL,
       local_payload BLOB NOT NULL,
       server_payload BLOB,
+      server_operation TEXT
+        CHECK (server_operation IS NULL OR server_operation IN ('upsert', 'delete')),
       server_version INTEGER,
       error_code TEXT NOT NULL,
       created_at TEXT NOT NULL
@@ -75,4 +85,5 @@ export function initializeLocalSyncSchema(database: DatabaseSync): void {
       occurred_at TEXT NOT NULL
     ) STRICT;
   `);
+  migrateLocalSyncSchema(database);
 }

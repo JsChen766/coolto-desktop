@@ -51,6 +51,19 @@ export function createUnavailableDesktopApi(): DesktopApi {
     jobAssets: {
       get: unavailable,
     },
+    experiences: {
+      search: unavailable,
+      get: unavailable,
+      prepareUpdate: unavailable,
+      prepareArchive: unavailable,
+      prepareRestore: unavailable,
+      prepareDelete: unavailable,
+      syncIssue: unavailable,
+      prepareAcceptServer: unavailable,
+      prepareReapply: unavailable,
+      prepareSaveAsNew: unavailable,
+      executeProposal: unavailable,
+    },
     applications: {
       list: unavailable,
       references: unavailable,

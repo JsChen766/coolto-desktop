@@ -15,6 +15,17 @@ import type {
   ApplicationTombstone,
   ApplicationWriteProposal,
 } from "../../../tracker/types.js";
+import type {
+  ExperienceDetail,
+  ExperienceSearchOptions,
+  ExperienceSearchResult,
+} from "../../../api/types.js";
+import type {
+  ExperienceExecutionResult,
+  ExperiencePrepareUpdateRequest,
+  ExperienceSyncIssueView,
+  ExperienceWriteProposal,
+} from "../../../experience/maintenance-types.js";
 import type { DesktopAgentEvent } from "./approvals.js";
 import type {
   BrowserFillRecordView,
@@ -94,6 +105,19 @@ export interface DesktopApi {
   };
   jobAssets: {
     get(): Promise<JobRepositorySnapshot>;
+  };
+  experiences: {
+    search(options?: ExperienceSearchOptions): Promise<ExperienceSearchResult>;
+    get(experienceId: string): Promise<ExperienceDetail>;
+    prepareUpdate(input: ExperiencePrepareUpdateRequest): Promise<ExperienceWriteProposal>;
+    prepareArchive(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareRestore(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareDelete(experienceId: string): Promise<ExperienceWriteProposal>;
+    syncIssue(experienceId: string): Promise<ExperienceSyncIssueView>;
+    prepareAcceptServer(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareReapply(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareSaveAsNew(experienceId: string): Promise<ExperienceWriteProposal>;
+    executeProposal(proposalId: string): Promise<ExperienceExecutionResult>;
   };
   applications: {
     list(options?: ApplicationListOptions): Promise<ApplicationListResult>;

@@ -20,10 +20,25 @@ export interface LocalEntity {
   entityId: string;
   entityVersion: number;
   localVersion: number;
-  syncStatus: "clean" | "pending" | "conflict";
+  syncStatus: "clean" | "pending" | "conflict" | "failed";
   operation: "upsert" | "delete";
   changedAt: string;
   payload: Record<string, unknown>;
+  lastServerOperation?: "upsert" | "delete" | null;
+  lastServerPayload?: Record<string, unknown> | null;
+  lastErrorCode?: string | null;
+}
+
+export interface SyncIssue {
+  entityType: SyncEntityType;
+  entityId: string;
+  status: "conflict" | "failed";
+  action: SyncAction;
+  serverVersion: number;
+  serverOperation: "upsert" | "delete" | null;
+  localPayload: Record<string, unknown>;
+  serverPayload: Record<string, unknown> | null;
+  errorCode: string;
 }
 
 export interface PendingOperation extends OutboxOperation {
@@ -41,4 +56,6 @@ export interface OutboxRow {
   created_at: string;
   attempt_count: number;
   next_attempt_at: string;
+  status?: "pending" | "conflict" | "failed";
+  last_error_code?: string | null;
 }

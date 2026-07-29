@@ -4,7 +4,6 @@ import type {
   ExperienceCreateInput,
   ExperienceDetail,
   ExperienceRevision,
-  ExperienceSearchOptions,
 } from "../../../api/types.js";
 import type { LocalEntity } from "../sync/local-sync-types.js";
 
@@ -17,8 +16,10 @@ const FACT_BANK_NOT_APPLICABLE = "not_applicable";
  */
 export function toExperienceWritePayload(
   input: ExperienceCreateInput,
+  revisionId: string,
 ): Record<string, unknown> {
   return {
+    revisionId,
     category: input.category,
     title: input.title,
     content: input.content,
@@ -28,7 +29,7 @@ export function toExperienceWritePayload(
     startDate: input.startDate ?? null,
     endDate: input.endDate ?? null,
     tags: input.tags ?? [],
-    status: "active",
+    status: input.status ?? "active",
     source: "manual",
   };
 }
@@ -54,7 +55,7 @@ export function buildLocalExperience(
     startDate: input.startDate ?? null,
     endDate: input.endDate ?? null,
     tags: input.tags ?? [],
-    status: "active",
+    status: input.status ?? "active",
     currentRevisionId: revisionId,
     currentRevision: {
       id: revisionId,
@@ -94,68 +95,6 @@ export function toExperienceDetail(entity: LocalEntity): ExperienceDetail {
     syncStatus: entity.syncStatus,
     revisions: currentRevision ? [currentRevision] : [],
   };
-}
-
-/** Filter, sort and paginate local experiences to match backend `List`. */
-export function filterExperiences(
-  all: ExperienceDetail[],
-  options: ExperienceSearchOptions,
-): { items: ExperienceDetail[]; nextCursor: string | null } {
-  const query = options.q?.trim().toLocaleLowerCase();
-  const filtered = all.filter((exp) => {
-    if (options.category && exp.category !== options.category) return false;
-    if (query && !matchesQuery(exp, query)) return false;
-    if (options.tags && options.tags.length > 0 && !overlaps(exp.tags, options.tags)) {
-      return false;
-    }
-    return true;
-  });
-  const sorted = filtered.sort(compareByUpdatedThenId);
-  const start = decodeCursor(options.cursor, sorted);
-  const limit = clampLimit(options.limit);
-  const page = sorted.slice(start, start + limit);
-  const end = start + limit;
-  const nextCursor = end < sorted.length ? encodeCursor(page[page.length - 1]) : null;
-  return { items: page, nextCursor };
-}
-
-function matchesQuery(exp: ExperienceDetail, query: string): boolean {
-  return [exp.title, exp.organization, exp.role].some(
-    (value) => value != null && value.toLocaleLowerCase().includes(query),
-  );
-}
-
-function overlaps(tags: string[], wanted: string[]): boolean {
-  const set = new Set(tags);
-  return wanted.some((tag) => set.has(tag));
-}
-
-function compareByUpdatedThenId(a: ExperienceDetail, b: ExperienceDetail): number {
-  if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1;
-  return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
-}
-
-function clampLimit(limit: number | undefined): number {
-  if (limit === undefined || !Number.isFinite(limit) || limit < 1) return 100;
-  return Math.min(limit, 500);
-}
-
-function encodeCursor(exp: ExperienceDetail | undefined): string | null {
-  if (!exp) return null;
-  return Buffer.from(`${exp.updatedAt}\u0000${exp.id}`, "utf8").toString("base64url");
-}
-
-function decodeCursor(
-  cursor: string | undefined,
-  sorted: ExperienceDetail[],
-): number {
-  if (!cursor) return 0;
-  const decoded = Buffer.from(cursor, "base64url").toString("utf8");
-  const [updatedAt, id] = decoded.split("\u0000");
-  const index = sorted.findIndex(
-    (exp) => exp.updatedAt === updatedAt && exp.id === id,
-  );
-  return index < 0 ? sorted.length : index + 1;
 }
 
 function toRevision(value: unknown): ExperienceRevision | undefined {

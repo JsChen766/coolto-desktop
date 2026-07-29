@@ -14,7 +14,7 @@ export type ApplicationDeliveryMethod =
   | "manual"
   | "other";
 export type ApplicationSource = "manual" | "browser" | "email" | "other";
-export type TrackerSyncStatus = "clean" | "pending" | "conflict";
+export type TrackerSyncStatus = "clean" | "pending" | "conflict" | "failed";
 
 export interface ApplicationRecord {
   id: string;

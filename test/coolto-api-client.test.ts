@@ -241,8 +241,9 @@ test("API client maps camelCase input to the backend experience create contract"
     role: null,
     location: null,
     start_date: "2026-01",
-    end_date: "present",
-    tags: ["TypeScript"],
+      end_date: "present",
+      tags: ["TypeScript"],
+      status: "active",
   });
   assert.deepEqual(requestedPaths, [
     "/v1/product/experiences",

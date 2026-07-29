@@ -156,10 +156,15 @@ export function createToolRegistry(
       ...createSelectedFileTools(dependencies.selectedFileRegistry),
     );
   }
-  if (dependencies.jdReader && dependencies.matchReportStore) {
+  if (
+    dependencies.jdReader &&
+    dependencies.experienceReader &&
+    dependencies.matchReportStore
+  ) {
     businessTools.push(
       createPrepareMatchAnalysisTool(
         dependencies.jdReader,
+        dependencies.experienceReader,
         dependencies.matchReportStore,
       ),
     );

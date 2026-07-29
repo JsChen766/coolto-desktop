@@ -16,7 +16,9 @@ import type {
   EnqueueMutation,
   LocalEntity,
   PendingOperation,
+  SyncIssue,
 } from "./local-sync-types.js";
+import { LocalEntityStore } from "./local-entity-store.js";
 import { LocalOutboxStore } from "./local-outbox-store.js";
 import {
   LocalCreateIdentityStore,
@@ -26,35 +28,29 @@ import { SyncPayloadCodec } from "./payload-codec.js";
 import { RemotePageWriter } from "./remote-page-writer.js";
 import { withImmediateTransaction } from "./sqlite-transaction.js";
 import { SyncKeyStore } from "./sync-key-store.js";
+import { SyncRecoveryStore } from "./sync-recovery-store.js";
 
 interface StateRow {
   mode: LocalSyncState["mode"];
   cursor: string;
 }
 
-interface EntityRow {
-  entity_type: SyncEntityType;
-  entity_id: string;
-  entity_version: number;
-  local_version: number;
-  sync_status: LocalEntity["syncStatus"];
-  operation: LocalEntity["operation"];
-  changed_at: string;
-  payload: Uint8Array;
-}
-
 export class LocalSyncStore {
   readonly #outbox: LocalOutboxStore;
   readonly #remote: RemotePageWriter;
   readonly #createIdentities: LocalCreateIdentityStore;
+  readonly #entities: LocalEntityStore;
+  readonly #recovery: SyncRecoveryStore;
 
   private constructor(
     private readonly database: DatabaseSync,
-    private readonly codec: SyncPayloadCodec,
+    codec: SyncPayloadCodec,
   ) {
     this.#outbox = new LocalOutboxStore(database, codec);
     this.#remote = new RemotePageWriter(database, codec);
     this.#createIdentities = new LocalCreateIdentityStore(database);
+    this.#entities = new LocalEntityStore(database, codec);
+    this.#recovery = new SyncRecoveryStore(database, codec);
   }
 
   public static async open(
@@ -145,47 +141,31 @@ export class LocalSyncStore {
     entityType: SyncEntityType,
     entityId: string,
   ): LocalEntity | undefined {
-    const row = this.database
-      .prepare(`
-        SELECT entity_type, entity_id, entity_version, local_version,
-               sync_status, operation, changed_at, payload
-        FROM sync_entities
-        WHERE entity_type = ? AND entity_id = ?
-      `)
-      .get(entityType, entityId) as EntityRow | undefined;
-    if (!row) return undefined;
-    return {
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      entityVersion: row.entity_version,
-      localVersion: row.local_version,
-      syncStatus: row.sync_status,
-      operation: row.operation,
-      changedAt: row.changed_at,
-      payload: this.codec.decode<Record<string, unknown>>(row.payload),
-    };
+    return this.#entities.get(entityType, entityId);
   }
 
   public listEntities(entityType: SyncEntityType): LocalEntity[] {
-	const rows = this.database
-		.prepare(`
-			SELECT entity_type, entity_id, entity_version, local_version,
-			       sync_status, operation, changed_at, payload
-			FROM sync_entities
-			WHERE entity_type = ?
-			ORDER BY changed_at DESC, entity_id
-		`)
-		.all(entityType) as unknown as EntityRow[];
-	return rows.map((row) => ({
-		entityType: row.entity_type,
-		entityId: row.entity_id,
-		entityVersion: row.entity_version,
-		localVersion: row.local_version,
-		syncStatus: row.sync_status,
-		operation: row.operation,
-		changedAt: row.changed_at,
-		payload: this.codec.decode<Record<string, unknown>>(row.payload),
-	}));
+    return this.#entities.list(entityType);
+  }
+
+  public getSyncIssue(entityType: SyncEntityType, entityId: string): SyncIssue | undefined {
+    return this.#recovery.get(entityType, entityId);
+  }
+
+  public acceptServer(entityType: SyncEntityType, entityId: string): void {
+    this.#recovery.acceptServer(entityType, entityId);
+  }
+
+  public replaceBlocked(mutation: EnqueueMutation): void {
+    this.#recovery.replaceBlocked(mutation);
+  }
+
+  public saveBlockedAsNew(
+    sourceType: SyncEntityType,
+    sourceId: string,
+    mutation: EnqueueMutation,
+  ): void {
+    this.#recovery.saveBlockedAsNew(sourceType, sourceId, mutation);
   }
 }
 

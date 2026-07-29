@@ -26,6 +26,10 @@ import {
   registerJobAssetIpc,
 } from "./job-assets/job-asset-ipc.js";
 import { JobAssetReadService } from "./job-assets/job-asset-read-service.js";
+import {
+  EXPERIENCE_IPC_CHANNELS,
+  registerExperienceIpc,
+} from "./experience-library/experience-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -40,6 +44,7 @@ export function registerDesktopIpc(
     ...LIBRARY_IPC_CHANNELS,
     ...APPLICATION_IPC_CHANNELS,
     ...JOB_ASSET_IPC_CHANNELS,
+    ...EXPERIENCE_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -194,6 +199,11 @@ export function registerDesktopIpc(
     ipcMain,
     async () => (await servicesForCurrentUser()).applications,
     async () => (await servicesForCurrentUser()).applicationProposals,
+  );
+  registerExperienceIpc(
+    ipcMain,
+    async () => (await servicesForCurrentUser()).experiences,
+    async () => (await servicesForCurrentUser()).experienceProposals,
   );
 }
 

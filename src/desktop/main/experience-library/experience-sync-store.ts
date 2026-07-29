@@ -10,10 +10,10 @@ import type { LocalSyncStore } from "../sync/local-sync-store.js";
 import { createUuidV7 } from "../../../sync/uuid-v7.js";
 import {
   buildLocalExperience,
-  filterExperiences,
   toExperienceDetail,
   toExperienceWritePayload,
 } from "./experience-sync-mapping.js";
+import { filterExperiences } from "./experience-search.js";
 
 /**
  * Local-first store for experiences. Reads come from the local projection;
@@ -55,14 +55,18 @@ export class ExperienceSyncStore implements ExperienceReader, ExperienceWriter {
     input: ExperienceCreateInput,
     _signal?: AbortSignal,
   ): Promise<ExperienceDetail> {
-    const payload = toExperienceWritePayload(input);
     const identity = input.idempotencyKey
-      ? this.store.resolveCreateIdentity("experience", input.idempotencyKey, payload)
+      ? this.store.resolveCreateIdentity(
+          "experience",
+          input.idempotencyKey,
+          idempotencyRequest(input),
+        )
       : { entityId: createUuidV7(), operationId: createUuidV7() };
     const existing = this.store.getEntity("experience", identity.entityId);
     if (existing) return toExperienceDetail(existing);
     const id = identity.entityId;
     const revisionId = createUuidV7();
+    const payload = toExperienceWritePayload(input, revisionId);
     const now = new Date().toISOString();
     const localPayload = buildLocalExperience(id, revisionId, input, now);
     this.store.enqueue({
@@ -86,4 +90,9 @@ export class ExperienceSyncStore implements ExperienceReader, ExperienceWriter {
       .filter((entity) => entity.operation !== "delete")
       .map(toExperienceDetail);
   }
+}
+
+function idempotencyRequest(input: ExperienceCreateInput): Record<string, unknown> {
+  const { idempotencyKey: _key, ...request } = input;
+  return request;
 }

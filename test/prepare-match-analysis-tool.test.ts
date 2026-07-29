@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { MatchReportStore } from "../src/match/report-store.js";
 import { createPrepareMatchAnalysisTool } from "../src/tools/prepare-match-analysis.js";
-import type { JdReader, JdRecord } from "../src/api/types.js";
+import type {
+  ExperienceReader,
+  JdReader,
+  JdRecord,
+} from "../src/api/types.js";
 
 function makeJdRecord(overrides: Partial<JdRecord> = {}): JdRecord {
   return {
@@ -35,6 +40,49 @@ function makeJdReader(jd: JdRecord = makeJdRecord()): JdReader {
   };
 }
 
+const experienceContent = "主导 React 组件开发";
+const experienceHash = createHash("sha256")
+  .update(experienceContent)
+  .digest("hex");
+
+function makeExperienceReader(): ExperienceReader {
+  return {
+    searchExperiences: async () => ({ items: [], nextCursor: null }),
+    getExperience: async (id) => ({
+      id,
+      category: "work",
+      title: "Frontend Engineer",
+      organization: null,
+      role: null,
+      location: null,
+      startDate: null,
+      endDate: null,
+      tags: [],
+      status: "active",
+      currentRevisionId: "rev-1",
+      currentRevision: {
+        id: "rev-1",
+        experienceId: id,
+        content: experienceContent,
+        source: "manual",
+        revisionHash: experienceHash,
+        factBankStatus: "not_applicable",
+        createdAt: "2026-07-24T00:00:00Z",
+      },
+      revisions: [],
+      createdAt: "2026-07-24T00:00:00Z",
+      updatedAt: "2026-07-24T00:00:00Z",
+      entityVersion: 1,
+      deletedAt: null,
+      syncStatus: "clean",
+    }),
+  };
+}
+
+function makeTool(jdReader: JdReader, store: MatchReportStore) {
+  return createPrepareMatchAnalysisTool(jdReader, makeExperienceReader(), store);
+}
+
 const validParams = {
   jdId: "jd-123",
   dimensions: [
@@ -54,14 +102,18 @@ const validParams = {
   gaps: [
     { requirementId: "req-1", requirementText: "5年前端经验", severity: "must_have" as const, explanation: "仅3年经验", suggestion: "补充项目时长" },
   ],
-  usedExperiences: [{ experienceId: "exp-1", revisionId: "rev-1", contentHash: "ch-1" }],
+  usedExperiences: [{
+    experienceId: "exp-1",
+    revisionId: "rev-1",
+    contentHash: experienceHash,
+  }],
   coverageRatio: 0.5,
   evidenceCompleteness: 0.8,
 };
 
 test("tool stores report in MatchReportStore after execution", async () => {
   const store = new MatchReportStore();
-  const tool = createPrepareMatchAnalysisTool(makeJdReader(), store);
+  const tool = makeTool(makeJdReader(), store);
 
   await tool.execute("call-1", validParams);
 
@@ -70,7 +122,7 @@ test("tool stores report in MatchReportStore after execution", async () => {
 
 test("tool result contains reportId", async () => {
   const store = new MatchReportStore();
-  const tool = createPrepareMatchAnalysisTool(makeJdReader(), store);
+  const tool = makeTool(makeJdReader(), store);
 
   const result = await tool.execute("call-1", validParams);
 
@@ -82,7 +134,7 @@ test("tool result contains reportId", async () => {
 test("tool result contains jdTitle from the JD reader", async () => {
   const store = new MatchReportStore();
   const jd = makeJdRecord({ title: "产品经理" });
-  const tool = createPrepareMatchAnalysisTool(makeJdReader(jd), store);
+  const tool = makeTool(makeJdReader(jd), store);
 
   const result = await tool.execute("call-1", validParams);
 
@@ -93,7 +145,7 @@ test("tool result contains jdTitle from the JD reader", async () => {
 
 test("tool finalScore is computed from fixed weights, not passed as-is", async () => {
   const store = new MatchReportStore();
-  const tool = createPrepareMatchAnalysisTool(makeJdReader(), store);
+  const tool = makeTool(makeJdReader(), store);
 
   await tool.execute("call-1", validParams);
 
@@ -105,7 +157,7 @@ test("tool finalScore is computed from fixed weights, not passed as-is", async (
 test("store entry has correct jdTitle and jdCompany from JD", async () => {
   const store = new MatchReportStore();
   const jd = makeJdRecord({ title: "SRE", company: "腾讯" });
-  const tool = createPrepareMatchAnalysisTool(makeJdReader(jd), store);
+  const tool = makeTool(makeJdReader(jd), store);
 
   await tool.execute("call-1", validParams);
 
@@ -117,7 +169,7 @@ test("store entry has correct jdTitle and jdCompany from JD", async () => {
 test("tool reads jdId from JD reader to build jd reference", async () => {
   const store = new MatchReportStore();
   const jd = makeJdRecord({ id: "jd-999", jdHash: "hash-xyz" });
-  const tool = createPrepareMatchAnalysisTool(makeJdReader(jd), store);
+  const tool = makeTool(makeJdReader(jd), store);
 
   await tool.execute("call-1", validParams);
 
@@ -137,7 +189,7 @@ test("tool result tier is based on computed finalScore", async () => {
       { dimension: "overallImpression" as const, score: 95, rationale: "excellent" },
     ],
   };
-  const tool = createPrepareMatchAnalysisTool(makeJdReader(), store);
+  const tool = makeTool(makeJdReader(), store);
 
   const result = await tool.execute("call-1", highParams);
 
@@ -148,7 +200,7 @@ test("tool result tier is based on computed finalScore", async () => {
 
 test("tool uses usedExperiences to populate experience references", async () => {
   const store = new MatchReportStore();
-  const tool = createPrepareMatchAnalysisTool(makeJdReader(), store);
+  const tool = makeTool(makeJdReader(), store);
 
   await tool.execute("call-1", validParams);
 

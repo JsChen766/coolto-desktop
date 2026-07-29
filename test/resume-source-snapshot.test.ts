@@ -85,6 +85,24 @@ test("snapshot builder fails closed on duplicate IDs and revision drift", async 
   );
 });
 
+test("source evidence allows pending but rejects conflict and failed experiences", async () => {
+  const pending = createExperience();
+  pending.syncStatus = "pending";
+  const snapshot = await createBuilder(undefined, pending).build(input);
+  assert.equal(snapshot.experiences[0]?.revisionId, "rev-1");
+
+  for (const status of ["conflict", "failed"] as const) {
+    const blocked = createExperience();
+    blocked.syncStatus = status;
+    await assert.rejects(
+      createBuilder(undefined, blocked).build(input),
+      (error: unknown) =>
+        error instanceof ResumeSourceSnapshotError &&
+        error.code === "inactive_experience",
+    );
+  }
+});
+
 test("evidence ledger accepts exact current-revision quotes", async () => {
   const snapshot = await buildSnapshot();
   const ledger = new EvidenceLedger(snapshot);

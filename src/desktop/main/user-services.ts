@@ -11,6 +11,8 @@ import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
 import { ElectronResumePdfSaveDialog } from "./electron-pdf-save-dialog.js";
 import { ExperienceSyncStore } from "./experience-library/experience-sync-store.js";
+import { ExperienceMutationExecutor } from "./experience-library/experience-mutation-executor.js";
+import { ExperienceProposalService } from "./experience-library/experience-proposal-service.js";
 import { JdSyncStore } from "./jd-library/jd-sync-store.js";
 import { ResumeDraftCloudLinker } from "./resume-library/resume-draft-cloud-linker.js";
 import { ResumeSyncStore } from "./resume-library/resume-sync-store.js";
@@ -30,6 +32,8 @@ export interface UserServices {
   jds: JdSyncStore;
   applications: ApplicationSyncStore;
   applicationProposals: ApplicationProposalService;
+  experiences: ExperienceSyncStore;
+  experienceProposals: ExperienceProposalService;
 }
 
 export class UserServicesResolver {
@@ -66,6 +70,11 @@ export class UserServicesResolver {
     const experiences = new ExperienceSyncStore(
       syncStore,
       triggerSync,
+      waitForInitialSync,
+    );
+    const experienceProposals = new ExperienceProposalService(
+      syncStore,
+      new ExperienceMutationExecutor(syncStore, triggerSync),
       waitForInitialSync,
     );
     const jds = new JdSyncStore(syncStore, triggerSync, waitForInitialSync);
@@ -106,6 +115,8 @@ export class UserServicesResolver {
       jds,
       applications,
       applicationProposals,
+      experiences,
+      experienceProposals,
     };
     return this.services;
   }

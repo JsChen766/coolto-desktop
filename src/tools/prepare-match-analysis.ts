@@ -1,7 +1,8 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
-import type { JdReader } from "../api/types.js";
+import type { ExperienceReader, JdReader } from "../api/types.js";
+import { validateMatchExperienceReferences } from "../match/experience-evidence-validator.js";
 import type { MatchReportExperienceReference, MatchGap, MatchHighlight } from "../match/types.js";
 import { buildMatchReport } from "../match/report-builder.js";
 import { MatchReportStore } from "../match/report-store.js";
@@ -94,6 +95,7 @@ const parameters = Type.Object({
 
 export function createPrepareMatchAnalysisTool(
   jdReader: JdReader,
+  experienceReader: ExperienceReader,
   matchReportStore: MatchReportStore,
 ): AgentTool<typeof parameters> {
   return {
@@ -118,6 +120,11 @@ export function createPrepareMatchAnalysisTool(
           revisionId: e.revisionId,
           contentHash: e.contentHash,
         }));
+      await validateMatchExperienceReferences(
+        experienceReader,
+        experienceRefs,
+        signal,
+      );
 
       const dimensionInputs: DimensionInput[] = params.dimensions.map((d) => ({
         dimension: d.dimension,

@@ -10,7 +10,7 @@ import { withImmediateTransaction } from "./sqlite-transaction.js";
 
 interface EntityStateRow {
   entity_version: number;
-  sync_status: "clean" | "pending" | "conflict";
+  sync_status: "clean" | "pending" | "conflict" | "failed";
 }
 
 interface OperationRow {
@@ -67,14 +67,18 @@ export class RemotePageWriter {
       .prepare(`
         INSERT INTO sync_entities (
           entity_type, entity_id, entity_version, local_version,
-          sync_status, operation, changed_at, payload
-        ) VALUES (?, ?, ?, 1, 'clean', ?, ?, ?)
+          sync_status, operation, changed_at, payload,
+          last_server_operation, last_server_payload, last_error_code
+        ) VALUES (?, ?, ?, 1, 'clean', ?, ?, ?, ?, ?, NULL)
         ON CONFLICT (entity_type, entity_id) DO UPDATE SET
           entity_version = excluded.entity_version,
           sync_status = 'clean',
           operation = excluded.operation,
           changed_at = excluded.changed_at,
-          payload = excluded.payload
+          payload = excluded.payload,
+          last_server_operation = excluded.last_server_operation,
+          last_server_payload = excluded.last_server_payload,
+          last_error_code = NULL
       `)
       .run(
         change.entityType,
@@ -82,6 +86,8 @@ export class RemotePageWriter {
         change.entityVersion,
         change.operation,
         change.changedAt,
+        this.codec.encode(change.payload),
+        change.operation,
         this.codec.encode(change.payload),
       );
   }
@@ -92,7 +98,7 @@ export class RemotePageWriter {
         SELECT operation_id, payload
         FROM local_outbox
         WHERE entity_type = ? AND entity_id = ?
-          AND status IN ('pending', 'conflict')
+          AND status IN ('pending', 'conflict', 'failed')
         ORDER BY created_at
         LIMIT 1
       `)
@@ -103,10 +109,11 @@ export class RemotePageWriter {
       .prepare(`
         INSERT INTO sync_conflicts (
           operation_id, entity_type, entity_id, local_payload,
-          server_payload, server_version, error_code, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'entity_version_conflict', ?)
+          server_payload, server_operation, server_version, error_code, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'entity_version_conflict', ?)
         ON CONFLICT (operation_id) DO UPDATE SET
           server_payload = excluded.server_payload,
+          server_operation = excluded.server_operation,
           server_version = excluded.server_version,
           error_code = excluded.error_code
       `)
@@ -116,17 +123,27 @@ export class RemotePageWriter {
         change.entityId,
         operation.payload,
         this.codec.encode(change.payload),
+        change.operation,
         change.entityVersion,
         now,
       );
-    this.database
-      .prepare("UPDATE local_outbox SET status = 'conflict' WHERE operation_id = ?")
-      .run(operation.operation_id);
+    this.database.prepare(`
+      UPDATE local_outbox SET status = 'conflict',
+        last_error_code = 'entity_version_conflict' WHERE operation_id = ?
+    `).run(operation.operation_id);
     this.database
       .prepare(`
-        UPDATE sync_entities SET sync_status = 'conflict'
+        UPDATE sync_entities SET sync_status = 'conflict',
+          entity_version = ?, last_server_operation = ?,
+          last_server_payload = ?, last_error_code = 'entity_version_conflict'
         WHERE entity_type = ? AND entity_id = ?
       `)
-      .run(change.entityType, change.entityId);
+      .run(
+        change.entityVersion,
+        change.operation,
+        this.codec.encode(change.payload),
+        change.entityType,
+        change.entityId,
+      );
   }
 }

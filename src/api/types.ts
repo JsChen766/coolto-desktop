@@ -116,7 +116,7 @@ export interface JdRecord {
   updatedAt: string;
   entityVersion: number;
   deletedAt: string | null;
-  syncStatus?: "clean" | "pending" | "conflict";
+  syncStatus?: "clean" | "pending" | "conflict" | "failed";
 }
 
 export interface JdSearchResult {
@@ -156,88 +156,4 @@ export interface JdCreateInput {
 export interface JdWriter {
   createJd(input: JdCreateInput, signal?: AbortSignal): Promise<JdRecord>;
 }
-
-export type ExperienceCategory =
-  | "work"
-  | "project"
-  | "education"
-  | "volunteer"
-  | "other";
-
-export interface ExperienceRevision {
-  id: string;
-  experienceId: string;
-  content: string;
-  source: string;
-  revisionHash: string | null;
-  factBankStatus: string;
-  createdAt: string;
-}
-
-export interface ExperienceSummary {
-  id: string;
-  category: ExperienceCategory;
-  title: string;
-  organization: string | null;
-  role: string | null;
-  location: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  tags: string[];
-  status: "active" | "archived";
-  currentRevisionId: string | null;
-  currentRevision?: ExperienceRevision;
-  createdAt: string;
-  updatedAt: string;
-  entityVersion: number;
-  deletedAt: string | null;
-  syncStatus?: "clean" | "pending" | "conflict";
-}
-
-export interface ExperienceDetail extends ExperienceSummary {
-  revisions: ExperienceRevision[];
-}
-
-export interface ExperienceSearchResult {
-  items: ExperienceSummary[];
-  nextCursor: string | null;
-}
-
-export interface ExperienceSearchOptions {
-  q?: string;
-  category?: ExperienceCategory;
-  tags?: string[];
-  limit?: number;
-  cursor?: string;
-}
-
-export interface ExperienceReader {
-  searchExperiences(
-    options?: ExperienceSearchOptions,
-    signal?: AbortSignal,
-  ): Promise<ExperienceSearchResult>;
-  getExperience(
-    experienceId: string,
-    signal?: AbortSignal,
-  ): Promise<ExperienceDetail>;
-}
-
-export interface ExperienceCreateInput {
-  category: ExperienceCategory;
-  title: string;
-  content: string;
-  organization?: string;
-  role?: string;
-  location?: string;
-  startDate?: string;
-  endDate?: string;
-  tags?: string[];
-  idempotencyKey?: string;
-}
-
-export interface ExperienceWriter {
-  createExperience(
-    input: ExperienceCreateInput,
-    signal?: AbortSignal,
-  ): Promise<ExperienceDetail>;
-}
+export type * from "./experience-types.js";

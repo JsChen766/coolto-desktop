@@ -17,15 +17,19 @@
 ## 当前 Roadmap
 
 - 唯一正式执行入口：`local-docs/p0-product-completion-roadmap/README.md`；其他阶段文档保留历史背景、契约和完成记录，不得形成第二条并行开发顺序。
-- 已完成阶段：N0、N1、S3、A0、J0、J1、J2、J3；当前下一阶段为 E0。
+- 已完成阶段：N0、N1、S3、A0、J0、J1、J2、J3、E0、E1；当前下一阶段为 E2。
 - 后续固定顺序：`A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S5 → R1`。
 - 不得跳过阶段；每阶段开始先复核现状和工作树，并在真正开始该阶段时逐项向用户确认 Roadmap 已保留的确认点。
-- J0–J3 已完成求职仓库关系模型、UI 方案、只读展示和跨模块写入闭环；E0 先冻结经历仓库体验与领域规则，E2 先确认经历仓库 UI 方案再实现；S4 的 Tracker 子实体布局也必须到阶段后先确认。
-- 后续从 E0 开始继续按固定顺序推进；不得因 J3 已提供 Application 主记录写入而提前把 Interview、Note、Reminder 或通知混入求职仓库。
+- J0–J3 已完成求职仓库关系模型、UI 方案、只读展示和跨模块写入闭环；E0 已冻结经历仓库体验与领域规则，E1 已补齐 Experience Store / IPC、Proposal、同步失败分类和恢复调用面；E2 必须先确认经历仓库 UI 方案再实现；S4 的 Tracker 子实体布局也必须到阶段后先确认。
+- 后续从 E2 开始继续按固定顺序推进；不得因 J3 已提供 Application 主记录写入而提前把 Interview、Note、Reminder 或通知混入求职仓库。
 
 ## 产品关系约束
 
 - Experience 是独立、可复用的长期事实资产，不永久隶属于 JD、Resume 或 Application。
+- Experience 默认只发现 `active`；`archived` 在恢复前不参与 Agent/JD/Resume 下游。
+  用户已确认的本地 `pending` revision 可作为冻结证据；`conflict`、`failed` 和墓碑不可作为新证据。
+- Experience 日期必须保留 `YYYY-MM`/`YYYY-MM-DD`/`present` 精度；未填写结束日期不等于
+  `present`。只有正文 hash 变化创建 revision，纯元数据变化不得制造伪版本。
 - JD 是岗位目标；一个 JD 可关联多份 Resume，也可在没有 Resume 时独立存在。
 - Resume 最多有一个主要目标 JD，也可作为不绑定 JD 的通用 Resume；任何 Resume 均可通过不同 Application 实际投递多个 JD，该事实不反向改写主要目标绑定。
 - Application 才是一次真实投递事实，必须同时保存实际 `jdId`、`resumeId` 及投递时的标题快照。
