@@ -2,6 +2,7 @@
 import {
   ApplicationTrackerView,
   ConversationDialog,
+  ExperienceLibraryView,
   JobRepositoryView,
   LoginScreen,
   Sidebar,
@@ -31,7 +32,7 @@ const {
   cloudCopyConfirmation,
   confirmCloudResumeCopy,
   openDialog,
-  openLibrary,
+  openPrimaryView,
   openResumeDraft,
   openTracker,
   openRepositoryTracker,
@@ -94,7 +95,8 @@ function recordFromRepository(
       @create="createChat"
       @select="selectChat"
       @select-draft="openResumeDraft"
-      @open-library="openLibrary"
+      @open-experiences="openPrimaryView('experiences')"
+      @open-library="openPrimaryView('library')"
       @open-tracker="openTracker"
       @rename="openDialog('rename', $event)"
       @delete="openDialog('delete', $event)"
@@ -115,6 +117,10 @@ function recordFromRepository(
         :context="trackerContext"
         @close="closeTracker"
         @open-asset="openTrackerAsset"
+      />
+      <ExperienceLibraryView
+        v-else-if="activeView === 'experiences'"
+        @toggle-sidebar="showSidebar"
       />
       <JobRepositoryView
         v-else-if="activeView === 'library'"

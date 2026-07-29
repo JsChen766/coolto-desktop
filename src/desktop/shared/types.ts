@@ -38,9 +38,11 @@ export type {
   ExperienceWriteProposal,
 } from "../../experience/maintenance-types.js";
 export type {
+  ExperienceCategory,
   ExperienceDetail,
   ExperienceSearchOptions,
   ExperienceSearchResult,
+  ExperienceSummary,
 } from "../../api/types.js";
 export type * from "./types/approvals.js";
 export type * from "./types/artifacts.js";

@@ -6,6 +6,7 @@ export { default as ChatMessageView } from "../components/ChatMessage.vue";
 export { default as Composer } from "../components/Composer.vue";
 export { default as ConversationDialog } from "../components/ConversationDialog.vue";
 export { default as EmptyState } from "../components/EmptyState.vue";
+export { default as ExperienceLibraryView } from "../components/ExperienceLibraryView.vue";
 export { default as FillProgressCard } from "../components/FillProgressCard.vue";
 export { default as JdArtifactCard } from "../components/JdArtifactCard.vue";
 export { default as JdDetailPanel } from "../components/JdDetailPanel.vue";

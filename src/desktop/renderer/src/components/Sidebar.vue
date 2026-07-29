@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import {
   Ellipsis,
-  BriefcaseBusiness,
   FileText,
-  FolderOpen,
   LogOut,
   Moon,
   Settings2,
-  SquarePen,
   Sun,
 } from "@lucide/vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
@@ -18,6 +15,7 @@ import type {
 } from "@desktop/types";
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { relativeTime } from "../lib/relative-time";
+import SidebarPrimaryNavigation from "./SidebarPrimaryNavigation.vue";
 
 const props = defineProps<{
   conversations: ConversationSummary[];
@@ -26,11 +24,12 @@ const props = defineProps<{
   dark: boolean;
   resumeDrafts: ResumeDraftSummary[];
   currentDraftId: string | undefined;
-  activeView: "chat" | "library" | "tracker";
+  activeView: "chat" | "experiences" | "library" | "tracker";
 }>();
 
 const emit = defineEmits<{
   create: [];
+  openExperiences: [];
   select: [conversationId: string];
   selectDraft: [artifactId: string];
   openLibrary: [];
@@ -83,30 +82,13 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
       </div>
     </header>
 
-    <button class="new-chat-button icon-label" type="button" @click="$emit('create')">
-      <SquarePen :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span>新对话</span>
-    </button>
-
-    <button
-      class="new-chat-button icon-label"
-      :class="{ active: activeView === 'library' }"
-      type="button"
-      @click="$emit('openLibrary')"
-    >
-      <FolderOpen :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span>求职仓库</span>
-    </button>
-
-    <button
-      class="new-chat-button icon-label"
-      :class="{ active: activeView === 'tracker' }"
-      type="button"
-      @click="$emit('openTracker')"
-    >
-      <BriefcaseBusiness :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span>投递追踪</span>
-    </button>
+    <SidebarPrimaryNavigation
+      :active-view="activeView"
+      @create="$emit('create')"
+      @open-experiences="$emit('openExperiences')"
+      @open-library="$emit('openLibrary')"
+      @open-tracker="$emit('openTracker')"
+    />
 
     <section class="sidebar-section resume-draft-section">
       <p class="section-label">本地简历</p>

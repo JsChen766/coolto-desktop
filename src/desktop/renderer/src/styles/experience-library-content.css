@@ -1,0 +1,152 @@
+.experience-timeline {
+  min-height: 100%;
+  padding: 18px 14px 30px;
+}
+
+.experience-year-group + .experience-year-group {
+  margin-top: 18px;
+}
+
+.experience-year-group h2 {
+  margin: 0 0 6px;
+  padding-left: 11px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.experience-year-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.experience-timeline-item {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 9px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  display: grid;
+  grid-template-columns: 92px 16px minmax(0, 1fr);
+  align-items: stretch;
+  text-align: left;
+}
+
+.experience-timeline-item:hover {
+  background: var(--surface-hover);
+}
+
+.experience-timeline-item.active {
+  background: var(--surface);
+}
+
+.experience-timeline-item.archived {
+  opacity: 0.64;
+}
+
+.experience-timeline-date {
+  padding-top: 1px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.experience-timeline-marker {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.experience-timeline-marker::before {
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  width: 1px;
+  background: var(--border);
+  content: "";
+}
+
+.experience-timeline-marker i {
+  position: relative;
+  z-index: 1;
+  width: 6px;
+  height: 6px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--muted-light);
+  box-shadow: 0 0 0 3px var(--bg);
+}
+
+.experience-timeline-item.active .experience-timeline-marker i {
+  background: var(--text-soft);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+.experience-timeline-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.experience-timeline-copy strong,
+.experience-timeline-subtitle,
+.experience-match-context {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.experience-timeline-copy strong {
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.experience-timeline-subtitle {
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.experience-timeline-meta {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9.5px;
+}
+
+.experience-sync-label {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: var(--surface);
+}
+
+.experience-sync-label.conflict,
+.experience-sync-label.failed {
+  color: var(--danger);
+}
+
+.experience-sync-label.pending {
+  color: var(--stage-applied);
+}
+
+.experience-match-context {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.experience-timeline mark,
+.experience-detail mark {
+  border-radius: 3px;
+  background: var(--surface-strong);
+  color: inherit;
+}
+
+.experience-list-empty {
+  margin: 0;
+  padding: 42px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}

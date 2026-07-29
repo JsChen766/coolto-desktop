@@ -10,7 +10,7 @@ import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useJobFlowNavigation } from "./use-job-flow-navigation";
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
 
-export type AppView = "chat" | "library" | "tracker";
+export type AppView = "chat" | "experiences" | "library" | "tracker";
 
 export function useAppShell() {
   const sidebarOpen = ref(true);
@@ -85,10 +85,10 @@ export function useAppShell() {
     await resumeWorkspace.openDraft(artifactId);
   }
 
-  function openLibrary(): void {
+  function openPrimaryView(view: "experiences" | "library"): void {
     resumePreview.resetResumePreview();
     closeNarrowSidebar();
-    activeView.value = "library";
+    activeView.value = view;
   }
 
   function openTracker(): void {
@@ -226,7 +226,7 @@ export function useAppShell() {
     fillProgress,
     ...resumePreview,
     openJdPanel,
-    openLibrary,
+    openPrimaryView,
     openMatchPanel,
     openResumeDraft,
     openTracker,

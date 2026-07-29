@@ -11,7 +11,7 @@ import { desktopApi } from "../lib/desktop-api";
 type PreviewSource = "local" | "cloud";
 
 interface ResumeLibraryPreviewOptions {
-  activeView: Ref<"chat" | "library" | "tracker">;
+  activeView: Ref<"chat" | "experiences" | "library" | "tracker">;
   activeArtifactType: Ref<"resume" | "jd" | "match">;
   artifactOpen: Ref<boolean>;
   closeNarrowSidebar(): void;

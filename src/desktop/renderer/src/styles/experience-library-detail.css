@@ -1,0 +1,120 @@
+.experience-detail {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.experience-detail.archived {
+  opacity: 0.78;
+}
+
+.experience-detail-header {
+  padding: 32px 38px 16px;
+}
+
+.experience-detail-back {
+  display: none;
+  margin: 0 0 16px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-soft);
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.experience-detail-title h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(22px, 2.4vw, 30px);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.experience-detail-title p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.experience-detail-scroll {
+  min-height: 0;
+  padding: 0 38px 42px;
+  overflow-y: auto;
+}
+
+.experience-sync-notice {
+  margin: 5px 0 24px;
+  color: var(--text-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.experience-sync-notice.conflict,
+.experience-sync-notice.failed {
+  color: var(--danger);
+}
+
+.experience-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px 32px;
+}
+
+.experience-facts div {
+  min-width: 0;
+}
+
+.experience-facts dt,
+.experience-detail-section h3 {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 560;
+}
+
+.experience-facts dd {
+  margin: 0;
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.experience-detail-section {
+  margin-top: 30px;
+}
+
+.experience-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.experience-detail-tags span {
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 10px;
+}
+
+.experience-content p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.78;
+  white-space: pre-wrap;
+}
+
+.experience-content .experience-content-missing {
+  color: var(--muted);
+}

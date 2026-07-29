@@ -1,0 +1,148 @@
+.experience-filter {
+  position: relative;
+}
+
+.experience-filter-trigger {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.experience-filter-trigger:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.experience-filter-trigger > span {
+  min-width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+}
+
+.experience-filter-popover {
+  top: calc(100% + 6px);
+  right: 0;
+  width: 272px;
+  padding: 12px;
+}
+
+.experience-filter-heading {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.experience-filter-heading strong {
+  font-size: 12px;
+}
+
+.experience-filter-heading button {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.experience-filter-heading button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.experience-filter-popover > label {
+  margin-top: 9px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.experience-filter-popover select {
+  min-width: 0;
+  height: 31px;
+  padding: 0 25px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 11px;
+}
+
+.experience-filter-popover fieldset {
+  max-height: 154px;
+  margin: 14px 0 0;
+  padding: 0;
+  border: 0;
+  overflow-y: auto;
+}
+
+.experience-filter-popover legend {
+  width: 100%;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.experience-filter-popover legend small {
+  float: right;
+  color: var(--muted-light);
+  font-size: 9px;
+}
+
+.experience-filter-popover fieldset > p {
+  margin: 0;
+  color: var(--muted-light);
+  font-size: 10px;
+}
+
+.experience-filter-popover fieldset > button {
+  min-height: 26px;
+  margin: 0 5px 5px 0;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+
+.experience-filter-popover fieldset > button.selected {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.experience-filter-clear {
+  width: 100%;
+  min-height: 30px;
+  margin-top: 9px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.experience-filter-clear:hover:not(:disabled) {
+  background: var(--surface);
+}
