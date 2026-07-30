@@ -99,6 +99,17 @@ const api: DesktopApi = {
     transition: (input) => ipcRenderer.invoke("applications:transition", input),
     delete: (applicationId) => ipcRenderer.invoke("applications:delete", applicationId),
   },
+  tracker: {
+    detail: (applicationId) => ipcRenderer.invoke("tracker:detail", applicationId),
+    overview: () => ipcRenderer.invoke("tracker:overview"),
+    syncIssues: () => ipcRenderer.invoke("tracker:sync-issues"),
+    prepareRecovery: (input) => ipcRenderer.invoke("tracker:prepare-recovery", input),
+    executeRecovery: (id) => ipcRenderer.invoke("tracker:execute-recovery", id),
+    retryPending: () => ipcRenderer.invoke("tracker:retry-pending"),
+  },
+  interviews: childApi("interviews"),
+  notes: childApi("notes"),
+  reminders: childApi("reminders"),
   agent: {
     prompt: (input: AgentPromptInput) =>
       ipcRenderer.invoke("agent:prompt", input),
@@ -145,6 +156,15 @@ const api: DesktopApi = {
       subscribeIpc("browser:captcha-detected", listener),
   },
 };
+
+function childApi(channel: "interviews" | "notes" | "reminders") {
+  return {
+    prepareCreate: (input: unknown) => ipcRenderer.invoke(`${channel}:prepare-create`, input),
+    prepareUpdate: (input: unknown) => ipcRenderer.invoke(`${channel}:prepare-update`, input),
+    prepareDelete: (id: string) => ipcRenderer.invoke(`${channel}:prepare-delete`, id),
+    executeProposal: (id: string) => ipcRenderer.invoke(`${channel}:execute-proposal`, id),
+  };
+}
 
 function subscribeIpc<T>(
   channel: string,

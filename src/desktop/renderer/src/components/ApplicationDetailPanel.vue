@@ -3,10 +3,14 @@ import { BriefcaseBusiness, ExternalLink, FileText, Pencil, Trash2, X } from "@l
 import { ref, watch } from "vue";
 
 import type {
+  ApplicationNote,
   ApplicationRecord,
   ApplicationReferenceOptions,
   ApplicationStatus,
+  ApplicationTrackerDetail,
   ApplicationUpdateInput,
+  InterviewRound,
+  Reminder,
 } from "@desktop/types";
 import {
   applicationFormOf,
@@ -19,6 +23,8 @@ import {
 } from "../tracker/application-labels";
 import ApplicationEditorFields from "./ApplicationEditorFields.vue";
 import ApplicationStatusMenu from "./ApplicationStatusMenu.vue";
+import ApplicationSchedulePanel from "./ApplicationSchedulePanel.vue";
+import ApplicationRecordPanel from "./ApplicationRecordPanel.vue";
 import IconButton from "./IconButton.vue";
 
 const props = defineProps<{
@@ -26,6 +32,8 @@ const props = defineProps<{
   references: ApplicationReferenceOptions;
   busy?: boolean;
   error?: string | undefined;
+  detail: ApplicationTrackerDetail;
+  detailLoading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -35,9 +43,22 @@ const emit = defineEmits<{
   delete: [];
   openUrl: [url: string];
   openAsset: [kind: "jd" | "resume", id: string];
+  addInterview: [];
+  editInterview: [value: InterviewRound];
+  addNote: [];
+  editNote: [value: ApplicationNote];
+  addReminder: [];
+  editReminder: [value: Reminder];
+  removeChild: [kind: "interview" | "note" | "reminder", id: string];
 }>();
 
 const editing = ref(false);
+const activeTab = ref<"overview" | "schedule" | "records">("overview");
+const DETAIL_TABS = [
+  { id: "overview", label: "概览" },
+  { id: "schedule", label: "日程" },
+  { id: "records", label: "记录" },
+] as const;
 const form = ref(applicationFormOf(props.application));
 
 watch(
@@ -79,7 +100,11 @@ function save(): void {
     </div>
     <div v-if="error" class="tracker-detail-error" role="alert">{{ error }}</div>
 
-    <form v-if="editing" class="tracker-detail-edit" @submit.prevent="save">
+    <nav class="tracker-detail-tabs" aria-label="投递详情分区">
+      <button v-for="tab in DETAIL_TABS" :key="tab.id" type="button" :class="{ active: activeTab === tab.id }" @click="activeTab = tab.id">{{ tab.label }}</button>
+    </nav>
+
+    <form v-if="activeTab === 'overview' && editing" class="tracker-detail-edit" @submit.prevent="save">
       <ApplicationEditorFields
         v-model="form"
         :references="references"
@@ -92,7 +117,7 @@ function save(): void {
       </div>
     </form>
 
-    <div v-else class="tracker-detail-content">
+    <div v-else-if="activeTab === 'overview'" class="tracker-detail-content">
       <dl class="tracker-detail-list">
         <div><dt>投递时间</dt><dd>{{ application.appliedAt ? new Date(application.appliedAt).toLocaleString('zh-CN') : '待确认' }}</dd></div>
         <div><dt>投递方式</dt><dd>{{ deliveryLabel(application.deliveryMethod) }}</dd></div>
@@ -137,7 +162,31 @@ function save(): void {
       </div>
     </div>
 
-    <footer v-if="!editing" class="tracker-detail-footer">
+    <div v-else-if="detailLoading" class="tracker-loading">正在读取本地日程…</div>
+    <ApplicationSchedulePanel
+      v-else-if="activeTab === 'schedule'"
+      :interviews="detail.interviews"
+      :reminders="detail.reminders"
+      :busy="busy"
+      @add-interview="$emit('addInterview')"
+      @edit-interview="$emit('editInterview', $event)"
+      @add-reminder="$emit('addReminder')"
+      @edit-reminder="$emit('editReminder', $event)"
+      @remove="(kind, id) => $emit('removeChild', kind, id)"
+    />
+    <ApplicationRecordPanel
+      v-else
+      :application="application"
+      :events="detail.statusEvents"
+      :notes="detail.notes"
+      :interviews="detail.interviews"
+      :busy="busy"
+      @add-note="$emit('addNote')"
+      @edit-note="$emit('editNote', $event)"
+      @remove-note="$emit('removeChild', 'note', $event)"
+    />
+
+    <footer v-if="activeTab === 'overview' && !editing" class="tracker-detail-footer">
       <button class="secondary-button icon-label" type="button" @click="editing = true">
         <Pencil :size="14" aria-hidden="true" />编辑信息
       </button>

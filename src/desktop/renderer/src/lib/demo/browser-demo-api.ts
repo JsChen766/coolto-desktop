@@ -18,6 +18,12 @@ export function createBrowserDemoApi(): DesktopApi {
     id: "preview-user",
     email: "preview@example.com",
   };
+  const childUnsupported = {
+    prepareCreate: async (): Promise<never> => { throw new Error("Demo 不支持 Tracker 子记录维护"); },
+    prepareUpdate: async (): Promise<never> => { throw new Error("Demo 不支持 Tracker 子记录维护"); },
+    prepareDelete: async (): Promise<never> => { throw new Error("Demo 不支持 Tracker 子记录维护"); },
+    executeProposal: async (): Promise<never> => { throw new Error("Demo 不支持 Tracker 子记录维护"); },
+  };
   return {
     platform: "darwin",
     auth: {
@@ -62,6 +68,17 @@ export function createBrowserDemoApi(): DesktopApi {
       executeProposal: async () => { throw new Error("Demo 不支持经历维护"); },
     },
     applications: createDemoApplicationApi(now),
+    tracker: {
+      detail: async () => ({ statusEvents: [], interviews: [], notes: [], reminders: [] }),
+      overview: async () => ({ statusEvents: [], interviews: [], notes: [], reminders: [] }),
+      syncIssues: async () => [],
+      prepareRecovery: async () => { throw new Error("Demo 中没有同步问题"); },
+      executeRecovery: async () => undefined,
+      retryPending: async () => undefined,
+    },
+    interviews: childUnsupported,
+    notes: childUnsupported,
+    reminders: childUnsupported,
     window: {
       minimize: async () => undefined,
       toggleMaximize: async () => undefined,

@@ -137,56 +137,9 @@ export interface ApplicationTombstone {
   syncStatus: TrackerSyncStatus;
 }
 
-export interface ApplicationStatusEvent {
-  id: string;
-  applicationId: string;
-  fromStatus: ApplicationStatus | null;
-  toStatus: ApplicationStatus;
-  reason: string | null;
-  occurredAt: string;
-  operationId: string;
-  createdAt: string;
-}
-
-export interface InterviewRound {
-  id: string;
-  applicationId: string;
-  roundNumber: number;
-  interviewType: "phone" | "video" | "onsite" | "hr" | "technical" | "case" | "other";
-  scheduledAt: string | null;
-  timezone: string;
-  durationMinutes: number | null;
-  locationOrLink: string | null;
-  interviewer: string | null;
-  status: "scheduled" | "completed" | "canceled";
-  entityVersion: number;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface ApplicationNote {
-  id: string;
-  applicationId: string;
-  interviewRoundId: string | null;
-  noteType: "general" | "interview" | "follow_up" | "company";
-  content: string;
-  entityVersion: number;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface Reminder {
-  id: string;
-  applicationId: string;
-  interviewRoundId: string | null;
-  title: string;
-  remindAt: string;
-  status: "scheduled" | "delivered" | "dismissed" | "canceled";
-  deliveredAt: string | null;
-  entityVersion: number;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
+export type {
+  ApplicationNote,
+  ApplicationStatusEvent,
+  InterviewRound,
+  Reminder,
+} from "./child-types.js";

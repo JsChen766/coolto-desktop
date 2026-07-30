@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, Plus, RefreshCw, Search } from "@lucide/vue";
+import { onMounted } from "vue";
 
 import type { TrackerNavigationContext } from "../tracker/tracker-navigation";
 import { useApplicationTrackerPage } from "../tracker/use-application-tracker-page";
@@ -10,10 +11,13 @@ import ApplicationCalendarView from "./ApplicationCalendarView.vue";
 import ApplicationCreateDialog from "./ApplicationCreateDialog.vue";
 import ApplicationCorrectionDialog from "./ApplicationCorrectionDialog.vue";
 import ApplicationDeleteDialog from "./ApplicationDeleteDialog.vue";
-import ApplicationDetailPanel from "./ApplicationDetailPanel.vue";
+import ApplicationDetailShell from "./ApplicationDetailShell.vue";
 import ApplicationTransitionDialog from "./ApplicationTransitionDialog.vue";
 import ApplicationTimelineView from "./ApplicationTimelineView.vue";
 import ApplicationViewSwitcher from "./ApplicationViewSwitcher.vue";
+import { useTrackerOverview } from "../tracker/use-tracker-overview";
+import { useTrackerSyncRecovery } from "../tracker/use-tracker-sync-recovery";
+import TrackerSyncIssuesDialog from "./TrackerSyncIssuesDialog.vue";
 
 const props = defineProps<{ context?: TrackerNavigationContext }>();
 const emit = defineEmits<{
@@ -22,6 +26,11 @@ const emit = defineEmits<{
 }>();
 
 const page = useApplicationTrackerPage(() => props.context);
+const overview = useTrackerOverview();
+const recovery = useTrackerSyncRecovery(async () => {
+  await Promise.all([tracker.load(), overview.load()]);
+});
+onMounted(() => Promise.all([overview.load(), recovery.load()]));
 const {
   activeView, applicationsFor, confirmDelete, confirmTransition,
   correctionProposal, createInitial, createOpen, createProposal, deleteTarget,
@@ -31,6 +40,13 @@ const {
 
 function openAsset(kind: "jd" | "resume", id: string): void {
   emit("openAsset", kind, id);
+}
+async function refresh(): Promise<void> {
+  await recovery.retryPending();
+  await Promise.all([tracker.load(), overview.load(), recovery.load()]);
+}
+async function childrenChanged(): Promise<void> {
+  await Promise.all([overview.load(), recovery.load()]);
 }
 </script>
 
@@ -51,7 +67,7 @@ function openAsset(kind: "jd" | "resume", id: string): void {
         :disabled="tracker.loading.value"
         aria-label="刷新投递记录"
         title="刷新投递记录"
-        @click="tracker.load()"
+        @click="refresh"
       >
         <RefreshCw :size="16" :class="{ spin: tracker.loading.value }" aria-hidden="true" />
       </button>
@@ -66,6 +82,10 @@ function openAsset(kind: "jd" | "resume", id: string): void {
     <div v-if="tracker.error.value" class="tracker-error-banner" role="alert">
       <span>{{ tracker.error.value }}</span>
       <button type="button" @click="tracker.load()">重试</button>
+    </div>
+    <div v-if="recovery.issues.value.length" class="tracker-error-banner" role="alert">
+      <span>{{ recovery.issues.value.length }} 项 Tracker 修改需要处理</span>
+      <button type="button" @click="recovery.open.value = true">查看并处理</button>
     </div>
 
     <div class="tracker-view-toolbar">
@@ -88,6 +108,8 @@ function openAsset(kind: "jd" | "resume", id: string): void {
         :description="column.description"
         :applications="applicationsFor(column.statuses)"
         :busy="tracker.busy.value"
+        :interviews="overview.snapshot.value.interviews"
+        :reminders="overview.snapshot.value.reminders"
         @open="tracker.selected.value = $event"
         @transition="prepareTransition"
       />
@@ -95,15 +117,19 @@ function openAsset(kind: "jd" | "resume", id: string): void {
     <ApplicationTimelineView
       v-else-if="activeView === 'timeline'"
       :applications="filtered"
+      :events="overview.snapshot.value.statusEvents"
+      :interviews="overview.snapshot.value.interviews"
       @open="tracker.selected.value = $event"
     />
     <ApplicationCalendarView
       v-else
       :applications="filtered"
+      :interviews="overview.snapshot.value.interviews"
+      :reminders="overview.snapshot.value.reminders"
       @open="tracker.selected.value = $event"
     />
 
-    <ApplicationDetailPanel
+    <ApplicationDetailShell
       v-if="tracker.selected.value"
       :application="tracker.selected.value"
       :references="tracker.references.value"
@@ -115,6 +141,7 @@ function openAsset(kind: "jd" | "resume", id: string): void {
       @delete="deleteTarget = tracker.selected.value"
       @open-url="desktopApi.browser.open({ url: $event })"
       @open-asset="openAsset"
+      @children-changed="childrenChanged"
     />
 
     <ApplicationCreateDialog
@@ -151,8 +178,24 @@ function openAsset(kind: "jd" | "resume", id: string): void {
       :application="deleteTarget"
       :busy="tracker.busy.value"
       :error="tracker.error.value"
+      :child-counts="{
+        interviews: overview.snapshot.value.interviews.filter(item => item.applicationId === deleteTarget!.id).length,
+        notes: overview.snapshot.value.notes.filter(item => item.applicationId === deleteTarget!.id).length,
+        reminders: overview.snapshot.value.reminders.filter(item => item.applicationId === deleteTarget!.id).length,
+      }"
       @close="deleteTarget = undefined"
       @confirm="confirmDelete"
+    />
+    <TrackerSyncIssuesDialog
+      v-if="recovery.open.value"
+      :issues="recovery.issues.value"
+      :proposal="recovery.proposal.value"
+      :busy="recovery.busy.value"
+      :error="recovery.error.value"
+      @close="recovery.open.value = false"
+      @back="recovery.proposal.value = undefined"
+      @prepare="recovery.prepare"
+      @confirm="recovery.execute"
     />
   </div>
 </template>

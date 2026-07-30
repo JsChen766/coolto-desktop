@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApplicationRecord, ApplicationStatus } from "@desktop/types";
+import type { ApplicationRecord, ApplicationStatus, InterviewRound, Reminder } from "@desktop/types";
 import ApplicationCard from "./ApplicationCard.vue";
 
 defineProps<{
@@ -7,6 +7,8 @@ defineProps<{
   description: string;
   applications: ApplicationRecord[];
   busy?: boolean;
+  interviews: InterviewRound[];
+  reminders: Reminder[];
 }>();
 
 defineEmits<{
@@ -30,6 +32,8 @@ defineEmits<{
         :key="application.id"
         :application="application"
         :busy="busy"
+        :interviews="interviews.filter(item => item.applicationId === application.id)"
+        :reminders="reminders.filter(item => item.applicationId === application.id)"
         @open="$emit('open', application)"
         @transition="$emit('transition', application, $event)"
       />

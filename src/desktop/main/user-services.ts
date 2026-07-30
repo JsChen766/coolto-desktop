@@ -21,6 +21,16 @@ import { createElectronResumeDraftRepository } from "./resume-drafts/electron-dr
 import { ResumeDraftEditingService } from "./resume-drafts/draft-editing-service.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { ResumePdfExportService } from "./resume-pdf-export-service.js";
+import { ApplicationTrackerDetailService } from "./tracker/application-tracker-detail-service.js";
+import { InterviewProposalService } from "./tracker/interview-proposal-service.js";
+import { InterviewSyncStore } from "./tracker/interview-sync-store.js";
+import { NoteProposalService } from "./tracker/note-proposal-service.js";
+import { NoteSyncStore } from "./tracker/note-sync-store.js";
+import { ReminderProposalService } from "./tracker/reminder-proposal-service.js";
+import { ReminderSyncStore } from "./tracker/reminder-sync-store.js";
+import { StatusEventReader } from "./tracker/status-event-reader.js";
+import { ReminderNotificationScheduler } from "./tracker/reminder-notification-scheduler.js";
+import { TrackerRecoveryService } from "./tracker/tracker-recovery-service.js";
 
 export interface UserServices {
   ownerId: string;
@@ -36,6 +46,15 @@ export interface UserServices {
   experiences: ExperienceSyncStore;
   experienceHistory: ExperienceHistoryService;
   experienceProposals: ExperienceProposalService;
+  trackerDetail: ApplicationTrackerDetailService;
+  interviews: InterviewSyncStore;
+  interviewProposals: InterviewProposalService;
+  notes: NoteSyncStore;
+  noteProposals: NoteProposalService;
+  reminders: ReminderSyncStore;
+  reminderProposals: ReminderProposalService;
+  reminderScheduler: ReminderNotificationScheduler;
+  trackerRecovery: TrackerRecoveryService;
 }
 
 export class UserServicesResolver {
@@ -90,6 +109,15 @@ export class UserServicesResolver {
       waitForInitialSync,
     );
     const applicationProposals = new ApplicationProposalService(syncStore, applications);
+    const interviews = new InterviewSyncStore(syncStore, triggerSync, waitForInitialSync);
+    const notes = new NoteSyncStore(syncStore, triggerSync, waitForInitialSync);
+    const reminders = new ReminderSyncStore(syncStore, triggerSync, waitForInitialSync);
+    const trackerDetail = new ApplicationTrackerDetailService(
+      new StatusEventReader(syncStore, waitForInitialSync), interviews, notes, reminders,
+    );
+    const reminderScheduler = new ReminderNotificationScheduler(
+      reminders, syncStore, this.window,
+    );
     const resumePdfExports = new ResumePdfExportService(
       this.resumeCompiler,
       new ElectronResumePdfSaveDialog(this.window),
@@ -124,6 +152,17 @@ export class UserServicesResolver {
       experiences,
       experienceHistory,
       experienceProposals,
+      trackerDetail,
+      interviews,
+      interviewProposals: new InterviewProposalService(interviews),
+      notes,
+      noteProposals: new NoteProposalService(notes),
+      reminders,
+      reminderProposals: new ReminderProposalService(reminders),
+      reminderScheduler,
+      trackerRecovery: new TrackerRecoveryService(
+        syncStore, triggerSync, waitForInitialSync, () => this.auth.syncNow(),
+      ),
     };
     return this.services;
   }
@@ -131,6 +170,7 @@ export class UserServicesResolver {
   public clear(): void {
     this.services?.agent.cancel();
     this.services?.selectedFiles.clear();
+    this.services?.reminderScheduler.dispose();
     this.services = undefined;
   }
 }

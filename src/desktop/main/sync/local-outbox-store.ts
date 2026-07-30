@@ -112,6 +112,12 @@ export class LocalOutboxStore {
     this.#results.apply(result, retryAt);
   }
 
+  public retryPendingNow(now: string): void {
+    this.database.prepare(`
+      UPDATE local_outbox SET next_attempt_at = ? WHERE status = 'pending'
+    `).run(now);
+  }
+
   #find(operationId: string): OutboxRow | undefined {
     return this.database
       .prepare(`

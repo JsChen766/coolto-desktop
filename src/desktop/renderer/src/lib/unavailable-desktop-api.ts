@@ -79,6 +79,11 @@ export function createUnavailableDesktopApi(): DesktopApi {
       transition: unavailable,
       delete: unavailable,
     },
+    tracker: { detail: unavailable, overview: unavailable, syncIssues: unavailable,
+      prepareRecovery: unavailable, executeRecovery: unavailable, retryPending: unavailable },
+    interviews: childUnavailable(unavailable),
+    notes: childUnavailable(unavailable),
+    reminders: childUnavailable(unavailable),
     window: {
       minimize: unavailable,
       toggleMaximize: unavailable,
@@ -99,5 +104,14 @@ export function createUnavailableDesktopApi(): DesktopApi {
       onReviewComplete: () => () => undefined,
       onCaptchaDetected: () => () => undefined,
     },
+  };
+}
+
+function childUnavailable(unavailable: () => Promise<never>) {
+  return {
+    prepareCreate: unavailable,
+    prepareUpdate: unavailable,
+    prepareDelete: unavailable,
+    executeProposal: unavailable,
   };
 }

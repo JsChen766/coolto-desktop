@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { FileText, Link2 } from "@lucide/vue";
+import { Bell, CalendarClock, FileText, Link2 } from "@lucide/vue";
+import { computed } from "vue";
 
-import type { ApplicationRecord, ApplicationStatus } from "@desktop/types";
+import type { ApplicationRecord, ApplicationStatus, InterviewRound, Reminder } from "@desktop/types";
 import { STATUS_LABELS, syncLabel } from "../tracker/application-labels";
 import { applicationStage } from "../tracker/application-board";
 import ApplicationStatusMenu from "./ApplicationStatusMenu.vue";
 
-defineProps<{
+const props = defineProps<{
   application: ApplicationRecord;
+  interviews: InterviewRound[];
+  reminders: Reminder[];
   busy?: boolean;
 }>();
+const nextInterview = computed(() => props.interviews
+  .filter((item) => item.status === "scheduled" && item.scheduledAt)
+  .sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!))[0]);
+const nextReminder = computed(() => props.reminders
+  .filter((item) => item.status === "scheduled")
+  .sort((a, b) => a.remindAt.localeCompare(b.remindAt))[0]);
 
 defineEmits<{
   open: [];
@@ -37,6 +46,10 @@ function dateLabel(value: string | null): string {
         <span class="tracker-exact-status" :class="`status-${application.status}`">
           {{ STATUS_LABELS[application.status] }}
         </span>
+      </div>
+      <div v-if="nextInterview || nextReminder" class="tracker-card-schedule">
+        <span v-if="nextInterview"><CalendarClock :size="12" />第 {{ nextInterview.roundNumber }} 轮 · {{ dateLabel(nextInterview.scheduledAt) }}</span>
+        <span v-if="nextReminder"><Bell :size="12" />{{ nextReminder.title }} · {{ dateLabel(nextReminder.remindAt) }}</span>
       </div>
       <div class="tracker-card-meta">
         <span>{{ dateLabel(application.appliedAt) }}</span>

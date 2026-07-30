@@ -31,6 +31,15 @@ export class SyncRuntime {
 	void this.#worker?.run().catch((error: unknown) => this.#handleError(error));
   }
 
+  public async runNow(): Promise<void> {
+    try {
+      await this.#worker?.run();
+    } catch (error: unknown) {
+      this.#handleError(error);
+      throw error;
+    }
+  }
+
   public requireStore(): LocalSyncStore {
 	if (!this.#store) throw new Error("同步 Store 尚未启动");
 	return this.#store;

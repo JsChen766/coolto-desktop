@@ -23,6 +23,7 @@ export type {
   ApplicationDuplicateWarning,
   TrackerSyncStatus,
 } from "../../tracker/types.js";
+export type * from "../../tracker/child-types.js";
 export type {
   JobRepositoryApplication,
   JobRepositoryJd,

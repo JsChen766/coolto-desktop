@@ -2,7 +2,7 @@
 import { ChevronLeft, ChevronRight } from "@lucide/vue";
 import { computed, ref } from "vue";
 
-import type { ApplicationRecord } from "@desktop/types";
+import type { ApplicationRecord, InterviewRound, Reminder } from "@desktop/types";
 import { applicationStage } from "../tracker/application-board";
 import {
   buildApplicationCalendar,
@@ -12,7 +12,7 @@ import {
 } from "../tracker/application-calendar";
 import { STATUS_LABELS } from "../tracker/application-labels";
 
-const props = defineProps<{ applications: ApplicationRecord[] }>();
+const props = defineProps<{ applications: ApplicationRecord[]; interviews: InterviewRound[]; reminders: Reminder[] }>();
 defineEmits<{ open: [application: ApplicationRecord] }>();
 
 const anchor = ref(initialCalendarAnchor(props.applications));
@@ -25,6 +25,15 @@ function shift(offset: number): void {
 function today(): void {
   anchor.value = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 }
+
+function dateKey(value: string): string {
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+function application(id: string): ApplicationRecord | undefined {
+  return props.applications.find((item) => item.id === id);
+}
 </script>
 
 <template>
@@ -32,7 +41,7 @@ function today(): void {
     <header class="calendar-toolbar">
       <div>
         <strong>{{ calendar.label }}</strong>
-        <span>按真实投递日期展示</span>
+        <span>投递、面试与单次提醒</span>
       </div>
       <nav aria-label="切换月份">
         <button type="button" aria-label="上个月" @click="shift(-1)">
@@ -69,6 +78,20 @@ function today(): void {
             <span>{{ application.companyName }}</span>
             <small>{{ STATUS_LABELS[application.status] }}</small>
           </button>
+          <button
+            v-for="item in interviews.filter(value => value.scheduledAt && dateKey(value.scheduledAt) === day.dateKey)"
+            :key="item.id"
+            type="button"
+            class="calendar-child-event interview"
+            @click="application(item.applicationId) && $emit('open', application(item.applicationId)!)"
+          ><i aria-hidden="true" /><span>第 {{ item.roundNumber }} 轮面试</span><small>{{ new Date(item.scheduledAt!).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</small></button>
+          <button
+            v-for="item in reminders.filter(value => dateKey(value.remindAt) === day.dateKey)"
+            :key="item.id"
+            type="button"
+            class="calendar-child-event reminder"
+            @click="application(item.applicationId) && $emit('open', application(item.applicationId)!)"
+          ><i aria-hidden="true" /><span>{{ item.title }}</span><small>{{ new Date(item.remindAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</small></button>
         </div>
       </section>
     </div>

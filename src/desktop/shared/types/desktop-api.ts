@@ -1,4 +1,17 @@
 import type {
+  ApplicationNote,
+  ApplicationTrackerDetail,
+  InterviewInput,
+  InterviewRound,
+  NoteInput,
+  Reminder,
+  ReminderInput,
+  TrackerChildProposal,
+  TrackerChildTombstone,
+  TrackerRecoveryProposal,
+  TrackerSyncIssueSummary,
+} from "../../../tracker/child-types.js";
+import type {
   LocalResumeDraft,
   ResumeDraftCheckpoint,
   ResumeDraftSummary,
@@ -140,6 +153,21 @@ export interface DesktopApi {
     transition(input: ApplicationTransitionRequest): Promise<ApplicationRecord>;
     delete(applicationId: string): Promise<ApplicationTombstone>;
   };
+  tracker: {
+    detail(applicationId: string): Promise<ApplicationTrackerDetail>;
+    overview(): Promise<ApplicationTrackerDetail>;
+    syncIssues(): Promise<TrackerSyncIssueSummary[]>;
+    prepareRecovery(input: {
+      entityType: TrackerSyncIssueSummary["entityType"];
+      entityId: string;
+      action: TrackerRecoveryProposal["action"];
+    }): Promise<TrackerRecoveryProposal>;
+    executeRecovery(proposalId: string): Promise<void>;
+    retryPending(): Promise<void>;
+  };
+  interviews: TrackerChildDesktopApi<InterviewRound, InterviewInput>;
+  notes: TrackerChildDesktopApi<ApplicationNote, NoteInput>;
+  reminders: TrackerChildDesktopApi<Reminder, ReminderInput>;
   window: {
     minimize(): Promise<void>;
     toggleMaximize(): Promise<void>;
@@ -160,4 +188,11 @@ export interface DesktopApi {
     onReviewComplete(listener: (payload: { action: "accepted" | "rejected" | "mixed"; acceptedCount: number; rejectedCount: number }) => void): () => void;
     onCaptchaDetected(listener: (payload: { kind: "recaptcha" | "hcaptcha" | "geetest" | "slider" | "image" | "unknown"; detail?: string }) => void): () => void;
   };
+}
+
+export interface TrackerChildDesktopApi<T, I> {
+  prepareCreate(input: { applicationId: string; value: I }): Promise<TrackerChildProposal>;
+  prepareUpdate(input: { id: string; value: I }): Promise<TrackerChildProposal>;
+  prepareDelete(id: string): Promise<TrackerChildProposal>;
+  executeProposal(proposalId: string): Promise<T | TrackerChildTombstone>;
 }

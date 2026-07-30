@@ -146,6 +146,10 @@ export class DesktopAuthService {
     this.#syncRuntime.trigger();
   }
 
+  public syncNow(): Promise<void> {
+    return this.#syncRuntime.runNow();
+  }
+
   public waitForInitialSync(): Promise<void> {
     return this.#syncRuntime.waitForInitial();
   }

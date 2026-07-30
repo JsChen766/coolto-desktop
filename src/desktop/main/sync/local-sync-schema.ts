@@ -84,6 +84,13 @@ export function initializeLocalSyncSchema(database: DatabaseSync): void {
       error_code TEXT NOT NULL,
       occurred_at TEXT NOT NULL
     ) STRICT;
+
+    CREATE TABLE IF NOT EXISTS reminder_delivery_receipts (
+      reminder_id TEXT NOT NULL,
+      remind_at TEXT NOT NULL,
+      delivered_at TEXT NOT NULL,
+      PRIMARY KEY (reminder_id, remind_at)
+    ) STRICT;
   `);
   migrateLocalSyncSchema(database);
 }

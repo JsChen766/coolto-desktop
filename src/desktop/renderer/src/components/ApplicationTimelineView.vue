@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { ApplicationRecord } from "@desktop/types";
+import type { ApplicationRecord, ApplicationStatusEvent, InterviewRound } from "@desktop/types";
 import {
   APPLICATION_BOARD_COLUMNS,
   applicationStage,
@@ -9,7 +9,7 @@ import {
 } from "../tracker/application-board";
 import { STATUS_LABELS } from "../tracker/application-labels";
 
-const props = defineProps<{ applications: ApplicationRecord[] }>();
+const props = defineProps<{ applications: ApplicationRecord[]; events: ApplicationStatusEvent[]; interviews: InterviewRound[] }>();
 defineEmits<{ open: [application: ApplicationRecord] }>();
 
 const entries = computed(() => [...props.applications]
@@ -19,6 +19,12 @@ const entries = computed(() => [...props.applications]
     stage: applicationStage(application.status),
     stageIndex: applicationStageIndex(application.status),
   })));
+
+function activity(applicationId: string): string {
+  const transitions = props.events.filter((item) => item.applicationId === applicationId).length;
+  const interviews = props.interviews.filter((item) => item.applicationId === applicationId).length;
+  return `${transitions} 次状态变化 · ${interviews} 场面试`;
+}
 
 function dateLabel(value: string | null): string {
   return value
@@ -53,6 +59,7 @@ function dateLabel(value: string | null): string {
         <span class="timeline-identity">
           <strong>{{ entry.application.companyName }}</strong>
           <small>{{ entry.application.roleName }}</small>
+          <small>{{ activity(entry.application.id) }}</small>
         </span>
         <span class="timeline-track" aria-hidden="true">
           <i
@@ -66,6 +73,6 @@ function dateLabel(value: string | null): string {
       </button>
     </div>
     <p v-else class="tracker-empty-view">当前筛选下没有可展示的投递记录。</p>
-    <footer class="timeline-note">仅展示真实投递日期与当前状态；阶段区间将在状态历史接入后补充。</footer>
+    <footer class="timeline-note">投递日期与状态变化来自服务端事实记录；本机待同步状态不会伪造成历史事件。</footer>
   </section>
 </template>

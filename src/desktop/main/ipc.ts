@@ -30,6 +30,10 @@ import {
   EXPERIENCE_IPC_CHANNELS,
   registerExperienceIpc,
 } from "./experience-library/experience-ipc.js";
+import {
+  registerTrackerChildIpc,
+  TRACKER_CHILD_IPC_CHANNELS,
+} from "./tracker/tracker-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -45,13 +49,11 @@ export function registerDesktopIpc(
     ...APPLICATION_IPC_CHANNELS,
     ...JOB_ASSET_IPC_CHANNELS,
     ...EXPERIENCE_IPC_CHANNELS,
+    ...TRACKER_CHILD_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
   const auth = new DesktopAuthService();
-  window.once("closed", () => {
-    void auth.dispose();
-  });
   const services = new UserServicesResolver(
     auth,
     window,
@@ -59,6 +61,10 @@ export function registerDesktopIpc(
     browserPageReader,
     browserPageOperator,
   );
+  window.once("closed", () => {
+    services.clear();
+    void auth.dispose();
+  });
   const servicesForCurrentUser = () => services.get();
 
   registerAuthIpc(ipcMain, auth, () => services.clear());
@@ -206,6 +212,7 @@ export function registerDesktopIpc(
     async () => (await servicesForCurrentUser()).experienceProposals,
     async () => (await servicesForCurrentUser()).experienceHistory,
   );
+  registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
 }
 
 const IPC_CHANNELS = [

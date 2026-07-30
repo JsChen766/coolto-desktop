@@ -29,6 +29,7 @@ import { RemotePageWriter } from "./remote-page-writer.js";
 import { withImmediateTransaction } from "./sqlite-transaction.js";
 import { SyncKeyStore } from "./sync-key-store.js";
 import { SyncRecoveryStore } from "./sync-recovery-store.js";
+import { ReminderDeliveryStore } from "./reminder-delivery-store.js";
 
 interface StateRow {
   mode: LocalSyncState["mode"];
@@ -41,6 +42,7 @@ export class LocalSyncStore {
   readonly #createIdentities: LocalCreateIdentityStore;
   readonly #entities: LocalEntityStore;
   readonly #recovery: SyncRecoveryStore;
+  readonly #reminderDeliveries: ReminderDeliveryStore;
 
   private constructor(
     private readonly database: DatabaseSync,
@@ -51,6 +53,7 @@ export class LocalSyncStore {
     this.#createIdentities = new LocalCreateIdentityStore(database);
     this.#entities = new LocalEntityStore(database, codec);
     this.#recovery = new SyncRecoveryStore(database, codec);
+    this.#reminderDeliveries = new ReminderDeliveryStore(database);
   }
 
   public static async open(
@@ -166,6 +169,22 @@ export class LocalSyncStore {
     mutation: EnqueueMutation,
   ): void {
     this.#recovery.saveBlockedAsNew(sourceType, sourceId, mutation);
+  }
+
+  public hasReminderDelivery(reminderId: string, remindAt: string): boolean {
+    return this.#reminderDeliveries.has(reminderId, remindAt);
+  }
+
+  public recordReminderDelivery(
+    reminderId: string,
+    remindAt: string,
+    deliveredAt: string,
+  ): void {
+    this.#reminderDeliveries.record(reminderId, remindAt, deliveredAt);
+  }
+
+  public retryPendingNow(): void {
+    this.#outbox.retryPendingNow(new Date().toISOString());
   }
 }
 
