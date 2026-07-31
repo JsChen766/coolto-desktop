@@ -1,0 +1,15 @@
+appId: com.coolto.app
+productName: Coolto
+directories:
+  output: dist-electron
+  buildResources: build
+files:
+  - out/**/*
+  - node_modules/**/*
+  - package.json
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dir
+      arch:
+        - arm64

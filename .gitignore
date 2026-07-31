@@ -1,6 +1,7 @@
 /local-docs
 node_modules/
 dist/
+dist-electron/
 out/
 .env
 .env.local

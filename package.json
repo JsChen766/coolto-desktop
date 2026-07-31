@@ -26,7 +26,8 @@
     "start": "node dist/src/cli/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test test/**/*.test.ts",
-    "check": "npm run check:resume-template && npm run check:source-lines && npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build"
+    "check": "npm run check:resume-template && npm run check:source-lines && npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build",
+    "package:mac": "npm run desktop:build && npx electron-builder --mac --dir && codesign --force --deep --sign - dist-electron/mac-arm64/Coolto.app"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.81.1",
@@ -45,6 +46,7 @@
     "@types/node": "24.10.1",
     "@vitejs/plugin-vue": "^6.0.8",
     "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "tsx": "4.20.6",
     "typescript": "5.9.3",

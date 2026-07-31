@@ -17,11 +17,11 @@
 ## 当前 Roadmap
 
 - 唯一正式执行入口：`local-docs/p0-product-completion-roadmap/README.md`；其他阶段文档保留历史背景、契约和完成记录，不得形成第二条并行开发顺序。
-- 已完成阶段：N0、N1、S3、A0、J0、J1、J2、J3、E0、E1、E2、E3、E4、E5、E6；当前下一阶段为 S4。
+- 已完成阶段：N0、N1、S3、A0、J0、J1、J2、J3、E0、E1、E2、E3、E4、E5、E6、S4；当前下一阶段为 S5。
 - 后续固定顺序：`A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S5 → R1`。
 - 不得跳过阶段；每阶段开始先复核现状和工作树，并在真正开始该阶段时逐项向用户确认 Roadmap 已保留的确认点。
 - J0–J3 已完成求职仓库关系模型、UI 方案、只读展示和跨模块写入闭环；E0–E6 已完成经历仓库规则、Store/IPC、时间线与维护、同步恢复、导入定位、版本历史/恢复及统一验收。S4 的 Tracker 子实体布局仍必须到对应阶段先确认。
-- 后续从 S4 开始继续按固定顺序推进；不得因 J3 已提供 Application 主记录写入而提前把 Interview、Note、Reminder 或通知混入求职仓库。
+- 后续从 S5 开始继续按固定顺序推进；不得因 J3 已提供 Application 主记录写入而提前把 Interview、Note、Reminder 或通知混入求职仓库。
 
 ## 产品关系约束
 
@@ -46,6 +46,7 @@
 - 仅类型检查：`npm run typecheck`（Node 主进程）、`npm run desktop:typecheck`（渲染进程 Vue）
 - 单测：`npm run test`（`node --test`，测试不依赖 electron 运行时）
 - 桌面开发：`npm run desktop:dev`
+- macOS 打包（ad-hoc 签名）：`npm run package:mac`（生成 `dist-electron/mac-arm64/Coolto.app`）
 
 ## 代码约定
 

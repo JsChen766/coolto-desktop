@@ -1,8 +1,10 @@
 import type { IpcMain } from "electron";
 
-import type { InterviewInput, NoteInput, ReminderInput } from "../../../tracker/child-types.js";
 import type { UserServices } from "../user-services.js";
-import { childRequest, recoveryRequest, requiredId } from "./tracker-ipc-validation.js";
+import {
+  childRequest, recoveryRequest, requiredId,
+  validateInterviewInput, validateNoteInput, validateReminderInput,
+} from "./tracker-ipc-validation.js";
 
 export const TRACKER_CHILD_IPC_CHANNELS = [
   "tracker:detail",
@@ -44,41 +46,47 @@ export function registerTrackerChildIpc(
 
 function registerInterviews(ipc: IpcMain, services: () => Promise<UserServices>): void {
   ipc.handle("interviews:prepare-create", async (_event, raw) => {
-    const input = childRequest<InterviewInput>(raw, INTERVIEW_FIELDS);
+    const input = childRequest(raw, INTERVIEW_FIELDS);
+    const value = validateInterviewInput(input.value);
     return (await services()).interviewProposals.prepareCreate(
-      requiredId(input.applicationId, "applicationId"), input.value);
+      requiredId(input.applicationId, "applicationId"), value);
   });
   ipc.handle("interviews:prepare-update", async (_event, raw) => {
-    const input = childRequest<InterviewInput>(raw, INTERVIEW_FIELDS);
+    const input = childRequest(raw, INTERVIEW_FIELDS);
+    const value = validateInterviewInput(input.value);
     return (await services()).interviewProposals.prepareUpdate(
-      requiredId(input.id, "id"), input.value);
+      requiredId(input.id, "id"), value);
   });
   registerActions(ipc, services, "interviews", "interviewProposals");
 }
 
 function registerNotes(ipc: IpcMain, services: () => Promise<UserServices>): void {
   ipc.handle("notes:prepare-create", async (_event, raw) => {
-    const input = childRequest<NoteInput>(raw, NOTE_FIELDS);
+    const input = childRequest(raw, NOTE_FIELDS);
+    const value = validateNoteInput(input.value);
     return (await services()).noteProposals.prepareCreate(
-      requiredId(input.applicationId, "applicationId"), input.value);
+      requiredId(input.applicationId, "applicationId"), value);
   });
   ipc.handle("notes:prepare-update", async (_event, raw) => {
-    const input = childRequest<NoteInput>(raw, NOTE_FIELDS);
-    return (await services()).noteProposals.prepareUpdate(requiredId(input.id, "id"), input.value);
+    const input = childRequest(raw, NOTE_FIELDS);
+    const value = validateNoteInput(input.value);
+    return (await services()).noteProposals.prepareUpdate(requiredId(input.id, "id"), value);
   });
   registerActions(ipc, services, "notes", "noteProposals");
 }
 
 function registerReminders(ipc: IpcMain, services: () => Promise<UserServices>): void {
   ipc.handle("reminders:prepare-create", async (_event, raw) => {
-    const input = childRequest<ReminderInput>(raw, REMINDER_FIELDS);
+    const input = childRequest(raw, REMINDER_FIELDS);
+    const value = validateReminderInput(input.value);
     return (await services()).reminderProposals.prepareCreate(
-      requiredId(input.applicationId, "applicationId"), input.value);
+      requiredId(input.applicationId, "applicationId"), value);
   });
   ipc.handle("reminders:prepare-update", async (_event, raw) => {
-    const input = childRequest<ReminderInput>(raw, REMINDER_FIELDS);
+    const input = childRequest(raw, REMINDER_FIELDS);
+    const value = validateReminderInput(input.value);
     return (await services()).reminderProposals.prepareUpdate(
-      requiredId(input.id, "id"), input.value);
+      requiredId(input.id, "id"), value);
   });
   registerActions(ipc, services, "reminders", "reminderProposals");
 }
