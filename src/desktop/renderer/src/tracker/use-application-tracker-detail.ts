@@ -9,6 +9,7 @@ import type {
   TrackerChildProposal,
 } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { translate } from "../i18n/locale";
 
 export function useApplicationTrackerDetail() {
   const detail = ref<ApplicationTrackerDetail>(emptyDetail());
@@ -25,7 +26,7 @@ export function useApplicationTrackerDetail() {
     try {
       detail.value = await desktopApi.tracker.detail(id);
     } catch (cause) {
-      error.value = messageOf(cause, "读取投递日程失败");
+      error.value = translate(messageOf(cause, "读取投递日程失败"));
     } finally {
       loading.value = false;
     }
@@ -71,12 +72,12 @@ export function useApplicationTrackerDetail() {
   async function run(task: () => Promise<void>): Promise<void> {
     busy.value = true;
     error.value = undefined;
-    try { await task(); } catch (cause) { error.value = messageOf(cause, "Tracker 操作失败"); }
+    try { await task(); } catch (cause) { error.value = translate(messageOf(cause, "Tracker 操作失败")); }
     finally { busy.value = false; }
   }
 
   function requiredApplication(): string {
-    if (!applicationId) throw new Error("当前投递记录不存在");
+    if (!applicationId) throw new Error(translate("当前投递记录不存在"));
     return applicationId;
   }
 

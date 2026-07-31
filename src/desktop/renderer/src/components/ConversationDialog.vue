@@ -20,11 +20,11 @@ const value = ref(props.title);
       class="dialog-card"
       role="dialog"
       aria-modal="true"
-      :aria-label="mode === 'rename' ? '重命名对话' : '删除对话'"
+      :aria-label="mode === 'rename' ? $t('重命名对话') : $t('删除对话')"
     >
       <template v-if="mode === 'rename'">
-        <h2>重命名对话</h2>
-        <p>使用一个便于之后查找的标题。</p>
+        <h2>{{ $t('重命名对话') }}</h2>
+        <p>{{ $t('使用一个便于之后查找的标题。') }}</p>
         <input
           v-model="value"
           autofocus
@@ -33,12 +33,12 @@ const value = ref(props.title);
         />
       </template>
       <template v-else>
-        <h2>删除这个对话？</h2>
-        <p>“{{ title }}”及其本地聊天记录将被永久删除。</p>
+        <h2>{{ $t('删除这个对话？') }}</h2>
+        <p>{{ $tf('“{title}”及其本地聊天记录将被永久删除。', { title }) }}</p>
       </template>
       <div class="dialog-actions">
         <button class="secondary-button" type="button" @click="$emit('close')">
-          取消
+          {{ $t('取消') }}
         </button>
         <button
           class="primary-button"
@@ -47,7 +47,7 @@ const value = ref(props.title);
           :disabled="mode === 'rename' && !value.trim()"
           @click="$emit('confirm', mode === 'rename' ? value : undefined)"
         >
-          {{ mode === "rename" ? "保存" : "删除" }}
+          {{ mode === "rename" ? $t('保存') : $t('删除') }}
         </button>
       </div>
     </section>

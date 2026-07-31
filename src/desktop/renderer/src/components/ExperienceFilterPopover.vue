@@ -54,47 +54,47 @@ onBeforeUnmount(() => {
       @click.stop="open = !open"
     >
       <SlidersHorizontal :size="15" aria-hidden="true" />
-      筛选
+      {{ $t('筛选') }}
       <span v-if="count">{{ count }}</span>
     </button>
     <div
       v-if="open"
       class="popover experience-filter-popover"
       role="dialog"
-      aria-label="筛选经历"
+      :aria-label="$t('筛选经历')"
       @click.stop
     >
       <div class="experience-filter-heading">
-        <strong>筛选经历</strong>
-        <button type="button" aria-label="关闭筛选" @click="open = false">
+        <strong>{{ $t('筛选经历') }}</strong>
+        <button type="button" :aria-label="$t('关闭筛选')" @click="open = false">
           <X :size="15" aria-hidden="true" />
         </button>
       </div>
       <label>
-        <span>状态</span>
+        <span>{{ $t('状态') }}</span>
         <select
           :value="status"
           @change="$emit('update:status', ($event.target as HTMLSelectElement).value as 'active' | 'archived')"
         >
-          <option value="active">在用经历</option>
-          <option value="archived">已归档</option>
+          <option value="active">{{ $t('在用经历') }}</option>
+          <option value="archived">{{ $t('已归档') }}</option>
         </select>
       </label>
       <label>
-        <span>类别</span>
+        <span>{{ $t('类别') }}</span>
         <select
           :value="category"
           @change="$emit('update:category', ($event.target as HTMLSelectElement).value as ExperienceCategory | '')"
         >
-          <option value="">全部类别</option>
+          <option value="">{{ $t('全部类别') }}</option>
           <option v-for="[value, label] in categoryOptions" :key="value" :value="value">
-            {{ label }}
+            {{ $t(label) }}
           </option>
         </select>
       </label>
       <fieldset>
-        <legend>标签 <small>同时满足所选标签</small></legend>
-        <p v-if="!displayTags.length">当前状态下暂无标签</p>
+        <legend>{{ $t('标签') }} <small>{{ $t('同时满足所选标签') }}</small></legend>
+        <p v-if="!displayTags.length">{{ $t('当前状态下暂无标签') }}</p>
         <button
           v-for="tag in displayTags"
           :key="tag"
@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
         :disabled="!count"
         @click="$emit('clear')"
       >
-        清空筛选
+        {{ $t('清空筛选') }}
       </button>
     </div>
   </div>

@@ -11,19 +11,19 @@ defineEmits<{ close: []; local: []; cloud: [] }>();
       class="dialog-card"
       role="dialog"
       aria-modal="true"
-      aria-label="选择简历预览版本"
+      :aria-label="$t('选择简历预览版本')"
     >
-      <h2>选择预览版本</h2>
-      <p>“{{ entry.displayTitle }}”的本地与云端内容存在冲突，请明确选择本次要查看的版本。</p>
+      <h2>{{ $t('选择预览版本') }}</h2>
+      <p>{{ $tf('“{title}”的本地与云端内容存在冲突，请明确选择本次要查看的版本。', { title: entry.displayTitle }) }}</p>
       <div class="dialog-actions">
         <button class="secondary-button" type="button" @click="$emit('close')">
-          取消
+          {{ $t('取消') }}
         </button>
         <button class="secondary-button" type="button" @click="$emit('cloud')">
-          预览云端版本
+          {{ $t('预览云端版本') }}
         </button>
         <button class="primary-button" type="button" @click="$emit('local')">
-          预览本地版本
+          {{ $t('预览本地版本') }}
         </button>
       </div>
     </section>

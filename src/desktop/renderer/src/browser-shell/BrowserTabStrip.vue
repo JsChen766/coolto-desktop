@@ -30,7 +30,7 @@ defineEmits<{
       <button
         class="tab-close"
         type="button"
-        aria-label="关闭标签"
+        :aria-label="$t('关闭标签')"
         @click.stop="$emit('close', tab.id)"
       >
         <X :size="13" :stroke-width="2" aria-hidden="true" />
@@ -39,7 +39,7 @@ defineEmits<{
     <button
       class="tab-new no-drag"
       type="button"
-      aria-label="新建标签"
+      :aria-label="$t('新建标签')"
       @click="$emit('create')"
     >
       <Plus :size="15" :stroke-width="2" aria-hidden="true" />

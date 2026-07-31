@@ -61,7 +61,7 @@ const {
 
 <template>
       <ChatHeader
-        :title="current?.title ?? '新对话'"
+        :title="!current || current.title === '新对话' ? $t('新对话') : current.title"
         :sidebar-open="sidebarOpen"
         :artifact-open="artifactOpen"
         :browser-open="browser.state.isOpen"

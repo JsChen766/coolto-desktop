@@ -1,8 +1,8 @@
 <template>
   <div class="resume-picker-backdrop" @click.self="$emit('close')">
     <div class="resume-picker">
-      <p class="resume-picker-title">选择简历</p>
-      <div v-if="loading" class="resume-picker-loading">加载中…</div>
+      <p class="resume-picker-title">{{ $t('选择简历') }}</p>
+      <div v-if="loading" class="resume-picker-loading">{{ $t('加载中…') }}</div>
       <ul v-else class="resume-picker-list" role="listbox">
         <li
           v-for="entry in entries"
@@ -26,6 +26,7 @@ import { onMounted, ref } from "vue";
 import type { ResumeChatReference } from "@desktop/types";
 import type { ResumeLibraryEntry } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { translate } from "../i18n/locale";
 
 const emit = defineEmits<{
   select: [reference: ResumeChatReference];
@@ -45,12 +46,12 @@ onMounted(async () => {
 
 function statusLabel(entry: ResumeLibraryEntry): string {
   const s = entry.syncStatus;
-  if (s === "synced") return "已同步";
-  if (s === "cloud_only") return "仅云端";
-  if (s === "local_only") return "仅本机";
-  if (s === "local_changes") return "有本地修改";
-  if (s === "cloud_changes") return "云端已更新";
-  if (s === "conflict") return "冲突";
+  if (s === "synced") return translate("已同步");
+  if (s === "cloud_only") return translate("仅云端");
+  if (s === "local_only") return translate("仅本机");
+  if (s === "local_changes") return translate("有本地修改");
+  if (s === "cloud_changes") return translate("云端已更新");
+  if (s === "conflict") return translate("冲突");
   return "";
 }
 

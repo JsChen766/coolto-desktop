@@ -39,7 +39,7 @@ const hasError = computed(() =>
       />
       <Wrench :size="14" :stroke-width="1.8" aria-hidden="true" />
       <span>
-        {{ hasError ? "工具调用出现问题" : `工具调用 ${runs.length} 项` }}
+        {{ hasError ? $t('工具调用出现问题') : $tf('工具调用 {count} 项', { count: runs.length }) }}
       </span>
     </button>
     <div v-if="expanded" class="tool-list">

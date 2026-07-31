@@ -1,4 +1,5 @@
 import type { ApplicationRecord } from "../../../shared/types.js";
+import { localeCode } from "../i18n/locale.js";
 
 export interface ApplicationCalendarDay {
   dateKey: string;
@@ -65,7 +66,7 @@ export function buildApplicationCalendar(
   return {
     year: month.getFullYear(),
     month: month.getMonth(),
-    label: new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(month),
+    label: new Intl.DateTimeFormat(localeCode(), { year: "numeric", month: "long" }).format(month),
     days,
   };
 }

@@ -9,6 +9,7 @@ import type {
   ApplicationWriteProposal,
 } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { translate } from "../i18n/locale";
 
 export function useApplicationTracker() {
   const applications = ref<ApplicationRecord[]>([]);
@@ -34,7 +35,7 @@ export function useApplicationTracker() {
         );
       }
     } catch (cause: unknown) {
-      error.value = messageOf(cause, "加载投递追踪失败");
+      error.value = translate(messageOf(cause, "加载投递追踪失败"));
     } finally {
       loading.value = false;
     }
@@ -87,7 +88,7 @@ export function useApplicationTracker() {
       applications.value = applications.value.filter((item) => item.id !== application.id);
       if (selected.value?.id === application.id) selected.value = undefined;
     } catch (cause: unknown) {
-      error.value = messageOf(cause, "删除投递记录失败");
+      error.value = translate(messageOf(cause, "删除投递记录失败"));
       throw cause;
     } finally {
       busy.value = false;
@@ -105,7 +106,7 @@ export function useApplicationTracker() {
       if (selected.value?.id === updated.id) selected.value = updated;
       return updated;
     } catch (cause: unknown) {
-      error.value = messageOf(cause, "保存投递记录失败");
+      error.value = translate(messageOf(cause, "保存投递记录失败"));
       throw cause;
     } finally {
       busy.value = false;
@@ -118,7 +119,7 @@ export function useApplicationTracker() {
     try {
       return await action();
     } catch (cause: unknown) {
-      error.value = messageOf(cause, fallback);
+      error.value = translate(messageOf(cause, fallback));
       throw cause;
     } finally {
       busy.value = false;

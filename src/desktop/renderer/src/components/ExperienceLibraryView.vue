@@ -85,14 +85,14 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
         type="button"
         @click="page.load()"
       >
-        重试
+        {{ $t('重试') }}
       </button>
       <button
         v-else
         type="button"
         @click="maintenance.error.value = undefined"
       >
-        关闭
+        {{ $t('关闭') }}
       </button>
     </div>
 
@@ -100,7 +100,7 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
       v-if="page.loading.value && !page.catalog.value.length"
       class="experience-page-state"
     >
-      正在读取经历…
+      {{ $t('正在读取经历…') }}
     </div>
     <div
       v-else-if="!page.catalog.value.length && !maintenance.editorMode.value"
@@ -108,9 +108,9 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
     >
       <Library :size="23" aria-hidden="true" />
       <strong>
-        {{ page.status.value === 'archived' ? '尚无已归档经历' : '尚无在用经历' }}
+        {{ page.status.value === 'archived' ? $t('尚无已归档经历') : $t('尚无在用经历') }}
       </strong>
-      <p>可以新建经历，也可以回到对话从现有简历导入。</p>
+        <p>{{ $t('可以新建经历，也可以回到对话从现有简历导入。') }}</p>
     </div>
     <div v-else class="experience-layout">
       <aside class="experience-list-pane">
@@ -119,7 +119,7 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
           :selected-id="page.selectedId.value"
           :highlighted-ids="page.focusedIds.value"
           :query="page.query.value"
-          empty-label="没有符合当前搜索或筛选条件的经历"
+          :empty-label="$t('没有符合当前搜索或筛选条件的经历')"
           @select="selectExperience"
         />
       </aside>
@@ -136,7 +136,7 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
           @review="maintenance.review"
         />
         <div v-else-if="page.detailLoading.value" class="experience-page-state">
-          正在读取经历详情…
+          {{ $t('正在读取经历详情…') }}
         </div>
         <ExperienceDetail
           v-else-if="page.selected.value"
@@ -149,7 +149,7 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
           @restore-revision="restoreRevision"
         />
         <div v-else class="experience-page-state">
-          {{ page.visible.value.length ? '选择一条经历查看详情' : '调整搜索或筛选条件后重试' }}
+          {{ page.visible.value.length ? $t('选择一条经历查看详情') : $t('调整搜索或筛选条件后重试') }}
         </div>
       </section>
     </div>

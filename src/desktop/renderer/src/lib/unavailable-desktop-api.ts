@@ -1,8 +1,9 @@
 import type { DesktopApi } from "@desktop/types";
+import { translate } from "../i18n/locale";
 
 export function createUnavailableDesktopApi(): DesktopApi {
   const unavailable = async (): Promise<never> => {
-    throw new Error("桌面安全桥接加载失败，请重新启动 Coolto");
+    throw new Error(translate("桌面安全桥接加载失败，请重新启动 Coolto"));
   };
   return {
     platform: "darwin",

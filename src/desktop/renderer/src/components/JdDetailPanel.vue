@@ -2,28 +2,29 @@
 import { Briefcase, CheckCircle, Tag, XCircle } from "@lucide/vue";
 
 import type { JdArtifactData } from "../../../../desktop/shared/types";
+import { translate } from "../i18n/locale";
 
 defineProps<{
   data: JdArtifactData;
 }>();
 
 function importanceLabel(value: string): string {
-  if (value === "must_have") return "必须";
-  if (value === "preferred") return "优先";
-  if (value === "nice_to_have") return "加分";
-  if (value === "high") return "高";
-  if (value === "medium") return "中";
-  if (value === "low") return "低";
+  if (value === "must_have") return translate("必须");
+  if (value === "preferred") return translate("优先");
+  if (value === "nice_to_have") return translate("加分");
+  if (value === "high") return translate("高");
+  if (value === "medium") return translate("中");
+  if (value === "low") return translate("低");
   return value;
 }
 
 function categoryLabel(value: string): string {
-  if (value === "skill") return "技能";
-  if (value === "experience") return "经验";
-  if (value === "education") return "学历";
-  if (value === "certification") return "认证";
-  if (value === "language") return "语言";
-  if (value === "soft_skill") return "软技能";
+  if (value === "skill") return translate("技能");
+  if (value === "experience") return translate("经验");
+  if (value === "education") return translate("学历");
+  if (value === "certification") return translate("认证");
+  if (value === "language") return translate("语言");
+  if (value === "soft_skill") return translate("软技能");
   return value;
 }
 </script>
@@ -39,7 +40,7 @@ function categoryLabel(value: string): string {
         <span class="jd-detail-status" :class="`jd-status-${data.status}`">
           <CheckCircle v-if="data.status === 'saved'" :size="12" :stroke-width="1.8" />
           <XCircle v-else-if="data.status === 'rejected'" :size="12" :stroke-width="1.8" />
-          {{ data.status === 'saved' ? '已保存' : data.status === 'rejected' ? '已拒绝' : '待确认' }}
+          {{ data.status === 'saved' ? $t('已保存') : data.status === 'rejected' ? $t('已拒绝') : $t('待确认') }}
         </span>
       </div>
     </header>
@@ -47,20 +48,20 @@ function categoryLabel(value: string): string {
     <div class="jd-detail-meta">
       <dl class="jd-meta-grid">
         <template v-if="data.company">
-          <dt>公司</dt>
+          <dt>{{ $t('公司') }}</dt>
           <dd>{{ data.company }}</dd>
         </template>
         <template v-if="data.targetRole">
-          <dt>目标角色</dt>
+          <dt>{{ $t('目标角色') }}</dt>
           <dd>{{ data.targetRole }}</dd>
         </template>
-        <dt>要求数量</dt>
-        <dd>{{ data.requirements.length }} 条</dd>
+        <dt>{{ $t('要求数量') }}</dt>
+        <dd>{{ $tf('{count} 条', { count: data.requirements.length }) }}</dd>
       </dl>
     </div>
 
     <div class="jd-requirements-list">
-      <h4 class="jd-section-heading">岗位要求</h4>
+      <h4 class="jd-section-heading">{{ $t('岗位要求') }}</h4>
       <div
         v-for="(req, index) in data.requirements"
         :key="index"

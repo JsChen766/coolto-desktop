@@ -2,9 +2,9 @@
 import {
   Ellipsis,
   FileText,
+  Languages,
   LogOut,
   Moon,
-  Settings2,
   Sun,
 } from "@lucide/vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
@@ -15,6 +15,7 @@ import type {
 } from "@desktop/types";
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { relativeTime } from "../lib/relative-time";
+import { appLocale, toggleLocale } from "../i18n/locale";
 import SidebarPrimaryNavigation from "./SidebarPrimaryNavigation.vue";
 
 const props = defineProps<{
@@ -58,6 +59,11 @@ function closeMenus(): void {
   userMenuOpen.value = false;
 }
 
+function toggleLanguage(): void {
+  toggleLocale();
+  closeMenus();
+}
+
 function runConversationAction(
   action: "rename" | "delete",
   conversation: ConversationSummary,
@@ -91,10 +97,10 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
     />
 
     <section class="sidebar-section resume-draft-section">
-      <p class="section-label">本地简历</p>
+      <p class="section-label">{{ $t('本地简历') }}</p>
       <div class="resume-draft-list">
         <p v-if="resumeDrafts.length === 0" class="sidebar-empty">
-          暂无本地简历
+          {{ $t('暂无本地简历') }}
         </p>
         <button
           v-for="draft in resumeDrafts"
@@ -111,10 +117,10 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
             :class="draft.cloudState"
             :title="
               draft.cloudState === 'synced'
-                ? '已同步云端'
+                ? $t('已同步云端')
                 : draft.cloudState === 'local_changes'
-                  ? '有未同步修改'
-                  : '仅保存在本机'
+                  ? $t('有未同步修改')
+                  : $t('仅保存在本机')
             "
           />
         </button>
@@ -122,10 +128,10 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
     </section>
 
     <section class="sidebar-section conversation-section">
-      <p class="section-label">对话历史</p>
+      <p class="section-label">{{ $t('对话历史') }}</p>
       <div class="conversation-scroll">
         <p v-if="conversations.length === 0" class="sidebar-empty">
-          暂无对话
+          {{ $t('暂无对话') }}
         </p>
         <div
           v-for="conversation in conversations"
@@ -138,7 +144,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
           @keydown.enter="$emit('select', conversation.id)"
           @keydown.space.prevent="$emit('select', conversation.id)"
         >
-          <span class="conversation-title">{{ conversation.title }}</span>
+          <span class="conversation-title">{{ conversation.title === "新对话" ? $t('新对话') : conversation.title }}</span>
           <span class="conversation-slot">
             <span class="conversation-time">
               {{ relativeTime(conversation.updatedAt) }}
@@ -146,8 +152,8 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
             <button
               class="conversation-more"
               type="button"
-              aria-label="对话选项"
-              title="对话选项"
+              :aria-label="$t('对话选项')"
+              :title="$t('对话选项')"
               @click="toggleConversationMenu($event, conversation.id)"
             >
               <Ellipsis :size="15" :stroke-width="1.9" aria-hidden="true" />
@@ -161,14 +167,14 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
                 type="button"
                 @click="runConversationAction('rename', conversation)"
               >
-                重命名
+                {{ $t('重命名') }}
               </button>
               <button
                 class="danger-text"
                 type="button"
                 @click="runConversationAction('delete', conversation)"
               >
-                删除
+                {{ $t('删除') }}
               </button>
             </div>
           </span>
@@ -183,13 +189,13 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
         </div>
         <div class="user-copy">
           <span class="user-email">{{ user.email }}</span>
-          <span>已登录</span>
+          <span>{{ $t('已登录') }}</span>
         </div>
         <button
           class="user-menu-trigger"
           type="button"
-          aria-label="账户与设置"
-          title="账户与设置"
+          :aria-label="$t('账户菜单')"
+          :title="$t('账户菜单')"
           @click.stop="userMenuOpen = !userMenuOpen; openMenuId = undefined"
         >
           <Ellipsis :size="17" :stroke-width="1.8" aria-hidden="true" />
@@ -198,11 +204,11 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
           <button class="menu-row icon-label" type="button" @click="$emit('toggleTheme')">
             <Sun v-if="dark" :size="16" :stroke-width="1.8" aria-hidden="true" />
             <Moon v-else :size="16" :stroke-width="1.8" aria-hidden="true" />
-            <span>{{ dark ? "切换浅色模式" : "切换深色模式" }}</span>
+            <span>{{ dark ? $t('切换浅色模式') : $t('切换深色模式') }}</span>
           </button>
-          <button class="menu-row icon-label" type="button" disabled>
-            <Settings2 :size="16" :stroke-width="1.8" aria-hidden="true" />
-            <span>设置</span>
+          <button class="menu-row icon-label" type="button" @click="toggleLanguage">
+            <Languages :size="16" :stroke-width="1.8" aria-hidden="true" />
+            <span>{{ appLocale === "zh-CN" ? $t('切换到英文') : 'Switch to Chinese' }}</span>
           </button>
           <div class="menu-divider" />
           <button
@@ -211,7 +217,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
             @click="$emit('logout')"
           >
             <LogOut :size="16" :stroke-width="1.8" aria-hidden="true" />
-            <span>退出登录</span>
+            <span>{{ $t('退出登录') }}</span>
           </button>
         </div>
       </div>

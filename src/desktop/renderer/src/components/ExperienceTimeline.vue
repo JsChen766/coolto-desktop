@@ -13,9 +13,9 @@ defineEmits<{ select: [experienceId: string] }>();
 </script>
 
 <template>
-  <div class="experience-timeline" aria-label="经历时间线">
+  <div class="experience-timeline" :aria-label="$t('经历时间线')">
     <section v-for="group in groups" :key="group.key" class="experience-year-group">
-      <h2>{{ group.label }}</h2>
+      <h2>{{ $t(group.label) }}</h2>
       <div class="experience-year-items">
         <ExperienceTimelineItem
           v-for="experience in group.items"

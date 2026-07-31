@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import type { ApplicationTrackerDetail } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { translate } from "../i18n/locale";
 
 export function useTrackerOverview() {
   const snapshot = ref<ApplicationTrackerDetail>({
@@ -12,7 +13,7 @@ export function useTrackerOverview() {
       snapshot.value = await desktopApi.tracker.overview();
       error.value = undefined;
     } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : "读取 Tracker 日程失败";
+      error.value = translate(cause instanceof Error ? cause.message : "读取 Tracker 日程失败");
     }
   }
   return { error, load, snapshot };

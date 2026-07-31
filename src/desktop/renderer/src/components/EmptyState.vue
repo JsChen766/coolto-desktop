@@ -24,15 +24,15 @@ const suggestions = [
     <div class="empty-symbol" aria-hidden="true">
       <Sparkles :size="25" :stroke-width="1.55" />
     </div>
-    <h1>今天想完成什么？</h1>
-    <p>我可以读取你的经历，并帮助你准备求职材料。</p>
+    <h1>{{ $t('今天想完成什么？') }}</h1>
+    <p>{{ $t('我可以读取你的经历，并帮助你准备求职材料。') }}</p>
     <div class="suggestion-list">
       <button
         v-for="item in suggestions"
         :key="item.title"
         class="suggestion-card"
         type="button"
-        @click="$emit('usePrompt', item.prompt)"
+        @click="$emit('usePrompt', $t(item.prompt))"
       >
         <component
           :is="item.icon"
@@ -40,7 +40,7 @@ const suggestions = [
           :stroke-width="1.7"
           aria-hidden="true"
         />
-        <span>{{ item.title }}</span>
+        <span>{{ $t(item.title) }}</span>
         <ArrowRight
           class="suggestion-arrow"
           :size="15"

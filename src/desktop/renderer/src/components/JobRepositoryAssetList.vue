@@ -26,7 +26,7 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="repository-asset-list" :aria-label="view === 'jobs' ? '岗位列表' : '简历列表'">
+  <div class="repository-asset-list" :aria-label="view === 'jobs' ? $t('岗位列表') : $t('简历列表')">
     <template v-if="view === 'jobs'">
       <button
         v-for="jd in jds"
@@ -41,8 +41,8 @@ defineEmits<{
         <strong>{{ jd.title }}</strong>
         <small v-if="jobSubtitle(jd)">{{ jobSubtitle(jd) }}</small>
         <span class="repository-row-facts">
-          <span>{{ jd.targetedResumeIds.length }} 份针对性简历</span>
-          <span>{{ jd.applicationSummary.total }} 次投递</span>
+          <span>{{ $tf('{count} 份针对性简历', { count: jd.targetedResumeIds.length }) }}</span>
+          <span>{{ $tf('{count} 次投递', { count: jd.applicationSummary.total }) }}</span>
           <span v-if="jd.applicationSummary.latest">
             {{ STATUS_LABELS[jd.applicationSummary.latest.status] }}
             · {{ shortDate(jd.applicationSummary.latest.occurredAt) }}
@@ -74,8 +74,8 @@ defineEmits<{
         <small>{{ resume.entry.cloud?.targetRole ?? resumeKindLabel(resume) }}</small>
         <span class="repository-row-facts">
           <span><Link :size="11" aria-hidden="true" />{{ resumeKindLabel(resume) }}</span>
-          <span>{{ resume.applicationSummary.total }} 次投递</span>
-          <span v-if="resume.entry.cloud?.status === 'archived'">已归档</span>
+          <span>{{ $tf('{count} 次投递', { count: resume.applicationSummary.total }) }}</span>
+          <span v-if="resume.entry.cloud?.status === 'archived'">{{ $t('已归档') }}</span>
         </span>
       </span>
       <span

@@ -3,6 +3,7 @@ import { ref } from "vue";
 import type { DesktopUser, EmailChallengeView } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
 import { desktopErrorMessage } from "./desktop-error-message";
+import { translate } from "../i18n/locale";
 
 export function useChatAuth(
   onAuthenticated: () => Promise<void>,
@@ -20,7 +21,7 @@ export function useChatAuth(
       user.value = await desktopApi.auth.getCurrentUser();
       if (user.value) await onAuthenticated();
     } catch (error: unknown) {
-      loginError.value = desktopErrorMessage(error);
+      loginError.value = translate(desktopErrorMessage(error));
     } finally {
       booting.value = false;
     }
@@ -36,7 +37,7 @@ export function useChatAuth(
     try {
       emailChallenge.value = await desktopApi.auth.requestEmailCode(email);
     } catch (error: unknown) {
-      loginError.value = desktopErrorMessage(error);
+      loginError.value = translate(desktopErrorMessage(error));
     } finally {
       loginBusy.value = false;
     }
@@ -70,7 +71,7 @@ export function useChatAuth(
       await onAuthenticated();
       return true;
     } catch (error: unknown) {
-      loginError.value = desktopErrorMessage(error);
+      loginError.value = translate(desktopErrorMessage(error));
       return false;
     } finally {
       loginBusy.value = false;

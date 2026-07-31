@@ -8,16 +8,16 @@ defineEmits<{ stay: []; discard: [] }>();
       class="dialog-card experience-unsaved-dialog"
       role="dialog"
       aria-modal="true"
-      aria-label="放弃未保存修改"
+      :aria-label="$t('放弃未保存修改')"
     >
-      <h2>放弃未保存的修改？</h2>
-      <p>当前表单内容尚未进入确认步骤，离开后这些修改会丢失。</p>
+      <h2>{{ $t('放弃未保存的修改？') }}</h2>
+      <p>{{ $t('当前表单内容尚未进入确认步骤，离开后这些修改会丢失。') }}</p>
       <div class="dialog-actions">
         <button class="secondary-button" type="button" @click="$emit('stay')">
-          继续编辑
+          {{ $t('继续编辑') }}
         </button>
         <button class="primary-button danger" type="button" @click="$emit('discard')">
-          放弃修改
+          {{ $t('放弃修改') }}
         </button>
       </div>
     </section>

@@ -16,10 +16,10 @@ defineEmits<{
 </script>
 
 <template>
-  <nav class="sidebar-primary-navigation" aria-label="主要功能">
+  <nav class="sidebar-primary-navigation" :aria-label="$t('主要功能')">
     <button class="new-chat-button icon-label" type="button" @click="$emit('create')">
       <SquarePen :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span>新对话</span>
+      <span>{{ $t('新对话') }}</span>
     </button>
     <button
       class="new-chat-button icon-label"
@@ -28,7 +28,7 @@ defineEmits<{
       @click="$emit('openExperiences')"
     >
       <Library :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span>经历仓库</span>
+      <span>{{ $t('经历仓库') }}</span>
     </button>
     <button
       class="new-chat-button icon-label"
@@ -37,7 +37,7 @@ defineEmits<{
       @click="$emit('openLibrary')"
     >
       <FolderOpen :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span>求职仓库</span>
+      <span>{{ $t('求职仓库') }}</span>
     </button>
     <button
       class="new-chat-button icon-label"
@@ -46,7 +46,7 @@ defineEmits<{
       @click="$emit('openTracker')"
     >
       <BriefcaseBusiness :size="16" :stroke-width="1.8" aria-hidden="true" />
-      <span>投递追踪</span>
+      <span>{{ $t('投递追踪') }}</span>
     </button>
   </nav>
 </template>

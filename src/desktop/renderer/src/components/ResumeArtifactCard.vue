@@ -2,6 +2,7 @@
 import { ArrowUpRight, FileText, HardDrive, RefreshCw } from "@lucide/vue";
 
 import type { ResumeDraftArtifactReference } from "../../../../resume/draft/types";
+import { translate } from "../i18n/locale";
 
 defineProps<{
   artifact: ResumeDraftArtifactReference;
@@ -13,9 +14,9 @@ defineEmits<{
 }>();
 
 function stateLabel(value?: "local_only" | "synced" | "local_changes") {
-  if (value === "synced") return "已同步云端";
-  if (value === "local_changes") return "有未同步修改";
-  return "仅保存在本机";
+  if (value === "synced") return translate("已同步云端");
+  if (value === "local_changes") return translate("有未同步修改");
+  return translate("仅保存在本机");
 }
 </script>
 

@@ -5,6 +5,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { BrowserShellState, BrowserTabState } from "@desktop/types";
 import BrowserTabStrip from "./BrowserTabStrip.vue";
 import BrowserWindowControls from "./BrowserWindowControls.vue";
+import { translate } from "../i18n/locale";
 
 const shell = window.browserShell;
 
@@ -60,7 +61,7 @@ function reportHeight(): void {
 
 function addressText(tab: BrowserTabState | undefined): string {
   if (!tab) return "";
-  return tab.url ?? "Coolto 主页";
+  return tab.url ?? translate("Coolto 主页");
 }
 
 /**
@@ -126,7 +127,7 @@ function onAddressBlur(): void {
         <button
           class="nav-button"
           type="button"
-          aria-label="后退"
+          :aria-label="$t('后退')"
           :disabled="!activeTab?.canGoBack"
           @click="shell.goBack()"
         >
@@ -135,7 +136,7 @@ function onAddressBlur(): void {
         <button
           class="nav-button"
           type="button"
-          aria-label="前进"
+          :aria-label="$t('前进')"
           :disabled="!activeTab?.canGoForward"
           @click="shell.goForward()"
         >
@@ -144,7 +145,7 @@ function onAddressBlur(): void {
         <button
           class="nav-button"
           type="button"
-          aria-label="刷新"
+          :aria-label="$t('刷新')"
           @click="shell.reload()"
         >
           <RotateCw :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -154,10 +155,10 @@ function onAddressBlur(): void {
         class="address"
         type="text"
         :value="addressInput"
-        :placeholder="addressText(activeTab) || '搜索或输入网址'"
+        :placeholder="addressText(activeTab) || $t('搜索或输入网址')"
         spellcheck="false"
         autocomplete="off"
-        aria-label="地址栏"
+        :aria-label="$t('地址栏')"
         @input="addressInput = ($event.target as HTMLInputElement).value"
         @focus="onAddressFocus"
         @blur="onAddressBlur"

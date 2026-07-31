@@ -1,5 +1,6 @@
 import type { ResumeChatReference } from "@desktop/types";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
+import { translate } from "../i18n/locale";
 
 interface ResumeInstructionOptions {
   workspace: ReturnType<typeof useResumeWorkspace>;
@@ -28,11 +29,11 @@ export function useResumeInstructionActions(
   }
 
   function saveToCloud(): void {
-    sendInstruction("请将右侧当前本地简历保存到云端。");
+    sendInstruction(translate("请将右侧当前本地简历保存到云端。"));
   }
 
   function exportPdf(): void {
-    sendInstruction("请将右侧当前简历导出为 PDF 到本地文件。");
+    sendInstruction(translate("请将右侧当前简历导出为 PDF 到本地文件。"));
   }
 
   return { exportPdf, saveToCloud };

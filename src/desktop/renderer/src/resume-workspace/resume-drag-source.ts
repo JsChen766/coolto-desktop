@@ -3,6 +3,7 @@ import { h, render } from "vue";
 
 import type { ResumeChatReference } from "@desktop/types";
 import { publishResumeReference } from "./resume-reference-channel";
+import { translate } from "../i18n/locale";
 
 export type ResumeDragSourceKind = "bullet" | "item";
 
@@ -15,8 +16,8 @@ export function addResumeDragHandle(
   handle.type = "button";
   handle.draggable = true;
   handle.className = `resume-drag-handle resume-drag-handle--${kind}`;
-  handle.ariaLabel = kind === "bullet" ? "拖动此要点到聊天" : "拖动此经历到聊天";
-  handle.title = "拖到聊天区让 AI 修改；点击也可直接引用";
+  handle.ariaLabel = translate(kind === "bullet" ? "拖动此要点到聊天" : "拖动此经历到聊天");
+  handle.title = translate("拖到聊天区让 AI 修改；点击也可直接引用");
   render(
     h(GripVertical, {
       size: 14,

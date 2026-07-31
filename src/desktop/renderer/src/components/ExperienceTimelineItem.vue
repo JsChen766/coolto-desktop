@@ -7,6 +7,7 @@ import {
   experienceDateRange,
   experienceSubtitle,
 } from "../../../../experience/timeline-labels";
+import { translateDateRange, translateFormat } from "../i18n/locale";
 import { experienceMatchContext } from "../../../../experience/timeline-model";
 import ExperienceHighlightedText from "./ExperienceHighlightedText.vue";
 
@@ -19,7 +20,16 @@ const props = defineProps<{
 defineEmits<{ select: [experienceId: string] }>();
 
 const subtitle = computed(() => experienceSubtitle(props.experience));
-const context = computed(() => experienceMatchContext(props.experience, props.query));
+const context = computed(() => {
+  const value = experienceMatchContext(props.experience, props.query);
+  if (value?.startsWith("地点：")) {
+    return translateFormat("地点：{value}", { value: value.slice(3) });
+  }
+  if (value?.startsWith("标签：")) {
+    return translateFormat("标签：{value}", { value: value.slice(3) });
+  }
+  return value;
+});
 </script>
 
 <template>
@@ -34,7 +44,7 @@ const context = computed(() => experienceMatchContext(props.experience, props.qu
     :aria-current="selected ? 'true' : undefined"
     @click="$emit('select', experience.id)"
   >
-    <span class="experience-timeline-date">{{ experienceDateRange(experience) }}</span>
+    <span class="experience-timeline-date">{{ translateDateRange(experienceDateRange(experience)) }}</span>
     <span class="experience-timeline-marker" aria-hidden="true"><i /></span>
     <span class="experience-timeline-copy">
       <strong><ExperienceHighlightedText :text="experience.title" :query="query" /></strong>
@@ -42,13 +52,13 @@ const context = computed(() => experienceMatchContext(props.experience, props.qu
         <ExperienceHighlightedText :text="subtitle" :query="query" />
       </span>
       <span class="experience-timeline-meta">
-        {{ EXPERIENCE_CATEGORY_LABELS[experience.category] }}
+        {{ $t(EXPERIENCE_CATEGORY_LABELS[experience.category]) }}
         <span
           v-if="experience.syncStatus && experience.syncStatus !== 'clean'"
           class="experience-sync-label"
           :class="experience.syncStatus"
         >
-          {{ EXPERIENCE_SYNC_LABELS[experience.syncStatus] }}
+          {{ $t(EXPERIENCE_SYNC_LABELS[experience.syncStatus]) }}
         </span>
       </span>
       <small v-if="context" class="experience-match-context">

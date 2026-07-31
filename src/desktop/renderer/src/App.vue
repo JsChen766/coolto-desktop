@@ -128,7 +128,7 @@ function requestPrimaryView(view: "experiences" | "library"): void {
       v-if="sidebarOpen"
       class="sidebar-scrim"
       type="button"
-      aria-label="关闭侧栏"
+      :aria-label="$t('关闭侧栏')"
       @click="sidebarOpen = false"
     />
 

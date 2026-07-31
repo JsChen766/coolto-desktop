@@ -33,25 +33,25 @@ function endMode(event: Event): void {
 <template>
   <div class="experience-form-date-grid">
     <label class="experience-form-field">
-      <span>开始时间</span>
+      <span>{{ $t('开始时间') }}</span>
       <div class="experience-date-control">
         <select
           data-field="startDate"
           :value="draft.startMode"
           :disabled="disabled"
-          aria-label="开始时间精度"
+          :aria-label="$t('开始时间精度')"
           @change="startMode"
         >
-          <option value="none">未填写</option>
-          <option value="month">按月</option>
-          <option value="day">精确到日</option>
+          <option value="none">{{ $t('未填写') }}</option>
+          <option value="month">{{ $t('按月') }}</option>
+          <option value="day">{{ $t('精确到日') }}</option>
         </select>
         <input
           v-if="draft.startMode === 'month'"
           type="month"
           :value="draft.startValue"
           :disabled="disabled"
-          aria-label="开始月份"
+          :aria-label="$t('开始月份')"
           @input="$emit('update', { startValue: ($event.target as HTMLInputElement).value })"
         />
         <input
@@ -59,7 +59,7 @@ function endMode(event: Event): void {
           type="date"
           :value="draft.startValue"
           :disabled="disabled"
-          aria-label="开始日期"
+          :aria-label="$t('开始日期')"
           @input="$emit('update', { startValue: ($event.target as HTMLInputElement).value })"
         />
       </div>
@@ -69,26 +69,26 @@ function endMode(event: Event): void {
     </label>
 
     <label class="experience-form-field">
-      <span>结束时间</span>
+      <span>{{ $t('结束时间') }}</span>
       <div class="experience-date-control">
         <select
           data-field="endDate"
           :value="draft.endMode"
           :disabled="disabled"
-          aria-label="结束时间类型"
+          :aria-label="$t('结束时间类型')"
           @change="endMode"
         >
-          <option value="none">未填写</option>
-          <option value="present">至今</option>
-          <option value="month">按月</option>
-          <option value="day">精确到日</option>
+          <option value="none">{{ $t('未填写') }}</option>
+          <option value="present">{{ $t('至今') }}</option>
+          <option value="month">{{ $t('按月') }}</option>
+          <option value="day">{{ $t('精确到日') }}</option>
         </select>
         <input
           v-if="draft.endMode === 'month'"
           type="month"
           :value="draft.endValue"
           :disabled="disabled"
-          aria-label="结束月份"
+          :aria-label="$t('结束月份')"
           @input="$emit('update', { endValue: ($event.target as HTMLInputElement).value })"
         />
         <input
@@ -96,7 +96,7 @@ function endMode(event: Event): void {
           type="date"
           :value="draft.endValue"
           :disabled="disabled"
-          aria-label="结束日期"
+          :aria-label="$t('结束日期')"
           @input="$emit('update', { endValue: ($event.target as HTMLInputElement).value })"
         />
       </div>

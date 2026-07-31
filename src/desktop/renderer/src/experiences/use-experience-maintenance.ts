@@ -9,6 +9,7 @@ import type {
 } from "@desktop/types";
 import type { ExperienceProposalKind } from "../../../../experience/maintenance-types.js";
 import { desktopApi } from "../lib/desktop-api";
+import { translate } from "../i18n/locale";
 import {
   draftFromExperience,
   emptyExperienceDraft,
@@ -56,7 +57,7 @@ export function useExperienceMaintenance(
   }
 
   function requiredEditorId(): string {
-    if (!editorExperienceId.value) throw new Error("当前编辑经历不存在");
+    if (!editorExperienceId.value) throw new Error(translate("当前编辑经历不存在"));
     return editorExperienceId.value;
   }
 
@@ -168,7 +169,7 @@ export function useExperienceMaintenance(
     try {
       await task();
     } catch (cause) {
-      error.value = messageOf(cause);
+      error.value = translate(messageOf(cause));
     } finally {
       busy.value = false;
     }

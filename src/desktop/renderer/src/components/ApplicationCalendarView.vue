@@ -37,24 +37,24 @@ function application(id: string): ApplicationRecord | undefined {
 </script>
 
 <template>
-  <section class="tracker-calendar" aria-label="投递日历">
+  <section class="tracker-calendar" :aria-label="$t('投递日历')">
     <header class="calendar-toolbar">
       <div>
         <strong>{{ calendar.label }}</strong>
-        <span>投递、面试与单次提醒</span>
+        <span>{{ $t('投递、面试与单次提醒') }}</span>
       </div>
-      <nav aria-label="切换月份">
-        <button type="button" aria-label="上个月" @click="shift(-1)">
+      <nav :aria-label="$t('切换月份')">
+        <button type="button" :aria-label="$t('上个月')" @click="shift(-1)">
           <ChevronLeft :size="15" aria-hidden="true" />
         </button>
-        <button type="button" @click="today">今天</button>
-        <button type="button" aria-label="下个月" @click="shift(1)">
+        <button type="button" @click="today">{{ $t('今天') }}</button>
+        <button type="button" :aria-label="$t('下个月')" @click="shift(1)">
           <ChevronRight :size="15" aria-hidden="true" />
         </button>
       </nav>
     </header>
     <div class="calendar-grid calendar-weekdays" aria-hidden="true">
-      <span v-for="weekday in CALENDAR_WEEKDAYS" :key="weekday">{{ weekday }}</span>
+      <span v-for="weekday in CALENDAR_WEEKDAYS" :key="weekday">{{ $t(weekday) }}</span>
     </div>
     <div class="calendar-grid calendar-days">
       <section
@@ -84,14 +84,14 @@ function application(id: string): ApplicationRecord | undefined {
             type="button"
             class="calendar-child-event interview"
             @click="application(item.applicationId) && $emit('open', application(item.applicationId)!)"
-          ><i aria-hidden="true" /><span>第 {{ item.roundNumber }} 轮面试</span><small>{{ new Date(item.scheduledAt!).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</small></button>
+          ><i aria-hidden="true" /><span>{{ $tf('第 {round} 轮面试', { round: item.roundNumber }) }}</span><small>{{ new Date(item.scheduledAt!).toLocaleTimeString($locale(), { hour: '2-digit', minute: '2-digit' }) }}</small></button>
           <button
             v-for="item in reminders.filter(value => dateKey(value.remindAt) === day.dateKey)"
             :key="item.id"
             type="button"
             class="calendar-child-event reminder"
             @click="application(item.applicationId) && $emit('open', application(item.applicationId)!)"
-          ><i aria-hidden="true" /><span>{{ item.title }}</span><small>{{ new Date(item.remindAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</small></button>
+          ><i aria-hidden="true" /><span>{{ item.title }}</span><small>{{ new Date(item.remindAt).toLocaleTimeString($locale(), { hour: '2-digit', minute: '2-digit' }) }}</small></button>
         </div>
       </section>
     </div>

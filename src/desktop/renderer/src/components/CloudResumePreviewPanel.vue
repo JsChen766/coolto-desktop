@@ -22,20 +22,20 @@ defineEmits<{ back: [] }>();
           @click="$emit('back')"
         >
           <ArrowLeft :size="15" :stroke-width="1.8" aria-hidden="true" />
-          返回求职仓库
+          {{ $t('返回求职仓库') }}
         </button>
         <div class="artifact-title icon-label">
           <FileText :size="16" :stroke-width="1.8" aria-hidden="true" />
-          <span>{{ preview?.title ?? "简历预览" }}</span>
+          <span>{{ preview?.title ?? $t('简历预览') }}</span>
         </div>
-        <span v-if="preview" class="artifact-local-state">云端只读预览</span>
+        <span v-if="preview" class="artifact-local-state">{{ $t('云端只读预览') }}</span>
       </div>
     </header>
 
     <div v-if="error" class="artifact-error">{{ error }}</div>
     <div v-if="busy && !preview" class="artifact-loading">
       <LoaderCircle class="spin" :size="20" :stroke-width="1.8" />
-      <span>正在读取云端简历…</span>
+      <span>{{ $t('正在读取云端简历…') }}</span>
     </div>
     <A4ResumePreview v-else-if="preview" :structure="preview.structure" />
   </aside>

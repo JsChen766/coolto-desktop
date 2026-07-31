@@ -1,6 +1,12 @@
 import { createApp } from "vue";
 
 import App from "./App.vue";
+import {
+  initializeLocale,
+  localeCode,
+  translate,
+  translateFormat,
+} from "./i18n/locale";
 import "./resume-renderer/style.css";
 import "./styles/tokens.css";
 import "./styles/base.css";
@@ -26,4 +32,9 @@ import "./styles/experience-import.css";
 import "./styles/experience-history.css";
 import "./styles/experience-library-responsive.css";
 
-createApp(App).mount("#app");
+initializeLocale();
+const app = createApp(App);
+app.config.globalProperties.$t = translate;
+app.config.globalProperties.$locale = localeCode;
+app.config.globalProperties.$tf = translateFormat;
+app.mount("#app");

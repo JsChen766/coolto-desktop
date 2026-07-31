@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { CheckCircle, CircleAlert, ShieldAlert, XCircle } from "@lucide/vue";
-
 import type { BrowserFillRecordView } from "@desktop/types";
-
+import { translate } from "../i18n/locale";
 const props = defineProps<{
   records: BrowserFillRecordView[];
   reviewing: boolean;
@@ -38,20 +37,20 @@ const captchaLabel = computed(() => {
     case "hcaptcha":
       return "hCaptcha";
     case "geetest":
-      return "极验";
+      return translate("极验");
     case "slider":
-      return "滑块验证";
+      return translate("滑块验证");
     case "image":
-      return "图形验证码";
+      return translate("图形验证码");
     default:
-      return "验证码";
+      return translate("验证码");
   }
 });
 
 function decisionLabel(decision: BrowserFillRecordView["decision"]): string {
-  if (decision === "accepted") return "已接受";
-  if (decision === "rejected") return "已拒绝";
-  return props.reviewing ? "待审核" : "已写入";
+  if (decision === "accepted") return translate("已接受");
+  if (decision === "rejected") return translate("已拒绝");
+  return translate(props.reviewing ? "待审核" : "已写入");
 }
 </script>
 
@@ -60,7 +59,7 @@ function decisionLabel(decision: BrowserFillRecordView["decision"]): string {
     <header v-if="hasRecords" class="fp-header">
       <span class="fp-title">
         <ShieldAlert :size="16" :stroke-width="1.8" />
-        {{ reviewing ? "请在浏览器 Overlay 上逐项审核" : "AI 正在按你的授权填写页面" }}
+        {{ reviewing ? $t('请在浏览器 Overlay 上逐项审核') : $t('AI 正在按你的授权填写页面') }}
       </span>
       <button
         v-if="!reviewing"
@@ -68,7 +67,7 @@ function decisionLabel(decision: BrowserFillRecordView["decision"]): string {
         class="fp-abort"
         @click="emit('abort')"
       >
-        中止并进入审核
+        {{ $t('中止并进入审核') }}
       </button>
     </header>
 
@@ -102,23 +101,25 @@ function decisionLabel(decision: BrowserFillRecordView["decision"]): string {
     </ul>
 
     <p v-if="hasRecords" class="fp-summary">
-      共 {{ records.length }} 项 · 待处理 {{ pendingCount }} · 已接受
-      {{ acceptedCount }} · 已拒绝 {{ rejectedCount }}
+      {{ $tf('共 {total} 项 · 待处理 {pending} · 已接受 {accepted} · 已拒绝 {rejected}', {
+        total: records.length, pending: pendingCount, accepted: acceptedCount, rejected: rejectedCount,
+      }) }}
     </p>
 
     <div v-if="showOutcome && lastOutcome" class="fp-outcome">
       <span>
-        本轮审核完成：接受 {{ lastOutcome.acceptedCount }} 项，拒绝
-        {{ lastOutcome.rejectedCount }} 项。最终提交请你手动完成。
+        {{ $tf('本轮审核完成：接受 {accepted} 项，拒绝 {rejected} 项。最终提交请你手动完成。', {
+          accepted: lastOutcome.acceptedCount, rejected: lastOutcome.rejectedCount,
+        }) }}
       </span>
-      <button type="button" @click="emit('dismissOutcome')">好的</button>
+      <button type="button" @click="emit('dismissOutcome')">{{ $t('好的') }}</button>
     </div>
 
     <div v-if="captcha" class="fp-captcha">
       <span>
-        检测到 {{ captchaLabel }}，AI 已暂停写入。请你手动通过验证码后再让 AI 继续。
+        {{ $tf('检测到 {captcha}，AI 已暂停写入。请你手动通过验证码后再让 AI 继续。', { captcha: captchaLabel }) }}
       </span>
-      <button type="button" @click="emit('dismissCaptcha')">已处理</button>
+      <button type="button" @click="emit('dismissCaptcha')">{{ $t('已处理') }}</button>
     </div>
   </div>
 </template>

@@ -37,7 +37,7 @@ defineEmits<{
         @open="$emit('open', application)"
         @transition="$emit('transition', application, $event)"
       />
-      <p v-if="applications.length === 0" class="tracker-column-empty">暂无记录</p>
+      <p v-if="applications.length === 0" class="tracker-column-empty">{{ $t('暂无记录') }}</p>
     </div>
   </section>
 </template>

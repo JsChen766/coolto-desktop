@@ -48,16 +48,16 @@ function submitCustom(): void {
         <ShieldCheck :size="18" :stroke-width="1.8" />
       </div>
       <div>
-        <h3>{{ request.title }}</h3>
-        <p>Agent 正在等待你的确认</p>
+        <h3>{{ $t(request.title) }}</h3>
+        <p>{{ $t('Agent 正在等待你的确认') }}</p>
       </div>
     </header>
 
-    <p class="approval-description">{{ request.description }}</p>
+    <p class="approval-description">{{ $t(request.description) }}</p>
 
     <dl v-if="request.preview.summary.length" class="approval-summary">
       <template v-for="field in request.preview.summary" :key="field.label">
-        <dt>{{ field.label }}</dt>
+        <dt>{{ $t(field.label) }}</dt>
         <dd>{{ field.value }}</dd>
       </template>
     </dl>
@@ -68,16 +68,16 @@ function submitCustom(): void {
       class="approval-item"
     >
       <strong>{{ item.title }}</strong>
-      <p v-if="item.description">{{ item.description }}</p>
+      <p v-if="item.description">{{ $t(item.description) }}</p>
       <div v-if="item.fields?.length" class="approval-item-fields">
         <span v-for="field in item.fields" :key="field.label">
-          <small>{{ field.label }}</small>
+          <small>{{ $t(field.label) }}</small>
           {{ field.value }}
         </span>
       </div>
       <p v-if="item.warning" class="approval-warning icon-label">
         <TriangleAlert :size="14" :stroke-width="1.8" aria-hidden="true" />
-        <span>{{ item.warning }}</span>
+        <span>{{ $t(item.warning) }}</span>
       </p>
     </div>
 
@@ -89,7 +89,7 @@ function submitCustom(): void {
         @click="$emit('decide', { type: 'accept' })"
       >
         <Check :size="16" :stroke-width="2" aria-hidden="true" />
-        <span>接受并执行</span>
+        <span>{{ $t('接受并执行') }}</span>
         <ArrowRight
           class="action-arrow"
           :size="15"
@@ -104,7 +104,7 @@ function submitCustom(): void {
         @click="$emit('decide', { type: 'reject' })"
       >
         <X :size="16" :stroke-width="1.9" aria-hidden="true" />
-        <span>拒绝</span>
+        <span>{{ $t('拒绝') }}</span>
       </button>
       <button
         class="approval-button icon-label"
@@ -113,7 +113,7 @@ function submitCustom(): void {
         @click="openCustom"
       >
         <MessageSquareText :size="16" :stroke-width="1.8" aria-hidden="true" />
-        <span>自定义回答</span>
+        <span>{{ $t('自定义回答') }}</span>
       </button>
     </div>
 
@@ -122,18 +122,18 @@ function submitCustom(): void {
         ref="customInput"
         v-model="customText"
         rows="3"
-        placeholder="告诉 Agent 应该如何调整…"
+        :placeholder="$t('告诉 Agent 应该如何调整…')"
         @keydown.enter.exact.prevent="submitCustom"
       />
       <div class="approval-custom-footer">
-        <span>Enter 提交 · Shift+Enter 换行</span>
+        <span>{{ $t('Enter 提交 · Shift+Enter 换行') }}</span>
         <button
           class="small-primary-button"
           type="button"
           :disabled="!customText.trim() || busy"
           @click="submitCustom"
         >
-          提交
+          {{ $t('提交') }}
         </button>
       </div>
     </div>

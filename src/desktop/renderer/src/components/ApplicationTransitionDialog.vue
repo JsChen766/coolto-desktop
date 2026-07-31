@@ -29,30 +29,32 @@ const valid = computed(() => !sameInterviewStage.value || Boolean(reason.value.t
       class="dialog-card tracker-transition-dialog"
       role="dialog"
       aria-modal="true"
-      aria-label="确认投递状态"
+      :aria-label="$t('确认投递状态')"
       @submit.prevent="$emit('confirm', reason.trim() || null)"
     >
       <h2>{{ transitionLabel(application.status, target) }}？</h2>
       <p>
-        “{{ application.companyName }} · {{ application.roleName }}”将从
-        {{ STATUS_LABELS[application.status] }}更新为 {{ STATUS_LABELS[target] }}。
+        {{ $tf('“{company} · {role}”将从 {from} 更新为 {to}。', {
+          company: application.companyName, role: application.roleName,
+          from: STATUS_LABELS[application.status], to: STATUS_LABELS[target],
+        }) }}
       </p>
       <label class="tracker-dialog-field">
-        <span>{{ sameInterviewStage ? "下一轮说明（必填）" : "说明（可选）" }}</span>
+        <span>{{ sameInterviewStage ? $t('下一轮说明（必填）') : $t('说明（可选）') }}</span>
         <textarea
           v-model="reason"
           rows="3"
           maxlength="20000"
-          :placeholder="sameInterviewStage ? '例如：进入第二轮技术面试' : '记录联系人反馈或状态来源'"
+          :placeholder="sameInterviewStage ? $t('例如：进入第二轮技术面试') : $t('记录联系人反馈或状态来源')"
         />
       </label>
       <p v-if="error" class="tracker-dialog-error" role="alert">{{ error }}</p>
       <div class="dialog-actions">
         <button class="secondary-button" type="button" :disabled="busy" @click="$emit('close')">
-          取消
+          {{ $t('取消') }}
         </button>
         <button class="primary-button" type="submit" :disabled="busy || !valid">
-          {{ busy ? "正在更新…" : "确认更新" }}
+          {{ busy ? $t('正在更新…') : $t('确认更新') }}
         </button>
       </div>
     </form>

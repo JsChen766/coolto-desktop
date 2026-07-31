@@ -7,6 +7,7 @@ import {
   experienceProposalImpact,
   experienceProposalTitle,
 } from "../experiences/experience-proposal-view";
+import { translate } from "../i18n/locale";
 
 const props = defineProps<{
   proposal: ExperienceWriteProposal;
@@ -24,10 +25,10 @@ const dangerous = computed(
     || (props.proposal.kind === "accept_server" && !props.proposal.next),
 );
 const confirmLabel = computed(() => {
-  if (props.busy) return "正在处理…";
+  if (props.busy) return translate("正在处理…");
   return props.proposal.kind === "restore_revision"
-    ? "确认恢复"
-    : "确认并写入 Outbox";
+    ? translate("确认恢复")
+    : translate("确认并写入 Outbox");
 });
 
 function dismiss(): void {
@@ -66,7 +67,7 @@ function dismiss(): void {
           :disabled="busy"
           @click="dismiss"
         >
-          {{ editable ? "返回修改" : "取消" }}
+          {{ editable ? $t('返回修改') : $t('取消') }}
         </button>
         <button
           class="primary-button"

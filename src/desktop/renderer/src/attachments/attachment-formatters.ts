@@ -1,12 +1,13 @@
 import type { AttachmentView } from "./use-conversation-attachment";
+import { translate } from "../i18n/locale";
 
 export function attachmentStatus(view: AttachmentView): string {
-  if (view.status === "parsing") return "解析中";
-  if (view.status === "parsed") return "已解析";
-  if (view.status === "partial") return "部分已保存";
-  if (view.status === "saved") return "经历已保存，等待同步";
-  if (view.status === "error") return "处理失败";
-  return "已选择";
+  if (view.status === "parsing") return translate("解析中");
+  if (view.status === "parsed") return translate("已解析");
+  if (view.status === "partial") return translate("部分已保存");
+  if (view.status === "saved") return translate("经历已保存，等待同步");
+  if (view.status === "error") return translate("处理失败");
+  return translate("已选择");
 }
 
 export function fileSize(bytes: number): string {

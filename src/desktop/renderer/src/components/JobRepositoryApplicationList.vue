@@ -29,8 +29,8 @@ defineProps<{
         <FileText v-else :size="12" aria-hidden="true" />
         <span>
           {{ context === 'resume'
-            ? (application.jdTitleSnapshot ?? '未关联 JD')
-            : (application.resumeTitleSnapshot ?? '未关联 Resume') }}
+            ? (application.jdTitleSnapshot ?? $t('未关联 JD'))
+          : (application.resumeTitleSnapshot ?? $t('未关联 Resume')) }}
         </span>
         <span
           v-if="application.syncStatus !== 'clean'"
@@ -42,5 +42,5 @@ defineProps<{
       </div>
     </article>
   </div>
-  <p v-else class="repository-section-empty">暂无投递记录</p>
+  <p v-else class="repository-section-empty">{{ $t('暂无投递记录') }}</p>
 </template>

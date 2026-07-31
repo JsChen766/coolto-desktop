@@ -2,6 +2,7 @@ import type {
   DesktopAgentEvent,
   DesktopAttachment,
 } from "../../../shared/types.js";
+import { translate, translateFormat } from "../i18n/locale.js";
 
 export type AttachmentStatus =
   | "selected"
@@ -81,7 +82,7 @@ export class AttachmentEventTracker {
         this.#update(selected.conversationId, selected.fileId, {
           status: event.isError ? "error" : "parsed",
           message: event.isError
-            ? "解析失败，请查看上方错误并重试"
+            ? translate("解析失败，请查看上方错误并重试")
             : undefined,
         });
       }
@@ -112,7 +113,9 @@ export class AttachmentEventTracker {
         this.#update(selected.conversationId, selected.fileId, {
           status: failed > 0 ? "partial" : "saved",
           message:
-            failed > 0 ? `${failed} 条经历写入失败，可继续重试` : undefined,
+            failed > 0
+              ? translateFormat("{failed} 条经历写入失败，可继续重试", { failed })
+              : undefined,
         });
       }
     } else if (event.type === "approval.failed") {
@@ -129,7 +132,7 @@ export class AttachmentEventTracker {
     } else if (event.type === "run.completed") {
       this.#finishInterruptedParses(
         conversationId,
-        "附件解析未完成，可重新发送后重试",
+        translate("附件解析未完成，可重新发送后重试"),
       );
     }
     return this.get(conversationId);

@@ -14,7 +14,7 @@ const views = [
 </script>
 
 <template>
-  <nav class="tracker-view-switcher" aria-label="投递追踪视图">
+  <nav class="tracker-view-switcher" :aria-label="$t('投递追踪视图')">
     <button
       v-for="view in views"
       :key="view.key"
@@ -24,7 +24,7 @@ const views = [
       @click="$emit('update:modelValue', view.key)"
     >
       <component :is="view.icon" :size="14" aria-hidden="true" />
-      {{ view.label }}
+      {{ $t(view.label) }}
     </button>
   </nav>
 </template>

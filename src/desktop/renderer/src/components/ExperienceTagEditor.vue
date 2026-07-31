@@ -37,14 +37,14 @@ function remove(tag: string): void {
 
 <template>
   <label class="experience-form-field experience-tag-field">
-    <span>标签</span>
+    <span>{{ $t('标签') }}</span>
     <div class="experience-tag-editor" :class="{ disabled }">
       <span v-for="tag in tags" :key="tag" class="experience-tag-chip">
         {{ tag }}
         <button
           type="button"
           :disabled="disabled"
-          :aria-label="`移除标签 ${tag}`"
+          :aria-label="$tf('移除标签 {tag}', { tag })"
           @click="remove(tag)"
         >
           <X :size="12" aria-hidden="true" />
@@ -53,8 +53,8 @@ function remove(tag: string): void {
       <input
         :value="input"
         :disabled="disabled || tags.length >= 40"
-        aria-label="添加标签"
-        placeholder="输入后按 Enter 或逗号"
+        :aria-label="$t('添加标签')"
+        :placeholder="$t('输入后按 Enter 或逗号')"
         @input="$emit('update', {
           tags,
           tagInput: ($event.target as HTMLInputElement).value,

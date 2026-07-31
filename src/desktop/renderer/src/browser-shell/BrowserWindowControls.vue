@@ -17,7 +17,7 @@ defineEmits<{
     <button
       class="control-button"
       type="button"
-      aria-label="最小化"
+      :aria-label="$t('最小化')"
       @click="$emit('minimize')"
     >
       <Minus :size="15" :stroke-width="1.8" aria-hidden="true" />
@@ -25,7 +25,7 @@ defineEmits<{
     <button
       class="control-button"
       type="button"
-      aria-label="最大化"
+      :aria-label="$t('最大化')"
       @click="$emit('toggleMaximize')"
     >
       <Copy v-if="isMaximized" :size="13" :stroke-width="1.8" aria-hidden="true" />
@@ -34,7 +34,7 @@ defineEmits<{
     <button
       class="control-button close"
       type="button"
-      aria-label="关闭"
+      :aria-label="$t('关闭')"
       @click="$emit('close')"
     >
       <X :size="16" :stroke-width="1.8" aria-hidden="true" />

@@ -35,7 +35,7 @@ function select(status: ApplicationStatus): void {
       :aria-expanded="open"
       @click="open = !open"
     >
-      <span>推进状态</span>
+      <span>{{ $t('推进状态') }}</span>
       <ChevronDown :size="13" :stroke-width="1.8" aria-hidden="true" />
     </button>
     <div v-if="open" class="tracker-status-popover popover">

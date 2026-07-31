@@ -2,6 +2,7 @@
 import { ArrowUpRight, Briefcase, CheckCircle, XCircle } from "@lucide/vue";
 
 import type { JdArtifactData } from "../../../../desktop/shared/types";
+import { translate } from "../i18n/locale";
 
 defineProps<{
   artifact: JdArtifactData;
@@ -12,9 +13,9 @@ defineEmits<{
 }>();
 
 function statusLabel(status: JdArtifactData["status"]): string {
-  if (status === "saved") return "已保存，等待同步";
-  if (status === "rejected") return "已拒绝";
-  return "等待确认";
+  if (status === "saved") return translate("已保存，等待同步");
+  if (status === "rejected") return translate("已拒绝");
+  return translate("等待确认");
 }
 </script>
 

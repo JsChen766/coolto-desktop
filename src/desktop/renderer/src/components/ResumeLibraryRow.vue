@@ -17,18 +17,18 @@
     <div class="library-row-actions">
       <button
         class="library-menu-btn"
-        aria-label="更多操作"
+        :aria-label="$t('更多操作')"
         @click.stop="menuOpen = !menuOpen"
       >⋯</button>
 
       <div v-if="menuOpen" class="library-menu-popup" @click.stop>
-        <button v-if="canRename" @click="startRename">重命名</button>
-        <button v-if="canArchive" @click="emit('archive', entry.cloud!.resumeId, true)">归档</button>
-        <button v-if="canUnarchive" @click="emit('archive', entry.cloud!.resumeId, false)">恢复归档</button>
-        <button v-if="canHistory" @click="emit('history', entry.local!.artifactId)">本地历史</button>
+        <button v-if="canRename" @click="startRename">{{ $t('重命名') }}</button>
+        <button v-if="canArchive" @click="emit('archive', entry.cloud!.resumeId, true)">{{ $t('归档') }}</button>
+        <button v-if="canUnarchive" @click="emit('archive', entry.cloud!.resumeId, false)">{{ $t('恢复归档') }}</button>
+        <button v-if="canHistory" @click="emit('history', entry.local!.artifactId)">{{ $t('本地历史') }}</button>
         <hr v-if="canDelete" />
         <button v-if="canDelete" class="destructive" @click="confirmDelete">
-          删除本地草稿
+          {{ $t('删除本地草稿') }}
         </button>
       </div>
     </div>
@@ -41,8 +41,8 @@
         @keydown.enter="submitRename"
         @keydown.escape="renaming = false"
       />
-      <button @click="submitRename">确认</button>
-      <button @click="renaming = false">取消</button>
+      <button @click="submitRename">{{ $t('确认') }}</button>
+      <button @click="renaming = false">{{ $t('取消') }}</button>
     </div>
   </div>
 </template>
@@ -50,6 +50,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
 import type { ResumeLibraryEntry } from "@desktop/types";
+import { localeCode, translate, translateFormat } from "../i18n/locale";
 
 const props = defineProps<{ entry: ResumeLibraryEntry }>();
 const emit = defineEmits<{
@@ -82,12 +83,12 @@ const syncLabel = computed(() => {
     cloud_changes: "云端已更新",
     conflict: "冲突",
   };
-  return map[props.entry.syncStatus] ?? props.entry.syncStatus;
+  return translate(map[props.entry.syncStatus] ?? props.entry.syncStatus);
 });
 
 const updatedAt = computed(() => {
   const date = props.entry.cloud?.updatedAt ?? props.entry.local?.updatedAt;
-  return date ? new Date(date).toLocaleDateString("zh-CN") : "";
+  return date ? new Date(date).toLocaleDateString(localeCode()) : "";
 });
 
 async function startRename() {
@@ -108,7 +109,10 @@ function submitRename() {
 
 function confirmDelete() {
   menuOpen.value = false;
-  if (props.entry.local && confirm(`删除本地草稿"${props.entry.displayTitle}"？此操作不影响云端简历。`)) {
+  if (props.entry.local && confirm(translateFormat(
+    "删除本地草稿“{title}”？此操作不影响云端简历。",
+    { title: props.entry.displayTitle },
+  ))) {
     emit("delete", props.entry.local.artifactId);
   }
 }

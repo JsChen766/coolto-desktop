@@ -7,6 +7,7 @@ import type {
   ResumeLibraryEntry,
 } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { localeCode, translate } from "../i18n/locale";
 
 type PreviewSource = "local" | "cloud";
 
@@ -72,7 +73,7 @@ export function useResumeLibraryPreview(options: ResumeLibraryPreviewOptions) {
       resumeOperationContext.value = cloudReference(entry, preview);
     } catch (error) {
       cloudResumePreviewError.value =
-        error instanceof Error ? error.message : "读取云端简历失败";
+        translate(error instanceof Error ? error.message : "读取云端简历失败");
     } finally {
       cloudResumePreviewBusy.value = false;
     }
@@ -96,7 +97,9 @@ export function useResumeLibraryPreview(options: ResumeLibraryPreviewOptions) {
     };
     resumeOperationContext.value = copyReference;
     await options.sendInstruction(
-      `请为云端简历“${reference.label}”创建本地可编辑工作副本。`,
+      localeCode() === "zh-CN"
+        ? `请为云端简历“${reference.label}”创建本地可编辑工作副本。`
+        : `Create a local editable working copy of the cloud resume “${reference.label}”.`,
       copyReference,
     );
   }

@@ -5,6 +5,7 @@ import { computed } from "vue";
 import type { ApplicationRecord, ApplicationStatus, InterviewRound, Reminder } from "@desktop/types";
 import { STATUS_LABELS, syncLabel } from "../tracker/application-labels";
 import { applicationStage } from "../tracker/application-board";
+import { localeCode, translate } from "../i18n/locale";
 import ApplicationStatusMenu from "./ApplicationStatusMenu.vue";
 
 const props = defineProps<{
@@ -27,8 +28,8 @@ defineEmits<{
 
 function dateLabel(value: string | null): string {
   return value
-    ? new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(new Date(value))
-    : "待确认";
+    ? new Intl.DateTimeFormat(localeCode(), { month: "numeric", day: "numeric" }).format(new Date(value))
+    : translate("待确认");
 }
 </script>
 
@@ -48,7 +49,7 @@ function dateLabel(value: string | null): string {
         </span>
       </div>
       <div v-if="nextInterview || nextReminder" class="tracker-card-schedule">
-        <span v-if="nextInterview"><CalendarClock :size="12" />第 {{ nextInterview.roundNumber }} 轮 · {{ dateLabel(nextInterview.scheduledAt) }}</span>
+      <span v-if="nextInterview"><CalendarClock :size="12" />{{ $tf('第 {round} 轮', { round: nextInterview.roundNumber }) }} · {{ dateLabel(nextInterview.scheduledAt) }}</span>
         <span v-if="nextReminder"><Bell :size="12" />{{ nextReminder.title }} · {{ dateLabel(nextReminder.remindAt) }}</span>
       </div>
       <div class="tracker-card-meta">

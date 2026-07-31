@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import type { TrackerRecoveryProposal, TrackerSyncIssueSummary } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { translate } from "../i18n/locale";
 
 export function useTrackerSyncRecovery(afterChange: () => Promise<void>) {
   const issues = ref<TrackerSyncIssueSummary[]>([]);
@@ -42,10 +43,9 @@ export function useTrackerSyncRecovery(afterChange: () => Promise<void>) {
     busy.value = true;
     error.value = undefined;
     try { await task(); } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : "同步恢复失败";
+      error.value = translate(cause instanceof Error ? cause.message : "同步恢复失败");
     } finally { busy.value = false; }
   }
 
   return { busy, error, execute, issues, load, open, prepare, proposal, retryPending };
 }
-

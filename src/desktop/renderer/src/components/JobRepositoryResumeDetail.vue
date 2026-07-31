@@ -52,14 +52,14 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
   <article class="repository-detail">
     <header class="repository-detail-header">
       <button class="repository-detail-back" type="button" @click="$emit('back')">
-        <ArrowLeft :size="16" aria-hidden="true" />返回简历列表
+        <ArrowLeft :size="16" aria-hidden="true" />{{ $t('返回简历列表') }}
       </button>
       <div class="repository-detail-title">
         <div>
           <h2>{{ resume.entry.displayTitle }}</h2>
           <p>
             {{ resume.entry.cloud?.targetRole ?? resumeKindLabel(resume) }}
-            <template v-if="resume.entry.cloud?.status === 'archived'"> · 已归档</template>
+        <template v-if="resume.entry.cloud?.status === 'archived'"> · {{ $t('已归档') }}</template>
           </p>
         </div>
         <span
@@ -76,21 +76,21 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
           type="button"
           @click="$emit('open', resume.entry)"
         >
-          <Eye :size="15" :stroke-width="1.8" aria-hidden="true" />预览简历
+          <Eye :size="15" :stroke-width="1.8" aria-hidden="true" />{{ $t('预览简历') }}
         </button>
         <button
           class="primary-button icon-label"
           type="button"
           :disabled="!resume.resumeId"
-          :title="resume.resumeId ? '记录实际投递' : '请先将简历保存到云端'"
+          :title="resume.resumeId ? $t('记录实际投递') : $t('请先将简历保存到云端')"
           @click="$emit('record')"
         >
-          <Send :size="14" aria-hidden="true" />记录投递
+          <Send :size="14" aria-hidden="true" />{{ $t('记录投递') }}
         </button>
         <details class="repository-more-actions">
           <summary
             class="repository-more-trigger"
-            aria-label="更多简历操作"
+            :aria-label="$t('更多简历操作')"
             :aria-disabled="!resume.resumeId"
           >
             <Ellipsis :size="17" :stroke-width="1.8" aria-hidden="true" />
@@ -101,7 +101,7 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
               :disabled="!resume.resumeId"
               @click="$emit('tracker')"
             >
-              查看全部投递
+              {{ $t('查看全部投递') }}
             </button>
           </div>
         </details>
@@ -109,21 +109,21 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
     </header>
 
     <div class="repository-detail-scroll">
-      <div class="repository-overview" aria-label="简历概览">
+      <div class="repository-overview" :aria-label="$t('简历概览')">
         <span>
-          <strong>主要目标</strong>
-          {{ resume.kind === 'generic' ? '通用简历' : resume.primaryJd.title }}
+          <strong>{{ $t('主要目标') }}</strong>
+          {{ resume.kind === 'generic' ? $t('通用简历') : resume.primaryJd.title }}
         </span>
-        <span><strong>{{ resume.appliedJds.length }}</strong> 个投递岗位</span>
+        <span>{{ $tf('{count} 个投递岗位', { count: resume.appliedJds.length }) }}</span>
         <span v-if="resume.applicationSummary.latest">
-          最近 {{ STATUS_LABELS[resume.applicationSummary.latest.status] }}
+          {{ $tf('最近 {status}', { status: STATUS_LABELS[resume.applicationSummary.latest.status] }) }}
           · {{ shortDate(resume.applicationSummary.latest.occurredAt) }}
         </span>
       </div>
 
       <section class="repository-section">
         <div class="repository-section-heading">
-          <h3>关联岗位</h3>
+          <h3>{{ $t('关联岗位') }}</h3>
           <span>{{ relatedJobCount }}</span>
         </div>
         <div v-if="relatedJobCount" class="repository-reference-list">
@@ -132,10 +132,10 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
             <Link v-else :size="15" aria-hidden="true" />
             <span>
               <strong>{{ resume.primaryJd.title }}</strong>
-              <small v-if="resume.primaryJd.state === 'missing'">引用资产已缺失</small>
+              <small v-if="resume.primaryJd.state === 'missing'">{{ $t('引用资产已缺失') }}</small>
             </span>
             <span class="repository-relation-badge">
-              {{ primaryWasApplied ? '主要目标 · 实际投递' : '主要目标' }}
+              {{ primaryWasApplied ? $t('主要目标 · 实际投递') : $t('主要目标') }}
             </span>
           </div>
           <div
@@ -147,26 +147,26 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
             <Link v-else :size="15" aria-hidden="true" />
             <span>
               <strong>{{ jd.title }}</strong>
-              <small v-if="jd.state === 'missing'">引用资产已缺失</small>
+              <small v-if="jd.state === 'missing'">{{ $t('引用资产已缺失') }}</small>
             </span>
-            <span class="repository-relation-badge">实际投递</span>
+            <span class="repository-relation-badge">{{ $t('实际投递') }}</span>
           </div>
         </div>
         <p v-else class="repository-section-empty">
-          {{ resume.kind === 'generic' ? '通用简历，尚未用于投递。' : '尚未关联岗位。' }}
+          {{ resume.kind === 'generic' ? $t('通用简历，尚未用于投递。') : $t('尚未关联岗位。') }}
         </p>
       </section>
 
       <section class="repository-section">
         <div class="repository-section-heading">
-          <h3>最近投递</h3>
+          <h3>{{ $t('最近投递') }}</h3>
           <button
             v-if="resume.applications.length"
             class="repository-link-action"
             type="button"
             @click="$emit('tracker')"
           >
-            查看全部
+            {{ $t('查看全部') }}
           </button>
         </div>
         <JobRepositoryApplicationList

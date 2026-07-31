@@ -4,6 +4,7 @@ import { ref } from "vue";
 
 import type { ExperienceRevision } from "@desktop/types";
 import { experienceRevisionSourceLabel } from "../../../../experience/history-model";
+import { localeCode, translate } from "../i18n/locale";
 
 defineProps<{
   revision: ExperienceRevision;
@@ -15,7 +16,7 @@ defineEmits<{ restore: [revision: ExperienceRevision] }>();
 const expanded = ref(false);
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleString("zh-CN", {
+  return new Date(value).toLocaleString(localeCode(), {
     year: "numeric", month: "short", day: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -28,7 +29,7 @@ function formatDate(value: string): string {
       <div>
         <strong v-if="label">{{ label }}</strong>
         <time :datetime="revision.createdAt">{{ formatDate(revision.createdAt) }}</time>
-        <span>{{ experienceRevisionSourceLabel(revision.source) }}</span>
+        <span>{{ translate(experienceRevisionSourceLabel(revision.source)) }}</span>
       </div>
       <button
         type="button"
@@ -36,7 +37,7 @@ function formatDate(value: string): string {
         :aria-expanded="expanded"
         @click="expanded = !expanded"
       >
-        {{ expanded ? "收起" : "展开" }}
+        {{ expanded ? $t('收起') : $t('展开') }}
         <ChevronUp v-if="expanded" :size="14" aria-hidden="true" />
         <ChevronDown v-else :size="14" aria-hidden="true" />
       </button>
@@ -53,7 +54,7 @@ function formatDate(value: string): string {
         @click="$emit('restore', revision)"
       >
         <RotateCcw :size="14" :stroke-width="1.8" aria-hidden="true" />
-        {{ restoreDisabled || "恢复为当前正文" }}
+        {{ restoreDisabled || $t('恢复为当前正文') }}
       </button>
     </footer>
   </article>

@@ -2,6 +2,7 @@ import { ref, type Ref } from "vue";
 
 import type { ResumeChatReference, ResumeDraftDetail } from "@desktop/types";
 import { publishResumeReference } from "./resume-reference-channel";
+import { translate } from "../i18n/locale";
 
 interface LockedPopover {
   left: number;
@@ -19,7 +20,7 @@ export function useResumeLockPopover(
     if (element.classList.contains("resume-editable-text")) return;
     element.classList.add("resume-locked-field");
     element.tabIndex = 0;
-    element.title = "此内容来自固定资产";
+    element.title = translate("此内容来自固定资产");
     const show = () => showLockedExplanation(element);
     element.addEventListener("click", show);
     element.addEventListener("keydown", (event) => {
@@ -47,7 +48,7 @@ export function useResumeLockPopover(
         artifactId: draft().artifactId,
         targetType: "locked_field",
         targetId: itemId ?? sectionId ?? "contact",
-        label: element.innerText.trim().slice(0, 64) || "固定信息",
+        label: element.innerText.trim().slice(0, 64) || translate("固定信息"),
       },
     };
   }

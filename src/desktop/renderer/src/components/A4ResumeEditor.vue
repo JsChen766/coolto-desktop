@@ -213,16 +213,16 @@ function emitChangedText(
     >
       <div class="resume-lock-title icon-label">
         <LockKeyhole :size="15" :stroke-width="1.8" aria-hidden="true" />
-        <strong>固定资产内容</strong>
+        <strong>{{ $t('固定资产内容') }}</strong>
       </div>
       <p>
-        此内容来自个人资料或经历库。为保证 App、Web 与云端一致，不能只在简历中单独修改。
+        {{ $t('此内容来自个人资料或经历库。为保证 App、Web 与云端一致，不能只在简历中单独修改。') }}
       </p>
       <div class="resume-lock-actions">
-        <button type="button" @click="locked = undefined">知道了</button>
+        <button type="button" @click="locked = undefined">{{ $t('知道了') }}</button>
         <button class="icon-label" type="button" @click="sendLockedToChat">
           <MessageSquareText :size="14" :stroke-width="1.8" aria-hidden="true" />
-          在聊天中修改
+          {{ $t('在聊天中修改') }}
         </button>
       </div>
     </div>

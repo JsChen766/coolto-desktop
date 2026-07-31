@@ -23,21 +23,21 @@ defineEmits<{
   <div class="experience-import-focus-bar" aria-live="polite">
     <button class="icon-label" type="button" @click="$emit('back')">
       <ArrowLeft :size="15" :stroke-width="1.8" aria-hidden="true" />
-      返回导入对话
+      {{ $t('返回导入对话') }}
     </button>
     <span>
-      <template v-if="loading">正在定位本次导入经历…</template>
+      <template v-if="loading">{{ $t('正在定位本次导入经历…') }}</template>
       <template v-else>
-        本次导入 {{ count }} 条
+        {{ $tf('本次导入 {count} 条', { count }) }}
         <template v-if="count"> · {{ position }}/{{ count }}</template>
-        <template v-if="missingCount"> · {{ missingCount }} 条已不可用</template>
+        <template v-if="missingCount"> · {{ $tf('{count} 条已不可用', { count: missingCount }) }}</template>
       </template>
     </span>
     <div class="experience-import-focus-actions">
       <button
         type="button"
-        aria-label="上一条导入经历"
-        title="上一条导入经历"
+        :aria-label="$t('上一条导入经历')"
+        :title="$t('上一条导入经历')"
         :disabled="loading || count < 2"
         @click="$emit('move', -1)"
       >
@@ -45,8 +45,8 @@ defineEmits<{
       </button>
       <button
         type="button"
-        aria-label="下一条导入经历"
-        title="下一条导入经历"
+        :aria-label="$t('下一条导入经历')"
+        :title="$t('下一条导入经历')"
         :disabled="loading || count < 2"
         @click="$emit('move', 1)"
       >
@@ -54,7 +54,7 @@ defineEmits<{
       </button>
       <button class="icon-label" type="button" @click="$emit('clear')">
         <X :size="14" :stroke-width="1.8" aria-hidden="true" />
-        结束定位
+        {{ $t('结束定位') }}
       </button>
     </div>
   </div>

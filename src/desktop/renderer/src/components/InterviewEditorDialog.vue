@@ -30,18 +30,18 @@ function review(): void {
 <template>
   <div class="dialog-backdrop" @mousedown.self="$emit('close')">
     <form class="dialog-card tracker-child-editor" role="dialog" aria-modal="true" @submit.prevent="review">
-      <h2>{{ interview ? '修改面试' : '安排面试' }}</h2>
+      <h2>{{ interview ? $t('修改面试') : $t('安排面试') }}</h2>
       <div class="tracker-child-grid">
-        <label><span>轮次</span><input v-model.number="form.roundNumber" type="number" min="1" required /></label>
-        <label><span>类型</span><select v-model="form.interviewType"><option v-for="(label, value) in INTERVIEW_TYPE_LABELS" :key="value" :value="value">{{ label }}</option></select></label>
-        <label class="wide"><span>时间（{{ form.timezone }}）</span><input v-model="form.scheduledAt" type="datetime-local" /></label>
-        <label><span>时长（分钟）</span><input v-model="form.durationMinutes" type="number" min="1" max="1440" /></label>
-        <label><span>状态</span><select v-model="form.status"><option v-for="(label, value) in INTERVIEW_STATUS_LABELS" :key="value" :value="value">{{ label }}</option></select></label>
-        <label class="wide"><span>地点或链接</span><input v-model="form.locationOrLink" maxlength="4096" /></label>
-        <label class="wide"><span>面试官</span><input v-model="form.interviewer" maxlength="240" /></label>
+        <label><span>{{ $t('轮次') }}</span><input v-model.number="form.roundNumber" type="number" min="1" required /></label>
+        <label><span>{{ $t('类型') }}</span><select v-model="form.interviewType"><option v-for="(label, value) in INTERVIEW_TYPE_LABELS" :key="value" :value="value">{{ label }}</option></select></label>
+        <label class="wide"><span>{{ $tf('时间（{timezone}）', { timezone: form.timezone }) }}</span><input v-model="form.scheduledAt" type="datetime-local" /></label>
+        <label><span>{{ $t('时长（分钟）') }}</span><input v-model="form.durationMinutes" type="number" min="1" max="1440" /></label>
+        <label><span>{{ $t('状态') }}</span><select v-model="form.status"><option v-for="(label, value) in INTERVIEW_STATUS_LABELS" :key="value" :value="value">{{ label }}</option></select></label>
+        <label class="wide"><span>{{ $t('地点或链接') }}</span><input v-model="form.locationOrLink" maxlength="4096" /></label>
+        <label class="wide"><span>{{ $t('面试官') }}</span><input v-model="form.interviewer" maxlength="240" /></label>
       </div>
       <p v-if="error" class="tracker-dialog-error" role="alert">{{ error }}</p>
-      <div class="dialog-actions"><button class="secondary-button" type="button" @click="$emit('close')">取消</button><button class="primary-button" :disabled="busy">检查并继续</button></div>
+      <div class="dialog-actions"><button class="secondary-button" type="button" @click="$emit('close')">{{ $t('取消') }}</button><button class="primary-button" :disabled="busy">{{ $t('检查并继续') }}</button></div>
     </form>
   </div>
 </template>

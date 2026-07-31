@@ -146,16 +146,16 @@ function trackResume(resume: JobRepositoryResume): void {
 
     <div v-if="repository.error.value" class="tracker-error-banner" role="alert">
       <span>{{ repository.error.value }}</span>
-      <button type="button" @click="repository.load()">重试</button>
+      <button type="button" @click="repository.load()">{{ $t('重试') }}</button>
     </div>
 
     <div v-if="repository.loading.value && allEmpty" class="repository-page-state">
-      正在读取求职资产…
+      {{ $t('正在读取求职资产…') }}
     </div>
     <div v-else-if="allEmpty" class="repository-page-state">
       <BriefcaseBusiness :size="23" aria-hidden="true" />
-      <strong>尚无 JD 和 Resume</strong>
-      <p>可回到对话创建或同步求职资产。</p>
+      <strong>{{ $t('尚无 JD 和 Resume') }}</strong>
+      <p>{{ $t('可回到对话创建或同步求职资产。') }}</p>
     </div>
     <div v-else class="repository-layout">
       <aside class="repository-list-pane">
@@ -164,7 +164,7 @@ function trackResume(resume: JobRepositoryResume): void {
           :jds="filteredJds"
           :resumes="filteredResumes"
           :selected-id="view === 'jobs' ? selectedJd?.id : selectedResume?.entry.entryId"
-          :empty-label="filterActive ? '没有符合当前搜索或筛选条件的结果' : view === 'jobs' ? '尚无 JD' : '尚无 Resume'"
+          :empty-label="filterActive ? $t('没有符合当前搜索或筛选条件的结果') : view === 'jobs' ? $t('尚无 JD') : $t('尚无 Resume')"
           @select-jd="selectJd"
           @select-resume="selectResume"
         />
@@ -190,7 +190,7 @@ function trackResume(resume: JobRepositoryResume): void {
           @tracker="trackResume(selectedResume)"
         />
         <div v-else class="repository-page-state repository-detail-empty">
-          {{ filterActive ? '调整搜索或筛选条件后重试' : '选择一项查看详情' }}
+          {{ filterActive ? $t('调整搜索或筛选条件后重试') : $t('选择一项查看详情') }}
         </div>
       </section>
     </div>

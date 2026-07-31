@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import type { ResumeLibraryEntry, ResumeDraftCheckpoint } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { translate } from "../i18n/locale";
 
 export function useResumeLibrary() {
   const entries = ref<ResumeLibraryEntry[]>([]);
@@ -15,7 +16,7 @@ export function useResumeLibrary() {
     try {
       entries.value = await desktopApi.library.list();
     } catch (e) {
-      error.value = e instanceof Error ? e.message : "加载简历仓库失败";
+      error.value = translate(e instanceof Error ? e.message : "加载简历仓库失败");
     } finally {
       loading.value = false;
     }

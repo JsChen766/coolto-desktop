@@ -30,13 +30,13 @@ defineEmits<{
     <button
       class="experience-sidebar-toggle icon-button no-drag"
       type="button"
-      aria-label="打开侧栏"
-      title="打开侧栏"
+      :aria-label="$t('打开侧栏')"
+      :title="$t('打开侧栏')"
       @click="$emit('toggleSidebar')"
     >
       <Menu :size="17" aria-hidden="true" />
     </button>
-    <h1>经历仓库</h1>
+    <h1>{{ $t('经历仓库') }}</h1>
     <div class="experience-header-tools no-drag">
       <button
         class="primary-button icon-label experience-new-button"
@@ -44,14 +44,14 @@ defineEmits<{
         @click="$emit('newExperience')"
       >
         <Plus :size="16" :stroke-width="1.8" aria-hidden="true" />
-        新建经历
+        {{ $t('新建经历') }}
       </button>
       <label class="experience-search">
         <Search :size="15" aria-hidden="true" />
         <input
           :value="query"
-          placeholder="搜索经历、组织、标签或正文"
-          aria-label="搜索经历"
+          :placeholder="$t('搜索经历、组织、标签或正文')"
+          :aria-label="$t('搜索经历')"
           @input="$emit('update:query', ($event.target as HTMLInputElement).value)"
         />
       </label>
@@ -70,8 +70,8 @@ defineEmits<{
         class="experience-refresh icon-button"
         type="button"
         :disabled="loading"
-        aria-label="刷新经历仓库"
-        title="刷新经历仓库"
+        :aria-label="$t('刷新经历仓库')"
+        :title="$t('刷新经历仓库')"
         @click="$emit('refresh')"
       >
         <RefreshCw :size="16" :class="{ spin: loading }" aria-hidden="true" />

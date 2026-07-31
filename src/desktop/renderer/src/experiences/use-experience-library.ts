@@ -6,6 +6,7 @@ import type {
   ExperienceSummary,
 } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { localeCode, translate } from "../i18n/locale";
 import {
   filterExperienceCatalog,
   groupExperienceTimeline,
@@ -57,7 +58,7 @@ export function useExperienceLibrary() {
         if (key && !labels.has(key)) labels.set(key, tag);
       }
     }
-    return [...labels.values()].sort((a, b) => a.localeCompare(b, "zh-CN"));
+    return [...labels.values()].sort((a, b) => a.localeCompare(b, localeCode()));
   });
   const filterCount = computed(
     () => tags.value.length + Number(Boolean(category.value))
@@ -79,7 +80,7 @@ export function useExperienceLibrary() {
       catalog.value = result.items;
       ensureSelection(preferredId);
     } catch (cause) {
-      if (version === loadVersion) error.value = messageOf(cause, "经历仓库加载失败");
+      if (version === loadVersion) error.value = translate(messageOf(cause, "经历仓库加载失败"));
     } finally {
       if (version === loadVersion) loading.value = false;
     }
@@ -157,7 +158,7 @@ export function useExperienceLibrary() {
       if (version === detailVersion) selected.value = detail;
     } catch (cause) {
       if (version === detailVersion) {
-        error.value = messageOf(cause, "经历详情加载失败");
+        error.value = translate(messageOf(cause, "经历详情加载失败"));
       }
     } finally {
       if (version === detailVersion) detailLoading.value = false;

@@ -27,18 +27,19 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { ResumeLibraryEntry } from "@desktop/types";
+import { translate } from "../i18n/locale";
 
 const props = defineProps<{ entry: ResumeLibraryEntry }>();
 defineEmits<{ open: [entry: ResumeLibraryEntry] }>();
 
 const statusLabel = computed(() => {
   const s = props.entry.syncStatus;
-  if (s === "synced") return "云端 · 已同步";
-  if (s === "cloud_only") return "仅云端";
-  if (s === "local_only") return "仅本机";
-  if (s === "local_changes") return "有本地修改";
-  if (s === "cloud_changes") return "云端已更新";
-  if (s === "conflict") return "冲突";
+  if (s === "synced") return translate("云端 · 已同步");
+  if (s === "cloud_only") return translate("仅云端");
+  if (s === "local_only") return translate("仅本机");
+  if (s === "local_changes") return translate("有本地修改");
+  if (s === "cloud_changes") return translate("云端已更新");
+  if (s === "conflict") return translate("冲突");
   return "";
 });
 </script>

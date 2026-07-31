@@ -3,6 +3,7 @@ import { ref, watch } from "vue";
 import type { ExperienceDetail, ExperienceRevision } from "@desktop/types";
 import { mergeExperienceRevisions } from "../../../../experience/history-model";
 import { desktopApi } from "../lib/desktop-api";
+import { translate } from "../i18n/locale";
 
 export function useExperienceHistory(
   experience: () => ExperienceDetail,
@@ -59,7 +60,7 @@ export function useExperienceHistory(
           items.value = [];
           pending.value = page.pendingRevision ?? undefined;
         }
-        error.value = "历史记录需要联网查看。当前正文与本机待同步版本仍可使用。";
+        error.value = translate("历史记录需要联网查看。当前正文与本机待同步版本仍可使用。");
         return;
       }
       items.value = more
@@ -69,7 +70,7 @@ export function useExperienceHistory(
       nextCursor.value = page.nextCursor ?? undefined;
     } catch {
       if (version !== loadVersion) return;
-      error.value = "历史记录需要联网查看。当前正文与本机待同步版本仍可使用。";
+      error.value = translate("历史记录需要联网查看。当前正文与本机待同步版本仍可使用。");
     } finally {
       if (version === loadVersion) {
         loading.value = false;

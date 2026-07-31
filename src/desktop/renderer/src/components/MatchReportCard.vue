@@ -2,6 +2,7 @@
 import { ArrowUpRight, CheckCircle, AlertCircle } from "@lucide/vue";
 
 import type { MatchReportArtifactData } from "../../../../desktop/shared/types";
+import { translate } from "../i18n/locale";
 
 defineProps<{
   report: MatchReportArtifactData;
@@ -12,10 +13,10 @@ defineEmits<{
 }>();
 
 function tierLabel(tier: MatchReportArtifactData["tier"]): string {
-  if (tier === "excellent") return "优秀";
-  if (tier === "good") return "良好";
-  if (tier === "moderate") return "基本匹配";
-  return "较弱";
+  if (tier === "excellent") return translate("优秀");
+  if (tier === "good") return translate("良好");
+  if (tier === "moderate") return translate("基本匹配");
+  return translate("较弱");
 }
 
 function tierColor(tier: MatchReportArtifactData["tier"]): string {
@@ -26,9 +27,9 @@ function tierColor(tier: MatchReportArtifactData["tier"]): string {
 }
 
 function severityLabel(severity: string): string {
-  if (severity === "must_have") return "必须";
-  if (severity === "preferred") return "优先";
-  return "可选";
+  if (severity === "must_have") return translate("必须");
+  if (severity === "preferred") return translate("优先");
+  return translate("可选");
 }
 </script>
 
@@ -41,7 +42,7 @@ function severityLabel(severity: string): string {
     <div class="match-card-header">
       <div class="match-score-circle" :style="{ '--tier-color': tierColor(report.tier) }">
         <span class="match-score-num">{{ Math.round(report.finalScore) }}</span>
-        <span class="match-score-label">分</span>
+        <span class="match-score-label">{{ $t('分') }}</span>
       </div>
       <div class="match-card-meta">
         <span class="match-tier-badge" :style="{ color: tierColor(report.tier) }">

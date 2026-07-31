@@ -2,16 +2,17 @@
 import { CheckCircle, AlertCircle, BookOpen } from "@lucide/vue";
 
 import type { MatchReportArtifactData, MatchDimensionScore } from "../../../../desktop/shared/types";
+import { translate } from "../i18n/locale";
 
 defineProps<{
   data: MatchReportArtifactData;
 }>();
 
 function tierLabel(tier: MatchReportArtifactData["tier"]): string {
-  if (tier === "excellent") return "优秀";
-  if (tier === "good") return "良好";
-  if (tier === "moderate") return "基本匹配";
-  return "较弱";
+  if (tier === "excellent") return translate("优秀");
+  if (tier === "good") return translate("良好");
+  if (tier === "moderate") return translate("基本匹配");
+  return translate("较弱");
 }
 
 function tierColor(tier: MatchReportArtifactData["tier"]): string {
@@ -22,17 +23,17 @@ function tierColor(tier: MatchReportArtifactData["tier"]): string {
 }
 
 function dimensionLabel(key: string): string {
-  if (key === "skills") return "技能匹配";
-  if (key === "experience") return "经验匹配";
-  if (key === "education") return "学历匹配";
-  if (key === "overallImpression") return "综合印象";
+  if (key === "skills") return translate("技能匹配");
+  if (key === "experience") return translate("经验匹配");
+  if (key === "education") return translate("学历匹配");
+  if (key === "overallImpression") return translate("综合印象");
   return key;
 }
 
 function severityLabel(severity: string): string {
-  if (severity === "must_have") return "必须";
-  if (severity === "preferred") return "优先";
-  return "可选";
+  if (severity === "must_have") return translate("必须");
+  if (severity === "preferred") return translate("优先");
+  return translate("可选");
 }
 
 function severityColor(severity: string): string {
@@ -66,12 +67,12 @@ function formatDate(iso: string): string {
     </div>
 
     <section class="match-panel-section">
-      <h3 class="match-panel-section-title">维度得分</h3>
+      <h3 class="match-panel-section-title">{{ $t('维度得分') }}</h3>
       <ul class="match-dim-list">
         <li v-for="dim in data.dimensions" :key="dim.dimension" class="match-dim-item">
           <div class="match-dim-row">
             <span class="match-dim-name">{{ dimensionLabel(dim.dimension) }}</span>
-            <span class="match-dim-weight">权重 {{ Math.round(dim.weight * 100) }}%</span>
+            <span class="match-dim-weight">{{ $t('权重') }} {{ Math.round(dim.weight * 100) }}%</span>
             <span class="match-dim-score">{{ Math.round(dim.score) }}</span>
           </div>
           <div class="match-dim-bar-bg">
@@ -85,7 +86,7 @@ function formatDate(iso: string): string {
     <section v-if="data.highlights.length > 0" class="match-panel-section">
       <h3 class="match-panel-section-title">
         <CheckCircle :size="14" :stroke-width="2" aria-hidden="true" />
-        亮点匹配 ({{ data.highlights.length }})
+        {{ $t('亮点匹配') }} ({{ data.highlights.length }})
       </h3>
       <ul class="match-highlight-full-list">
         <li v-for="h in data.highlights" :key="h.requirementId" class="match-highlight-full-item">
@@ -104,7 +105,7 @@ function formatDate(iso: string): string {
     <section v-if="data.gaps.length > 0" class="match-panel-section">
       <h3 class="match-panel-section-title">
         <AlertCircle :size="14" :stroke-width="2" aria-hidden="true" />
-        缺口 ({{ data.gaps.length }})
+        {{ $t('缺口') }} ({{ data.gaps.length }})
       </h3>
       <ul class="match-gap-full-list">
         <li v-for="g in data.gaps" :key="g.requirementId" class="match-gap-full-item">
@@ -115,14 +116,14 @@ function formatDate(iso: string): string {
             <span class="match-gap-req-text">{{ g.requirementText }}</span>
           </div>
           <p class="match-gap-explanation">{{ g.explanation }}</p>
-          <p class="match-gap-suggestion">建议：{{ g.suggestion }}</p>
+          <p class="match-gap-suggestion">{{ $tf('建议：{suggestion}', { suggestion: g.suggestion }) }}</p>
         </li>
       </ul>
     </section>
 
     <footer class="match-panel-footer">
-      <span>生成于 {{ formatDate(data.generatedAt) }}</span>
-      <span v-if="data.expired" class="match-expired-badge">已失效</span>
+      <span>{{ $t('生成于') }} {{ formatDate(data.generatedAt) }}</span>
+      <span v-if="data.expired" class="match-expired-badge">{{ $t('已失效') }}</span>
     </footer>
   </aside>
 </template>

@@ -67,13 +67,13 @@ async function submit(): Promise<void> {
   <form
     ref="formElement"
     class="experience-editor"
-    :aria-label="mode === 'create' ? '新建经历' : '编辑经历'"
+    :aria-label="mode === 'create' ? $t('新建经历') : $t('编辑经历')"
     @submit.prevent="submit"
   >
     <header class="experience-editor-header">
       <div>
-        <h2>{{ mode === "create" ? "新建经历" : "编辑经历" }}</h2>
-        <p>保存前会先展示实际变化，确认后才写入本地同步队列。</p>
+        <h2>{{ mode === "create" ? $t('新建经历') : $t('编辑经历') }}</h2>
+        <p>{{ $t('保存前会先展示实际变化，确认后才写入本地同步队列。') }}</p>
       </div>
       <div class="experience-editor-actions">
         <button
@@ -82,20 +82,20 @@ async function submit(): Promise<void> {
           :disabled="busy"
           @click="$emit('cancel')"
         >
-          取消
+          {{ $t('取消') }}
         </button>
         <button
           class="primary-button"
           type="submit"
           :disabled="busy || (mode === 'edit' && !dirty)"
         >
-          {{ busy ? "正在检查…" : "检查修改" }}
+          {{ busy ? $t('正在检查…') : $t('检查修改') }}
         </button>
       </div>
     </header>
 
     <div v-if="errorList.length" class="experience-form-error-summary" role="alert">
-      <strong>请先修正以下内容</strong>
+      <strong>{{ $t('请先修正以下内容') }}</strong>
       <span v-for="message in errorList" :key="message">{{ message }}</span>
     </div>
     <p v-if="error" class="tracker-dialog-error" role="alert">{{ error }}</p>
@@ -103,7 +103,7 @@ async function submit(): Promise<void> {
     <div class="experience-editor-scroll">
       <div class="experience-form-grid">
         <label class="experience-form-field">
-          <span>类别</span>
+          <span>{{ $t('类别') }}</span>
           <select
             data-field="category"
             :value="form.category"
@@ -117,12 +117,12 @@ async function submit(): Promise<void> {
               :key="value"
               :value="value"
             >
-              {{ label }}
+              {{ $t(label) }}
             </option>
           </select>
         </label>
         <label class="experience-form-field">
-          <span>标题</span>
+          <span>{{ $t('标题') }}</span>
           <input
             data-field="title"
             :value="form.title"
@@ -137,7 +137,7 @@ async function submit(): Promise<void> {
       <div class="experience-form-grid experience-form-grid-three">
         <label v-for="field in ['organization', 'role', 'location'] as const"
           :key="field" class="experience-form-field">
-          <span>{{ field === "organization" ? "组织" : field === "role" ? "角色" : "地点" }}</span>
+          <span>{{ field === "organization" ? $t('组织') : field === "role" ? $t('角色') : $t('地点') }}</span>
           <input
             :data-field="field"
             :value="form[field]"
@@ -164,7 +164,7 @@ async function submit(): Promise<void> {
       />
 
       <label class="experience-form-field">
-        <span>经历正文</span>
+        <span>{{ $t('经历正文') }}</span>
         <textarea
           data-field="content"
           :value="form.content"

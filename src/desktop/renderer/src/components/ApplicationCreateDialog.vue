@@ -46,14 +46,14 @@ const valid = computed(
       class="dialog-card tracker-create-dialog"
       role="dialog"
       aria-modal="true"
-      aria-label="记录一次投递"
+      :aria-label="$t('记录一次投递')"
       @submit.prevent="proposal
         ? emit('confirm', proposal.id)
         : emit('review', toCreateInput(form))"
     >
-      <h2>记录一次投递</h2>
-      <p v-if="proposal">请核对实际投递关系与 Resume 内容指纹，再执行最终确认。</p>
-      <p v-else>投递完成后记录；JD 与实际使用的 Resume 均为必选。</p>
+      <h2>{{ $t('记录一次投递') }}</h2>
+      <p v-if="proposal">{{ $t('请核对实际投递关系与 Resume 内容指纹，再执行最终确认。') }}</p>
+      <p v-else>{{ $t('投递完成后记录；JD 与实际使用的 Resume 均为必选。') }}</p>
       <ApplicationProposalSummary v-if="proposal" :proposal="proposal" />
       <ApplicationEditorFields
         v-else
@@ -69,10 +69,10 @@ const valid = computed(
           :disabled="busy"
           @click="proposal ? $emit('back') : $emit('close')"
         >
-          {{ proposal ? "返回修改" : "取消" }}
+          {{ proposal ? $t('返回修改') : $t('取消') }}
         </button>
         <button class="primary-button" type="submit" :disabled="busy || !valid">
-          {{ busy ? "正在处理…" : proposal ? "确认并写入 Outbox" : "检查投递信息" }}
+          {{ busy ? $t('正在处理…') : proposal ? $t('确认并写入 Outbox') : $t('检查投递信息') }}
         </button>
       </div>
     </form>

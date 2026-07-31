@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ArrowUp, FileText, Paperclip, Plus, Square, X } from "@lucide/vue";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-
 import ComposerResumeContext from "./ComposerResumeContext.vue";
 import IconButton from "./IconButton.vue";
 import ResumePickerPopup from "./ResumePickerPopup.vue";
@@ -9,6 +8,7 @@ import type { ResumeChatReference } from "@desktop/types";
 import type { AttachmentView } from "../attachments/use-conversation-attachment";
 import { attachmentStatus, fileSize } from "../attachments/attachment-formatters";
 import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
+import { translate } from "../i18n/locale";
 
 const props = defineProps<{
   disabled?: boolean;
@@ -48,12 +48,12 @@ watch(
   () => props.attachment?.id,
   (id, previous) => {
     if (id && id !== previous && !text.value.trim()) {
-      text.value = DEFAULT_ATTACHMENT_PROMPT;
+      text.value = translate(DEFAULT_ATTACHMENT_PROMPT);
       void nextTick(() => {
         resize();
         textarea.value?.focus();
       });
-    } else if (!id && previous && text.value === DEFAULT_ATTACHMENT_PROMPT) {
+    } else if (!id && previous && [DEFAULT_ATTACHMENT_PROMPT, translate(DEFAULT_ATTACHMENT_PROMPT)].includes(text.value)) {
       text.value = "";
       void nextTick(resize);
     }
@@ -117,7 +117,7 @@ function handlePick(selected: ResumeChatReference): void {
 
 function selectReference(selected: ResumeChatReference): void {
   reference.value = structuredClone(selected);
-  if (!text.value.trim()) text.value = "请帮我修改这部分内容";
+  if (!text.value.trim()) text.value = translate("请帮我修改这部分内容");
   void nextTick(() => {
     resize();
     textarea.value?.focus();
@@ -151,14 +151,14 @@ function handleDragLeave(event: DragEvent): void {
     >
       <div v-if="dragActive" class="composer-drop-hint">
         <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
-        松开后引用到聊天
+        {{ $t('松开后引用到聊天') }}
       </div>
       <div v-if="attachment" class="composer-attachment">
         <FileText :size="16" :stroke-width="1.8" aria-hidden="true" />
         <span class="composer-attachment-copy">
           <span class="composer-attachment-name">{{ attachment.filename }}</span>
           <small>
-            仅本机 · {{ fileSize(attachment.sizeBytes) }} ·
+            {{ $t('仅本机') }} · {{ fileSize(attachment.sizeBytes) }} ·
             <span :class="`attachment-status-${attachment.status}`">
               {{ attachmentStatus(attachment) }}
             </span>
@@ -169,8 +169,8 @@ function handleDragLeave(event: DragEvent): void {
         </span>
         <button
           type="button"
-          aria-label="移除附件"
-          title="移除附件"
+          :aria-label="$t('移除附件')"
+          :title="$t('移除附件')"
           :disabled="running"
           @click="$emit('removeAttachment')"
         >
@@ -192,7 +192,7 @@ function handleDragLeave(event: DragEvent): void {
         ref="textarea"
         v-model="text"
         rows="1"
-        placeholder="给 Coolto 发消息…"
+        :placeholder="$t('给 Coolto 发消息…')"
         :disabled="disabled"
         @input="resize"
         @keydown="handleKeydown"
@@ -201,26 +201,26 @@ function handleDragLeave(event: DragEvent): void {
         <div class="composer-left">
           <IconButton
             :icon="Plus"
-            label="选择已有简历"
+            :label="$t('选择已有简历')"
             :disabled="disabled || running"
             :size="17"
             @click="pickerOpen = true"
           />
           <IconButton
             :icon="Paperclip"
-            label="选择简历附件"
+            :label="$t('选择简历附件')"
             :disabled="disabled || running || attachmentBusy"
             :size="17"
             @click="$emit('selectAttachment')"
           />
-          <span class="composer-hint">Enter 发送 · Shift+Enter 换行</span>
+          <span class="composer-hint">{{ $t('Enter 发送 · Shift+Enter 换行') }}</span>
         </div>
         <button
           v-if="running"
           class="send-button"
           type="button"
-          aria-label="停止生成"
-          title="停止生成"
+          :aria-label="$t('停止生成')"
+          :title="$t('停止生成')"
           @click="$emit('cancel')"
         >
           <Square :size="13" fill="currentColor" :stroke-width="2" />
@@ -229,8 +229,8 @@ function handleDragLeave(event: DragEvent): void {
           v-else
           class="send-button"
           type="button"
-          aria-label="发送"
-          title="发送"
+          :aria-label="$t('发送')"
+          :title="$t('发送')"
           :disabled="disabled || !text.trim()"
           @click="send"
         >
@@ -239,7 +239,7 @@ function handleDragLeave(event: DragEvent): void {
       </div>
     </div>
     <p class="composer-disclaimer">
-      Coolto 可能会出错，请核对重要信息与待执行操作。
+      {{ $t('Coolto 可能会出错，请核对重要信息与待执行操作。') }}
     </p>
     <ResumePickerPopup
       v-if="pickerOpen"

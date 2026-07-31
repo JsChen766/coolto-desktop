@@ -55,57 +55,57 @@ async function childrenChanged(): Promise<void> {
     <header class="tracker-view-header">
       <button class="tracker-back-button" type="button" @click="$emit('close')">
         <ArrowLeft :size="16" aria-hidden="true" />
-        {{ context?.returnToRepository ? '返回求职仓库' : '返回对话' }}
+        {{ context?.returnToRepository ? $t('返回求职仓库') : $t('返回对话') }}
       </button>
       <label class="tracker-search">
         <Search :size="15" aria-hidden="true" />
-        <input v-model="query" placeholder="搜索公司或岗位" aria-label="搜索投递记录" />
+        <input v-model="query" :placeholder="$t('搜索公司或岗位')" :aria-label="$t('搜索投递记录')" />
       </label>
       <button
         class="tracker-refresh-button"
         type="button"
         :disabled="tracker.loading.value"
-        aria-label="刷新投递记录"
-        title="刷新投递记录"
+        :aria-label="$t('刷新投递记录')"
+        :title="$t('刷新投递记录')"
         @click="refresh"
       >
         <RefreshCw :size="16" :class="{ spin: tracker.loading.value }" aria-hidden="true" />
       </button>
       <button class="primary-button tracker-create-button" type="button" @click="createOpen = true">
-        <Plus :size="15" aria-hidden="true" />记录投递
+        <Plus :size="15" aria-hidden="true" />{{ $t('记录投递') }}
       </button>
     </header>
     <div v-if="context?.asset" class="tracker-context-filter">
-      仅显示与 {{ context.asset.title }} 精确关联的投递
+      {{ $tf('仅显示与 {title} 精确关联的投递', { title: context.asset.title }) }}
     </div>
 
     <div v-if="tracker.error.value" class="tracker-error-banner" role="alert">
       <span>{{ tracker.error.value }}</span>
-      <button type="button" @click="tracker.load()">重试</button>
+      <button type="button" @click="tracker.load()">{{ $t('重试') }}</button>
     </div>
     <div v-if="recovery.issues.value.length" class="tracker-error-banner" role="alert">
-      <span>{{ recovery.issues.value.length }} 项 Tracker 修改需要处理</span>
-      <button type="button" @click="recovery.open.value = true">查看并处理</button>
+      <span>{{ $tf('{count} 项 Tracker 修改需要处理', { count: recovery.issues.value.length }) }}</span>
+      <button type="button" @click="recovery.open.value = true">{{ $t('查看并处理') }}</button>
     </div>
 
     <div class="tracker-view-toolbar">
       <ApplicationViewSwitcher v-model="activeView" />
-      <div class="tracker-stage-legend" aria-label="阶段颜色说明">
+      <div class="tracker-stage-legend" :aria-label="$t('阶段颜色说明')">
         <span v-for="column in APPLICATION_BOARD_COLUMNS" :key="column.key" :class="`stage-${column.key}`">
-          <i aria-hidden="true" />{{ column.title }}
+          <i aria-hidden="true" />{{ $t(column.title) }}
         </span>
       </div>
     </div>
 
     <div v-if="tracker.loading.value && !tracker.applications.value.length" class="tracker-loading">
-      正在读取本地投递记录…
+      {{ $t('正在读取本地投递记录…') }}
     </div>
     <div v-else-if="activeView === 'board'" class="tracker-board">
       <ApplicationBoardColumn
         v-for="column in APPLICATION_BOARD_COLUMNS"
         :key="column.key"
-        :title="column.title"
-        :description="column.description"
+        :title="$t(column.title)"
+        :description="$t(column.description)"
         :applications="applicationsFor(column.statuses)"
         :busy="tracker.busy.value"
         :interviews="overview.snapshot.value.interviews"
