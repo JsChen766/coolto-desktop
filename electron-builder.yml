@@ -9,7 +9,13 @@ files:
   - package.json
 mac:
   category: public.app-category.productivity
+  identity: "-"
   target:
     - target: dir
       arch:
         - arm64
+    - target: dmg
+      arch:
+        - arm64
+dmg:
+  artifactName: ${productName}-${version}-${arch}.dmg

@@ -47,10 +47,9 @@ test("first login stores a reusable session without storing credentials", async 
     client,
     store,
     "http://localhost:8000",
-    async () => ({
-      email: "alice@example.com",
-      password: "secret",
-    }),
+    async (apiClient) => {
+      await apiClient.login({ email: "alice@example.com", password: "secret" });
+    },
   );
 
   assert.equal(result.restored, false);
@@ -89,7 +88,6 @@ test("valid stored session skips the credential prompt", async () => {
     "http://localhost:8000",
     async () => {
       prompted = true;
-      return { email: "", password: "" };
     },
   );
 

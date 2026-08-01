@@ -27,7 +27,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test test/**/*.test.ts",
     "check": "npm run check:resume-template && npm run check:source-lines && npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build",
-    "package:mac": "npm run desktop:build && npx electron-builder --mac --dir && codesign --force --deep --sign - dist-electron/mac-arm64/Coolto.app"
+    "package:mac": "npm run desktop:build && npx electron-builder --mac --dir && codesign --force --deep --sign - dist-electron/mac-arm64/Coolto.app",
+    "package:mac:dmg": "npm run desktop:build && npx electron-builder --mac"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.81.1",

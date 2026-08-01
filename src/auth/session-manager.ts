@@ -2,10 +2,7 @@ import {
   CooltoApiClient,
   CooltoApiError,
 } from "../api/coolto-api-client.js";
-import type {
-  CurrentUser,
-  LoginCredentials,
-} from "../api/types.js";
+import type { CurrentUser } from "../api/types.js";
 import type { AuthSessionStore } from "./session-store.js";
 
 export interface AuthenticatedUser {
@@ -17,7 +14,7 @@ export async function ensureAuthenticated(
   apiClient: CooltoApiClient,
   sessionStore: AuthSessionStore,
   apiBaseUrl: string,
-  getCredentials: () => Promise<LoginCredentials>,
+  authenticate: (apiClient: CooltoApiClient) => Promise<void>,
 ): Promise<AuthenticatedUser> {
   const storedSession = await sessionStore.load();
   if (storedSession) {
@@ -36,8 +33,7 @@ export async function ensureAuthenticated(
     }
   }
 
-  const credentials = await getCredentials();
-  await apiClient.login(credentials);
+  await authenticate(apiClient);
   const user = await apiClient.getCurrentUser();
 
   try {

@@ -1,24 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { readLoginCredentials } from "../src/cli/login.js";
+// login.ts now uses interactive email OTP flow — non-interactive env-var
+// credential reading has been removed. This file is kept as a placeholder.
 
-test("non-interactive credentials require both values", async () => {
-  await assert.rejects(
-    readLoginCredentials({ COOLTO_EMAIL: "alice@example.com" }),
-    /必须同时提供/,
-  );
-});
-
-test("non-interactive credentials are read without modification", async () => {
-  assert.deepEqual(
-    await readLoginCredentials({
-      COOLTO_EMAIL: " alice@example.com ",
-      COOLTO_PASSWORD: " secret with spaces ",
-    }),
-    {
-      email: "alice@example.com",
-      password: " secret with spaces ",
-    },
-  );
+test("login module exists", async () => {
+  const mod = await import("../src/cli/login.js");
+  assert.equal(typeof mod.performEmailOtpLogin, "function");
 });

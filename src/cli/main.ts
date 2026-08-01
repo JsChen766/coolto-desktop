@@ -18,7 +18,7 @@ import {
   resolvePendingApprovals,
 } from "./approval-ui.js";
 import { parseCliArguments } from "./args.js";
-import { readLoginCredentials } from "./login.js";
+import { performEmailOtpLogin } from "./login.js";
 import { renderEvent } from "./render-event.js";
 
 async function main(): Promise<void> {
@@ -35,7 +35,7 @@ async function main(): Promise<void> {
     apiClient,
     sessionStore,
     config.apiBaseUrl,
-    readLoginCredentials,
+    performEmailOtpLogin,
   );
   stdout.write(
     authenticated.restored
