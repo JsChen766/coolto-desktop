@@ -1384,6 +1384,30 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
 - **验证证据**：新增 `test/profile-form.test.ts`、`test/profile-dialog-controller.test.ts`，并扩展 Profile Proposal/locale 测试，覆盖必填/选填/URL、旧 projection、Proposal 零写入、pending、conflict、failed/reapply 与中英文。专项 11/11 通过；`npm run check` 通过（339/339 tests、532 个业务源文件均 ≤250 行、Node/Renderer 类型检查和两端构建通过）；`git diff --check` 通过。生产构建 Electron 以本地 Docker 既有登录会话复核入口、查看/编辑、字段校验、Proposal 审阅后取消、Esc、焦点进入/返回、ARIA、深浅主题、中英文、窄屏与 200% 缩放无横向溢出；未确认 Proposal，未写入或修改用户资料。截图证据：`s4.5-section-d-profile-wide.png`、`s4.5-section-d-profile-narrow.png`（同目录）。
 - **范围边界**：Section D 到此完成；未开始 E–H，也未执行任何生成、模板、性能或直接导出改动。本轮未 commit、未 push。
 
+**S4.5 Section E 完成记录（2026-08-03）**：
+
+- **同源字段映射**：`ResumeContact` 与候选骨架现完整投影 GitHub、个人网站；姓名、电话、简历联系邮箱继续由
+  Section B 的 source snapshot 前置门强制要求。共享的 section presenter 只解释字段，不复制 HTML：教育固定为
+  “学位/专业 + 日期”第一行、“学校/学院 + 地点”第二行；工作/实习和项目仍使用原有 `title + organization`、
+  `role + location` 两行组合。所在地、LinkedIn、GitHub 和个人网站只在已确认非空值时输出；极长 URL 使用
+  既有 contact token 换行，不产生横向溢出。
+- **顺序与 PDF 完整性**：同一 presenter 保持教育、工作/实习、项目、附加 section、技能的稳定顺序，技能始终
+  为最后一个业务 section，空技能不输出。右侧 A4 预览、可编辑预览和隐藏 Chromium 仍全部调用同一个
+  `renderResume`；PDF postflight 现同时校验所有实际渲染的联系字段，避免预览/PDF 出现字段漂移。
+- **结构、截图与页面渲染回归**：新增 Section E 结构快照，锁定教育行映射、工作/项目原有行模型、缺失选填、
+  全部联系字段、极长 URL 以及附加 section → 最后技能的顺序。`qa:resume-renderer` 新增极长联系字段和附加
+  section/多技能的一页 fixtures，生成 Chromium A4 `qualified.png`、同源 `qualified.pdf` 与由 PDF 首页渲染的
+  `qualified-pdf-page.png`；QA 输出目录为系统临时 artifact 目录，运行结果会回显精确路径。人工复核这些输出与
+  用户提供的两张问题截图：教育现为所需的两行层级；工作/项目的字体、间距、粗细和换行规则由结构快照锁定，
+  仅因前置内容自然发生纵向推移。
+- **验证证据**：真实 Electron Chromium/PDF QA 通过：中文合格 fixture 页面占用率 `91.71%`、最低尾行
+  `67.65%`、20 条 evidence bindings；中英文、混排、缺失选填、极长 URL、附加 section、多技能、Markdown、
+  underfilled、tail failure、overflow、并发编译、A4 PDF、PDF postflight 和 G6 既有导出 QA 均通过。
+  `npm run check` 通过（344/344 tests、534 个业务源文件均 ≤250 行、模板同步、Node/Renderer 类型检查和两端
+  构建通过），`git diff --check` 通过。
+- **范围边界**：本节未修改生成性能、模型轮次、计时、导出 IPC 或直接导出流程；Section E 到此完成，F–H
+  尚未开始。本轮未 commit、未 push。
+
 ### S5：全产品联调与性能验收
 
 **实施内容**：对 P1–P4、J0–J3、E0–E6 和 S3–S4.5 统一执行真实账号主路径、失败恢复、双设备冲突、

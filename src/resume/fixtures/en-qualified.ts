@@ -1,11 +1,5 @@
 import type { CurrentResumeStructure } from "../types.js";
-import {
-  baseStructure,
-  bullet,
-  educationEn,
-  item,
-  section,
-} from "./fixture-builders.js";
+import { baseStructure, bullet, educationEn, item, section } from "./fixture-builders.js";
 
 export function qualifiedEnglish(): CurrentResumeStructure {
   return baseStructure("en-US", [
@@ -55,18 +49,6 @@ export function qualifiedEnglish(): CurrentResumeStructure {
           bullet("en-9", "Implemented stable-ID patches and candidate snapshots to preserve verified content while a single bullet or section is revised."),
           bullet("en-10", "Used browser layout measurements to validate page density and final-line width, providing deterministic feedback for one-page compilation."),
         ],
-      }),
-    ]),
-    section("section-skills", "skills", "SKILLS", [
-      item("skills-1", {
-        title: "Technology and Methods",
-        organization: null,
-        role: null,
-        location: null,
-        start_date: null,
-        end_date: null,
-        raw_text: "TypeScript, Python, SQL, Vue, Electron, product discovery, data analysis, structured writing",
-        bullets: [],
       }),
     ]),
   ]);

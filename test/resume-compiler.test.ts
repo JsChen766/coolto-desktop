@@ -14,7 +14,7 @@ test("resume compiler fixtures preserve stable evidence-linked IDs", () => {
   const bullets = structure.sections.flatMap((section) =>
     section.items.flatMap((item) => item.bullets),
   );
-  assert.equal(bullets.length, 18);
+  assert.equal(bullets.length, 20);
   assert.equal(new Set(bullets.map((bullet) => bullet.id)).size, bullets.length);
   assert.ok(
     bullets.every((bullet) => (bullet.source_fact_ids?.length ?? 0) > 0),

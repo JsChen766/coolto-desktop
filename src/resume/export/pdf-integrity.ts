@@ -42,6 +42,12 @@ function expectedVisibleFragments(structure: ResumeStructure): string[] {
     if (cleaned) fragments.push(cleaned);
   };
   add(structure.contact?.name);
+  add(structure.contact?.phone);
+  add(structure.contact?.email);
+  add(structure.contact?.location);
+  add(structure.contact?.linkedin);
+  add(structure.contact?.github);
+  add(structure.contact?.website);
   for (const section of structure.sections) {
     add(section.heading);
     for (const item of section.items) {

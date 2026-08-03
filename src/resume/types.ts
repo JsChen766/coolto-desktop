@@ -58,6 +58,8 @@ export interface ResumeContact {
   phone: string | null;
   location: string | null;
   linkedin?: string | null;
+  github?: string | null;
+  website?: string | null;
 }
 
 export interface ResumeLayoutTuning {

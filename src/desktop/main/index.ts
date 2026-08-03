@@ -110,11 +110,22 @@ async function runResumeRendererQa(): Promise<void> {
 
     const pdfFixtureId =
       process.env.COOLTO_RESUME_QA_PDF_FIXTURE ?? "zh-qualified";
-    const pdfCompilation = await compiler.compileForPdf(
-      getResumeFixture(pdfFixtureId),
-      pdfFixtureId,
-      Boolean(process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH),
-    );
+    let pdfCompilation;
+    try {
+      pdfCompilation = await compiler.compileForPdf(
+        getResumeFixture(pdfFixtureId),
+        pdfFixtureId,
+        Boolean(process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH),
+      );
+    } catch (error: unknown) {
+      if (process.env.COOLTO_RESUME_QA_RESULT_PATH) {
+        await writeOutput(
+          process.env.COOLTO_RESUME_QA_RESULT_PATH,
+          `${JSON.stringify({ compileResults, concurrentCompileResults, pdfError: String(error) }, null, 2)}\n`,
+        );
+      }
+      throw error;
+    }
     const pdfCompileResult = pdfCompilation.result;
     const pdf = pdfCompilation.pdf;
     const postflight = await inspectResumePdf(pdf);

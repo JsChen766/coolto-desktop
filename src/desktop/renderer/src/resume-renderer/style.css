@@ -89,12 +89,13 @@ body {
   font-size: var(--resume-contact-font-size);
   font-weight: var(--resume-contact-font-weight);
   line-height: var(--resume-contact-line-height);
-  white-space: nowrap;
+  flex-wrap: wrap;
 }
 
 .resume-document-link {
   color: #0000ee;
   text-decoration: underline;
+  overflow-wrap: anywhere;
 }
 
 .resume-document-section {

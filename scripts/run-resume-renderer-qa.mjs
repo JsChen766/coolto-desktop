@@ -12,6 +12,8 @@ const artifactDirectory =
 const resultPath = join(artifactDirectory, "result.json");
 const pdfPath = join(artifactDirectory, "qualified.pdf");
 const screenshotPath = join(artifactDirectory, "qualified.png");
+const pdfPageImageBase = join(artifactDirectory, "qualified-pdf-page");
+const pdfPageScreenshotPath = `${pdfPageImageBase}.png`;
 const g6PdfPath = join(artifactDirectory, "g6-export.pdf");
 const fixtureIds = [
   "zh-qualified",
@@ -19,6 +21,8 @@ const fixtureIds = [
   "en-qualified",
   "mixed-qualified",
   "markdown-qualified",
+  "long-contact-qualified",
+  "additional-content-qualified",
   "underfilled",
   "tail-failure",
   "overflow",
@@ -48,6 +52,8 @@ await new Promise((resolve, reject) => {
 });
 
 const report = JSON.parse(await readFile(resultPath, "utf8"));
+await renderPdfFirstPage(pdfPath, pdfPageImageBase);
+assert.ok((await readFile(pdfPageScreenshotPath)).byteLength > 0);
 const results = report.compileResults;
 assert.equal(results.length, fixtureIds.length);
 
@@ -72,6 +78,9 @@ assert.deepEqual(byId.get("mixed-qualified").loadedFontFamilies, [
   "Times New Roman",
 ]);
 assert.equal(byId.get("markdown-qualified").qualified, true);
+assert.equal(byId.get("long-contact-qualified").qualified, true);
+assert.equal(byId.get("long-contact-qualified").overflowPx, 0);
+assert.equal(byId.get("additional-content-qualified").qualified, true);
 assert.ok(
   byId
     .get("underfilled")
@@ -144,6 +153,7 @@ process.stdout.write(
     resultPath,
     pdfPath,
     screenshotPath,
+    pdfPageScreenshotPath,
     g6PdfPath,
   }, null, 2)}\n`,
 );
@@ -157,4 +167,15 @@ function assertObservationTimestamp(value) {
 function withoutObservationTime(result) {
   const { observedAt: _observedAt, ...stableLayoutResult } = result;
   return stableLayoutResult;
+}
+
+function renderPdfFirstPage(pdf, outputBase) {
+  return new Promise((resolve, reject) => {
+    const child = spawn("pdftoppm", ["-png", "-f", "1", "-singlefile", pdf, outputBase]);
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`pdftoppm exited with code ${code}, signal ${signal}`));
+    });
+  });
 }

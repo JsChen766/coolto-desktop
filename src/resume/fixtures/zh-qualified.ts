@@ -95,8 +95,11 @@ export function qualifiedChinese(): CurrentResumeStructure {
         location: null,
         start_date: null,
         end_date: null,
-        raw_text: "TypeScript、Python、SQL、Vue、Electron、数据分析、产品需求拆解、结构化写作",
-        bullets: [],
+        raw_text: null,
+        bullets: bulletList("zh-skills", [
+          "熟练使用 TypeScript、JavaScript、Python、SQL、Vue、Electron、Node.js、Git、Docker 与 PostgreSQL，能够完成数据建模、接口联调、自动化测试、桌面应用交付、布局稳定性验证、版本管理、持续集成和发布流程维护。",
+          "具备用户研究、需求拆解、指标体系设计、数据分析、产品原型、跨团队协作、结构化写作和项目管理能力，能够将复杂问题转化为可验证的实施方案和交付清单，并在交付后持续跟踪验证结果、风险变化和改进机会。",
+        ]),
       }),
     ]),
   ]);

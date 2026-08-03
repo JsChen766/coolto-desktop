@@ -7,16 +7,12 @@ import {
   applyResumeTemplateStyle,
   type ResumeTemplateManifestEntry,
 } from "./template";
-import { safeContactLink, setSafeInlineMarkdown } from "./safe-markdown";
-
-const SECTION_ORDER: Readonly<Record<string, number>> = {
-  education: 0,
-  experience: 1,
-  project: 2,
-  other: 3,
-  skill: 4,
-  skills: 4,
-};
+import { setSafeInlineMarkdown } from "./safe-markdown";
+import {
+  orderResumeSections,
+  presentResumeContacts,
+  presentResumeItem,
+} from "./section-presenter";
 
 const SECTION_LABELS: Readonly<Record<string, string>> = {
   education: "Education",
@@ -38,55 +34,10 @@ function element<K extends keyof HTMLElementTagNameMap>(
   return result;
 }
 
-function sortSections(sections: readonly ResumeSection[]): ResumeSection[] {
-  return sections
-    .map((section, index) => ({ section, index }))
-    .sort(
-      (left, right) =>
-        (SECTION_ORDER[left.section.type] ?? 3.5) -
-          (SECTION_ORDER[right.section.type] ?? 3.5) ||
-        left.index - right.index,
-    )
-    .map(({ section }) => section)
-    .filter((section) => section.type !== "summary");
-}
-
-function splitOrganizationLocation(item: ResumeSectionItem): {
-  organization: string;
-  location: string;
-} {
-  const organization = (item.organization ?? "").trim();
-  if (item.location || !organization) {
-    return { organization, location: (item.location ?? "").trim() };
-  }
-  const parts = organization
-    .split(/\s+(?:·|•|\||｜|,|，)\s+/)
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return parts.length === 2
-    ? { organization: parts[0] ?? "", location: parts[1] ?? "" }
-    : { organization, location: "" };
-}
-
-function entryPrimary(item: ResumeSectionItem): string {
-  return (
-    [item.title, splitOrganizationLocation(item).organization]
-      .filter(Boolean)
-      .join(" · ") ||
-    item.role ||
-    ""
-  );
-}
-
-function dateRange(item: ResumeSectionItem): string {
-  return [item.start_date, item.end_date].filter(Boolean).join(" – ");
-}
-
 function appendHeader(content: HTMLElement, structure: ResumeStructure): void {
   const contact = structure.contact;
-  const hasContact = Boolean(
-    contact?.phone || contact?.email || contact?.location || contact?.linkedin,
-  );
+  const contacts = presentResumeContacts(contact);
+  const hasContact = contacts.length > 0;
   if (!contact?.name && !hasContact) return;
   const header = element("header", "resume-document-header");
   if (contact?.name) {
@@ -94,12 +45,13 @@ function appendHeader(content: HTMLElement, structure: ResumeStructure): void {
   }
   if (hasContact) {
     const line = element("div", "resume-document-contact");
-    for (const value of [contact?.phone, contact?.email, contact?.location]) {
-      if (value) line.append(element("span", undefined, value));
-    }
-    if (contact?.linkedin) {
-      const link = element("a", "resume-document-link", contact.linkedin);
-      link.href = safeContactLink(contact.linkedin);
+    for (const value of contacts) {
+      if (!value.href) {
+        line.append(element("span", undefined, value.text));
+        continue;
+      }
+      const link = element("a", "resume-document-link", value.text);
+      link.href = value.href;
       link.target = "_blank";
       link.rel = "noreferrer";
       line.append(link);
@@ -116,29 +68,32 @@ function appendItem(
 ): void {
   const article = element("article", "resume-document-item");
   article.dataset.itemId = sourceItem.id;
+  const presentation = presentResumeItem(sourceItem, sectionType);
   const primaryLine = element("div", "resume-document-entry-line");
   primaryLine.append(
-    element("span", "resume-document-entry-primary", entryPrimary(sourceItem)),
+    element("span", presentation.primary.primaryClass, presentation.primary.primary),
   );
-  const dates = dateRange(sourceItem);
-  if (dates) {
-    primaryLine.append(element("span", "resume-document-entry-side", dates));
+  if (presentation.primary.side) {
+    primaryLine.append(element("span", "resume-document-entry-side", presentation.primary.side));
   }
   article.append(primaryLine);
-  const location = splitOrganizationLocation(sourceItem).location;
-  if (sourceItem.role || location) {
+  if (presentation.secondary) {
     const secondaryLine = element(
       "div",
       "resume-document-entry-line resume-document-entry-subline",
     );
-    if (sourceItem.role) {
+    if (presentation.secondary.primary) {
       secondaryLine.append(
-        element("span", "resume-document-entry-secondary", sourceItem.role),
+        element(
+          "span",
+          presentation.secondary.primaryClass,
+          presentation.secondary.primary,
+        ),
       );
     }
-    if (location) {
+    if (presentation.secondary.side) {
       secondaryLine.append(
-        element("span", "resume-document-entry-side", location),
+        element("span", "resume-document-entry-side", presentation.secondary.side),
       );
     }
     article.append(secondaryLine);
@@ -193,7 +148,7 @@ export function renderResume(
   const content = element("div", "resume-document-content");
   appendHeader(content, structure);
 
-  for (const sourceSection of sortSections(structure.sections)) {
+  for (const sourceSection of orderResumeSections(structure.sections)) {
     if (!sourceSection.heading && !sourceSection.items.length) continue;
     const section = element("section", "resume-document-section");
     section.dataset.sectionId = sourceSection.id;

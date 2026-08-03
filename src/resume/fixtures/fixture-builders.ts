@@ -53,7 +53,9 @@ export function baseStructure(
       email: "alex.chen@example.com",
       phone: "+86 138 0000 0000",
       location: language.startsWith("zh") ? "香港" : "Hong Kong",
-      linkedin: "linkedin.com/in/alex-chen",
+      linkedin: "https://linkedin.com/in/alex-chen",
+      github: null,
+      website: null,
     },
     sections,
     layout_template_id: "resume-standard",
@@ -76,9 +78,9 @@ export function baseStructure(
 
 export const educationZh = section("section-education", "education", "教育经历", [
   item("education-1", {
-    title: "香港科技大学",
-    organization: "计算机科学与工程",
-    role: "理学硕士",
+    title: "计算机科学理学硕士",
+    organization: "香港科技大学",
+    role: "工程学院",
     location: "香港",
     start_date: "2023.09",
     end_date: "2025.06",
@@ -89,9 +91,9 @@ export const educationZh = section("section-education", "education", "教育经�
 
 export const educationEn = section("section-education", "education", "EDUCATION", [
   item("education-1", {
-    title: "Hong Kong University of Science and Technology",
-    organization: "Computer Science and Engineering",
-    role: "Master of Science",
+    title: "MSc in Computer Science and Engineering",
+    organization: "Hong Kong University of Science and Technology",
+    role: "School of Engineering",
     location: "Hong Kong",
     start_date: "Sep 2023",
     end_date: "Jun 2025",

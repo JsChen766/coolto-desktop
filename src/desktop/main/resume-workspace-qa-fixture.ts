@@ -17,7 +17,8 @@ export function createResumeWorkspaceQaFixture() {
   const sourceItems = fixture.sections.flatMap((section) =>
     section.type === "education" ||
     section.type === "experience" ||
-    section.type === "project"
+    section.type === "project" ||
+    section.type === "skills"
       ? section.items.map((item) => ({ sectionType: section.type, item }))
       : [],
   );
@@ -116,7 +117,7 @@ export function selectComparableBindingPair(
 }
 
 function experienceFromItem(
-  sectionType: "education" | "experience" | "project",
+  sectionType: "education" | "experience" | "project" | "skills",
   item: ResumeSectionItem,
   tags: string[],
 ): ExperienceDetail {
@@ -136,7 +137,7 @@ function experienceFromItem(
   };
   return {
     id,
-    category: sectionType === "experience" ? "work" : sectionType,
+    category: sectionType === "experience" ? "work" : sectionType === "skills" ? "other" : sectionType,
     title: item.title ?? "Untitled",
     organization: item.organization,
     role: item.role,
@@ -144,10 +145,14 @@ function experienceFromItem(
     startDate: item.start_date,
     endDate: item.end_date,
     tags,
+    resumeSectionKey: sectionType === "skills" ? "skills" : null,
+    resumeSectionLabel: sectionType === "skills" ? "专业技能" : null,
     status: "active",
     currentRevisionId: revisionId,
     currentRevision: revision,
     revisions: [revision],
+    entityVersion: 1,
+    deletedAt: null,
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-02T00:00:00Z",
   };

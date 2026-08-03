@@ -32,6 +32,8 @@ export function buildResumeSkeleton(
       phone: snapshot.profile.phone,
       location: snapshot.profile.location,
       linkedin: snapshot.profile.linkedinUrl,
+      github: snapshot.profile.githubUrl,
+      website: snapshot.profile.personalWebsite,
     },
     sections,
     layout_template_id: snapshot.template.templateId,
