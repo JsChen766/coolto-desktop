@@ -1,4 +1,5 @@
 import type {
+  ApprovalDecision,
   ApprovalExecutionResult,
   ApprovalRequest,
 } from "./types.js";
@@ -6,6 +7,7 @@ import type {
 export interface ActionExecutionContext {
   request: ApprovalRequest;
   payload: unknown;
+  decision?: ApprovalDecision;
   signal?: AbortSignal;
 }
 

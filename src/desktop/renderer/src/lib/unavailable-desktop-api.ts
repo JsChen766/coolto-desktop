@@ -68,6 +68,13 @@ export function createUnavailableDesktopApi(): DesktopApi {
       prepareSaveAsNew: unavailable,
       executeProposal: unavailable,
     },
+    profile: {
+      get: unavailable,
+      prepareUpdate: unavailable,
+      prepareReapply: unavailable,
+      prepareAcceptServer: unavailable,
+      executeProposal: unavailable,
+    },
     applications: {
       list: unavailable,
       references: unavailable,

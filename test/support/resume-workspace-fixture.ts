@@ -128,6 +128,7 @@ export function createBinding(
 function createProfile(): UserProfile {
   return {
     fullName: "Alice Chen",
+    contactEmail: "resume@example.com",
     email: "alice@example.com",
     phone: "+852 1234 5678",
     location: "Hong Kong",

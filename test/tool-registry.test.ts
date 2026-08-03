@@ -107,6 +107,7 @@ test("resume source registry exposes profile and JD read tools", async () => {
     userProfileReader: {
       getUserProfile: async () => ({
         fullName: "Alice Chen",
+        contactEmail: "resume@example.com",
         email: "alice@example.com",
         phone: null,
         location: null,

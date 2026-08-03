@@ -1,7 +1,7 @@
 import { createActionApprovalManager } from "../../actions/create-action-approvals.js";
 import { createCooltoAgent } from "../../agent/create-agent.js";
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
-import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter } from "../../api/types.js";
+import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter, UserProfileReader } from "../../api/types.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
 import { readConfig } from "../../config.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
@@ -19,10 +19,13 @@ import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
 import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
+import { TracedResumeCompiler } from "../../resume/performance/traced-compiler.js";
+import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import { createToolRegistry } from "../../tools/registry.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
+import type { ProfileProposalExecutor } from "../../profile/types.js";
 
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
@@ -34,7 +37,10 @@ export interface AgentContextFactoryDependencies {
   resumePublications: ResumePublicationGateway;
   experiences: ExperienceReader & ExperienceWriter;
   jds: JdReader & JdWriter;
+  profiles: UserProfileReader;
+  profileProposals: ProfileProposalExecutor;
   events: AgentRuntimeEvents;
+  traces: ResumeGenerationTraceStore;
 }
 
 export class AgentContextFactory {
@@ -52,6 +58,7 @@ export class AgentContextFactory {
     const approvalManager = createActionApprovalManager({
       experienceWriter: deps.experiences,
       importProposalStore: proposalStore,
+      profileProposals: deps.profileProposals,
       jdWriter: deps.jds,
       jdProposalStore,
       resumePublications: deps.resumePublications,
@@ -60,19 +67,24 @@ export class AgentContextFactory {
     });
     const sourceBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: deps.apiClient,
-      profile: deps.apiClient,
+      profile: deps.profiles,
       jd: deps.jds,
       experience: deps.experiences,
     });
     const workspaceStore = new ResumeWorkspaceStore();
+    const resumeCompiler = new TracedResumeCompiler(
+      deps.resumeCompiler,
+      deps.traces,
+      conversationId,
+    );
     const qualityEvaluator = new ResumeQualityEvaluator();
     const resumeCandidatePreparer = new ResumeCandidatePreparer(
       sourceBuilder,
-      deps.resumeCompiler,
+      resumeCompiler,
       workspaceStore,
     );
     const resumeCandidatePatcher = new ResumeCandidatePatcher(
-      deps.resumeCompiler,
+      resumeCompiler,
       workspaceStore,
     );
     const resumeCandidateReviewer = new ResumeCandidateReviewer(
@@ -80,7 +92,7 @@ export class AgentContextFactory {
       workspaceStore,
     );
     const resumeAlternativeRepairer = new ResumeAlternativeRepairer(
-      deps.resumeCompiler,
+      resumeCompiler,
       qualityEvaluator,
       workspaceStore,
     );
@@ -92,7 +104,7 @@ export class AgentContextFactory {
         workspaceStore,
         deps.resumePublications,
       ),
-      deps.resumeCompiler,
+        resumeCompiler,
     );
     const agent = createCooltoAgent({
       apiKey: config.apiKey,
@@ -100,7 +112,7 @@ export class AgentContextFactory {
       approvalManager,
       tools: createToolRegistry({
         currentUserReader: deps.apiClient,
-        userProfileReader: deps.apiClient,
+        userProfileReader: deps.profiles,
         experienceReader: deps.experiences,
         jdReader: deps.jds,
         resumeReader: deps.resumePublications,

@@ -86,6 +86,13 @@ const api: DesktopApi = {
     executeProposal: (id) =>
       ipcRenderer.invoke("experiences:execute-proposal", id),
   },
+  profile: {
+    get: () => ipcRenderer.invoke("profile:get"),
+    prepareUpdate: (changes) => ipcRenderer.invoke("profile:prepare-update", changes),
+    prepareReapply: (changes) => ipcRenderer.invoke("profile:prepare-reapply", changes),
+    prepareAcceptServer: () => ipcRenderer.invoke("profile:prepare-accept-server"),
+    executeProposal: (id) => ipcRenderer.invoke("profile:execute-proposal", id),
+  },
   applications: {
     list: (options) => ipcRenderer.invoke("applications:list", options),
     references: () => ipcRenderer.invoke("applications:references"),

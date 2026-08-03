@@ -10,6 +10,7 @@ import {
 } from "../import/approval-draft.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { createExperienceImportExecutor } from "./experience-import-executor.js";
+import type { ProfileProposalExecutor } from "../profile/types.js";
 import { JD_SAVE_ACTION_TYPE } from "../jd/approval-draft.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
 import { createJdSaveExecutor } from "../jd/jd-save-executor.js";
@@ -23,6 +24,7 @@ import { createResumePdfExportExecutor } from "../resume/export/export-executor.
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
   importProposalStore: ExperienceImportProposalStore;
+  profileProposals?: ProfileProposalExecutor;
   jdWriter?: JdWriter;
   jdProposalStore?: JdProposalStore;
   resumePublications?: ResumePublicationGateway;
@@ -39,6 +41,7 @@ export function createActionApprovalManager(
     createExperienceImportExecutor(
       deps.experienceWriter,
       deps.importProposalStore,
+      deps.profileProposals,
     ),
   );
   if (deps.jdWriter && deps.jdProposalStore) {

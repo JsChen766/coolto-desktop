@@ -88,7 +88,7 @@ export function buildResumeSkeleton(
     language,
     contact: {
       name: snapshot.profile.fullName,
-      email: snapshot.profile.email,
+      email: snapshot.profile.contactEmail,
       phone: snapshot.profile.phone,
       location: snapshot.profile.location,
       linkedin: snapshot.profile.linkedinUrl,

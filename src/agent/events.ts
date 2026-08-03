@@ -3,6 +3,8 @@ import type { ApprovalEvent } from "../approvals/types.js";
 
 export type CooltoAgentEvent =
   | { type: "run.started" }
+  | { type: "model.started" }
+  | { type: "model.completed"; isError: boolean }
   | { type: "message.delta"; text: string }
   | {
       type: "tool.started";
@@ -34,6 +36,11 @@ export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
       }
       return undefined;
 
+    case "message_start":
+      return event.message.role === "assistant"
+        ? { type: "model.started" }
+        : undefined;
+
     case "message_end":
       if (
         event.message.role === "assistant" &&
@@ -44,7 +51,9 @@ export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
           message: event.message.errorMessage ?? "模型调用失败",
         };
       }
-      return undefined;
+      return event.message.role === "assistant"
+        ? { type: "model.completed", isError: false }
+        : undefined;
 
     case "tool_execution_start":
       return {

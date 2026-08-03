@@ -7,14 +7,14 @@ import {
   TriangleAlert,
   X,
 } from "@lucide/vue";
-import { nextTick, ref } from "vue";
+import { nextTick, ref, watch } from "vue";
 
 import type {
   DesktopApprovalDecision,
   DesktopApprovalRequest,
 } from "@desktop/types";
 
-defineProps<{
+const props = defineProps<{
   request: DesktopApprovalRequest;
   busy?: boolean;
 }>();
@@ -26,6 +26,18 @@ const emit = defineEmits<{
 const customOpen = ref(false);
 const customText = ref("");
 const customInput = ref<HTMLTextAreaElement>();
+const selectedCandidates = ref<string[]>([]);
+const profileValues = ref<Record<string, string>>({});
+const selectedProfileFields = ref<string[]>([]);
+
+watch(() => props.request, (request) => {
+  selectedCandidates.value = (request.preview.items ?? [])
+    .filter((item) => item.id && !item.warning).map((item) => item.id!);
+  selectedProfileFields.value = (request.preview.profileFields ?? [])
+    .filter((field) => field.selectedByDefault).map((field) => field.field);
+  profileValues.value = Object.fromEntries((request.preview.profileFields ?? [])
+    .map((field) => [field.field, field.proposedValue]));
+}, { immediate: true });
 
 async function openCustom(): Promise<void> {
   customOpen.value = true;
@@ -38,6 +50,16 @@ function submitCustom(): void {
   if (text) {
     emit("decide", { type: "custom", text });
   }
+}
+
+function accept(): void {
+  const profileFields = selectedProfileFields.value.map((field) => ({
+    field, value: profileValues.value[field] ?? "",
+  }));
+  emit("decide", { type: "accept", selection: {
+    ...(profileFields.length ? { profileFields } : {}),
+    ...(selectedCandidates.value.length ? { candidateIds: selectedCandidates.value } : {}),
+  } });
 }
 </script>
 
@@ -62,12 +84,32 @@ function submitCustom(): void {
       </template>
     </dl>
 
+    <section v-if="request.preview.profileFields?.length" class="approval-import-section">
+      <h4>{{ $t('个人资料') }}</h4>
+      <label v-for="field in request.preview.profileFields" :key="field.field" class="approval-profile-field">
+        <input v-model="selectedProfileFields" type="checkbox" :value="field.field">
+        <span>
+          <small>{{ $t(field.label) }}</small>
+          <span class="approval-value-diff">{{ field.currentValue || $t('未填写') }} →</span>
+          <input v-model="profileValues[field.field]" :aria-label="$t(field.label)">
+          <span v-if="field.confidence === 'low'" class="approval-warning icon-label">
+            <TriangleAlert :size="14" :stroke-width="1.8" aria-hidden="true" />
+            {{ $t('低置信度，请核对') }}
+          </span>
+        </span>
+      </label>
+    </section>
+
     <div
       v-for="item in request.preview.items ?? []"
       :key="item.title"
       class="approval-item"
     >
-      <strong>{{ item.title }}</strong>
+      <label v-if="item.id" class="approval-item-title">
+        <input v-model="selectedCandidates" type="checkbox" :value="item.id" :disabled="Boolean(item.warning)">
+        <strong>{{ item.title }}</strong>
+      </label>
+      <strong v-else>{{ item.title }}</strong>
       <p v-if="item.description">{{ $t(item.description) }}</p>
       <div v-if="item.fields?.length" class="approval-item-fields">
         <span v-for="field in item.fields" :key="field.label">
@@ -86,7 +128,7 @@ function submitCustom(): void {
         class="approval-button primary icon-label"
         type="button"
         :disabled="busy"
-        @click="$emit('decide', { type: 'accept' })"
+        @click="accept"
       >
         <Check :size="16" :stroke-width="2" aria-hidden="true" />
         <span>{{ $t('接受并执行') }}</span>

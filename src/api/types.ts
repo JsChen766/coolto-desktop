@@ -52,6 +52,7 @@ export interface CurrentUserReader {
 
 export interface UserProfile {
   fullName: string | null;
+  contactEmail: string | null;
   email: string | null;
   phone: string | null;
   location: string | null;

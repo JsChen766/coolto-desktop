@@ -7,10 +7,20 @@ export interface ApprovalPreviewField {
 }
 
 export interface ApprovalPreviewItem {
+  id?: string;
   title: string;
   description?: string;
   fields?: ApprovalPreviewField[];
   warning?: string;
+}
+
+export interface ApprovalPreviewProfileField {
+  field: string;
+  label: string;
+  currentValue: string | null;
+  proposedValue: string;
+  selectedByDefault: boolean;
+  confidence: "high" | "low";
 }
 
 export interface DesktopApprovalRequest {
@@ -22,13 +32,17 @@ export interface DesktopApprovalRequest {
   preview: {
     summary: ApprovalPreviewField[];
     items?: ApprovalPreviewItem[];
+    profileFields?: ApprovalPreviewProfileField[];
     warnings?: string[];
   };
   createdAt: string;
 }
 
 export type DesktopApprovalDecision =
-  | { type: "accept" }
+  | { type: "accept"; selection?: {
+    profileFields?: Array<{ field: string; value: string }>;
+    candidateIds?: string[];
+  } }
   | { type: "reject" }
   | { type: "custom"; text: string };
 

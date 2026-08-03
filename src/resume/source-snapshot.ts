@@ -16,6 +16,7 @@ import {
 } from "./source-types.js";
 import { ResumeSourceSnapshotError } from "./source-snapshot-error.js";
 import { deepFreeze, sha256, stableStringify } from "./stable-snapshot.js";
+import { missingResumeContactFields } from "./contracts/profile-contact.js";
 
 export {
   ResumeSourceSnapshotError,
@@ -65,31 +66,35 @@ export class ResumeSourceSnapshotBuilder {
         ),
       ),
     ]);
-    if (
-      profile.email &&
-      currentUser.email &&
-      profile.email.toLocaleLowerCase() !== currentUser.email.toLocaleLowerCase()
-    ) {
-      throw new ResumeSourceSnapshotError(
-        "profile_identity_mismatch",
-        "The profile email does not match the authenticated user.",
-      );
-    }
     const fingerprintPayload = {
       schemaVersion: RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION,
-      profile: normalizeSourceProfile(currentUser.id, currentUser.email, profile),
+      profile: normalizeSourceProfile(currentUser.id, profile),
       jd: normalizeSourceJd(jd, jdId),
       experiences: experiences.map((experience, index) =>
         normalizeSourceExperience(experience, experienceIds[index] ?? ""),
       ),
       template: input.template,
     };
+    validateResumeContact(fingerprintPayload.profile);
     return deepFreeze({
       ...fingerprintPayload,
       capturedAt: this.#now().toISOString(),
       sourceFingerprint: sha256(stableStringify(fingerprintPayload)),
     });
   }
+}
+
+function validateResumeContact(profile: {
+  fullName: string | null; phone: string | null; contactEmail: string | null;
+}): void {
+  const missing = missingResumeContactFields({
+    ...profile, location: null, linkedinUrl: null, githubUrl: null,
+    personalWebsite: null,
+  });
+  if (missing.length) throw new ResumeSourceSnapshotError(
+    "missing_required_profile_fields",
+    `Resume generation requires: ${missing.join(", ")}.`,
+  );
 }
 
 function validateRequest(jdId: string, experienceIds: readonly string[]): void {

@@ -21,6 +21,7 @@ export function normalizeUserProfile(value: unknown): UserProfile {
   const record = objectValue(value, "user profile");
   return {
     fullName: nullableString(record.fullName, "profile.fullName"),
+    contactEmail: nullableString(record.contactEmail, "profile.contactEmail"),
     email: nullableString(record.email, "profile.email"),
     phone: nullableString(record.phone, "profile.phone"),
     location: nullableString(record.location, "profile.location"),

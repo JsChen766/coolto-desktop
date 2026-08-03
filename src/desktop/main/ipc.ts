@@ -34,6 +34,7 @@ import {
   registerTrackerChildIpc,
   TRACKER_CHILD_IPC_CHANNELS,
 } from "./tracker/tracker-ipc.js";
+import { PROFILE_IPC_CHANNELS, registerProfileIpc } from "./profile/profile-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -50,6 +51,7 @@ export function registerDesktopIpc(
     ...JOB_ASSET_IPC_CHANNELS,
     ...EXPERIENCE_IPC_CHANNELS,
     ...TRACKER_CHILD_IPC_CHANNELS,
+    ...PROFILE_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -211,6 +213,11 @@ export function registerDesktopIpc(
     async () => (await servicesForCurrentUser()).experiences,
     async () => (await servicesForCurrentUser()).experienceProposals,
     async () => (await servicesForCurrentUser()).experienceHistory,
+  );
+  registerProfileIpc(
+    ipcMain,
+    async () => (await servicesForCurrentUser()).profiles,
+    async () => (await servicesForCurrentUser()).profileProposals,
   );
   registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
 }

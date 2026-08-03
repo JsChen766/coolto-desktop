@@ -50,6 +50,7 @@ export type {
   ExperienceSearchResult,
   ExperienceSummary,
 } from "../../api/types.js";
+export type * from "../../profile/types.js";
 export type * from "./types/approvals.js";
 export type * from "./types/artifacts.js";
 export type * from "./types/browser.js";

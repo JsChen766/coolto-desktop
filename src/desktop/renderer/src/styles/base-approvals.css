@@ -69,6 +69,27 @@
   font-size: 12.5px;
 }
 
+.approval-import-section {
+  margin-top: 11px;
+  padding: 10px 11px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.approval-import-section h4 { margin: 0 0 8px; font-size: 12.5px; }
+
+.approval-profile-field,
+.approval-item-title { display: flex; align-items: flex-start; gap: 8px; }
+
+.approval-profile-field { margin-top: 8px; color: var(--text-soft); font-size: 12px; }
+.approval-profile-field:first-of-type { margin-top: 0; }
+.approval-profile-field > span { display: grid; gap: 4px; flex: 1; }
+.approval-profile-field small { color: var(--muted); }
+.approval-profile-field input[type='text'],
+.approval-profile-field input:not([type]) { width: 100%; }
+.approval-value-diff { color: var(--muted); }
+.approval-item-title { margin-bottom: 4px; }
+
 .approval-item > p {
   margin: 4px 0 0;
   color: var(--muted);
@@ -163,4 +184,3 @@
   padding: 0 11px;
   font-size: 11.5px;
 }
-

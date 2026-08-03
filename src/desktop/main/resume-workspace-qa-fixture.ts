@@ -158,6 +158,7 @@ function profileFromFixture(
 ): UserProfile {
   return {
     fullName: fixture.contact?.name ?? null,
+    contactEmail: "qa-resume@example.com",
     email: "qa@example.com",
     phone: fixture.contact?.phone ?? null,
     location: fixture.contact?.location ?? null,

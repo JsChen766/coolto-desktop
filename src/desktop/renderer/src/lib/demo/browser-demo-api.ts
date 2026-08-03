@@ -67,6 +67,17 @@ export function createBrowserDemoApi(): DesktopApi {
       prepareSaveAsNew: async () => { throw new Error("Demo 不支持冲突恢复"); },
       executeProposal: async () => { throw new Error("Demo 不支持经历维护"); },
     },
+    profile: {
+      get: async () => ({ fullName: null, contactEmail: null, email: null, phone: null,
+        location: null, linkedinUrl: null, githubUrl: null, personalWebsite: null,
+        currentTitle: null, currentCompany: null, yearsOfExperience: null,
+        careerStage: null, targetRoles: [], targetIndustries: [], targetLocations: [],
+        preferredLanguage: "zh-CN", resumeStyle: null }),
+      prepareUpdate: async () => { throw new Error("Demo 不支持个人资料维护"); },
+      prepareReapply: async () => { throw new Error("Demo 不支持个人资料维护"); },
+      prepareAcceptServer: async () => { throw new Error("Demo 不支持个人资料维护"); },
+      executeProposal: async () => { throw new Error("Demo 不支持个人资料维护"); },
+    },
     applications: createDemoApplicationApi(now),
     tracker: {
       detail: async () => ({ statusEvents: [], interviews: [], notes: [], reminders: [] }),

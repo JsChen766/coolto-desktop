@@ -14,13 +14,12 @@ import { experienceEvidenceEligibility } from "../experience/evidence-eligibilit
 
 export function normalizeSourceProfile(
   userId: string,
-  authenticatedEmail: string,
   profile: UserProfile,
 ): ResumeSourceProfileSnapshot {
   return {
     userId,
     fullName: cleanOptional(profile.fullName),
-    email: authenticatedEmail.trim(),
+    contactEmail: cleanOptional(profile.contactEmail),
     phone: cleanOptional(profile.phone),
     location: cleanOptional(profile.location),
     linkedinUrl: cleanOptional(profile.linkedinUrl),

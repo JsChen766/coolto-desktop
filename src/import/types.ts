@@ -3,6 +3,7 @@ import type {
   ExperienceCreateInput,
   ExperienceSummary,
 } from "../api/types.js";
+import type { ProfileImportField } from "../profile/types.js";
 
 export interface ExperienceImportCandidate
   extends ExperienceCreateInput {
@@ -28,6 +29,7 @@ export interface ExperienceImportProposal {
   sourceType: "text" | "file";
   sourceLabel?: string;
   candidates: ProposedExperience[];
+  profileFields: ProfileImportField[];
   createdAt: string;
 }
 

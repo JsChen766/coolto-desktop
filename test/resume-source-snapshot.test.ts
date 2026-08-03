@@ -85,6 +85,19 @@ test("snapshot builder fails closed on duplicate IDs and revision drift", async 
   );
 });
 
+test("resume generation names every missing required confirmed Profile field", async () => {
+  const profile = createProfile();
+  profile.fullName = null;
+  profile.contactEmail = null;
+  const builder = createBuilderWithProfile(profile);
+  await assert.rejects(
+    builder.build(input),
+    (error: unknown) => error instanceof ResumeSourceSnapshotError &&
+      error.code === "missing_required_profile_fields" &&
+      error.message === "Resume generation requires: fullName, contactEmail.",
+  );
+});
+
 test("source evidence allows pending but rejects conflict and failed experiences", async () => {
   const pending = createExperience();
   pending.syncStatus = "pending";
@@ -244,6 +257,19 @@ function createBuilderFromExperiences(
   );
 }
 
+function createBuilderWithProfile(profile: UserProfile): ResumeSourceSnapshotBuilder {
+  const experience = createExperience();
+  return new ResumeSourceSnapshotBuilder({
+    currentUser: { getCurrentUser: async () => ({ id: "user-1", email: "login@example.com" }) },
+    profile: { getUserProfile: async () => profile },
+    jd: { listJds: async () => ({ items: [createJd()], nextCursor: null }), getJd: async () => createJd() },
+    experience: {
+      searchExperiences: async () => ({ items: [experience], nextCursor: null }),
+      getExperience: async () => experience,
+    },
+  });
+}
+
 function withExperienceIdentity(
   experience: ExperienceDetail,
   experienceId: string,
@@ -270,6 +296,7 @@ async function buildSnapshot(): Promise<ResumeSourceSnapshot> {
 function createProfile(): UserProfile {
   return {
     fullName: "Alice Chen",
+    contactEmail: "resume@example.com",
     email: "alice@example.com",
     phone: "+852 1234 5678",
     location: "Hong Kong",

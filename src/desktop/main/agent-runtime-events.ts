@@ -6,12 +6,14 @@ import { ConversationStore } from "./conversation-store.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { parseExperienceImportResult } from "../../import/result-artifact.js";
+import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 
 export class AgentRuntimeEvents {
   public constructor(
     private readonly target: WebContents,
     private readonly store: ConversationStore,
     private readonly resumeDrafts: ResumeDraftService,
+    private readonly traces: ResumeGenerationTraceStore,
   ) {}
 
   public subscribe(
@@ -23,6 +25,31 @@ export class AgentRuntimeEvents {
       context.matchReportStore,
     );
     context.agent.subscribe(async (event) => {
+      if (event.type === "model.started") {
+        this.traces.recordModelStarted(conversationId);
+        return;
+      }
+      if (event.type === "model.completed") {
+        this.traces.recordModelCompleted(
+          conversationId,
+          event.isError ? "error" : "success",
+        );
+        return;
+      }
+      if (event.type === "run.failed") {
+        this.traces.recordModelCompleted(conversationId, "error");
+      }
+      if (event.type === "tool.started") {
+        this.traces.recordToolStarted(conversationId, event.callId, event.name);
+      }
+      if (event.type === "tool.completed") {
+        this.traces.recordTool(
+          conversationId,
+          event.callId,
+          event.name,
+          event.isError ? "error" : "success",
+        );
+      }
       if (
         event.type === "tool.completed" &&
         isResumeWorkspaceTool(event.name) &&
@@ -85,6 +112,10 @@ export class AgentRuntimeEvents {
         summary: context.activeEdit.summary,
       });
       this.notifyDraftUpdated(conversationId, draft.artifactId);
+      this.traces.recordDraftSaved(conversationId);
+      if (workspace.status === "ready_for_approval") {
+        this.traces.recordQualifiedPreviewDelivered(conversationId);
+      }
       return;
     }
     const artifactId = context.artifactIdByCandidate.get(workspace.candidateId);
@@ -108,6 +139,10 @@ export class AgentRuntimeEvents {
       this.resumeDrafts.artifactReference(draft),
     );
     this.notifyDraftUpdated(conversationId, draft.artifactId);
+    this.traces.recordDraftSaved(conversationId);
+    if (workspace.status === "ready_for_approval") {
+      this.traces.recordQualifiedPreviewDelivered(conversationId);
+    }
   }
 
   private emitJdProposal(

@@ -3,13 +3,13 @@ import type {
   ExperienceImportCandidate,
   ExperienceImportProposal,
 } from "./types.js";
+import type { ResumeContactField } from "../resume/contracts/profile-contact.js";
 
 export const EXPERIENCE_IMPORT_ACTION_TYPE = "experience.import";
 export const EXPERIENCE_IMPORT_APPROVAL_SCOPE = "experience.import";
 
 export interface ExperienceImportApprovalPayload {
   proposalId: string;
-  candidates: ExperienceImportCandidate[];
 }
 
 export function createExperienceImportApprovalDraft(
@@ -26,7 +26,9 @@ export function createExperienceImportApprovalDraft(
     actionType: EXPERIENCE_IMPORT_ACTION_TYPE,
     scopeKey: EXPERIENCE_IMPORT_APPROVAL_SCOPE,
     risk: "write",
-    title: `写入 ${pending.length} 条经历`,
+    title: proposal.profileFields.length
+      ? `导入个人资料与 ${pending.length} 条经历`
+      : `写入 ${pending.length} 条经历`,
     description:
       "接受后会先保存到本机经历库，并由同步队列自动上传云端。",
     preview: {
@@ -39,6 +41,7 @@ export function createExperienceImportApprovalDraft(
         },
       ],
       items: proposal.candidates.map((item) => ({
+        id: item.candidate.clientId,
         title: item.candidate.title,
         description: item.candidate.content,
         fields: candidateFields(item.candidate),
@@ -49,6 +52,11 @@ export function createExperienceImportApprovalDraft(
             }
           : {}),
       })),
+      ...(proposal.profileFields.length
+        ? { profileFields: proposal.profileFields.map((field) => ({
+          ...field, label: profileFieldLabel(field.field),
+        })) }
+        : {}),
     },
   };
 }
@@ -58,10 +66,15 @@ export function createExperienceImportApprovalPayload(
 ): ExperienceImportApprovalPayload {
   return {
     proposalId: proposal.id,
-    candidates: proposal.candidates
-      .filter((item) => item.selected && !item.savedExperienceId)
-      .map((item) => structuredClone(item.candidate)),
   };
+}
+
+function profileFieldLabel(field: ResumeContactField): string {
+  return {
+    fullName: "姓名", phone: "电话", contactEmail: "简历联系邮箱",
+    location: "所在地", linkedinUrl: "LinkedIn", githubUrl: "GitHub",
+    personalWebsite: "个人网站",
+  }[field];
 }
 
 function candidateFields(

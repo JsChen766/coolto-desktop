@@ -11,7 +11,7 @@ export const RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION =
 export interface ResumeSourceProfileSnapshot {
   userId: string;
   fullName: string | null;
-  email: string;
+  contactEmail: string | null;
   phone: string | null;
   location: string | null;
   linkedinUrl: string | null;

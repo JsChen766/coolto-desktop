@@ -1,7 +1,7 @@
 import type { WebContents } from "electron";
 
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
-import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter } from "../../api/types.js";
+import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter, UserProfileReader } from "../../api/types.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
 import {
@@ -25,12 +25,16 @@ import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+import { readConfig } from "../../config.js";
+import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
+import type { ProfileProposalExecutor } from "../../profile/types.js";
 
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore;
   readonly #resumeDrafts: ResumeDraftService;
   readonly #events: AgentRuntimeEvents;
   readonly #contextFactory: AgentContextFactory;
+  readonly #traces = new ResumeGenerationTraceStore();
   readonly #contexts = new Map<string, ConversationAgentContext>();
   #runningConversationId: string | undefined;
 
@@ -47,10 +51,12 @@ export class DesktopAgentRuntime {
     resumePublications: ResumePublicationGateway,
     experiences: ExperienceReader & ExperienceWriter,
     jds: JdReader & JdWriter,
+    profiles: UserProfileReader,
+    profileProposals: ProfileProposalExecutor,
   ) {
     this.#store = store;
     this.#resumeDrafts = resumeDrafts;
-    this.#events = new AgentRuntimeEvents(target, store, resumeDrafts);
+    this.#events = new AgentRuntimeEvents(target, store, resumeDrafts, this.#traces);
     this.#contextFactory = new AgentContextFactory({
       apiClient,
       resumeCompiler,
@@ -61,7 +67,10 @@ export class DesktopAgentRuntime {
       resumePublications,
       experiences,
       jds,
+      profiles,
+      profileProposals,
       events: this.#events,
+      traces: this.#traces,
     });
   }
 
@@ -74,6 +83,8 @@ export class DesktopAgentRuntime {
     const context = await this.#contextFor(conversationId);
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
+    this.#traces.start(conversationId, readConfig().modelId);
+    let failed = false;
     try {
       if (input.resumeReference && input.jdReference) {
         throw new Error("一次消息不能同时引用 JD 和 Resume");
@@ -112,7 +123,14 @@ export class DesktopAgentRuntime {
         conversationId,
         context.agent.getMessages(),
       );
+    } catch (error) {
+      failed = true;
+      throw error;
     } finally {
+      this.#traces.finish(conversationId, {
+        workspaceStatus: context.workspaceStore.latest()?.status ?? null,
+        failed,
+      });
       context.activeEdit = undefined;
       this.#runningConversationId = undefined;
     }
@@ -122,6 +140,10 @@ export class DesktopAgentRuntime {
     if (this.#runningConversationId) {
       this.#contexts.get(this.#runningConversationId)?.agent.cancel();
     }
+  }
+
+  public generationTrace(conversationId: string) {
+    return this.#traces.latestForConversation(conversationId);
   }
 
   public async resolveApproval(

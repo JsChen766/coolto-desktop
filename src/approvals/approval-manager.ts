@@ -65,6 +65,7 @@ export class ApprovalManager {
     const context: ActionExecutionContext = {
       request: approval.request,
       payload: approval.payload,
+      decision,
       ...(signal ? { signal } : {}),
     };
 

@@ -168,6 +168,15 @@ test("DOCX parser extracts local text", async () => {
   assert.match(parsed.text, /Walking on imported air/);
 });
 
+test("PDF parser extracts selectable resume text", async () => {
+  const content = createTextPdf("Alice Chen resume@example.test");
+  const parsed = await parseSelectedFile({
+    metadata: { id: "attachment-pdf", filename: "resume.pdf", type: "pdf", sizeBytes: content.byteLength },
+    content,
+  });
+  assert.match(parsed.text, /Alice Chen resume@example\.test/u);
+});
+
 test("textless PDF reports that OCR is unavailable", async () => {
   const content = createTextlessPdf();
   await assert.rejects(
@@ -211,4 +220,22 @@ function createTextlessPdf(): Buffer {
     `${body}xref\n0 5\n0000000000 65535 f \n${xrefRows}` +
       `trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`,
   );
+}
+
+function createTextPdf(text: string): Buffer {
+  const stream = `BT /F1 12 Tf 72 720 Td (${text}) Tj ET`;
+  const header = "%PDF-1.4\n";
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>\nendobj\n",
+    `4 0 obj\n<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream\nendobj\n`,
+    "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+  ];
+  const offsets: number[] = [];
+  let body = header;
+  for (const object of objects) { offsets.push(Buffer.byteLength(body)); body += object; }
+  const xref = Buffer.byteLength(body);
+  const rows = offsets.map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("");
+  return Buffer.from(`${body}xref\n0 6\n0000000000 65535 f \n${rows}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
 }

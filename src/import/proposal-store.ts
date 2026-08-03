@@ -5,6 +5,7 @@ import type {
   CandidateDuplicateMatch,
   ExperienceImportProposal,
 } from "./types.js";
+import type { ProfileImportField } from "../profile/types.js";
 import { normalizeImportCandidate } from "./validation.js";
 
 export class ExperienceImportProposalStore {
@@ -15,6 +16,7 @@ export class ExperienceImportProposalStore {
     inputs: ExperienceCreateInput[],
     duplicateMatches: CandidateDuplicateMatch[],
     sourceLabel?: string,
+    profileFields: ProfileImportField[] = [],
   ): ExperienceImportProposal {
     const id = `import-${randomUUID()}`;
     const duplicateByIndex = new Map(
@@ -40,6 +42,7 @@ export class ExperienceImportProposalStore {
       sourceType,
       ...(sourceLabel ? { sourceLabel } : {}),
       candidates,
+      profileFields: structuredClone(profileFields),
       createdAt: new Date().toISOString(),
     };
     return structuredClone(this.#active);

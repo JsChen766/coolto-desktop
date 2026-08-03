@@ -97,6 +97,7 @@ export function createToolRegistry(
     businessTools.push(
       createPrepareExperienceImportTool(
         dependencies.experienceReader,
+        dependencies.userProfileReader,
         dependencies.importProposalStore,
         dependencies.approvalManager,
       ),

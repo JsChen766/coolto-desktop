@@ -10,15 +10,26 @@ export interface ApprovalPreviewField {
 }
 
 export interface ApprovalPreviewItem {
+  id?: string;
   title: string;
   description?: string;
   fields?: ApprovalPreviewField[];
   warning?: string;
 }
 
+export interface ApprovalPreviewProfileField {
+  field: string;
+  label: string;
+  currentValue: string | null;
+  proposedValue: string;
+  selectedByDefault: boolean;
+  confidence: "high" | "low";
+}
+
 export interface ApprovalPreview {
   summary: ApprovalPreviewField[];
   items?: ApprovalPreviewItem[];
+  profileFields?: ApprovalPreviewProfileField[];
   warnings?: string[];
 }
 
@@ -39,7 +50,7 @@ export interface ApprovalRequest
 }
 
 export type ApprovalDecision =
-  | { type: "accept" }
+  | { type: "accept"; selection?: unknown }
   | { type: "reject" }
   | { type: "custom"; text: string };
 
