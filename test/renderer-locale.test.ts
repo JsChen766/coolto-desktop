@@ -30,3 +30,10 @@ test("localized records resolve against the current locale on every read", () =>
   setLocale("zh-CN");
   assert.equal(labels.active, "在用");
 });
+
+test("renderer locale translates personal information UI copy", () => {
+  setLocale("en-US");
+  assert.equal(translate("个人信息"), "Personal information");
+  assert.equal(translate("带 * 的字段为简历生成必填项。"), "Fields marked * are required to generate a resume.");
+  setLocale("zh-CN");
+});

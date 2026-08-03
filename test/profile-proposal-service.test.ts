@@ -58,6 +58,7 @@ test("Profile proposal writes no Outbox entry before approval and keeps resume e
   assert.equal(local.writes[0]?.entityId, "user-a");
   assert.equal(local.writes[0]?.payload.contactEmail, "contact@example.test");
   assert.equal("email" in (local.writes[0]?.payload ?? {}), false);
+  assert.equal((await service(local).store.getProfileView()).syncStatus, "pending");
 });
 
 test("Profile import refuses an overwritten snapshot and stale local proposal", async () => {
@@ -88,6 +89,16 @@ test("Profile conflict reapply uses the server version and isolates account proj
   await proposals.execute(proposal.id);
   assert.equal(local.writes[0]?.expectedVersion, 9);
   assert.equal((await other.getUserProfile()).fullName, "Bob");
+});
+
+test("Profile view keeps legacy local projections readable before a contact email exists", async () => {
+  const local = new FakeLocalSyncStore();
+  const { store } = service(local);
+  const current = local.entities.get("user-a")!;
+  const payload = { ...current.payload };
+  delete payload.contactEmail;
+  local.entities.set("user-a", { ...current, payload });
+  assert.equal((await store.getProfileView()).contactEmail, null);
 });
 
 test("offline Profile update survives restart and remains ready for Outbox replay", async () => {

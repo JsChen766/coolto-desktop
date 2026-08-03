@@ -14,7 +14,7 @@ export function registerProfileIpc(
   stores: () => Promise<ProfileSyncStore>,
   proposals: () => Promise<ProfileProposalService>,
 ): void {
-  ipc.handle("profile:get", async () => (await stores()).getUserProfile());
+  ipc.handle("profile:get", async () => (await stores()).getProfileView());
   ipc.handle("profile:prepare-update", async (_event, value) =>
     (await proposals()).prepareUpdate(profileChanges(value)));
   ipc.handle("profile:prepare-reapply", async (_event, value) =>

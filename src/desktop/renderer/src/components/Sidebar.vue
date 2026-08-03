@@ -2,6 +2,7 @@
 import {
   Ellipsis,
   FileText,
+  IdCard,
   Languages,
   LogOut,
   Moon,
@@ -38,11 +39,13 @@ const emit = defineEmits<{
   rename: [conversation: ConversationSummary];
   delete: [conversation: ConversationSummary];
   toggleTheme: [];
+  openProfile: [trigger: HTMLElement];
   logout: [];
 }>();
 
 const openMenuId = ref<string>();
 const userMenuOpen = ref(false);
+const userMenuTrigger = ref<HTMLButtonElement>();
 
 function toggleConversationMenu(
   event: MouseEvent,
@@ -62,6 +65,12 @@ function closeMenus(): void {
 function toggleLanguage(): void {
   toggleLocale();
   closeMenus();
+}
+
+function openProfile(): void {
+  if (!userMenuTrigger.value) return;
+  closeMenus();
+  emit("openProfile", userMenuTrigger.value);
 }
 
 function runConversationAction(
@@ -193,6 +202,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
         </div>
         <button
           class="user-menu-trigger"
+          ref="userMenuTrigger"
           type="button"
           :aria-label="$t('账户菜单')"
           :title="$t('账户菜单')"
@@ -209,6 +219,14 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
           <button class="menu-row icon-label" type="button" @click="toggleLanguage">
             <Languages :size="16" :stroke-width="1.8" aria-hidden="true" />
             <span>{{ appLocale === "zh-CN" ? $t('切换到英文') : 'Switch to Chinese' }}</span>
+          </button>
+          <button
+            class="menu-row icon-label"
+            type="button"
+            @click="openProfile"
+          >
+            <IdCard :size="16" :stroke-width="1.8" aria-hidden="true" />
+            <span>{{ $t('个人信息') }}</span>
           </button>
           <div class="menu-divider" />
           <button

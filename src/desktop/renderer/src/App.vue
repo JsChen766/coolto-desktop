@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 
 import {
   ApplicationTrackerView,
@@ -13,9 +13,12 @@ import AppChatWorkspace from "./app/AppChatWorkspace.vue";
 import { useAppShell } from "./app/use-app-shell";
 import ResumePreviewChoiceDialog from "./components/ResumePreviewChoiceDialog.vue";
 import CloudResumeCopyDialog from "./components/CloudResumeCopyDialog.vue";
+import ProfileDialog from "./components/ProfileDialog.vue";
 
 const shell = useAppShell();
 const experienceLibraryView = ref<InstanceType<typeof ExperienceLibraryView>>();
+const profileDialogOpen = ref(false);
+const profileTrigger = ref<HTMLElement>();
 const {
   activeView,
   booting,
@@ -82,6 +85,16 @@ function requestPrimaryView(view: "experiences" | "library"): void {
   if (activeView.value === view) return;
   guardNavigation(() => openPrimaryView(view));
 }
+
+function openProfile(trigger: HTMLElement): void {
+  profileTrigger.value = trigger;
+  profileDialogOpen.value = true;
+}
+
+function closeProfile(): void {
+  profileDialogOpen.value = false;
+  void nextTick(() => profileTrigger.value?.focus());
+}
 </script>
 
 <template>
@@ -122,6 +135,7 @@ function requestPrimaryView(view: "experiences" | "library"): void {
       @rename="openDialog('rename', $event)"
       @delete="openDialog('delete', $event)"
       @toggle-theme="toggleTheme"
+      @open-profile="openProfile"
       @logout="guardNavigation(logout)"
     />
     <button
@@ -179,6 +193,11 @@ function requestPrimaryView(view: "experiences" | "library"): void {
       :title="resumeOperationContext.label"
       @close="cloudCopyConfirmation = false"
       @confirm="confirmCloudResumeCopy"
+    />
+    <ProfileDialog
+      v-if="profileDialogOpen"
+      :api="desktopApi"
+      @close="closeProfile"
     />
   </div>
 </template>

@@ -34,7 +34,11 @@ import type {
   ExperienceSearchOptions,
   ExperienceSearchResult,
 } from "../../../api/types.js";
-import type { ProfileContactUpdate, ProfileWriteProposal } from "../../../profile/types.js";
+import type {
+  ProfileContactUpdate,
+  ProfileContactView,
+  ProfileWriteProposal,
+} from "../../../profile/types.js";
 import type {
   ExperienceExecutionResult,
   ExperienceHistoryPage,
@@ -143,7 +147,7 @@ export interface DesktopApi {
     executeProposal(proposalId: string): Promise<ExperienceExecutionResult>;
   };
   profile: {
-    get(): Promise<import("../../../api/types.js").UserProfile>;
+    get(): Promise<ProfileContactView>;
     prepareUpdate(changes: ProfileContactUpdate): Promise<ProfileWriteProposal>;
     prepareReapply(changes: ProfileContactUpdate): Promise<ProfileWriteProposal>;
     prepareAcceptServer(): Promise<ProfileWriteProposal>;

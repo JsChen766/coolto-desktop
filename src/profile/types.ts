@@ -1,6 +1,11 @@
 import type { ResumeContactField, ResumeContactFields } from "../resume/contracts/profile-contact.js";
+import type { UserProfile } from "../api/types.js";
 
 export type ProfileContactUpdate = Partial<ResumeContactFields>;
+
+export interface ProfileContactView extends UserProfile {
+  syncStatus: "clean" | "pending" | "conflict" | "failed";
+}
 
 export interface ProfileWriteProposal {
   id: string;

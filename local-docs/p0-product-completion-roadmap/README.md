@@ -1376,6 +1376,14 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   回读和同一测试资产的 expected-version 软删除均成功；没有回退线上或操作既有测试数据。
 - **范围边界**：本节未开始 D–H；没有实现个人信息弹窗、教育视觉排版、三分钟性能优化或当前预览直接导出。
 
+**S4.5 Section D 完成记录（2026-08-03）**：
+
+- **入口与范围**：左下角账户更多菜单现按已确认顺序显示主题、语言、`个人信息`、退出登录；没有调整其他侧栏项、聊天、预览或生成工作区。个人信息只展示姓名、电话、简历联系邮箱、所在地、LinkedIn、GitHub、个人网站；未加入当前职位、公司或职业偏好字段。宽屏为居中弹窗，`≤820px` 与既有窄屏侧栏断点一致地切换为同内容近全屏布局。
+- **写入与恢复**：读取 IPC 现在提供 Profile 本地 `clean/pending/conflict/failed` 同步状态，旧本地 projection 缺失 `contactEmail` 时明确映射为 `null`，不会阻断既有账号查看或补充资料。编辑先做必填/邮箱/HTTPS URL 字段校验；保存仅先创建既有不可变 Proposal，确认后才写 Outbox。pending 继续显示排队状态；conflict/failed 在弹窗内可见，并分别复用 Section B 的 reapply 和 accept-server Proposal，不建立 Direct 写入或第二套同步机制。
+- **无障碍与本地化**：弹窗使用 `dialog` / `aria-modal`、关联标题/说明与字段错误、焦点陷阱；打开时焦点进入关闭/编辑流程，编辑校验失败时移至第一个错误字段，Esc 关闭后回到账户更多触发器。所有新增文本已接入中英文；深浅主题仅使用现有 token。真实 Electron 验收中临时切换语言和主题后均已恢复原浅色中文设置。
+- **验证证据**：新增 `test/profile-form.test.ts`、`test/profile-dialog-controller.test.ts`，并扩展 Profile Proposal/locale 测试，覆盖必填/选填/URL、旧 projection、Proposal 零写入、pending、conflict、failed/reapply 与中英文。专项 11/11 通过；`npm run check` 通过（339/339 tests、532 个业务源文件均 ≤250 行、Node/Renderer 类型检查和两端构建通过）；`git diff --check` 通过。生产构建 Electron 以本地 Docker 既有登录会话复核入口、查看/编辑、字段校验、Proposal 审阅后取消、Esc、焦点进入/返回、ARIA、深浅主题、中英文、窄屏与 200% 缩放无横向溢出；未确认 Proposal，未写入或修改用户资料。截图证据：`s4.5-section-d-profile-wide.png`、`s4.5-section-d-profile-narrow.png`（同目录）。
+- **范围边界**：Section D 到此完成；未开始 E–H，也未执行任何生成、模板、性能或直接导出改动。本轮未 commit、未 push。
+
 ### S5：全产品联调与性能验收
 
 **实施内容**：对 P1–P4、J0–J3、E0–E6 和 S3–S4.5 统一执行真实账号主路径、失败恢复、双设备冲突、

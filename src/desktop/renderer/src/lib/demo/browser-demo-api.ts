@@ -72,7 +72,7 @@ export function createBrowserDemoApi(): DesktopApi {
         location: null, linkedinUrl: null, githubUrl: null, personalWebsite: null,
         currentTitle: null, currentCompany: null, yearsOfExperience: null,
         careerStage: null, targetRoles: [], targetIndustries: [], targetLocations: [],
-        preferredLanguage: "zh-CN", resumeStyle: null }),
+        preferredLanguage: "zh-CN", resumeStyle: null, syncStatus: "clean" }),
       prepareUpdate: async () => { throw new Error("Demo 不支持个人资料维护"); },
       prepareReapply: async () => { throw new Error("Demo 不支持个人资料维护"); },
       prepareAcceptServer: async () => { throw new Error("Demo 不支持个人资料维护"); },

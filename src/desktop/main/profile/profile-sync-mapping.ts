@@ -13,7 +13,7 @@ const CONTACT_KEYS = [
 export function toUserProfile(entity: LocalEntity): UserProfile {
   const payload = entity.payload;
   return {
-    fullName: nullable(payload.fullName), contactEmail: nullable(payload.contactEmail), email: null,
+    fullName: nullable(payload.fullName), contactEmail: nullableLegacy(payload.contactEmail), email: null,
     phone: nullable(payload.phone), location: nullable(payload.location),
     linkedinUrl: nullable(payload.linkedinUrl), githubUrl: nullable(payload.githubUrl),
     personalWebsite: nullable(payload.personalWebsite), currentTitle: nullable(payload.currentTitle),
@@ -58,6 +58,10 @@ function nullable(value: unknown): string | null {
   if (value === null) return null;
   if (typeof value === "string") return value;
   throw new Error("Profile 同步投影字段无效");
+}
+
+function nullableLegacy(value: unknown): string | null {
+  return value === undefined ? null : nullable(value);
 }
 
 function nullableNumber(value: unknown): number | null {

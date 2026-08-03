@@ -31,6 +31,7 @@ import "./styles/experience-library-maintenance.css";
 import "./styles/experience-import.css";
 import "./styles/experience-history.css";
 import "./styles/experience-library-responsive.css";
+import "./styles/profile-dialog.css";
 
 initializeLocale();
 const app = createApp(App);

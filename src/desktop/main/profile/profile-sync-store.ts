@@ -1,4 +1,5 @@
 import type { UserProfile, UserProfileReader } from "../../../api/types.js";
+import type { ProfileContactView } from "../../../profile/types.js";
 import { createUuidV7 } from "../../../sync/uuid-v7.js";
 import type { LocalEntity } from "../sync/local-sync-types.js";
 import type { LocalSyncStore } from "../sync/local-sync-store.js";
@@ -15,6 +16,12 @@ export class ProfileSyncStore implements UserProfileReader {
   public async getUserProfile(_signal?: AbortSignal): Promise<UserProfile> {
     await this.initialSync();
     return toUserProfile(this.currentEntity());
+  }
+
+  public async getProfileView(): Promise<ProfileContactView> {
+    await this.initialSync();
+    const entity = this.currentEntity();
+    return { ...toUserProfile(entity), syncStatus: entity.syncStatus };
   }
 
   public currentEntity(): LocalEntity {
