@@ -25,6 +25,8 @@ export interface ExperienceSummary {
   startDate: string | null;
   endDate: string | null;
   tags: string[];
+  resumeSectionKey?: string | null;
+  resumeSectionLabel?: string | null;
   status: "active" | "archived";
   currentRevisionId: string | null;
   currentRevision?: ExperienceRevision;
@@ -53,6 +55,8 @@ export interface ExperienceSearchOptions {
   q?: string;
   category?: ExperienceCategory;
   tags?: string[];
+  resumeSectionKey?: string;
+  resumeSectionLabel?: string;
   status?: "active" | "archived";
   limit?: number;
   cursor?: string;
@@ -88,6 +92,8 @@ export interface ExperienceCreateInput {
   startDate?: string;
   endDate?: string;
   tags?: string[];
+  resumeSectionKey?: string | null;
+  resumeSectionLabel?: string | null;
   status?: "active" | "archived";
   idempotencyKey?: string;
 }
@@ -102,6 +108,8 @@ export interface ExperienceUpdateInput {
   startDate?: string | null;
   endDate?: string | null;
   tags?: string[];
+  resumeSectionKey?: string | null;
+  resumeSectionLabel?: string | null;
   status?: "active" | "archived";
 }
 

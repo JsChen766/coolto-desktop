@@ -33,6 +33,8 @@ export function proposalSnapshot(
     startDate: detail.startDate,
     endDate: detail.endDate,
     tags: [...detail.tags],
+    resumeSectionKey: detail.resumeSectionKey ?? null,
+    resumeSectionLabel: detail.resumeSectionLabel ?? null,
     status: detail.status,
     revisionId: revision.id,
     revisionHash: revision.revisionHash ?? hash(revision.content),
@@ -86,6 +88,8 @@ export function changesFrom(detail: ExperienceDetail): ExperienceUpdateInput {
     startDate: detail.startDate,
     endDate: detail.endDate,
     tags: [...detail.tags],
+    resumeSectionKey: detail.resumeSectionKey ?? null,
+    resumeSectionLabel: detail.resumeSectionLabel ?? null,
     status: detail.status,
   };
 }
@@ -101,6 +105,8 @@ export function createInput(detail: ExperienceDetail): ExperienceCreateInput {
     ...(detail.startDate !== null ? { startDate: detail.startDate } : {}),
     ...(detail.endDate !== null ? { endDate: detail.endDate } : {}),
     tags: [...detail.tags],
+    ...(detail.resumeSectionKey ? { resumeSectionKey: detail.resumeSectionKey } : {}),
+    ...(detail.resumeSectionLabel ? { resumeSectionLabel: detail.resumeSectionLabel } : {}),
     status: detail.status,
   };
 }

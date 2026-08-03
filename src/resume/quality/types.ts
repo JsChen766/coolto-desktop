@@ -7,7 +7,8 @@ export type ResumeQualityIssueCode =
   | "unsupported_responsibility_claim"
   | "unsupported_technology_claim"
   | "layout_violation"
-  | "missing_experience_content";
+  | "missing_experience_content"
+  | "unbound_additional_content";
 
 export interface ResumeQualityIssue {
   code: ResumeQualityIssueCode;

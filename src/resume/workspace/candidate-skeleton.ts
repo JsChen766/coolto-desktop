@@ -6,23 +6,7 @@ import type {
 } from "../types.js";
 import { ResumeWorkspaceError } from "./errors.js";
 import type { ResumeCandidateLanguage } from "./types.js";
-
-const HEADINGS = {
-  "zh-CN": {
-    education: "教育经历",
-    experience: "工作经历",
-    project: "项目经历",
-    skills: "专业技能",
-    skillItem: "技术与工具",
-  },
-  "en-US": {
-    education: "EDUCATION",
-    experience: "WORK EXPERIENCE",
-    project: "PROJECT EXPERIENCE",
-    skills: "PROFESSIONAL SKILLS",
-    skillItem: "Technology & Tools",
-  },
-} as const;
+import { resumeSectionRegistry } from "./section-registry.js";
 
 export function buildResumeSkeleton(
   snapshot: ResumeSourceSnapshot,
@@ -37,53 +21,9 @@ export function buildResumeSkeleton(
       "Resume generation requires at least one selected education experience.",
     );
   }
-  const unsupported = ordered.find(
-    (experience) => !["education", "work", "project"].includes(experience.category),
+  const sections = resumeSectionRegistry(ordered, language).map((definition) =>
+    createSection(definition.id, definition.type, definition.heading, definition.experiences),
   );
-  if (unsupported) {
-    throw new ResumeWorkspaceError(
-      "unsupported_experience_category",
-      `Experience ${unsupported.id} has unsupported resume category ${unsupported.category}.`,
-    );
-  }
-  const headings = HEADINGS[language];
-  const sections: ResumeSection[] = [
-    createSection("section-education", "education", headings.education, education),
-  ];
-  const work = ordered.filter((experience) => experience.category === "work");
-  if (work.length) {
-    sections.push(
-      createSection("section-experience", "experience", headings.experience, work),
-    );
-  }
-  const projects = ordered.filter((experience) => experience.category === "project");
-  if (projects.length) {
-    sections.push(
-      createSection("section-project", "project", headings.project, projects),
-    );
-  }
-  const tags = uniqueTags(ordered);
-  if (tags.length) {
-    sections.push({
-      id: "section-skills",
-      type: "skills",
-      heading: headings.skills,
-      items: [
-        {
-          id: "item-skills",
-          title: headings.skillItem,
-          organization: null,
-          role: null,
-          location: null,
-          start_date: null,
-          end_date: null,
-          source_experience_id: null,
-          bullets: [],
-          raw_text: tags.join(language === "zh-CN" ? "、" : ", "),
-        },
-      ],
-    });
-  }
   return {
     language,
     contact: {
@@ -150,18 +90,4 @@ function createItem(experience: ResumeSourceExperienceSnapshot): ResumeSectionIt
     bullets: [],
     raw_text: null,
   };
-}
-
-function uniqueTags(experiences: readonly ResumeSourceExperienceSnapshot[]): string[] {
-  const seen = new Set<string>();
-  const tags: string[] = [];
-  for (const tag of experiences.flatMap((experience) => [...experience.tags])) {
-    const cleaned = tag.trim();
-    const key = cleaned.toLocaleLowerCase();
-    if (cleaned && !seen.has(key)) {
-      seen.add(key);
-      tags.push(cleaned);
-    }
-  }
-  return tags;
 }

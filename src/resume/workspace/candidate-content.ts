@@ -1,6 +1,6 @@
 import type { ResumeStructure } from "../types.js";
 
-const BULLET_REQUIRED_SECTIONS = new Set(["experience", "project"]);
+const BULLET_REQUIRED_SECTIONS = new Set(["experience", "project", "other", "skills"]);
 
 export function unwrittenExperienceItemIds(
   structure: ResumeStructure,

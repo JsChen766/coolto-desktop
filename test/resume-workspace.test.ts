@@ -27,11 +27,10 @@ test("preparer creates the fixed resume skeleton and returns a real pixel budget
   assert.equal(workspace.status, "writing");
   assert.deepEqual(
     workspace.structure.sections.map((section) => section.heading),
-    ["教育经历", "工作经历", "专业技能"],
+    ["教育经历", "工作经历"],
   );
   assert.equal(workspace.structure.sections[0]?.items[0]?.id, "item-edu-1");
   assert.equal(workspace.structure.sections[1]?.items[0]?.id, "item-work-1");
-  assert.equal(workspace.structure.sections[2]?.items[0]?.raw_text, "Python、数据分析");
   assert.equal(workspace.structure.layout_template_id, "resume-standard");
   assert.equal(compiler.structures.length, 1);
   assert.equal(projection.budget.pxToMinimum, 200);

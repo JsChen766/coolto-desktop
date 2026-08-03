@@ -27,6 +27,8 @@ export interface ExperienceProposalSnapshot {
   startDate: string | null;
   endDate: string | null;
   tags: string[];
+  resumeSectionKey: string | null;
+  resumeSectionLabel: string | null;
   status: "active" | "archived";
   revisionId: string;
   revisionHash: string;

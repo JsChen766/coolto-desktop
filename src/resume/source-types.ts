@@ -55,10 +55,13 @@ export interface ResumeSourceExperienceSnapshot {
   startDate: string | null;
   endDate: string | null;
   tags: readonly string[];
+  resumeSectionKey: string | null;
+  resumeSectionLabel: string | null;
   revisionId: string;
   serverRevisionHash: string | null;
   contentHash: string;
   content: string;
+  createdAt?: string;
   updatedAt: string;
 }
 

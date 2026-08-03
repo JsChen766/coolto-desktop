@@ -1,5 +1,6 @@
 import type { ResumeSourceSnapshot } from "./source-types.js";
 import { rankAvailableEvidence } from "./quality/evidence-candidates.js";
+import { collectSkillHints } from "./workspace/section-registry.js";
 
 /**
  * Model-facing projection of an immutable snapshot. It keeps the complete
@@ -30,10 +31,14 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
       startDate: experience.startDate,
       endDate: experience.endDate,
       tags: experience.tags,
+      resumeSectionKey: experience.resumeSectionKey,
+      resumeSectionLabel: experience.resumeSectionLabel,
       revisionId: experience.revisionId,
       revisionContentHash: experience.contentHash,
       content: experience.content,
+      createdAt: experience.createdAt ?? null,
     })),
+    skillHints: collectSkillHints(snapshot.experiences),
     availableEvidence: rankAvailableEvidence(snapshot, []),
     template: snapshot.template,
     evidenceInstructions: {

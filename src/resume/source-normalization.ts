@@ -11,6 +11,7 @@ import type {
 import { ResumeSourceSnapshotError } from "./source-snapshot-error.js";
 import { sha256, stableStringify } from "./stable-snapshot.js";
 import { experienceEvidenceEligibility } from "../experience/evidence-eligibility.js";
+import { normalizeResumeSection } from "./contracts/section-contract.js";
 
 export function normalizeSourceProfile(
   userId: string,
@@ -107,6 +108,11 @@ export function normalizeSourceExperience(
       `Experience ${experience.id} current revision is empty.`,
     );
   }
+  const section = normalizeResumeSection({
+    coreCategory: experience.category,
+    sectionKey: experience.resumeSectionKey ?? null,
+    sectionLabel: experience.resumeSectionLabel ?? null,
+  });
   return {
     id: experience.id,
     category: experience.category,
@@ -117,10 +123,13 @@ export function normalizeSourceExperience(
     startDate: cleanOptional(experience.startDate),
     endDate: cleanOptional(experience.endDate),
     tags: [...experience.tags],
+    resumeSectionKey: section.sectionKey,
+    resumeSectionLabel: section.sectionLabel,
     revisionId: revision.id,
     serverRevisionHash: cleanOptional(revision.revisionHash),
     contentHash: sha256(revision.content),
     content: revision.content,
+    createdAt: experience.createdAt,
     updatedAt: experience.updatedAt,
   };
 }

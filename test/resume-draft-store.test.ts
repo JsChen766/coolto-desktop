@@ -176,7 +176,7 @@ test("AI proposals stay reversible until accepted and create local history on ac
 
     const rawTextProposal = await editor.edit(
       accepted.workspace,
-      { type: "raw_text", itemId: "item-skills" },
+      { type: "raw_text", itemId: "item-edu-1" },
       "Python、TypeScript、数据分析与产品需求拆解",
     );
     const pendingRawText = await drafts.proposeChange({

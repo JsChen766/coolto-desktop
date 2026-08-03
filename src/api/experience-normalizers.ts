@@ -96,6 +96,8 @@ export function normalizeExperienceSummary(
     startDate: nullableString(record.startDate, `${path}.startDate`),
     endDate: nullableString(record.endDate, `${path}.endDate`),
     tags: stringArray(record.tags, `${path}.tags`),
+    resumeSectionKey: optionalNullableString(record.resumeSectionKey, `${path}.resumeSectionKey`),
+    resumeSectionLabel: optionalNullableString(record.resumeSectionLabel, `${path}.resumeSectionLabel`),
     status,
     currentRevisionId: nullableString(
       record.currentRevisionId,
@@ -114,6 +116,10 @@ export function normalizeExperienceSummary(
     entityVersion: requiredPositiveInteger(record.entityVersion, `${path}.entityVersion`),
     deletedAt: nullableString(record.deletedAt, `${path}.deletedAt`),
   };
+}
+
+function optionalNullableString(value: unknown, path: string): string | null {
+  return value === undefined ? null : nullableString(value, path);
 }
 
 export function normalizeExperienceRevision(

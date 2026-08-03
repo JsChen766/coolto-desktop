@@ -46,6 +46,12 @@ export function createPrepareExperienceImportTool(
         normalizeImportCandidate(
           {
             ...candidate,
+            ...(candidate.resumeSection
+              ? {
+                  resumeSectionKey: candidate.resumeSection.key,
+                  resumeSectionLabel: candidate.resumeSection.label,
+                }
+              : {}),
             tags: candidate.tags ?? [],
           },
           `candidate-${index + 1}`,

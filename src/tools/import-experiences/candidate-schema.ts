@@ -35,4 +35,8 @@ export const importCandidateSchema = Type.Object({
       maxItems: 20,
     }),
   ),
+  resumeSection: Type.Optional(Type.Object({
+    key: Type.String({ minLength: 1, maxLength: 64 }),
+    label: Type.String({ minLength: 1, maxLength: 120 }),
+  })),
 });

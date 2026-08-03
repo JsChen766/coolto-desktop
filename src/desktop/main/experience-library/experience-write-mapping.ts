@@ -5,6 +5,7 @@ import type {
   ExperienceUpdateInput,
 } from "../../../api/types.js";
 import type { LocalEntity } from "../sync/local-sync-types.js";
+import { normalizeResumeSection } from "../../../resume/contracts/section-contract.js";
 
 export interface ExperienceMutation {
   writePayload: Record<string, unknown>;
@@ -29,11 +30,20 @@ export function buildExperienceUpdate(
     startDate: field(changes, "startDate", current.startDate),
     endDate: field(changes, "endDate", current.endDate),
     tags: changes.tags ?? current.tags,
+    resumeSectionKey: field(changes, "resumeSectionKey", current.resumeSectionKey ?? null),
+    resumeSectionLabel: field(changes, "resumeSectionLabel", current.resumeSectionLabel ?? null),
     status: changes.status ?? current.status,
   };
+  const section = normalizeResumeSection({
+    coreCategory: next.category,
+    sectionKey: next.resumeSectionKey,
+    sectionLabel: next.resumeSectionLabel,
+  });
   const writePayload = {
     revisionId,
     ...next,
+    resumeSectionKey: section.sectionKey,
+    resumeSectionLabel: section.sectionLabel,
     source: "manual",
   };
   const localPayload: Record<string, unknown> = {
@@ -46,6 +56,8 @@ export function buildExperienceUpdate(
     startDate: next.startDate,
     endDate: next.endDate,
     tags: [...next.tags],
+    resumeSectionKey: section.sectionKey,
+    resumeSectionLabel: section.sectionLabel,
     status: next.status,
     updatedAt: now,
   };

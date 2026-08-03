@@ -6,6 +6,7 @@ import type {
   ExperienceRevision,
 } from "../../../api/types.js";
 import type { LocalEntity } from "../sync/local-sync-types.js";
+import { normalizeResumeSection } from "../../../resume/contracts/section-contract.js";
 
 const FACT_BANK_NOT_APPLICABLE = "not_applicable";
 
@@ -18,6 +19,7 @@ export function toExperienceWritePayload(
   input: ExperienceCreateInput,
   revisionId: string,
 ): Record<string, unknown> {
+  const section = sectionFor(input);
   return {
     revisionId,
     category: input.category,
@@ -29,6 +31,8 @@ export function toExperienceWritePayload(
     startDate: input.startDate ?? null,
     endDate: input.endDate ?? null,
     tags: input.tags ?? [],
+    resumeSectionKey: section.sectionKey,
+    resumeSectionLabel: section.sectionLabel,
     status: input.status ?? "active",
     source: "manual",
   };
@@ -45,6 +49,7 @@ export function buildLocalExperience(
   input: ExperienceCreateInput,
   now: string,
 ): Record<string, unknown> {
+  const section = sectionFor(input);
   return {
     id,
     category: input.category,
@@ -55,6 +60,8 @@ export function buildLocalExperience(
     startDate: input.startDate ?? null,
     endDate: input.endDate ?? null,
     tags: input.tags ?? [],
+    resumeSectionKey: section.sectionKey,
+    resumeSectionLabel: section.sectionLabel,
     status: input.status ?? "active",
     currentRevisionId: revisionId,
     currentRevision: {
@@ -71,6 +78,14 @@ export function buildLocalExperience(
   };
 }
 
+function sectionFor(input: ExperienceCreateInput) {
+  return normalizeResumeSection({
+    coreCategory: input.category,
+    sectionKey: input.resumeSectionKey ?? null,
+    sectionLabel: input.resumeSectionLabel ?? null,
+  });
+}
+
 /** Map a local sync entity (local or server projection payload) to a detail. */
 export function toExperienceDetail(entity: LocalEntity): ExperienceDetail {
   const payload = entity.payload;
@@ -85,6 +100,8 @@ export function toExperienceDetail(entity: LocalEntity): ExperienceDetail {
     startDate: nullableStr(payload.startDate),
     endDate: nullableStr(payload.endDate),
     tags: strArray(payload.tags),
+    resumeSectionKey: nullableStr(payload.resumeSectionKey),
+    resumeSectionLabel: nullableStr(payload.resumeSectionLabel),
     status: (payload.status === "archived" ? "archived" : "active"),
     currentRevisionId: nullableStr(payload.currentRevisionId),
     ...(currentRevision ? { currentRevision } : {}),

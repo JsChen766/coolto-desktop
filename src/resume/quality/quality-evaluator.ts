@@ -26,6 +26,7 @@ export class ResumeQualityEvaluator {
     const duplicates = findNearDuplicatePairs(bullets);
     const requirementQuality = calculateRequirementQuality(snapshot, bindings);
     const issues: ResumeQualityIssue[] = [
+      ...unboundAdditionalContent(structure),
       ...findUnsupportedClaims(snapshot, bindings),
       ...duplicates.map(({ bulletIds, similarity }) => ({
         code: "near_duplicate_bullet" as const,
@@ -92,6 +93,20 @@ export class ResumeQualityEvaluator {
         .filter((bulletId) => !targeted.has(bulletId)),
     };
   }
+}
+
+function unboundAdditionalContent(structure: ResumeStructure): ResumeQualityIssue[] {
+  return structure.sections
+    .filter((section) => section.type === "other" || section.type === "skills")
+    .flatMap((section) => section.items)
+    .filter((item) => Boolean(item.raw_text?.trim()))
+    .map((item) => ({
+      code: "unbound_additional_content" as const,
+      message: `Additional item ${item.id} must use evidence-bound bullets, not raw text.`,
+      repairable: false,
+      priority: 1,
+      itemId: item.id,
+    }));
 }
 
 function replayEvidence(

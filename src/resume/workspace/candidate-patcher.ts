@@ -9,6 +9,7 @@ import type {
 } from "./types.js";
 import { ResumeWorkspaceStore } from "./workspace-store.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
+import { degradeAdditionalSections } from "./section-space-policy.js";
 
 const MAX_PATCH_COUNT = 40;
 
@@ -44,12 +45,18 @@ export class ResumeCandidatePatcher {
       current.bindings,
       input.operations,
     );
-    const compileResult = await this.compiler.compile(patched.structure);
+    const overflow = await this.compiler.compile(patched.structure);
+    const degraded = hasOverflow(overflow)
+      ? degradeAdditionalSections(patched.structure, patched.bindings)
+      : { ...patched, removedSectionIds: [] };
+    const compileResult = degraded.removedSectionIds.length
+      ? await this.compiler.compile(degraded.structure)
+      : overflow;
     const revision = current.revision + 1;
     const candidateSnapshot: ResumeCandidateSnapshot = {
       revision,
-      structure: structuredClone(patched.structure),
-      bindings: structuredClone(patched.bindings),
+      structure: structuredClone(degraded.structure),
+      bindings: structuredClone(degraded.bindings),
       compileResult: structuredClone(compileResult),
     };
     const bestSnapshot = isBetterCandidate(
@@ -63,13 +70,19 @@ export class ResumeCandidatePatcher {
         ...current,
         revision,
         patchCount: current.patchCount + 1,
-        status: deriveWorkspaceStatus(compileResult, patched.structure),
-        structure: patched.structure,
-        bindings: patched.bindings,
+        status: deriveWorkspaceStatus(compileResult, degraded.structure),
+        structure: degraded.structure,
+        bindings: degraded.bindings,
         compileResult,
         bestSnapshot,
       },
       input.expectedRevision,
     );
   }
+}
+
+function hasOverflow(result: ResumeWorkspace["compileResult"]): boolean {
+  return result.violations.some((violation) =>
+    violation.code === "page_overflow" || violation.code === "multiple_pages",
+  );
 }

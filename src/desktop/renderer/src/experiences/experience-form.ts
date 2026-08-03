@@ -163,6 +163,8 @@ function snapshot(draft: ExperienceFormDraft): ExperienceProposalSnapshot {
     startDate: value.startDate,
     endDate: value.endDate,
     tags: value.tags,
+    resumeSectionKey: null,
+    resumeSectionLabel: null,
     status: value.status,
     revisionId: "form-revision",
     revisionHash: "form-revision-hash",

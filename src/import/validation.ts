@@ -3,6 +3,7 @@ import type {
   ExperienceCreateInput,
 } from "../api/types.js";
 import type { ExperienceImportCandidate } from "./types.js";
+import { normalizeResumeSection } from "../resume/contracts/section-contract.js";
 
 const CATEGORIES = new Set<ExperienceCategory>([
   "work",
@@ -25,6 +26,11 @@ export function normalizeImportCandidate(
     throw new Error(`不支持的经历类别：${String(input.category)}`);
   }
 
+  const section = normalizeResumeSection({
+    coreCategory: input.category,
+    sectionKey: input.resumeSectionKey ?? null,
+    sectionLabel: input.resumeSectionLabel ?? null,
+  });
   return {
     clientId,
     category: input.category,
@@ -49,6 +55,8 @@ export function normalizeImportCandidate(
       0,
       20,
     ),
+    ...(section.sectionKey ? { resumeSectionKey: section.sectionKey } : {}),
+    ...(section.sectionLabel ? { resumeSectionLabel: section.sectionLabel } : {}),
   };
 }
 

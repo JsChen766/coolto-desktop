@@ -186,7 +186,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | E5 | 版本记录 | 在线分页历史、pending 本地版本说明和恢复为新 revision | ✅ 已完成 |
 | E6 | 经历仓库验收 | Electron + Docker、离线、冲突、日期、可访问性、跨账号与性能回归 | ✅ 已完成 |
 | S4 | Tracker 业务闭环 | 独立接入 Interview、Note、Reminder、状态历史与本地通知 | ✅ 已完成 |
-| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、三分钟生成目标与预览直接导出 | 待确认后执行 |
+| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、三分钟生成目标与预览直接导出 | Section A–C 已完成；D–H 未开始 |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
 | R1 | 生产上线准备 | 邮件、限流、域名、备份、监控、密钥、发布与回滚 | 功能路线完成后执行 |
 
@@ -1345,6 +1345,36 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   网络/GPU/renderer；只使用 `http://127.0.0.1:8080` 的本地 Docker 登录、Profile 和 bootstrap 验收，未修改既有开发账号资料。
 - **范围边界**：本节未开始 Section C–H；左下角“个人信息”弹窗属于已确认但尚未实施的 Section D，当前手工修改
   通过受限 IPC/Proposal 链提供，不能绕过同步约束。
+
+**S4.5 Section C 完成记录（2026-08-03）**：
+
+- **前置复核**：开始前复读 AGENTS、正式 S4.5、用户确认、Section A–C 与上游 G1–G7；工作树最初无本节外
+  改动，Section A/B 已有真实完成记录及本地 Docker 证据。本节按用户最新确认采用固定顺序，不实现旧方案中
+  预留的手工拖拽或聊天重排。
+- **开放而兼容的领域契约**：五种既有 `Experience.category` 不变；仅 `other` 可保存成对的
+  `resumeSectionKey` / `resumeSectionLabel`，key 统一为小写 kebab-case（`^[a-z][a-z0-9-]{0,63}$`），label
+  去首尾空白且限 1–120 个 Unicode 字符。缺一、空值、核心 category 携带自定义 section 与非法 key 均
+  fail-closed；没有这对字段的历史 `other` 保持可读写并映射为 null，纯 section 元数据更新不制造正文 revision。
+  后端 migration `00011_experience_resume_sections.sql` 以可空字段和对应 check 约束完成旧数据迁移。
+- **声明式 registry 与固定编排**：`section-registry` 集中声明教育、工作/实习、项目、开放附加 section、技能五个
+  区间；未知合法 key 走通用开放 section，不需要 central switch。核心区间保持既有类别顺序；附加 section 按最早
+  `Experience.createdAt`（无该旧字段时稳定保留输入顺序）确定初次相对顺序，技能恒为最后。没有手工排序状态；
+  空 section 不输出。
+- **导入、同步与可追溯技能**：附件导入 schema、validation、Proposal、LocalSyncStore/Outbox、后端
+  HTTP/OpenAPI/sync projection 与 Bootstrap/Pull 均携带规范字段，仍没有 Direct 写入。技能必须是显式
+  `other + skills` 事实；tag 只在其确实出现于该经历正文时作为同源提示参与 NFKC、大小写无关的确定性去重，
+  不会单独渲染为技能或根据 JD 编造。没有这样的 source fact 时不生成技能 section，也不阻断生成。
+- **snapshot、EvidenceLedger 与降级**：source snapshot 保留 section 元数据和创建时间；附加/技能条目必须由
+  带 quote/offset 的 evidence binding 生成 bullet。质量审查将 `other`/`skills` 的 `raw_text` 标为不可修复问题，
+  renderer 同样 fail-closed，不能借 raw text 绕过 EvidenceLedger。空间溢出时只按固定删除优先级整段删除：先技能、
+  再按 registry 顺序删除附加 section；教育、工作/实习、项目及已有 bullet 不截断、不伪造，内容不足允许留白。
+- **验证证据**：新增专项覆盖论文、奖项、证书、研究、社团、显式技能、未知 section、旧 `other`、成对字段校验、
+  tag 去重、无 evidence 拒绝、固定排序和空间降级；`npm run check:source-lines`（528 个业务源文件均 ≤250 行）和
+  `npm run check` 全部通过（334/334 tests、Node/Renderer 类型检查及生产构建通过）。后端 `make check`、`make test`
+  与 migration 状态均通过（仅保留未触及的既有 224/222 行目标提示）。本机 Docker API 在
+  `http://127.0.0.1:8080` 重建后，health、携带 `research-papers`/`Research Papers` 的 sync create、bootstrap
+  回读和同一测试资产的 expected-version 软删除均成功；没有回退线上或操作既有测试数据。
+- **范围边界**：本节未开始 D–H；没有实现个人信息弹窗、教育视觉排版、三分钟性能优化或当前预览直接导出。
 
 ### S5：全产品联调与性能验收
 

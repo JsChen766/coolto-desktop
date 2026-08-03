@@ -47,6 +47,7 @@ export interface ResumeSectionItem {
 export interface ResumeSection {
   id: string;
   type: ResumeSectionType;
+  section_key?: string;
   heading: string | null;
   items: ResumeSectionItem[];
 }
