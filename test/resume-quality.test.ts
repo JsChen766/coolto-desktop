@@ -9,6 +9,7 @@ import { ResumeCandidateReviewer } from "../src/resume/quality/candidate-reviewe
 import { rankAvailableEvidence } from "../src/resume/quality/evidence-candidates.js";
 import { ResumeQualityEvaluator } from "../src/resume/quality/quality-evaluator.js";
 import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../src/resume/template-contract.js";
+import { resolveEvidenceBindingInputs } from "../src/resume/workspace/evidence-resolution.js";
 import { ResumeCandidatePatcher } from "../src/resume/workspace/candidate-patcher.js";
 import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceError } from "../src/resume/workspace/errors.js";
@@ -36,7 +37,7 @@ test("quality review detects a near duplicate and bounded alternatives select th
     services.patcher.patch({
       candidateId: reviewed.candidateId,
       expectedRevision: 0,
-      operations: [{ op: "remove_bullet", bulletId: "bullet-2" }],
+      operations: [{ op: "remove_bullet", bulletId: "bl-1" }],
     }),
     (error: unknown) =>
       error instanceof ResumeWorkspaceError &&
@@ -55,7 +56,7 @@ test("quality review detects a near duplicate and bounded alternatives select th
             operations: [
               {
                 op: "replace_bullet",
-                bulletId: "bullet-2",
+                bulletId: "bl-1",
                 binding: services.duplicateSecond,
               },
             ],
@@ -65,7 +66,7 @@ test("quality review detects a near duplicate and bounded alternatives select th
             operations: [
               {
                 op: "replace_bullet",
-                bulletId: "bullet-2",
+                bulletId: "bl-1",
                 binding: services.distinctSecond,
               },
             ],
@@ -78,7 +79,7 @@ test("quality review detects a near duplicate and bounded alternatives select th
   assert.equal(repaired.status, "ready_for_approval");
   assert.equal(repaired.repairRound, 1);
   assert.equal(repaired.qualityReport?.passed, true);
-  assert.deepEqual(repaired.repairHistory[0]?.changedBulletIds, ["bullet-2"]);
+  assert.deepEqual(repaired.repairHistory[0]?.changedBulletIds, ["bl-1"]);
   assert.equal(repaired.repairHistory[0]?.candidatesCompiled, 2);
   assert.equal(repaired.structure.quality_status, "passed");
 });
@@ -184,7 +185,7 @@ test("quality alternatives stop after three unsuccessful repair rounds", async (
               operations: [
                 {
                   op: "replace_bullet",
-                  bulletId: "bullet-2",
+                  bulletId: "bl-1",
                   binding: services.duplicateSecond,
                 },
               ],
@@ -218,12 +219,17 @@ test("available evidence preserves offsets and excludes consumed ranges", async 
   const consumed = createBinding(
     snapshot,
     "bullet-1",
-    "使用 Python 清洗运营数据。",
+    "使用 Python 清洗运营数据产品。",
   );
-  const available = rankAvailableEvidence(snapshot, [consumed]);
+  const available = rankAvailableEvidence(
+    snapshot,
+    resolveEvidenceBindingInputs(snapshot, [consumed], (index) => `bl-${index}`),
+  );
 
   assert.equal(
-    available.some((candidate) => candidate.sourceQuote === "使用 Python 清洗运营数据。"),
+    available.some(
+      (candidate) => candidate.sourceQuote === "使用 Python 清洗运营数据产品。",
+    ),
     false,
   );
   for (const candidate of available) {
@@ -272,7 +278,7 @@ async function createDuplicateCandidate() {
     snapshot,
     "bullet-2",
     "为 3 个团队建立周度报表。",
-    "使用 Python 清洗运营数据。",
+    "使用 Python 清洗运营数据产品。",
   );
   const distinctSecond = createBinding(
     snapshot,
@@ -287,7 +293,7 @@ async function createDuplicateCandidate() {
     experienceIds: ["edu-1", "work-1"],
     language: "zh-CN",
     initialBindings: [
-      createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。"),
+      createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据产品。"),
       duplicateSecond,
     ],
   });

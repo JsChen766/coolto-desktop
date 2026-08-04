@@ -3,9 +3,9 @@ import { rankAvailableEvidence } from "./quality/evidence-candidates.js";
 import { collectSkillHints } from "./workspace/section-registry.js";
 
 /**
- * Model-facing projection of an immutable snapshot. It keeps the complete
- * current source text and stable IDs, while excluding historical revisions and
- * unrelated profile fields.
+ * Model-facing projection of an immutable snapshot. The immutable snapshot and
+ * EvidenceLedger keep full source text; the model receives a compact, balanced
+ * set of exact excerpts for every selected source item.
  */
 export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): object {
   return {
@@ -35,8 +35,7 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
       resumeSectionLabel: experience.resumeSectionLabel,
       revisionId: experience.revisionId,
       revisionContentHash: experience.contentHash,
-      content: experience.content,
-      createdAt: experience.createdAt ?? null,
+      plannedBullets: plannedBulletsFor(experience.category),
     })),
     skillHints: collectSkillHints(snapshot.experiences),
     availableEvidence: rankAvailableEvidence(snapshot, []),
@@ -44,9 +43,17 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
     evidenceInstructions: {
       offsetEncoding: "UTF-16",
       quoteRule:
-        "Copy sourceQuote/sourceStart/sourceEnd from availableEvidence exactly; do not recalculate offsets manually.",
+        "Copy evidenceId values from availableEvidence exactly; never construct, extend, or compute ranges.",
       truthRule:
         "Do not add numbers, technologies, scope, ownership, or results absent from the cited source text.",
+      draftPlanRule:
+        "Round 1 initialBindings must follow plannedBullets per experience (education 2, work 4, project 3) and write each bullet about 1.7–2 lines so the first draft already approaches the 85% page target; the workspace instruction gives the precise character target after the first compile.",
     },
   };
+}
+
+export function plannedBulletsFor(category: string): number {
+  if (category === "work") return 4;
+  if (category === "project") return 3;
+  return 2;
 }

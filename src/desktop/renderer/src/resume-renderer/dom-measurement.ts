@@ -11,6 +11,7 @@ export interface ResumeDomMeasurement {
   usedHeightPx: number;
   availableHeightPx: number;
   bodyLineHeightPx: number;
+  bodyFontSizePx: number;
   usageRatio: number;
   bullets: ResumeBulletMeasurement[];
   violations: ResumeCompileViolation[];
@@ -44,6 +45,7 @@ export function measureResumeDom(
       usedHeightPx: 0,
       availableHeightPx: 0,
       bodyLineHeightPx: measureBodyLineHeight(page),
+      bodyFontSizePx: measureBodyFontSize(page),
       usageRatio: 0,
       bullets: [],
       violations: [
@@ -56,6 +58,7 @@ export function measureResumeDom(
   }
   const availableHeightPx = box.clientHeight;
   const bodyLineHeightPx = measureBodyLineHeight(page);
+  const bodyFontSizePx = measureBodyFontSize(content);
   const contentTop = box.getBoundingClientRect().top;
   const usedHeightPx = lastMeaningfulBottom(content, contentTop);
   const scrollHeight = box.scrollHeight;
@@ -91,10 +94,16 @@ export function measureResumeDom(
     usedHeightPx,
     availableHeightPx,
     bodyLineHeightPx,
+    bodyFontSizePx,
     usageRatio,
     bullets: bulletResult.bullets,
     violations,
   };
+}
+
+function measureBodyFontSize(element: HTMLElement): number {
+  const fontSize = Number.parseFloat(getComputedStyle(element).fontSize);
+  return Number.isFinite(fontSize) && fontSize > 0 ? fontSize : 0;
 }
 
 function measureBodyLineHeight(page: HTMLElement): number {

@@ -1242,6 +1242,34 @@ Vue/CSS。实现后完成视觉截图、键盘/ARIA、主题/语言、窄宽屏�
 **完成门槛**：获授权的真实用户生成命令均在 `≤ 180s` 内完成；一页/占用率/尾部、字体、证据、
 must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流程和交互截图无改变。
 
+**S4.5 Section F 实施决策（2026-08-04，用户确认）**：
+
+- **实测定位**：同模型（deepseek-v4-flash）、同设备、本地 Docker 同样本下，改造前后对比显示瓶颈是
+  模型调用轮次与单次调用耗时（model_call 占总耗时 95%+），Chromium 编译不是瓶颈（每批 1 次、每次
+  <1s）；改造后失败工具从每 run 3–16 次降到 0–3 次，en-data 样本两次到达 `ready_for_approval`
+  （403s/18 轮、259s/13 轮），但总时长与调用次数仍不达标，且存在死循环（已加 40 轮上限兑底）。
+- **待决策点（保留，未实施）**：① prepare 是否改为非原子（有效 initialBindings 先落地、无效条目
+  返回拒绝清单）；② “正常成功路径 ≤4 模型调用 / median ≤120s”目标与当前 flash 模型稳定能力的差距
+  处理（是否接受更多轮次或更换模型——更换模型会破坏“优化前后同模型”对比条件，需用户另行授权）；
+  ③ 尾行修复指引已并入下方方案二，不再单独决策。
+- **已确认实施组合（方案一 + 方案二 + 方案四，用户 2026-08-04 确认）**：
+  1. **文本级增量操作**：`patch_resume_candidate` 新增 `append_text` / `prepend_text` /
+     `insert_text` / `replace_substring` / `trim_text`；锚定用 visibleText 中的唯一子串（宿主校验，
+     不唯一则报错并列出位置），模型不计算 offset；增量文本自带 evidenceIds，宿主拼回完整文本后整条
+     照旧过 EvidenceLedger（区间不重叠、数字可追溯、quote 逐字、claim 检查），任一失败整批回滚；
+     解析后内部统一复用 replace_bullet 路径，不引入第二套写入语义。
+  2. **确定性写作清单**：投影新增 `writePlan`（逐 item 缺几条 bullet）、`tailFix`（shortByChars =
+     deficitPx ÷ bodyFontSizePx × 语言系数，把 66.71% 尾行门槛翻译成“差 N 字”）、`overflowFix`
+     （excessChars）；模型按清单增量补齐，门槛与每批一次编译不变。
+  3. **配套**：失败聚焦重试（失败后只重发失败条目，不重发整批）+ 投影输入减负（structure 精简为
+     id 索引树，全文只保留一份于 visibleText）。
+  4. **明确不做**：先占位后填充（方案三，短占位会立即触发大量尾行违规）。
+- **不变前提**：左侧 LLM 实时输出/工具过程、右侧实时预览、按钮与交互零改动；一页/占用率/尾行/
+   字体/溢出/证据/must-have/quality review 门槛全部保留；同模型同设备同样本；本轮不 commit、不 push。
+- **执行顺序**：契约与类型 → 应用与校验 → 证据解析 → 定向诊断投影 → prompt v18 → 失败聚焦 →
+   输入减负 → 单测与 Electron QA → 3×1 小样本实测 →（达标趋势）3×10 完整验收 → `npm run check` +
+   前端不变验证 + 写回本小节。
+
 #### S4.5 Section G：当前预览直接导出
 
 - 保留预览右上角现有导出按钮及视觉样式；点击后直接调用专用 `resume-drafts:export-pdf` IPC，传递当前

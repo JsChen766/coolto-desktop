@@ -15,8 +15,8 @@ export function createResumeCandidateTools(
   repairer: ResumeAlternativeRepairer,
 ): AgentTool[] {
   return [
-    createPrepareResumeCandidateTool(preparer),
-    createPatchResumeCandidateTool(patcher, repairer),
+    createPrepareResumeCandidateTool(preparer, reviewer),
+    createPatchResumeCandidateTool(patcher, repairer, reviewer),
     createReviewResumeCandidateTool(reviewer),
   ];
 }

@@ -11,6 +11,7 @@ import { ResumeDraftService } from "../src/desktop/main/resume-drafts/resume-dra
 import type { ResumeDraftCodec } from "../src/resume/draft/types.js";
 import { ResumeManualEditor } from "../src/resume/draft/manual-editor.js";
 import { applyCandidatePatch } from "../src/resume/workspace/candidate-patch.js";
+import { resolveEvidenceBindingInput } from "../src/resume/workspace/evidence-resolution.js";
 import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-preparer.js";
 import { deriveWorkspaceStatus } from "../src/resume/workspace/workspace-status.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
@@ -208,13 +209,19 @@ async function createWorkspace() {
   const binding = createBinding(
     workspace.sourceSnapshot,
     "bullet-draft-test",
-    "使用 Python 清洗运营数据。",
+    "使用 Python 清洗运营数据产品。",
   );
   const patched = applyCandidatePatch(
     workspace.sourceSnapshot,
     workspace.structure,
     workspace.bindings,
-    [{ op: "add_bullet", itemId: "item-work-1", binding }],
+    [
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: resolveEvidenceBindingInput(workspace.sourceSnapshot, binding, "bullet-draft-test"),
+      },
+    ],
   );
   const compileResult = await compiler.compile(patched.structure);
   return {

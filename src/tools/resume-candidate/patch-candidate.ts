@@ -3,8 +3,10 @@ import { Type } from "@earendil-works/pi-ai";
 
 import type { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
 import type { ResumeAlternativeRepairer } from "../../resume/quality/alternative-repairer.js";
+import type { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
 import type { ResumeAlternativeTargetInput } from "../../resume/quality/types.js";
-import type { ResumePatchOperation } from "../../resume/workspace/types.js";
+import type { ResumePatchOperationInput } from "../../resume/workspace/types.js";
+import type { ResumeWorkspace } from "../../resume/workspace/types.js";
 import { projectResumeWorkspace } from "../../resume/workspace/workspace-projection.js";
 import {
   alternativeTargetSchema,
@@ -42,6 +44,7 @@ const parameters = Type.Object({
 export function createPatchResumeCandidateTool(
   patcher: ResumeCandidatePatcher,
   repairer: ResumeAlternativeRepairer,
+  reviewer?: ResumeCandidateReviewer,
 ): AgentTool<typeof parameters> {
   return {
     name: "patch_resume_candidate",
@@ -61,7 +64,9 @@ export function createPatchResumeCandidateTool(
         ? await patcher.patch({
             candidateId: params.candidateId,
             expectedRevision: params.expectedRevision,
-            operations: structuredClone(params.operations) as ResumePatchOperation[],
+            operations: structuredClone(
+              params.operations,
+            ) as ResumePatchOperationInput[],
           })
         : await repairer.repair({
             candidateId: params.candidateId,
@@ -70,11 +75,20 @@ export function createPatchResumeCandidateTool(
               params.alternativeTargets,
             ) as ResumeAlternativeTargetInput[],
           });
-      const projection = projectResumeWorkspace(workspace);
+      const reviewed = reviewQualifiedCandidate(workspace, reviewer);
+      const projection = projectResumeWorkspace(reviewed);
       return {
         content: [{ type: "text", text: JSON.stringify(projection) }],
         details: projection,
       };
     },
   };
+}
+
+function reviewQualifiedCandidate(
+  workspace: ResumeWorkspace,
+  reviewer: ResumeCandidateReviewer | undefined,
+): ResumeWorkspace {
+  if (!reviewer || workspace.status !== "layout_qualified") return workspace;
+  return reviewer.review(workspace.candidateId, workspace.revision);
 }

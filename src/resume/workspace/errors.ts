@@ -9,6 +9,8 @@ export type ResumeWorkspaceErrorCode =
   | "invalid_experience_order"
   | "item_not_found"
   | "bullet_not_found"
+  | "bullet_anchor_not_found"
+  | "bullet_anchor_ambiguous"
   | "duplicate_bullet_id"
   | "bullet_source_mismatch"
   | "invalid_patch_operation"

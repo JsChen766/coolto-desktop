@@ -118,6 +118,7 @@ export async function compileResume(
     usedHeightPx: round(measurement.usedHeightPx),
     availableHeightPx: round(measurement.availableHeightPx),
     bodyLineHeightPx: round(measurement.bodyLineHeightPx),
+    bodyFontSizePx: round(measurement.bodyFontSizePx),
     usageRatio: round(measurement.usageRatio),
     effectiveTargetBand: targetBand,
     bullets: measurement.bullets,

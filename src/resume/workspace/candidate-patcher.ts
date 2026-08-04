@@ -1,6 +1,7 @@
 import { applyCandidatePatch } from "./candidate-patch.js";
 import type { ResumeCompiler } from "./compiler-port.js";
 import { ResumeWorkspaceError } from "./errors.js";
+import { resolveOperations } from "./evidence-resolution.js";
 import { isBetterCandidate } from "./candidate-ranking.js";
 import type {
   PatchResumeCandidateInput,
@@ -39,11 +40,17 @@ export class ResumeCandidatePatcher {
         `Candidate reached the ${MAX_PATCH_COUNT}-patch safety limit.`,
       );
     }
-    const patched = applyCandidatePatch(
+    const resolvedOperations = resolveOperations(
       current.sourceSnapshot,
       current.structure,
       current.bindings,
       input.operations,
+    );
+    const patched = applyCandidatePatch(
+      current.sourceSnapshot,
+      current.structure,
+      current.bindings,
+      resolvedOperations,
     );
     const overflow = await this.compiler.compile(patched.structure);
     const degraded = hasOverflow(overflow)

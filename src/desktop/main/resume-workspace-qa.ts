@@ -8,6 +8,7 @@ import { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer
 import { ResumeAlternativeRepairer } from "../../resume/quality/alternative-repairer.js";
 import {
   createResumeWorkspaceQaFixture,
+  evidenceBindingInputFrom,
   qaBindingFor,
   selectComparableBindingPair,
 } from "./resume-workspace-qa-fixture.js";
@@ -33,20 +34,23 @@ export async function runResumeWorkspaceQa(compiler: ResumeCompiler) {
     experienceIds,
     language: "zh-CN",
   });
-  const bindings = sourceItems.flatMap(({ item }) =>
-    item.bullets.map((bullet) => qaBindingFor(snapshot, item, bullet.id, bullet.text)),
+  const bindingEntries = sourceItems.flatMap(({ item }) =>
+    item.bullets.map((bullet) => ({
+      itemId: `item-${item.source_experience_id}`,
+      binding: qaBindingFor(snapshot, item, bullet.id, bullet.text),
+    })),
   );
   const patched = await patcher.patch({
     candidateId: prepared.candidateId,
     expectedRevision: 0,
-    operations: bindings.map((binding) => ({
+    operations: bindingEntries.map((entry) => ({
       op: "add_bullet" as const,
-      itemId: `item-${binding.sourceExperienceId}`,
-      binding,
+      itemId: entry.itemId,
+      binding: entry.binding,
     })),
   });
   const [sourceBinding, targetBinding] = selectComparableBindingPair(
-    bindings,
+    patched.bindings,
     patched.compileResult,
   );
   const duplicateBinding = {
@@ -60,7 +64,7 @@ export async function runResumeWorkspaceQa(compiler: ResumeCompiler) {
       {
         op: "replace_bullet",
         bulletId: targetBinding.bulletId,
-        binding: duplicateBinding,
+        binding: evidenceBindingInputFrom(duplicateBinding),
       },
     ],
   });
@@ -82,7 +86,7 @@ export async function runResumeWorkspaceQa(compiler: ResumeCompiler) {
               {
                 op: "replace_bullet",
                 bulletId: targetBinding.bulletId,
-                binding: targetBinding,
+                binding: evidenceBindingInputFrom(targetBinding),
               },
             ],
           },

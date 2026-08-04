@@ -27,6 +27,7 @@ export class SemanticEvalCompiler implements ResumeCompiler {
       usedHeightPx: usageRatio * 1000,
       availableHeightPx: 1000,
       bodyLineHeightPx: 20,
+      bodyFontSizePx: 13,
       usageRatio,
       effectiveTargetBand: { minimum: 0.85, target: 0.92, maximum: 0.98 },
       bullets: bullets.map((bullet) => ({

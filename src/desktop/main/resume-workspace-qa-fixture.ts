@@ -11,6 +11,8 @@ import type {
 } from "../../resume/source-types.js";
 import type { ResumeSectionItem } from "../../resume/types.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
+import { allEvidenceCandidates } from "../../resume/quality/evidence-candidates.js";
+import type { EvidenceBindingInput } from "../../resume/workspace/types.js";
 
 export function createResumeWorkspaceQaFixture() {
   const fixture = getResumeFixture("zh-qualified");
@@ -60,27 +62,40 @@ export function qaBindingFor(
   item: ResumeSectionItem,
   bulletId: string,
   bulletText: string,
-): BulletEvidenceBinding {
+): EvidenceBindingInput {
   const sourceExperienceId = item.source_experience_id!;
   const experience = snapshot.experiences.find(
     (candidate) => candidate.id === sourceExperienceId,
   )!;
-  const sourceStart = experience.content.indexOf(bulletText);
+  const start = experience.content.indexOf(bulletText);
+  if (start < 0) {
+    throw new Error(`QA bullet ${bulletId} is missing from its source experience`);
+  }
+  const end = start + bulletText.length;
+  const cited = allEvidenceCandidates(snapshot)
+    .filter(
+      (candidate) =>
+        candidate.experienceId === sourceExperienceId &&
+        candidate.sourceStart >= start &&
+        candidate.sourceEnd <= end,
+    )
+    .map((candidate) => ({ evidenceId: candidate.evidenceId }));
+  if (!cited.length) {
+    throw new Error(`QA bullet ${bulletId} has no sentence candidate inside it`);
+  }
+  void bulletId;
+  return { bulletText, evidenceIds: cited.map((candidate) => candidate.evidenceId) };
+}
+
+export function evidenceBindingInputFrom(
+  binding: BulletEvidenceBinding,
+): EvidenceBindingInput {
   return {
-    bulletId,
-    sourceExperienceId,
-    bulletText,
-    excerpts: [
-      {
-        experienceId: sourceExperienceId,
-        revisionId: experience.revisionId,
-        revisionContentHash: experience.contentHash,
-        sourceStart,
-        sourceEnd: sourceStart + bulletText.length,
-        sourceQuote: bulletText,
-      },
-    ],
-    matchedRequirementIds: [],
+    bulletText: binding.bulletText,
+    evidenceIds: binding.excerpts.map(
+      (excerpt) =>
+        `${excerpt.experienceId}:${excerpt.sourceStart}:${excerpt.sourceEnd}`,
+    ),
   };
 }
 

@@ -53,7 +53,7 @@ test("patcher reaches qualification with grounded local patches and rejects stal
       {
         op: "add_bullet",
         itemId: "item-work-1",
-        binding: createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。"),
+        binding: createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据产品。"),
       },
       {
         op: "add_bullet",
@@ -68,7 +68,7 @@ test("patcher reaches qualification with grounded local patches and rejects stal
   assert.equal(qualified.bindings.length, 2);
   assert.deepEqual(
     qualified.structure.sections[1]?.items[0]?.bullets.map((bullet) => bullet.id),
-    ["bullet-1", "bullet-2"],
+    ["bl-0", "bl-1"],
   );
   await assert.rejects(
     patcher.patch({
@@ -81,19 +81,20 @@ test("patcher reaches qualification with grounded local patches and rejects stal
           binding: createBinding(
             snapshot,
             "bullet-1",
-            "设计异常检查规则并与业务团队协作。",
+            "使用 Python 清洗运营数据产品。",
           ),
         },
       ],
     }),
     (error: unknown) =>
-      error instanceof ResumeWorkspaceError && error.code === "duplicate_bullet_id",
+      error instanceof EvidenceValidationError &&
+      error.code === "duplicate_source_range",
   );
   await assert.rejects(
     patcher.patch({
       candidateId: initial.candidateId,
       expectedRevision: 0,
-      operations: [{ op: "remove_bullet", bulletId: "bullet-1" }],
+      operations: [{ op: "remove_bullet", bulletId: "bl-0" }],
     }),
     (error: unknown) =>
       error instanceof ResumeWorkspaceError &&
@@ -105,8 +106,10 @@ test("failed evidence patches are atomic and cannot cross experience ownership",
   const { builder, preparer, patcher, store } = createServices();
   const snapshot = await buildSnapshot(builder);
   const initial = await preparer.prepare(prepareInput);
-  const invalid = createBinding(snapshot, "bullet-invalid", "使用 Python 清洗运营数据。");
-  invalid.excerpts[0]!.sourceQuote = "伪造的原文";
+  const invalid = {
+    ...createBinding(snapshot, "bullet-invalid", "使用 Python 清洗运营数据产品。"),
+    evidenceIds: ["work-1:0:0"],
+  };
 
   await assert.rejects(
     patcher.patch({
@@ -123,7 +126,7 @@ test("failed evidence patches are atomic and cannot cross experience ownership",
   const wrongOwner = createBinding(
     snapshot,
     "bullet-owner",
-    "使用 Python 清洗运营数据。",
+    "使用 Python 清洗运营数据产品。",
   );
   await assert.rejects(
     patcher.patch({
@@ -145,7 +148,7 @@ test("a worse revision does not replace the best qualified candidate", async () 
   const initial = await preparer.prepare({
     ...prepareInput,
     initialBindings: [
-      createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。"),
+      createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据产品。"),
       createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。"),
     ],
   });
@@ -157,7 +160,7 @@ test("a worse revision does not replace the best qualified candidate", async () 
     operations: [
       {
         op: "replace_bullet",
-        bulletId: "bullet-2",
+        bulletId: "bl-1",
         binding: createBinding(
           snapshot,
           "bullet-2",
@@ -172,7 +175,7 @@ test("a worse revision does not replace the best qualified candidate", async () 
   assert.equal(worse.bestSnapshot.revision, 0);
   assert.equal(worse.bestSnapshot.compileResult.qualified, true);
   const projection = projectResumeWorkspace(worse) as Record<string, any>;
-  assert.equal(projection.bulletTailDiagnostics[0].bulletId, "bullet-2");
+  assert.equal(projection.bulletTailDiagnostics[0].bulletId, "bl-1");
   assert.equal(projection.bulletTailDiagnostics[0].deficitPx, 200.26);
 });
 
@@ -182,7 +185,7 @@ test("move and remove patches preserve stable IDs and evidence coverage", async 
   const initial = await preparer.prepare({
     ...prepareInput,
     initialBindings: [
-      createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。"),
+      createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据产品。"),
       createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。"),
     ],
   });
@@ -190,24 +193,24 @@ test("move and remove patches preserve stable IDs and evidence coverage", async 
     candidateId: initial.candidateId,
     expectedRevision: 0,
     operations: [
-      { op: "move_bullet", bulletId: "bullet-2", afterBulletId: null },
+      { op: "move_bullet", bulletId: "bl-1", afterBulletId: null },
     ],
   });
   assert.deepEqual(
     moved.structure.sections[1]?.items[0]?.bullets.map((bullet) => bullet.id),
-    ["bullet-2", "bullet-1"],
+    ["bl-1", "bl-0"],
   );
 
   const removed = await patcher.patch({
     candidateId: initial.candidateId,
     expectedRevision: 1,
-    operations: [{ op: "remove_bullet", bulletId: "bullet-1" }],
+    operations: [{ op: "remove_bullet", bulletId: "bl-0" }],
   });
   assert.deepEqual(
     removed.structure.sections[1]?.items[0]?.bullets.map((bullet) => bullet.id),
-    ["bullet-2"],
+    ["bl-1"],
   );
-  assert.deepEqual(removed.bindings.map((binding) => binding.bulletId), ["bullet-2"]);
+  assert.deepEqual(removed.bindings.map((binding) => binding.bulletId), ["bl-1"]);
   assert.equal(removed.bestSnapshot.revision, 0);
 });
 

@@ -1,12 +1,11 @@
 import { ResumeQualityEvaluator } from "../../src/resume/quality/quality-evaluator.js";
 import { ResumeCandidateReviewer } from "../../src/resume/quality/candidate-reviewer.js";
 import { ResumeSaveProposalBuilder } from "../../src/resume/save/proposal-builder.js";
-import type {
-  BulletEvidenceBinding,
-  ResumeSourceSnapshot,
-} from "../../src/resume/source-types.js";
+import { allEvidenceCandidates } from "../../src/resume/quality/evidence-candidates.js";
+import type { ResumeSourceSnapshot } from "../../src/resume/source-types.js";
 import { ResumeCandidatePreparer } from "../../src/resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../../src/resume/workspace/workspace-store.js";
+import type { EvidenceBindingInput } from "../../src/resume/workspace/types.js";
 import {
   FixtureResumeCompiler,
   WORK_CONTENT,
@@ -53,22 +52,12 @@ export async function createReadySaveFixture() {
   };
 }
 
-function educationBinding(snapshot: ResumeSourceSnapshot): BulletEvidenceBinding {
+function educationBinding(snapshot: ResumeSourceSnapshot): EvidenceBindingInput {
   const source = snapshot.experiences.find((item) => item.id === "edu-1")!;
   return {
-    bulletId: "bullet-education",
-    sourceExperienceId: source.id,
     bulletText: source.content,
-    excerpts: [
-      {
-        experienceId: source.id,
-        revisionId: source.revisionId,
-        revisionContentHash: source.contentHash,
-        sourceStart: 0,
-        sourceEnd: source.content.length,
-        sourceQuote: source.content,
-      },
-    ],
-    matchedRequirementIds: [],
+    evidenceIds: allEvidenceCandidates(snapshot)
+      .filter((candidate) => candidate.experienceId === source.id)
+      .map((candidate) => candidate.evidenceId),
   };
 }

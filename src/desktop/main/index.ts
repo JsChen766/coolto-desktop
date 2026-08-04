@@ -10,6 +10,7 @@ import { runResumeWorkspaceQa } from "./resume-workspace-qa.js";
 import { getResumeFixture } from "../../resume/fixtures.js";
 import { inspectResumePdf } from "../../resume/pdf-postflight.js";
 import { runResumePdfExportQa } from "./resume-pdf-export-qa.js";
+import { runResumePerformanceQa } from "./resume-performance-qa.js";
 
 let mainWindow: BrowserWindow | undefined;
 
@@ -172,6 +173,19 @@ async function runResumeRendererQa(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  if (process.env.COOLTO_RESUME_PERFORMANCE_QA === "1") {
+    try {
+      await runResumePerformanceQa();
+    } catch (error: unknown) {
+      process.stderr.write(
+        `${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
+      );
+      process.exitCode = 1;
+    } finally {
+      app.quit();
+    }
+    return;
+  }
   if (process.env.COOLTO_RESUME_QA === "1") {
     try {
       await runResumeRendererQa();

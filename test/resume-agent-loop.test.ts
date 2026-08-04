@@ -22,7 +22,7 @@ import {
   createWorkspaceSnapshotBuilder,
 } from "./support/resume-workspace-fixture.js";
 
-test("the Agent can prepare, patch, and stop when the G3 layout gates pass", async () => {
+test("the Agent can prepare, patch, and stop after host quality review", async () => {
   const builder = createWorkspaceSnapshotBuilder();
   const snapshot = await builder.build({
     jdId: "jd-1",
@@ -38,7 +38,7 @@ test("the Agent can prepare, patch, and stop when the G3 layout gates pass", asy
   const evaluator = new ResumeQualityEvaluator();
   const reviewer = new ResumeCandidateReviewer(evaluator, store);
   const repairer = new ResumeAlternativeRepairer(compiler, evaluator, store);
-  const first = createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。");
+  const first = createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据产品。");
   const second = createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。");
   const faux = fauxProvider({ tokensPerSecond: 0 });
   faux.setResponses([
@@ -90,7 +90,7 @@ test("the Agent can prepare, patch, and stop when the G3 layout gates pass", asy
   await agent.prompt("请基于这个 JD 和经历生成满足页面门槛的简历");
 
   assert.equal(faux.state.callCount, 3);
-  assert.equal(store.get("candidate-agent-loop").status, "layout_qualified");
+  assert.equal(store.get("candidate-agent-loop").status, "ready_for_approval");
   assert.deepEqual(
     agent.toolNames.filter((name) => name.includes("resume_candidate")),
     [
@@ -102,7 +102,7 @@ test("the Agent can prepare, patch, and stop when the G3 layout gates pass", asy
   const transcript = JSON.stringify(agent.getMessages());
   assert.match(transcript, /pxToMinimum/);
   assert.match(transcript, /使用 Python 清洗运营数据/);
-  assert.match(transcript, /layout_qualified/);
+  assert.match(transcript, /ready_for_approval/);
 });
 
 test("the Agent can review, repair one reported target, and stop at ready_for_approval", async () => {
@@ -121,12 +121,12 @@ test("the Agent can review, repair one reported target, and stop at ready_for_ap
   const patcher = new ResumeCandidatePatcher(compiler, store);
   const reviewer = new ResumeCandidateReviewer(evaluator, store);
   const repairer = new ResumeAlternativeRepairer(compiler, evaluator, store);
-  const first = createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据。");
+  const first = createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据产品。");
   const duplicate = createBinding(
     snapshot,
     "bullet-2",
     "为 3 个团队建立周度报表。",
-    "使用 Python 清洗运营数据。",
+    "使用 Python 清洗运营数据产品。",
   );
   const distinct = createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。");
   const faux = fauxProvider({ tokensPerSecond: 0 });
@@ -146,28 +146,20 @@ test("the Agent can review, repair one reported target, and stop at ready_for_ap
     ),
     fauxAssistantMessage(
       fauxToolCall(
-        "review_resume_candidate",
-        { candidateId: "candidate-quality-loop", expectedRevision: 0 },
-        { id: "quality-review" },
-      ),
-      { stopReason: "toolUse" },
-    ),
-    fauxAssistantMessage(
-      fauxToolCall(
         "patch_resume_candidate",
         {
           candidateId: "candidate-quality-loop",
           expectedRevision: 0,
           alternativeTargets: [
             {
-              targetId: "near_duplicate_bullet:bullet-1-bullet-2:0",
+              targetId: "near_duplicate_bullet:bl-0-bl-1:0",
               alternatives: [
                 {
                   label: "use distinct evidence",
                   operations: [
                     {
                       op: "replace_bullet",
-                      bulletId: "bullet-2",
+                      bulletId: "bl-1",
                       binding: distinct,
                     },
                   ],
@@ -200,7 +192,7 @@ test("the Agent can review, repair one reported target, and stop at ready_for_ap
 
   await agent.prompt("完成质量检查并只修复报告指出的问题");
 
-  assert.equal(faux.state.callCount, 4);
+  assert.equal(faux.state.callCount, 3);
   assert.equal(store.get("candidate-quality-loop").status, "ready_for_approval");
   assert.match(JSON.stringify(agent.getMessages()), /ready_for_approval/);
 });

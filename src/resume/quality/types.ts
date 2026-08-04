@@ -1,4 +1,4 @@
-import type { ResumePatchOperation } from "../workspace/types.js";
+import type { ResumePatchOperationInput } from "../workspace/types.js";
 
 export type ResumeQualityIssueCode =
   | "near_duplicate_bullet"
@@ -50,7 +50,7 @@ export interface ResumeQualityReport {
 
 export interface ResumePatchAlternative {
   label?: string;
-  operations: ResumePatchOperation[];
+  operations: ResumePatchOperationInput[];
 }
 
 export interface ResumeAlternativeTargetInput {
@@ -70,6 +70,7 @@ export interface RepairRoundDiagnostic {
 }
 
 export interface AvailableEvidenceCandidate {
+  evidenceId: string;
   experienceId: string;
   revisionId: string;
   revisionContentHash: string;

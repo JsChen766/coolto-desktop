@@ -2,10 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import type { ResumeSourceSnapshotBuilder } from "../source-snapshot.js";
 import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../template-contract.js";
+import type { BulletEvidenceBinding } from "../source-types.js";
 import { applyCandidatePatch } from "./candidate-patch.js";
 import { buildResumeSkeleton } from "./candidate-skeleton.js";
 import type { ResumeCompiler } from "./compiler-port.js";
 import { ResumeWorkspaceError } from "./errors.js";
+import { resolveEvidenceBindingInputs } from "./evidence-resolution.js";
 import type {
   PrepareResumeCandidateInput,
   ResumePatchOperation,
@@ -43,7 +45,13 @@ export class ResumeCandidatePreparer {
       input.experienceIds,
       input.language,
     );
-    const initialBindings = input.initialBindings ?? [];
+    const initialBindings = input.initialBindings?.length
+      ? resolveEvidenceBindingInputs(
+          snapshot,
+          input.initialBindings,
+          (index) => `bl-${index}`,
+        )
+      : [];
     const initial = initialBindings.length
       ? applyCandidatePatch(
           snapshot,
@@ -79,7 +87,7 @@ export class ResumeCandidatePreparer {
 
 function initialOperations(
   structure: ResumeWorkspace["structure"],
-  bindings: NonNullable<PrepareResumeCandidateInput["initialBindings"]>,
+  bindings: BulletEvidenceBinding[],
 ): ResumePatchOperation[] {
   return bindings.map((binding) => ({
     op: "add_bullet",

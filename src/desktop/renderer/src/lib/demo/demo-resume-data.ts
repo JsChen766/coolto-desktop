@@ -114,6 +114,7 @@ export function createDemoDraft(now: Date): ResumeDraftDetail {
       usedHeightPx: 923,
       availableHeightPx: 1000,
       bodyLineHeightPx: 15.34,
+      bodyFontSizePx: 13,
       usageRatio: 0.923,
       effectiveTargetBand: { minimum: 0.85, target: 0.92, maximum: 0.98 },
       bullets: bullets.map((bullet, index) => ({

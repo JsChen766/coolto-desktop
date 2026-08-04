@@ -9,14 +9,15 @@ import type {
 } from "../../src/resume/compiler-types.js";
 import { ResumeSourceSnapshotBuilder } from "../../src/resume/source-snapshot.js";
 import type {
-  BulletEvidenceBinding,
   ResumeSourceSnapshot,
 } from "../../src/resume/source-types.js";
 import type { ResumeStructure } from "../../src/resume/types.js";
 import type { ResumeCompiler } from "../../src/resume/workspace/compiler-port.js";
+import { allEvidenceCandidates } from "../../src/resume/quality/evidence-candidates.js";
+import type { EvidenceBindingInput } from "../../src/resume/workspace/types.js";
 
 export const WORK_CONTENT =
-  "使用 Python 清洗运营数据。为 3 个团队建立周度报表。设计异常检查规则并与业务团队协作。";
+  "使用 Python 清洗运营数据产品。为 3 个团队建立周度报表。设计异常检查规则并与业务团队协作。";
 
 export function createWorkspaceSnapshotBuilder(): ResumeSourceSnapshotBuilder {
   const experiences = [createEducation(), createWork()];
@@ -83,6 +84,7 @@ export class FixtureResumeCompiler implements ResumeCompiler {
       usedHeightPx: usageRatio * 1000,
       availableHeightPx: 1000,
       bodyLineHeightPx: 20,
+      bodyFontSizePx: 13,
       usageRatio,
       effectiveTargetBand: { minimum: 0.85, target: 0.92, maximum: 0.98 },
       bullets: bullets.map((bullet) => ({
@@ -103,25 +105,17 @@ export function createBinding(
   bulletId: string,
   sourceQuote: string,
   bulletText = sourceQuote,
-): BulletEvidenceBinding {
+): EvidenceBindingInput {
   const experience = snapshot.experiences.find(({ id }) => id === "work-1")!;
-  const sourceStart = experience.content.indexOf(sourceQuote);
-  if (sourceStart < 0) throw new Error(`Missing source quote: ${sourceQuote}`);
+  const candidate = allEvidenceCandidates(snapshot).find(
+    (item) =>
+      item.experienceId === experience.id && item.sourceQuote === sourceQuote,
+  );
+  if (!candidate) throw new Error(`Missing evidence candidate: ${sourceQuote}`);
+  void bulletId;
   return {
-    bulletId,
-    sourceExperienceId: experience.id,
     bulletText,
-    excerpts: [
-      {
-        experienceId: experience.id,
-        revisionId: experience.revisionId,
-        revisionContentHash: experience.contentHash,
-        sourceStart,
-        sourceEnd: sourceStart + sourceQuote.length,
-        sourceQuote,
-      },
-    ],
-    matchedRequirementIds: ["req-1"],
+    evidenceIds: [candidate.evidenceId],
   };
 }
 

@@ -65,6 +65,7 @@ export interface ResumeCompileResult {
   usedHeightPx: number;
   availableHeightPx: number;
   bodyLineHeightPx: number;
+  bodyFontSizePx: number;
   usageRatio: number;
   effectiveTargetBand: ResumeLayoutTargetBand;
   bullets: ResumeBulletMeasurement[];
