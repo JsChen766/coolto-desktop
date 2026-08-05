@@ -33,6 +33,7 @@ export class AgentRuntimeEvents {
         this.traces.recordModelCompleted(
           conversationId,
           event.isError ? "error" : "success",
+          event.usage,
         );
         return;
       }
@@ -56,6 +57,7 @@ export class AgentRuntimeEvents {
         !event.isError
       ) {
         await this.syncLatestWorkspace(conversationId, context);
+        this.emitTailFillActivity(conversationId, context);
       }
       if (
         event.type === "tool.completed" &&
@@ -181,6 +183,42 @@ export class AgentRuntimeEvents {
     this.emit(conversationId, {
       type: "resume.draft.updated",
       artifactId,
+    });
+  }
+
+  private emitTailFillActivity(
+    conversationId: string,
+    context: ConversationAgentContext,
+  ): void {
+    const workspace = context.workspaceStore.latest();
+    const tailFills =
+      workspace?.lastOperationReport?.repairs.filter(
+        (repair) => repair.kind === "tail_fill",
+      ) ?? [];
+    if (!tailFills.length || !workspace) return;
+    const details = tailFills
+      .map((repair) => `${repair.bulletId}+${repair.evidenceIds.length}`)
+      .join(", ");
+    this.emitHostFill(conversationId, [`尾行 ${details}`]);
+  }
+
+  public emitHostFill(
+    conversationId: string,
+    labels: readonly string[],
+  ): void {
+    if (!labels.length) return;
+    const callId = `host-fill-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.emit(conversationId, {
+      type: "tool.started",
+      callId,
+      name: "host_fill",
+      arguments: { label: `自动补充：${labels.join("；")}` },
+    });
+    this.emit(conversationId, {
+      type: "tool.completed",
+      callId,
+      name: "host_fill",
+      isError: false,
     });
   }
 

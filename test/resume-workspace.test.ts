@@ -42,6 +42,19 @@ test("preparer creates the fixed resume skeleton and returns a real pixel budget
   assert.match(projection.instruction, /item-work-1/);
 });
 
+test("needs_user_decision instruction explains the evidence gap and the relaxed re-selection path", async () => {
+  const { builder, preparer } = createServices();
+  const workspace = await preparer.prepare(prepareInput);
+  const withDecision = structuredClone(workspace);
+  withDecision.status = "needs_user_decision";
+  const projection = projectResumeWorkspace(withDecision) as {
+    instruction: string;
+  };
+  assert.match(projection.instruction, /证据不足以生成满足全部门槛/);
+  assert.match(projection.instruction, /search_experiences/);
+  assert.match(projection.instruction, /不得降低任何质量门槛/);
+});
+
 test("patcher reaches qualification with grounded local patches and rejects stale writes", async () => {
   const { builder, preparer, patcher } = createServices();
   const snapshot = await buildSnapshot(builder);
@@ -70,25 +83,29 @@ test("patcher reaches qualification with grounded local patches and rejects stal
     qualified.structure.sections[1]?.items[0]?.bullets.map((bullet) => bullet.id),
     ["bl-0", "bl-1"],
   );
-  await assert.rejects(
-    patcher.patch({
-      candidateId: initial.candidateId,
-      expectedRevision: 1,
-      operations: [
-        {
-          op: "add_bullet",
-          itemId: "item-work-1",
-          binding: createBinding(
-            snapshot,
-            "bullet-1",
-            "使用 Python 清洗运营数据产品。",
-          ),
-        },
-      ],
-    }),
-    (error: unknown) =>
-      error instanceof EvidenceValidationError &&
-      error.code === "duplicate_source_range",
+  const autoRepaired = await patcher.patch({
+    candidateId: initial.candidateId,
+    expectedRevision: 1,
+    operations: [
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: createBinding(
+          snapshot,
+          "bullet-1",
+          "使用 Python 清洗运营数据产品。",
+        ),
+      },
+    ],
+  });
+  assert.equal(autoRepaired.revision, 2);
+  const swapped = autoRepaired.bindings.find(
+    (candidate) => candidate.bulletId === "bl-2",
+  );
+  assert.equal(swapped?.excerpts[0]?.sourceQuote, "设计异常检查规则并与业务团队协作。");
+  assert.deepEqual(
+    autoRepaired.lastOperationReport?.repairs.map((repair) => repair.kind),
+    ["range_conflict"],
   );
   await assert.rejects(
     patcher.patch({
@@ -102,7 +119,7 @@ test("patcher reaches qualification with grounded local patches and rejects stal
   );
 });
 
-test("failed evidence patches are atomic and cannot cross experience ownership", async () => {
+test("failed evidence patches reject per operation and cannot cross experience ownership", async () => {
   const { builder, preparer, patcher, store } = createServices();
   const snapshot = await buildSnapshot(builder);
   const initial = await preparer.prepare(prepareInput);
@@ -119,7 +136,10 @@ test("failed evidence patches are atomic and cannot cross experience ownership",
         { op: "add_bullet", itemId: "item-work-1", binding: invalid },
       ],
     }),
-    EvidenceValidationError,
+    (error: unknown) =>
+      error instanceof ResumeWorkspaceError &&
+      error.code === "invalid_patch_operation" &&
+      error.message.includes("work-1:0:0"),
   );
   assert.equal(store.get(initial.candidateId).revision, 0);
 
@@ -137,7 +157,9 @@ test("failed evidence patches are atomic and cannot cross experience ownership",
       ],
     }),
     (error: unknown) =>
-      error instanceof ResumeWorkspaceError && error.code === "bullet_source_mismatch",
+      error instanceof ResumeWorkspaceError &&
+      error.code === "invalid_patch_operation" &&
+      error.message.includes("does not belong to item"),
   );
   assert.equal(store.get(initial.candidateId).bindings.length, 0);
 });

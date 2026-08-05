@@ -7,6 +7,7 @@ import type { ResumeCandidateReviewer } from "../../resume/quality/candidate-rev
 import type { ResumeAlternativeTargetInput } from "../../resume/quality/types.js";
 import type { ResumePatchOperationInput } from "../../resume/workspace/types.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
+import { buildModelPayload } from "../../resume/workspace/model-payload.js";
 import { projectResumeWorkspace } from "../../resume/workspace/workspace-projection.js";
 import {
   alternativeTargetSchema,
@@ -78,7 +79,7 @@ export function createPatchResumeCandidateTool(
       const reviewed = reviewQualifiedCandidate(workspace, reviewer);
       const projection = projectResumeWorkspace(reviewed);
       return {
-        content: [{ type: "text", text: JSON.stringify(projection) }],
+        content: [{ type: "text", text: JSON.stringify(buildModelPayload(reviewed)) }],
         details: projection,
       };
     },

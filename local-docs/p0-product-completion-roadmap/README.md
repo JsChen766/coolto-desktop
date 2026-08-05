@@ -1270,6 +1270,263 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
    输入减负 → 单测与 Electron QA → 3×1 小样本实测 →（达标趋势）3×10 完整验收 → `npm run check` +
    前端不变验证 + 写回本小节。
 
+**S4.5 Section F 性能优化记录（2026-08-05，优化轮次 2/用户确认 L2→L1→L3→L5→L4→L6 顺序）**：
+
+- **审计依据**：实测 pilot-before/after（1105s/41 轮、2064s/110 轮，均未达标）、pilot-cap（1105s/41 轮，
+  86 个失败工具绝大多数为同一证据错误循环）、达标两次（259s/13 轮、403s/18 轮）、run-3x1（82s/144s
+  但 `needs_revision` 提前终止）。模型调用占总耗时 95%+，单次调用 11–23s，与输入载荷大小正相关；
+  重试根因是证据绑定约束求解被丢给 flash 模型逐轮重试；run-3x1 的“变快”是模型中途放弃的假象。
+- **L2 输入减负（本轮完成）**：
+  - 新增 `src/resume/workspace/model-payload.ts` 纯函数 `buildModelPayload`：只保留模型写作所需
+    （structure id 索引、完整 visibleText、紧凑 evidenceBindings 仅 bulletId→evidenceIds、
+    slim availableEvidence 仅 evidenceId/sourceQuote/matchedRequirementIds、预算/尾行/溢出/写清单/
+    instruction）；去掉绑定原文 excerpts（占旧载荷 58%）、候选评分内部字段与 compile 原始 bullet 测量。
+    `projectResumeWorkspace` 保持不变供 details/内部消费者与既有测试使用。
+  - `source-projection.ts` 快照投影同样 slim，JD rawText 上限 800 字（超长加“原文已截断”标记）。
+  - prompt 升 v19（移除对 evidenceBindings 全文的依赖表述）；context-policy 压缩占位文案同步。
+  - trace 增加逐次 model call usage（input/output/cacheRead/reasoning，均来自 API usage，无正文）；
+    `summarizeTrace` 拆至新文件 `trace-summary.ts`（store 曾达 254 行超上限，拆分后 213 行）。
+  - 尺寸实测（同一合成样本，8 条绑定 + 12 条未消费候选）：投影 12.5KB → 7.6KB（-39%），候选字段
+    3.9KB → 1.6KB；真实 run 绑定更多，收益接近 50%。
+  - 验证：新增 `test/resume-model-payload.test.ts`（2 用例）、更新快照投影契约断言（候选不再携带
+    sourceStart/valueScore）；`npm run check` 全绿（354/354 tests、542 源文件 ≤250 行、两端类型检查
+    与构建通过）、`git diff --check` 通过。
+  - **未做**：L1 证据宿主求解/批内部分生效、L3 续执行兜底、L5 预算前移、L4 确定性尾行补齐、
+    L6 模型参数实验均未实施；真实模型调用对比留待 L1/L3 完成后统一 3×1 实测。
+
+**S4.5 Section F 性能优化记录（2026-08-05，L1 完成/用户确认"宿主修复 + 逐条生效 + repairNotice"）**：
+
+- **L1 契约变更（用户 2026-08-05 确认）**：证据绑定从"模型必须一次性选对、任一失败整批回滚"
+  改为"模型提议、宿主机械修复"：数字缺引自动并入同经历含该数字的未使用候选；区间重叠自动替换
+  为同经历未使用候选；同一 binding 内重复区间自动去重；只有确实无支持才失败，失败消息改为单点
+  指令（"Remove the number …"）。同批操作逐条生效（成功的落地并一次编译，失败的按 index 返回
+  精确错误），全部失败才整批抛聚合错误。prepare 的 initialBindings 同样非原子（待决策点①落地）。
+- **修复可见性**：workspace 新增瞬态 `lastOperationReport`（repairs + rejected，不进 bestSnapshot
+  与持久化草稿），`buildModelPayload` 以 `operationReport` 字段暴露给模型；模型 prompt 升 v20，
+  明确"只重发 operationReport.rejected 对应 index 的条目，repairs 无需处理"。
+- **归属与经历检查前移**：add/replace 的 item 归属（bullet_source_mismatch）与增量操作的跨经历
+  证据检查（excerpt_experience_mismatch）从 apply 阶段提前到逐条解析阶段，使"逐条生效"契约完整，
+  单条错误不再连坐同批其他操作。
+- **质量门不变**：数字逐字校验、quote 逐字、claim 支持（基于整个经历原文）、EvidenceLedger 全量
+  重放、一页/占用率/尾行/字体/溢出/must-have 与 quality review 全部原样；修复只改变"谁来解决
+  证据不匹配"，不跳过任何编译与审查。
+- **职责拆分**：新增 `evidence-auto-repair.ts`（修复主流程，204 行）、`evidence-candidate-selection.ts`
+  （确定性候选选择/区间工具，94 行）、`evidence-single-operation.ts`（单条操作解析，213 行）；
+  `evidence-resolution.ts` 收敛为公共入口（175 行）；全部 ≤250 行硬上限。
+- **验证**：改写 6 个受契约变更影响的既有测试（整批回滚 → 部分生效、duplicate_source_range →
+  自动换候选、EvidenceValidationError → 聚合 ResumeWorkspaceError 断言消息片段）；新增
+  `test/resume-auto-repair.test.ts` 5 用例（数字自动并入、无支持才失败、8 条 excerpt 上限、
+  prepare 非原子、增量合并自动修复）；359/359 tests 通过。`npm run check` 全绿（545 源文件
+  ≤250 行、两端类型检查与构建通过），`git diff --check` 通过。
+- **未做**：L3 续执行兜底、L5 预算前移、L4 确定性尾行补齐、L6 模型参数实验未实施；3×1 真实模型
+  对比实测待账号/环境确认后执行。
+
+**S4.5 Section F 性能优化记录（2026-08-05，L1+L2 后 3×1 实测，dev@example.com/本地 Docker）**：
+
+| 样本 | 耗时 | 模型调用 | 失败工具 | 结果 | 与旧代码对比 |
+| --- | --- | --- | --- | --- | --- |
+| zh-ai | 218s | 17 | 0 | ready_for_approval | 旧 403s/18 轮达标；run-3x1 144s/6 轮未达标（提前放弃） |
+| en-data | 422s | 16 | 1 | ready_for_approval | 旧 259s/13 轮、403s/18 轮达标 |
+| zh-analytics | 547s | 34 | 5 | needs_revision | 旧 pilot-cap 1105s/41 轮未达标 |
+
+- **L1 确认生效**：证据死循环（86 次同错重发）消失，失败工具降到 0–1；zh-ai 从"提前放弃未达标"
+  转为 218s 达标。剩余失败模式变为模型行为问题而非契约问题：编造 evidenceId（格式合法但不存在）、
+  用陈旧 revision 重发、insert 锚点不存在、repair 阶段修改冻结 bullet。
+- **L2 telemetry 生效**：usage 逐次记录显示 cacheRead 1114k/输入 198k（缓存命中 ~85%），平均每次
+  调用实际 prefill 仅 5.8–8.8k tokens；en-data 输出 50k tokens（模型每轮写大量文本）拉高单次调用
+  到 26s，是 en-data 超时的主因。
+- **与 180s 差距分析**：zh-ai 超 38s（21%），主要因 patch 轮次多（prepare 后 ~14 次 patch）；
+  en-data 超 242s，主要因单次调用输出过大（首轮草稿密度不足 → 每轮大量补写）；
+  zh-analytics 超 367s，模型乱来循环（编造 ID/旧 revision/冻结 bullet）消耗 34 轮。
+- **下一步**：L5 预算前移（首轮 initialBindings 条数按页面预算硬约束，砍 patch 轮次）；
+  编造 evidenceId 防护（错误消息移除 valid examples，防模型模仿格式拼接）；
+  L3 续执行兜底（本轮无"提前放弃"现象，优先级下调）。
+
+**S4.5 Section F 性能优化记录（2026-08-05，L5+ID 防护完成）**：
+
+- **L1 遗留 bug 修复**：`resolveInitialBindingsBestEffort` 原来每条 binding 独立 `new Map()`，
+  prepare 阶段两条 initialBindings 引用同一候选时冲突漏修（en-data 实测 prepare 失败根因）；
+  现累积 work Map，后续绑定自动换候选。
+- **L5 预算前移**：`writePlan` 每 item 增加 `unusedEvidenceCount`（该经历剩余未消费候选数）；
+  writing instruction 从"roughly N more bullets"改为逐经历分配建议
+  （"item-X needs 2 more (5 unused evidence); …; Submit one complete batch now, not a single
+  lengthen-only tweak"），引导模型一轮补多条而非逐轮小步加长（zh-ai 实测 14 轮 patch 中
+  bindings 恒为 12、全靠加长从 53.8% 爬到 85.8%，是超时主因）。
+- **编造 ID 防护**：`unknown_evidence_id`（格式合法但候选不存在）从硬错误改为宿主按"同经历
+  最高价值未用候选"替换（repairs 记录 `unknown_evidence_id/replaced`），数字与 claim 门继续
+  兜底；错误消息移除 valid examples（模型此前模仿其格式拼接假 ID）；该经历无候选时仍失败并
+  强调"copy verbatim"。
+- **职责拆分**：`workspace-projection.ts` 收敛为投影入口（88 行），诊断/指令/写清单迁至新增
+  `diagnostics-projection.ts`（185 行）；两文件均 ≤250 行。
+- **验证**：新增 4 个回归测试（prepare 累积 work、unknown ID 替换、无候选失败、writePlan
+  未用证据计数），auto-repair 专项 9/9 通过；`npm run check` 全绿（364/364 tests、546 源文件
+  ≤250 行、两端类型检查与构建通过），`git diff --check` 通过。
+
+**S4.5 Section F 性能优化记录（2026-08-05，L3 续执行兜底完成）**：
+
+- **动机（第二轮 3×1 实测）**：zh-ai 156s/15 轮、en-data 162s/13 轮均达标 ≤180s；zh-analytics
+  267s/11 轮未达标，终止模式为"第 9 轮工具错误后模型直接停止，workspace 停在 needs_revision/
+  56.5%"——模型放弃而非继续，正是 run-3x1 出现过的"快但未达标"失败模式。
+- **实现**：新增 `src/desktop/main/resume-continuation.ts`（不依赖 electron 的纯逻辑）：
+  `continueUntilTerminal` 在 agent 停止后检查 workspace 状态，writing/needs_revision 时用
+  `wrapInternalPrompt(instructionFor(workspace))`（既有 internal 标记，自动被聊天投影过滤）
+  续接重prompt，默认上限 2 次，防止模型能力不足时无限接力。`DesktopAgentRuntime.prompt` 与
+  `runPerformanceSession` 均接入，真实 App 与 QA 口径一致；续接轮次的模型调用/工具事件照常
+  进入 trace 与左侧工具展示。
+- **验证**：新增 `test/resume-continuation.test.ts` 4 用例（状态判定、贴上限续接、终态提前停止、
+  自定义上限）；`npm run check` 全绿（368/368 tests），`git diff --check` 通过。
+
+**S4.5 Section F 性能优化记录（2026-08-05，冲突替换 bug 修复 + R4 实测）**：
+
+- **实测暴露的替换 bug**：R3 实测出现不带修复后缀的 `duplicate_source_range`（EvidenceLedger 层），
+  定位为 `repairRangeConflicts` 与 `repairUnknownEvidenceIds` 逐条替换冲突 excerpt 时可能把
+  两条引用换到**同一个未用候选**（只排除被替换单条，未排除本条已占用区间），产生 `[C, C]`
+  内部重叠。修复：`firstUnusedCandidate` 增加 used 区间列表参数，替换时排除本条全部已用区间；
+  新增 2 个回归测试（无替代时 throw 而非产出重复区间、有替代时保持区间互异）。patcher 增加
+  EvidenceLedger 冲突诊断（错误消息附 resolved 批次区间快照），成功路径零影响。
+- **R4 实测（冲突修复后）**：zh-ai 303s/17 轮 ready_for_approval、en-data 342s/17 轮
+  needs_user_decision（三轮修复用尽/来源缺失）、zh-analytics 278s/23 轮 ready_for_approval
+  （**首次达标**，此前 4 轮从未达 ready）；三样本失败工具全部为 0（R1 之后错误循环彻底清零）。
+- **剩余卡点**：达标样本调用数 15–23 轮（prepare 后 ~14 轮 patch，模型仍小步走），单次调用
+  12–25s；同代码样本间方差大（zh-ai 156↔474s），180s 硬门槛下尚不稳定。待决策：L4 宿主确定性
+  补齐（砍 patch 轮次，需确认"宿主代写"展示形式）或 L6 模型参数实验（显式禁用 thinking/
+  temperature，砍单次调用耗时，需授权）。
+
+**S4.5 Section F 性能优化记录（2026-08-05，L4 尾行补齐 + L6 temperature=0 完成）**：
+
+- **L6 实测发现**：pi-ai 的 deepseek thinkingFormat 分支在 thinkingLevel=off（reasoningEffort 为空）
+  时已发送 `thinking: {type: "disabled"}`（deepseek-v4-flash 的 thinkingLevelMap 无 off 键，
+  `undefined !== null` 触发 disabled 分支）——"显式禁用 thinking"已生效，无收益空间；R1–R4 的
+  usage 均无 reasoning 字段佐证。L6 收缩为 `temperature=0`：`createDeepSeekDependencies` 以
+  streamFn 包装注入（产品代码内，不改 node_modules），降低模型随机性带来的方差与乱来轮次。
+- **L4 尾行确定性补齐（用户 2026-08-05 确认"工具活动形式"）**：
+  - 新增 `tail-fill.ts`（161 行）：`buildTailFillOperations` 仅在编译结果为纯尾行违规
+    （violations 全是 bullet_tail_too_short）时，从同经历未用候选取下一条证据句（逐字原文、
+    长度覆盖 shortByChars 且 ≤120 字）；`tryTailFill` 走同一条 resolveOperationsBestEffort
+    + EvidenceLedger + Chromium 编译，追加后出现 overflow/multiple_pages 或非尾行违规变多时
+    整批回滚。每批最多 2 条。
+  - `candidate-patcher` 在模型 patch 编译后自动执行 tail-fill，repairs 记录
+    `kind: "tail_fill"`，随 operationReport 暴露给模型。
+  - 左侧展示（已确认）：`AgentRuntimeEvents` 在 resume 工具成功且存在 tail_fill 修复时注入
+    宿主工具活动伪事件（"自动补齐尾行：bl-3…"）；`ToolActivity.vue` 与 `agent-event-handler`
+    支持 label 字段显示中文说明，右侧预览不变。
+  - `bulletTailDiagnostics` 签名放宽为 `Pick<compileResult|structure>`（消除 tail-fill 的 cast）。
+- **验证**：新增 `test/resume-tail-fill.test.ts` 3 用例（纯尾行状态才触发、patcher 自动补齐并记录
+  repairs、每批上限 2 条）；`npm run check` 全绿（372/372 tests、548 源文件 ≤250 行、两端类型
+  检查与构建通过），`git diff --check` 通过。
+
+**S4.5 Section F 性能优化记录（2026-08-05，L3 生效 + 3×3 统计实测）**：
+
+- **产物链路修正**：electron 实际加载 `out/`（electron-vite 产物，`desktop:build`），此前 R5–R7
+  多次 QA 误用旧产物（`npm run build` 只输出 `dist/`）；修正后 L3 续执行真实生效（continuation
+  日志确认每样本触发续接轮）。
+- **L3 上限 2→4**：实测显示模型"提前停"（prepare 后 5–8 轮即停）是主要失败模式，2 轮续接救不回；
+  上限提到 4（测试随常量自适应）。
+- **3×3 统计实测（L1–L6 全部生效，9 runs）**：
+
+| 样本 | 达标情况 | 失败模式 |
+| --- | --- | --- |
+| zh-ai | 1/3（197s PASS；186s/238s 提前停） | 7–8 calls 提前停 |
+| en-data | 1/3（75s PASS；240s 提前停、97s needs_user_decision） | 提前停 / 三轮修复用尽 |
+| zh-analytics | 0/3（507s/352s/499s） | 15–21 calls 长跑但到不了 ready（writing/needs_user_decision/needs_revision 各种停） |
+
+- **结论**：L1 的确定性收益稳固（9 runs 全部 0 工具错误）；模型行为方差成为唯一剩余变量
+  （提前停、过度长跑、空转轮互现，同代码同样本 75s↔507s）；zh-analytics 代表"JD 匹配度低的
+  困难样本"，模型内容产出受 availableEvidence 质量制约，稳定超时。
+- **待决策**：① L3 变体（移除轮数上限、以总调用数/总时长兜底，救"提前停"类样本）；② L4 完整版
+  （宿主从证据句确定性组装 add_bullet 补条数，救内容不足的困难样本，需确认展示形式）；③ 3×10
+  正式验收（当前 2/9 达标率大概率不过）。
+
+**S4.5 Section F 性能优化记录（2026-08-05，L3 变体 + L4 完整版完成，一次性完善后实测）**：
+
+- **L3 变体（budget 兜底续接）**：`continueUntilTerminal` 从"固定 2/4 轮上限"改为
+  `ContinuationBudget { maxMs: 160s, maxModelCalls: 30 }` 双兜底循环：非终态且预算内时，
+  先由宿主补条（见下），再以 `wrapInternalPrompt(instructionFor(workspace))` 续接模型；
+  防御性轮数上限 200。`CooltoAgent` 新增 `modelCallCount` getter（订阅 assistant
+  message_start 计数，跨全部 prompt 累计），真实 App 与 QA 共用同一预算。
+- **L4 完整版（宿主确定性补条）**：新增 `section-fill.ts`：workspace 为 writing/needs_revision
+  且无 overflow 时，按 writePlan.missing 降序取各经历最高分未用证据句，逐字组装 add_bullet
+  （每批 ≤2 条），走同一 resolveOperationsBestEffort + EvidenceLedger + Chromium 编译，
+  overflow/非 underfilled 违规变多则整批回滚；补条后 workspace revision+1 并写回 store。
+  左侧以工具活动"自动补充：item-X…"呈现（复用用户已确认的工具活动形式，`emitHostFill`）。
+- **接线**：`ConversationAgentContext` 增加 `resumeCompiler`；`DesktopAgentRuntime.prompt`
+  与 `runPerformanceSession` 均传入 compiler + 预算 + 回调（真实 App 发宿主活动事件，
+  QA 写 continuation 日志）。
+- **验证**：新增/更新 `test/resume-continuation.test.ts`（5 用例：宿主补条直接终态、budget
+  兜底、终态提前停止、终态起点、宿主补条记录）；`npm run check` 全绿（377/377 tests、
+  549 源文件 ≤250 行、两端类型检查与构建通过），`git diff --check` 通过。
+- **实测待执行**：一次性 3×3（9 runs）验证 L3 变体 + L4 完整版整体效果。
+
+**S4.5 Section F 性能优化记录（2026-08-05，宿主内容填充扩展 + 全局预算修正）**：
+
+- **实测暴露的两个问题**：① section-fill 原实现只在 writePlan.missing>0 时补条，真实场景模型
+  通常是"条数够但占用率不够"，宿主补条从不触发（日志确认 0 次 hostFill）；② 续接预算从续接
+  开始计时（160s），主 run 的 30–40s 另算，180s 门槛的时间分配错误。
+- **section-fill 扩展为宿主内容填充**：触发条件放宽为 `pxToMinimum > 0`（占用率缺口）或
+  writePlan.missing>0；先按 missing 补 add_bullet（原文句），再按经历把剩余未用证据句
+  append_text 到该经历现有 bullet（每批 ≤3 条）；`introducesWorseViolations` 提取到
+  candidate-patch.ts 与 tail-fill 共享。
+- **全局预算**：`ContinuationBudget` 增加 `startedAtMs`，默认 maxMs 170s 从用户命令开始计时；
+  `DesktopAgentRuntime.prompt` 与 `runPerformanceSession` 均以主 run 起始时刻传入。
+- **验证**：`npm run check` 全绿（377/377 tests、549 源文件 ≤250 行），`git diff --check` 通过。
+- **实测待执行**：最终一次性 3×3（9 runs）。
+
+**S4.5 Section F 质量验证记录（2026-08-05，用户确认"略高于三分钟也可接受"）**：
+
+- **质量快照与 PDF 导出**：perf QA 每个 run 结束时导出完整质量快照（usageRatio、violations、
+  qualityReport、JD 覆盖、bullet/binding 数、unwritten），`ready_for_approval` 时经
+  `compileForPdf` 导出 A4 PDF + 截图到 artifact 目录（`resume-<sample>-<iter>.pdf/png`）；
+  逻辑拆至新增 `resume-performance-quality.ts`（保持 session 文件 ≤250 行）。
+- **两个宿主侧完善**：① tail-fill 触发条件放宽——允许 `page_underfilled` 与尾行违规并存时
+  补尾行（此前 underfilled 时禁用，而实测中"占用率不足 + 尾行违规"恰是常态，补尾行同时
+  提升占用率）；② 续接预算 maxMs 170s→200s（匹配用户"略高于三分钟"口径）。
+- **质量实测（3×2，6 runs）**：
+  - **en-data #2：完全达标**——86.9s，`ready_for_approval`，usage 85.68%（≥85%）、
+    qualified/qualityPassed 均为 true、quality score 1.0、violations 与 qualityIssues 全空、
+    12 bullets、JD 覆盖 3/3、unwritten 空；A4 PDF（1 页，309KB）与 PNG 已存档
+    `s45f-perf/qualified-evidence/resume-en-data-02.{pdf,png}`。
+  - 其余 5 run：needs_revision，**内容层全部达标**（unwritten 空、JD 覆盖 3/3、无 quality
+    issue、证据绑定完整），仅剩布局层（usage 51–77% 需 ≥85% + 尾行违规）——模型在布局
+    未修完时停止，210–266s（略超三分钟）。
+  - 结论：**能输出完全符合质量门槛的简历**（en-data #2 为证据）；剩余问题是模型布局收尾的
+    稳定性（尾行/占用率），宿主 tail-fill 放宽与 200s 预算已落地，待 3×N 复测确认收敛趋势。
+
+**S4.5 Section F 质量复测记录（2026-08-05，tail-fill 放宽 + 200s 预算后 3×3）**：
+
+- **达标 2/9**：zh-ai #2（140.5s，usage 86.1%，score 0.99，16 bullets）与 en-data #3（223.0s，
+  usage 88.6%，score 1.0，12 bullets），均为 `ready_for_approval`、violations/issues 全空、
+  JD 覆盖 3/3、0 工具错误；两份 A4 PDF 已存档
+  `s45f-perf/qualified-evidence/resume-zh-ai-02.pdf`、`resume-en-data-03.pdf`。
+- **"差一步"样本**：en-data #2 usage 85.6%（≥85%）仍 needs_revision，仅剩 bl-9 一条尾行
+  （64.3% vs 66.71%）；31 轮中被 3 次工具错误（旧 revision 重发、证据无未用候选）消耗。
+- **zh-analytics 依旧最弱**（49–64% 占用率，6–12 calls 提前停）：内容产出受 JD 匹配度低的
+  availableEvidence 制约，宿主无可补证据句。
+- **累计质量证据**：三轮实测共 3 份完全合格简历（86.9s/140.5s/223.0s，score 0.99–1.0），
+  证明"能输出符合质量门槛的简历"；不达标样本的内容层（unwritten/JD 覆盖/证据/quality issue）
+  全部达标，剩余差距集中在模型布局收尾稳定性与 zh-analytics 类困难样本。
+
+**S4.5 Section F 证据不足告知记录（2026-08-05，用户确认"归一状态+指令告知 / 模型重选"）**：
+
+- **问题**：needs_user_decision 只在质量审查三轮用尽时产生；"布局占用率不足"（zh-analytics 型）
+  停在 needs_revision，L3 预算耗尽后用户只看到半成品草稿，无任何"证据不足"说明。
+- **归一状态**：`continueUntilTerminal` 预算耗尽（maxMs/maxModelCalls）且 workspace 仍
+  writing/needs_revision 时，宿主把状态归一为 `needs_user_decision`（revision 不变，仅
+  status + structure.quality_status），模型按终态指令向用户说明。
+- **指令告知**：needs_user_decision 的 instruction 改为明确中文说明——"当前所选经历的证据
+  不足以生成满足全部门槛的简历（页面占用率 X%，需 ≥85%…）"，给出两条出路：补充/完善经历，
+  或要求 AI 放宽匹配条件（search_experiences 更宽条件 → 新快照 → 新候选）；明确"不得降低任何
+  质量门槛"。
+- **降阈值重生成**（用户确认走现有工具链）：system-prompt v21 增加引导——证据不足时如实说明；
+  用户要求继续/放宽时，search_experiences 以更宽条件纳入更多相关经历，重新
+  get_resume_source_snapshot + prepare_resume_candidate 生成新候选。
+- **验证**：新增 2 个测试（预算耗尽归一 needs_user_decision、needs_user_decision 指令含证据
+  不足说明与放宽路径）；`npm run check` 全绿（379/379 tests、549 源文件 ≤250 行），
+  `git diff --check` 通过。
+- **3×1 实测（归一后）**：zh-ai 247s/11 calls（usage 52.3%）、en-data 170s/19 calls
+  （usage 84.2%）、zh-analytics 202s/30 calls（usage 47.8%，调用数上限触发）全部归一为
+  `needs_user_decision`——不再静默停在 needs_revision；模型结束回复将按指令向用户说明
+  证据不足与两条出路（补充经历 / 放宽匹配重选）。真实 Electron 对话验收归入后续人工验收。
+
 #### S4.5 Section G：当前预览直接导出
 
 - 保留预览右上角现有导出按钮及视觉样式；点击后直接调用专用 `resume-drafts:export-pdf` IPC，传递当前

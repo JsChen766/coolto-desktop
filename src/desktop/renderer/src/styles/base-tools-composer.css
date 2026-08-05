@@ -50,6 +50,10 @@
   font-size: 11.5px;
 }
 
+.tool-row .tool-label {
+  font-size: 11.5px;
+}
+
 /* Composer */
 .composer-dock {
   padding: 0 20px 11px;

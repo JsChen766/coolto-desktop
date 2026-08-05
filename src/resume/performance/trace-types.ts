@@ -15,6 +15,14 @@ export type ResumeTraceStage =
 
 export type ResumeTraceOutcome = "success" | "error";
 
+export interface ResumeTraceModelUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  reasoning?: number;
+}
+
 export interface ResumeTraceEvent {
   traceId: string;
   stage: ResumeTraceStage;
@@ -23,6 +31,7 @@ export interface ResumeTraceEvent {
   outcome?: ResumeTraceOutcome;
   toolName?: string;
   workspaceStatus?: string;
+  usage?: ResumeTraceModelUsage;
 }
 
 export interface ResumeGenerationTrace {
@@ -46,4 +55,9 @@ export interface ResumeGenerationRunSummary {
   outcome: ResumeTraceOutcome;
   workspaceStatus: string | null;
   stageDurationsMs: Readonly<Record<string, number>>;
+  modelUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+  };
 }

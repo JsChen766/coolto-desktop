@@ -1,15 +1,15 @@
 import { EvidenceValidationError } from "../evidence-validation.js";
 import type { ResumeSourceSnapshot } from "../source-types.js";
 import type { BulletEvidenceBinding } from "../source-types.js";
-import { ResumeWorkspaceError } from "./errors.js";
-import {
-  assertNoRangeConflicts,
-  assertSupportedNumbers,
-  candidateMap,
-  resolveExcerpts,
-} from "./evidence-binding-resolver.js";
-import { applyIncrementalText } from "./incremental-text-edit.js";
 import type { ResumeStructure } from "../types.js";
+import { ResumeWorkspaceError } from "./errors.js";
+import { candidateMap } from "./evidence-binding-resolver.js";
+import { resolveBindingWithAutoRepair } from "./evidence-auto-repair.js";
+import type { EvidenceRepairAction } from "./evidence-auto-repair.js";
+import {
+  nextBulletIdFactory,
+  resolveSingleOperation,
+} from "./evidence-single-operation.js";
 import type {
   EvidenceBindingInput,
   ResumePatchOperation,
@@ -28,10 +28,7 @@ export function resolveEvidenceBindingInput(
   input: EvidenceBindingInput,
   bulletId: string,
 ): BulletEvidenceBinding {
-  const candidates = candidateMap(snapshot);
-  const resolved = resolveExcerpts(input, candidates);
-  assertSupportedNumbers(input.bulletText, resolved.excerpts, candidates);
-  return { ...resolved, bulletId };
+  return resolveBindingWithAutoRepair(snapshot, input, bulletId, new Map()).binding;
 }
 
 export function resolveEvidenceBindingInputs(
@@ -39,29 +36,59 @@ export function resolveEvidenceBindingInputs(
   inputs: readonly EvidenceBindingInput[],
   bulletIdFor: (index: number) => string,
 ): BulletEvidenceBinding[] {
-  const candidates = candidateMap(snapshot);
-  return inputs.map((input, index) => {
-    const resolved = resolveExcerpts(input, candidates);
-    assertSupportedNumbers(input.bulletText, resolved.excerpts, candidates);
-    return { ...resolved, bulletId: bulletIdFor(index) };
-  });
-}
-
-export function resolveEvidenceReference(
-  snapshot: ResumeSourceSnapshot,
-  input: EvidenceBindingInput,
-): Omit<BulletEvidenceBinding, "bulletId"> {
-  const candidates = candidateMap(snapshot);
-  const resolved = resolveExcerpts(input, candidates);
-  assertSupportedNumbers(input.bulletText, resolved.excerpts, candidates);
-  return resolved;
+  return inputs.map((input, index) =>
+    resolveBindingWithAutoRepair(
+      snapshot,
+      input,
+      bulletIdFor(index),
+      new Map(),
+    ).binding,
+  );
 }
 
 /**
- * Resolves a full patch batch (plain and incremental operations) into the
- * internal operation form. Incremental edits become `replace_bullet` with the
- * merged evidence binding, so the whole batch goes through the same atomic
- * application, EvidenceLedger replay, and single Chromium compile.
+ * Best-effort resolution of an initial draft: valid bindings land (with
+ * automatic evidence repair), invalid ones return a rejection list with exact
+ * messages. The workspace is created regardless, so one bad bullet never
+ * blocks the first draft.
+ */
+export function resolveInitialBindingsBestEffort(
+  snapshot: ResumeSourceSnapshot,
+  inputs: readonly EvidenceBindingInput[],
+): {
+  bindings: BulletEvidenceBinding[];
+  rejected: Array<{ index: number; message: string }>;
+  repairs: EvidenceRepairAction[];
+} {
+  const bindings: BulletEvidenceBinding[] = [];
+  const rejected: Array<{ index: number; message: string }> = [];
+  const repairs: EvidenceRepairAction[] = [];
+  const work = new Map<string, BulletEvidenceBinding>();
+  inputs.forEach((input, index) => {
+    try {
+      const repaired = resolveBindingWithAutoRepair(
+        snapshot,
+        input,
+        `bl-${index}`,
+        work,
+      );
+      work.set(repaired.binding.bulletId, repaired.binding);
+      bindings.push(repaired.binding);
+      repairs.push(...repaired.repairs);
+    } catch (error) {
+      if (error instanceof EvidenceValidationError) {
+        rejected.push({ index, message: error.message });
+        return;
+      }
+      throw error;
+    }
+  });
+  return { bindings, rejected, repairs };
+}
+
+/**
+ * Strict resolution of a full patch batch: any failure aborts the whole batch.
+ * Used by the quality repairer, where each alternative is tried independently.
  */
 export function resolveOperations(
   snapshot: ResumeSourceSnapshot,
@@ -69,111 +96,56 @@ export function resolveOperations(
   bindings: readonly BulletEvidenceBinding[],
   operations: readonly ResumePatchOperationInput[],
 ): ResumePatchOperation[] {
+  return resolveOperationsBestEffort(snapshot, structure, bindings, operations)
+    .resolved;
+}
+
+export interface BestEffortResolution {
+  resolved: ResumePatchOperation[];
+  rejected: Array<{ index: number; message: string }>;
+  repairs: EvidenceRepairAction[];
+}
+
+/**
+ * Best-effort resolution of a patch batch: each operation is resolved
+ * independently against the evolving work map. Valid operations land (with
+ * automatic evidence repair), invalid ones return per-operation errors instead
+ * of rolling back the whole batch.
+ */
+export function resolveOperationsBestEffort(
+  snapshot: ResumeSourceSnapshot,
+  structure: ResumeStructure,
+  bindings: readonly BulletEvidenceBinding[],
+  operations: readonly ResumePatchOperationInput[],
+): BestEffortResolution {
   const candidates = candidateMap(snapshot);
   const work = new Map(bindings.map((binding) => [binding.bulletId, binding]));
   const nextId = nextBulletIdFactory(structure);
   const resolved: ResumePatchOperation[] = [];
-  for (const operation of operations) {
-    if (operation.op === "add_bullet") {
-      const input = operation.binding;
-      const binding = resolveExcerpts(input, candidates);
-      assertSupportedNumbers(input.bulletText, binding.excerpts, candidates);
-      const withId = { ...binding, bulletId: nextId() };
-      assertNoRangeConflicts(work, withId, candidates);
-      work.set(withId.bulletId, withId);
-      const itemId = operation.itemId ?? `item-${withId.sourceExperienceId}`;
-      resolved.push({ ...operation, itemId, binding: withId });
-      continue;
-    }
-    if (operation.op === "replace_bullet") {
-      const input = operation.binding;
-      const binding = resolveExcerpts(input, candidates);
-      assertSupportedNumbers(input.bulletText, binding.excerpts, candidates);
-      const withId = { ...binding, bulletId: operation.bulletId };
-      work.set(withId.bulletId, withId);
-      resolved.push({ ...operation, binding: withId });
-      continue;
-    }
-    if (
-      operation.op === "append_text" ||
-      operation.op === "prepend_text" ||
-      operation.op === "insert_text" ||
-      operation.op === "replace_substring"
-    ) {
-      const original = requireBinding(work, operation.bulletId);
-      const mergedText = applyIncrementalText(original.bulletText, operation);
-      const added = resolveExcerpts(
-        { bulletText: mergedText, evidenceIds: operation.evidenceIds },
+  const rejected: Array<{ index: number; message: string }> = [];
+  const repairs: EvidenceRepairAction[] = [];
+  operations.forEach((operation, index) => {
+    try {
+      const outcome = resolveSingleOperation(
+        snapshot,
+        work,
+        structure,
+        operation,
         candidates,
+        nextId,
       );
-      if (added.sourceExperienceId !== original.sourceExperienceId) {
-        throw new EvidenceValidationError(
-          "excerpt_experience_mismatch",
-          `Incremental text for bullet ${operation.bulletId} cites evidence from ${added.sourceExperienceId} but the bullet belongs to ${original.sourceExperienceId}.`,
-          operation.bulletId,
-        );
+      resolved.push(outcome.operation);
+      repairs.push(...outcome.repairs);
+    } catch (error) {
+      if (
+        error instanceof EvidenceValidationError ||
+        error instanceof ResumeWorkspaceError
+      ) {
+        rejected.push({ index, message: error.message });
+        return;
       }
-      const merged: BulletEvidenceBinding = {
-        bulletId: original.bulletId,
-        sourceExperienceId: original.sourceExperienceId,
-        bulletText: mergedText,
-        excerpts: [...original.excerpts, ...added.excerpts],
-        matchedRequirementIds: [
-          ...new Set([...original.matchedRequirementIds, ...added.matchedRequirementIds]),
-        ],
-      };
-      assertSupportedNumbers(merged.bulletText, merged.excerpts, candidates);
-      assertNoRangeConflicts(work, merged, candidates);
-      work.set(merged.bulletId, merged);
-      resolved.push({ op: "replace_bullet", bulletId: merged.bulletId, binding: merged });
-      continue;
+      throw error;
     }
-    if (operation.op === "trim_text") {
-      const original = requireBinding(work, operation.bulletId);
-      const trimmed = [...original.bulletText].slice(0, operation.keepChars).join("");
-      if (!trimmed) {
-        throw new ResumeWorkspaceError(
-          "invalid_patch_operation",
-          `trim_text for bullet ${operation.bulletId} would leave an empty bullet.`,
-        );
-      }
-      const merged = { ...original, bulletText: trimmed };
-      work.set(merged.bulletId, merged);
-      resolved.push({ op: "replace_bullet", bulletId: merged.bulletId, binding: merged });
-      continue;
-    }
-    if (operation.op === "remove_bullet") {
-      work.delete(operation.bulletId);
-    }
-    resolved.push(operation);
-  }
-  return resolved;
-}
-
-function requireBinding(
-  bindings: ReadonlyMap<string, BulletEvidenceBinding>,
-  bulletId: string,
-): BulletEvidenceBinding {
-  const binding = bindings.get(bulletId.trim());
-  if (!binding) {
-    throw new ResumeWorkspaceError(
-      "bullet_not_found",
-      `Bullet ${bulletId} is not in the current candidate.`,
-    );
-  }
-  return binding;
-}
-
-function nextBulletIdFactory(structure: ResumeStructure): () => string {
-  const suffixes = structure.sections.flatMap((section) =>
-    section.items.flatMap((item) =>
-      item.bullets.flatMap((bullet) => {
-        const match = /-(\d+)$/.exec(bullet.id);
-        return match ? [Number.parseInt(match[1]!, 10)] : [];
-      }),
-    ),
-  );
-  const maxSuffix = suffixes.length ? Math.max(...suffixes) : -1;
-  let index = 0;
-  return () => `bl-${maxSuffix + 1 + index++}`;
+  });
+  return { resolved, rejected, repairs };
 }

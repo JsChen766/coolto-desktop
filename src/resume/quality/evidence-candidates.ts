@@ -56,6 +56,27 @@ export function allEvidenceCandidates(
     );
 }
 
+export interface SlimEvidenceCandidate {
+  evidenceId: string;
+  sourceQuote: string;
+  matchedRequirementIds: readonly string[];
+}
+
+/**
+ * Model-facing candidate projection: only the stable ID, the exact quote the
+ * model writes from, and the JD requirements it can cover. Offset arithmetic,
+ * scoring internals and revision metadata stay out of the payload.
+ */
+export function slimEvidenceCandidates(
+  candidates: readonly AvailableEvidenceCandidate[],
+): SlimEvidenceCandidate[] {
+  return candidates.map((candidate) => ({
+    evidenceId: candidate.evidenceId,
+    sourceQuote: candidate.sourceQuote,
+    matchedRequirementIds: candidate.matchedRequirementIds,
+  }));
+}
+
 export function rankAvailableEvidence(
   snapshot: ResumeSourceSnapshot,
   bindings: readonly BulletEvidenceBinding[],

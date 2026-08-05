@@ -43,7 +43,7 @@ export function resolveExcerpts(
     if (!candidate) {
       throw new EvidenceValidationError(
         "unknown_evidence_id",
-        `Bullet cites unknown evidenceId "${evidenceId}"; copy evidenceId values verbatim from availableEvidence. Valid examples: ${validExamples(candidates, evidenceId)}`,
+        `Bullet cites unknown evidenceId "${evidenceId}"; copy evidenceId values verbatim from availableEvidence, never construct or extend them.`,
       );
     }
     cited.push(candidate);
@@ -159,20 +159,4 @@ export function assertSupportedNumbers(
     "unsupported_numeric_claim",
     `Bullet contains numbers absent from its cited source: ${missing.join(", ")}${hints.length ? `; cite one of these candidates instead: ${hints.join(", ")}` : ""}`,
   );
-}
-
-function validExamples(
-  candidates: ReadonlyMap<string, AvailableEvidenceCandidate>,
-  evidenceId: string,
-): string {
-  const experienceId = evidenceId.split(":")[0];
-  const own = [...candidates.values()]
-    .filter((candidate) => candidate.experienceId === experienceId)
-    .slice(0, 3)
-    .map((candidate) => candidate.evidenceId);
-  if (own.length) return own.join(", ");
-  return [...candidates.values()]
-    .slice(0, 3)
-    .map((candidate) => candidate.evidenceId)
-    .join(", ");
 }

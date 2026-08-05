@@ -1,10 +1,18 @@
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
 import type { ApprovalEvent } from "../approvals/types.js";
 
+export interface ModelCallUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  reasoning?: number;
+}
+
 export type CooltoAgentEvent =
   | { type: "run.started" }
   | { type: "model.started" }
-  | { type: "model.completed"; isError: boolean }
+  | { type: "model.completed"; isError: boolean; usage?: ModelCallUsage }
   | { type: "message.delta"; text: string }
   | {
       type: "tool.started";
@@ -52,7 +60,13 @@ export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
         };
       }
       return event.message.role === "assistant"
-        ? { type: "model.completed", isError: false }
+        ? {
+            type: "model.completed",
+            isError: false,
+            ...(event.message.usage
+              ? { usage: slimModelUsage(event.message.usage) }
+              : {}),
+          }
         : undefined;
 
     case "tool_execution_start":
@@ -77,4 +91,20 @@ export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
     default:
       return undefined;
   }
+}
+
+function slimModelUsage(usage: {
+  input?: number;
+  output?: number;
+  cacheRead?: number;
+  cacheWrite?: number;
+  reasoning?: number;
+}): ModelCallUsage {
+  return {
+    input: usage.input ?? 0,
+    output: usage.output ?? 0,
+    cacheRead: usage.cacheRead ?? 0,
+    cacheWrite: usage.cacheWrite ?? 0,
+    ...(usage.reasoning !== undefined ? { reasoning: usage.reasoning } : {}),
+  };
 }

@@ -90,13 +90,16 @@ function handleCurrentConversationEvent(
     case "message.delta":
       state.streamingText.value += event.text;
       return;
-    case "tool.started":
+    case "tool.started": {
+      const argumentsValue = event.arguments as { label?: string } | undefined;
       state.toolRuns.value.push({
         callId: event.callId,
         name: event.name,
+        ...(argumentsValue?.label ? { label: argumentsValue.label } : {}),
         status: "running",
       });
       return;
+    }
     case "tool.completed": {
       const run = state.toolRuns.value.find(
         (candidate) => candidate.callId === event.callId,

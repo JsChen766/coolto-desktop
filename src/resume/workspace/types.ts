@@ -9,6 +9,7 @@ import type {
   ResumeAlternativeTargetInput,
   ResumeQualityReport,
 } from "../quality/types.js";
+import type { EvidenceRepairAction } from "./evidence-auto-repair.js";
 
 export type ResumeCandidateLanguage = "zh-CN" | "en-US";
 export type ResumeWorkspaceStatus =
@@ -26,6 +27,11 @@ export interface ResumeCandidateSnapshot {
   qualityReport?: ResumeQualityReport;
 }
 
+export interface ResumeOperationReport {
+  repairs: EvidenceRepairAction[];
+  rejected: Array<{ index: number; message: string }>;
+}
+
 export interface ResumeWorkspace {
   candidateId: string;
   revision: number;
@@ -40,6 +46,7 @@ export interface ResumeWorkspace {
   repairRound: number;
   repairHistory: RepairRoundDiagnostic[];
   qualityReport?: ResumeQualityReport;
+  lastOperationReport?: ResumeOperationReport;
 }
 
 export interface PrepareResumeCandidateInput {

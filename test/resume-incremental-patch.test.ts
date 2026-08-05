@@ -135,7 +135,9 @@ test("insert_text rejects missing and ambiguous anchors", async () => {
       ],
     }),
     (error: unknown) =>
-      error instanceof ResumeWorkspaceError && error.code === "bullet_anchor_not_found",
+      error instanceof ResumeWorkspaceError &&
+      error.code === "invalid_patch_operation" &&
+      error.message.includes("does not appear in bullet text"),
   );
   await assert.rejects(
     patcher.patch({
@@ -146,7 +148,9 @@ test("insert_text rejects missing and ambiguous anchors", async () => {
       ],
     }),
     (error: unknown) =>
-      error instanceof ResumeWorkspaceError && error.code === "bullet_anchor_ambiguous",
+      error instanceof ResumeWorkspaceError &&
+      error.code === "invalid_patch_operation" &&
+      error.message.includes("copy a longer unique substring"),
   );
   assert.equal((await patcher.patch({
     candidateId: prepared.candidateId,
@@ -232,7 +236,9 @@ test("incremental evidence must belong to the bullet's own experience", async ()
       ],
     }),
     (error: unknown) =>
-      error instanceof EvidenceValidationError && error.code === "excerpt_experience_mismatch",
+      error instanceof ResumeWorkspaceError &&
+      error.code === "invalid_patch_operation" &&
+      error.message.includes("cites evidence from"),
   );
 });
 
@@ -259,12 +265,13 @@ test("merged bullet numbers must be supported by the merged evidence", async () 
       ],
     }),
     (error: unknown) =>
-      error instanceof EvidenceValidationError &&
-      error.code === "unsupported_numeric_claim",
+      error instanceof ResumeWorkspaceError &&
+      error.code === "invalid_patch_operation" &&
+      error.message.includes("99"),
   );
 });
 
-test("a failing incremental batch rolls back atomically", async () => {
+test("a failing operation does not roll back the rest of the batch", async () => {
   const { snapshot, patcher, prepared } = await createInitial();
   await patcher.patch({
     candidateId: prepared.candidateId,
@@ -278,20 +285,30 @@ test("a failing incremental batch rolls back atomically", async () => {
     ],
   });
   const evidence = createBinding(snapshot, "ignored", SECOND_QUOTE).evidenceIds[0]!;
-  await assert.rejects(
-    patcher.patch({
-      candidateId: prepared.candidateId,
-      expectedRevision: 1,
-      operations: [
-        { op: "append_text", bulletId: "bl-0", text: SECOND_QUOTE, evidenceIds: [evidence] },
-        { op: "append_text", bulletId: "bl-0", text: "含有 99 个不存在的数字", evidenceIds: [evidence] },
-      ],
-    }),
-    EvidenceValidationError,
+  const partial = await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 1,
+    operations: [
+      { op: "append_text", bulletId: "bl-0", text: SECOND_QUOTE, evidenceIds: [evidence] },
+      { op: "append_text", bulletId: "bl-0", text: "含有 99 个不存在的数字", evidenceIds: [evidence] },
+    ],
+  });
+  assert.equal(partial.revision, 2);
+  assert.equal(
+    partial.structure.sections[1]!.items[0]!.bullets[0]!.text,
+    FIRST_QUOTE + SECOND_QUOTE,
+  );
+  assert.deepEqual(
+    partial.lastOperationReport?.rejected.map((rejected) => rejected.index),
+    [1],
+  );
+  assert.match(
+    partial.lastOperationReport?.rejected[0]?.message ?? "",
+    /99/,
   );
   const workspace = await patcher.patch({
     candidateId: prepared.candidateId,
-    expectedRevision: 1,
+    expectedRevision: 2,
     operations: [{ op: "remove_bullet", bulletId: "bl-0" }],
   });
   assert.equal(workspace.structure.sections[1]!.items[0]!.bullets.length, 0);

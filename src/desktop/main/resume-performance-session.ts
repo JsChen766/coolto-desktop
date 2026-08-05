@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { appendFile } from "node:fs/promises";
+import { performance } from "node:perf_hooks";
 
 import type { CooltoAgentEvent } from "../../agent/events.js";
 import { createCooltoAgent } from "../../agent/create-agent.js";
@@ -18,6 +19,15 @@ import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher
 import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../../tools/registry.js";
+import {
+  continueUntilTerminal,
+  DEFAULT_CONTINUATION_BUDGET,
+} from "./resume-continuation.js";
+import {
+  exportQualifiedPdf,
+  qualitySnapshot,
+  type PerformanceRun,
+} from "./resume-performance-quality.js";
 import type { ElectronResumeCompilerService } from "./resume-compiler-service.js";
 
 const MAX_MODEL_CALLS = 40;
@@ -33,21 +43,20 @@ export interface PerformanceManifest {
   }>;
 }
 
-export interface PerformanceRun {
-  sampleId: string;
-  iteration: number;
-  elapsedMs: number;
-  modelCallCount: number;
-  compileCount: number;
-  repairRoundCount: number;
-  status: string | null;
-  qualifiedPreviewDelivered: boolean;
-  error: string | null;
-  stageDurationsMs: Readonly<Record<string, number>>;
-  failedToolCount: number;
-  toolSequence: string[];
-  failedToolErrors: Array<{ name: string; message: string }>;
+export interface PerformanceQualitySnapshot {
+  status: string;
+  usageRatio: number;
+  qualified: boolean;
+  violations: Array<{ code: string; message: string }>;
+  qualityPassed: boolean | null;
+  qualityScore: number | null;
+  qualityIssues: Array<{ code: string; message: string }>;
+  bindingCount: number;
+  bulletCount: number;
+  unwrittenItemIds: string[];
+  requirementCoverage: { covered: number; uncovered: number };
 }
+
 
 export async function runPerformanceSession(
   client: CooltoApiClient,
@@ -58,6 +67,7 @@ export async function runPerformanceSession(
   iteration: number,
 ): Promise<PerformanceRun> {
   const conversationId = `resume-perf-${randomUUID()}`;
+  const commandStartedAt = performance.now();
   const traces = new ResumeGenerationTraceStore();
   const workspaceStore = new ResumeWorkspaceStore();
   const tracedCompiler = new TracedResumeCompiler(compiler, traces, conversationId);
@@ -114,6 +124,20 @@ export async function runPerformanceSession(
       }
     });
     await agent.prompt(promptFor(manifest, sample));
+    const debugPath = process.env.COOLTO_RESUME_PERF_DEBUG_PATH;
+    await continueUntilTerminal(
+      agent,
+      workspaceStore,
+      tracedCompiler,
+      {
+        ...DEFAULT_CONTINUATION_BUDGET,
+        startedAtMs: commandStartedAt,
+      },
+      {
+        log: (line) =>
+          debugPath ? appendFile(debugPath, `${line}\n`) : Promise.resolve(),
+      },
+    );
   } catch (caught: unknown) {
     if (!aborted) error = caught instanceof Error ? caught.message : String(caught);
   }
@@ -139,6 +163,7 @@ export async function runPerformanceSession(
   if (workspace?.status === "ready_for_approval") {
     traces.recordDraftSaved(conversationId);
     traces.recordQualifiedPreviewDelivered(conversationId);
+    await exportQualifiedPdf(compiler, workspace, sample.id, iteration);
   }
   const trace = traces.finish(conversationId, {
     workspaceStatus: workspace?.status ?? null,
@@ -160,6 +185,8 @@ export async function runPerformanceSession(
     failedToolCount,
     toolSequence,
     failedToolErrors,
+    modelUsage: summary.modelUsage,
+    quality: workspace ? qualitySnapshot(workspace) : null,
   };
 }
 
@@ -172,7 +199,11 @@ async function recordTraceEvent(
   if (debugPath) await appendFile(debugPath, `${debugLabel(event)}\n`);
   if (event.type === "model.started") traces.recordModelStarted(conversationId);
   if (event.type === "model.completed") {
-    traces.recordModelCompleted(conversationId, event.isError ? "error" : "success");
+    traces.recordModelCompleted(
+      conversationId,
+      event.isError ? "error" : "success",
+      event.usage,
+    );
   }
   if (event.type === "tool.started") {
     traces.recordToolStarted(conversationId, event.callId, event.name);

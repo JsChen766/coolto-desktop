@@ -59,9 +59,11 @@ export function createDeepSeekDependencies(
     );
   }
 
+  const baseStream = models.streamSimple.bind(models);
   return {
     model,
-    streamFn: models.streamSimple.bind(models),
+    streamFn: (modelInput, context, options) =>
+      baseStream(modelInput, context, { ...options, temperature: 0 }),
   };
 }
 

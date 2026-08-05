@@ -44,6 +44,7 @@ export type CooltoAgentListener = (
 export class CooltoAgent {
   readonly #agent: Agent;
   readonly #approvalManager: ApprovalManager | undefined;
+  #modelCallCount = 0;
 
   public constructor(options: CooltoAgentOptions) {
     this.#approvalManager = options.approvalManager;
@@ -64,10 +65,20 @@ export class CooltoAgent {
         ? { transformContext: options.transformContext }
         : {}),
     });
+    this.#agent.subscribe((event) => {
+      if (event.type === "message_start" && event.message.role === "assistant") {
+        this.#modelCallCount += 1;
+      }
+    });
   }
 
   public get isRunning(): boolean {
     return this.#agent.state.isStreaming;
+  }
+
+  /** Total assistant model calls across all prompts since construction. */
+  public get modelCallCount(): number {
+    return this.#modelCallCount;
   }
 
   public get toolNames(): string[] {

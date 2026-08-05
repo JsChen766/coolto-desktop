@@ -1,6 +1,11 @@
 import type { ResumeSourceSnapshot } from "./source-types.js";
-import { rankAvailableEvidence } from "./quality/evidence-candidates.js";
+import {
+  rankAvailableEvidence,
+  slimEvidenceCandidates,
+} from "./quality/evidence-candidates.js";
 import { collectSkillHints } from "./workspace/section-registry.js";
+
+const MAX_JD_RAW_TEXT_CHARS = 800;
 
 /**
  * Model-facing projection of an immutable snapshot. The immutable snapshot and
@@ -17,7 +22,7 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
       title: snapshot.jd.title,
       company: snapshot.jd.company,
       targetRole: snapshot.jd.targetRole,
-      rawText: snapshot.jd.rawText,
+      rawText: capJdRawText(snapshot.jd.rawText),
       contentHash: snapshot.jd.contentHash,
       requirements: snapshot.jd.requirements,
     },
@@ -38,7 +43,7 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
       plannedBullets: plannedBulletsFor(experience.category),
     })),
     skillHints: collectSkillHints(snapshot.experiences),
-    availableEvidence: rankAvailableEvidence(snapshot, []),
+    availableEvidence: slimEvidenceCandidates(rankAvailableEvidence(snapshot, [])),
     template: snapshot.template,
     evidenceInstructions: {
       offsetEncoding: "UTF-16",
@@ -56,4 +61,9 @@ export function plannedBulletsFor(category: string): number {
   if (category === "work") return 4;
   if (category === "project") return 3;
   return 2;
+}
+
+function capJdRawText(rawText: string): string {
+  if ([...rawText].length <= MAX_JD_RAW_TEXT_CHARS) return rawText;
+  return `${[...rawText].slice(0, MAX_JD_RAW_TEXT_CHARS).join("")}\n…（原文已截断）`;
 }

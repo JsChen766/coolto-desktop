@@ -1,4 +1,5 @@
 import type { WebContents } from "electron";
+import { performance } from "node:perf_hooks";
 
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter, UserProfileReader } from "../../api/types.js";
@@ -24,6 +25,10 @@ import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
+import {
+  continueUntilTerminal,
+  DEFAULT_CONTINUATION_BUDGET,
+} from "./resume-continuation.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { readConfig } from "../../config.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
@@ -84,6 +89,7 @@ export class DesktopAgentRuntime {
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
     this.#traces.start(conversationId, readConfig().modelId);
+    const commandStartedAt = performance.now();
     let failed = false;
     try {
       if (input.resumeReference && input.jdReference) {
@@ -110,6 +116,22 @@ export class DesktopAgentRuntime {
           ? promptWithResumeReference(input.text, input.resumeReference)
           : input.text;
       await context.agent.prompt(prompt);
+      await continueUntilTerminal(
+        context.agent,
+        context.workspaceStore,
+        context.resumeCompiler,
+        {
+          ...DEFAULT_CONTINUATION_BUDGET,
+          startedAtMs: commandStartedAt,
+        },
+        {
+          onHostFill: (fills) =>
+            this.#events.emitHostFill(
+              conversationId,
+              fills.map((fill) => `${fill.itemId}:${fill.bulletText.slice(0, 12)}…`),
+            ),
+        },
+      );
       const proposed = context.workspaceStore.latest();
       if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
         await this.#resumeDrafts.proposeChange({

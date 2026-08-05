@@ -1,7 +1,8 @@
 import { applyCandidatePatch } from "./candidate-patch.js";
+import { EvidenceValidationError } from "../evidence-validation.js";
 import type { ResumeCompiler } from "./compiler-port.js";
 import { ResumeWorkspaceError } from "./errors.js";
-import { resolveOperations } from "./evidence-resolution.js";
+import { resolveOperationsBestEffort } from "./evidence-resolution.js";
 import { isBetterCandidate } from "./candidate-ranking.js";
 import type {
   PatchResumeCandidateInput,
@@ -11,6 +12,7 @@ import type {
 import { ResumeWorkspaceStore } from "./workspace-store.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
 import { degradeAdditionalSections } from "./section-space-policy.js";
+import { tryTailFill } from "./tail-fill.js";
 
 const MAX_PATCH_COUNT = 40;
 
@@ -40,25 +42,56 @@ export class ResumeCandidatePatcher {
         `Candidate reached the ${MAX_PATCH_COUNT}-patch safety limit.`,
       );
     }
-    const resolvedOperations = resolveOperations(
+    const resolution = resolveOperationsBestEffort(
       current.sourceSnapshot,
       current.structure,
       current.bindings,
       input.operations,
     );
-    const patched = applyCandidatePatch(
-      current.sourceSnapshot,
-      current.structure,
-      current.bindings,
-      resolvedOperations,
-    );
+    if (!resolution.resolved.length) {
+      throw new ResumeWorkspaceError(
+        "invalid_patch_operation",
+        `All ${resolution.rejected.length} operations were rejected: ${resolution.rejected
+          .map((rejected) => rejected.message)
+          .join("; ")}`,
+      );
+    }
+    let patched: ReturnType<typeof applyCandidatePatch>;
+    try {
+      patched = applyCandidatePatch(
+        current.sourceSnapshot,
+        current.structure,
+        current.bindings,
+        resolution.resolved,
+      );
+    } catch (error) {
+      if (
+        error instanceof EvidenceValidationError &&
+        error.code === "duplicate_source_range"
+      ) {
+        throw new ResumeWorkspaceError(
+          "invalid_patch_operation",
+          `${error.message} [resolved batch ranges: ${summarizeResolvedRanges(
+            resolution.resolved,
+          )}]`,
+        );
+      }
+      throw error;
+    }
     const overflow = await this.compiler.compile(patched.structure);
-    const degraded = hasOverflow(overflow)
-      ? degradeAdditionalSections(patched.structure, patched.bindings)
-      : { ...patched, removedSectionIds: [] };
+    const tailFilled = await tryTailFill(
+      this.compiler,
+      current.sourceSnapshot,
+      patched.structure,
+      patched.bindings,
+      overflow,
+    );
+    const degraded = hasOverflow(tailFilled.compileResult)
+      ? degradeAdditionalSections(tailFilled.structure, tailFilled.bindings)
+      : { ...tailFilled, removedSectionIds: [] };
     const compileResult = degraded.removedSectionIds.length
       ? await this.compiler.compile(degraded.structure)
-      : overflow;
+      : tailFilled.compileResult;
     const revision = current.revision + 1;
     const candidateSnapshot: ResumeCandidateSnapshot = {
       revision,
@@ -72,6 +105,15 @@ export class ResumeCandidatePatcher {
     )
       ? candidateSnapshot
       : current.bestSnapshot;
+    const operationReport =
+      resolution.rejected.length ||
+      resolution.repairs.length ||
+      tailFilled.repairs.length
+        ? {
+            repairs: [...resolution.repairs, ...tailFilled.repairs],
+            rejected: resolution.rejected,
+          }
+        : undefined;
     return this.store.replace(
       {
         ...current,
@@ -82,6 +124,7 @@ export class ResumeCandidatePatcher {
         bindings: degraded.bindings,
         compileResult,
         bestSnapshot,
+        ...(operationReport ? { lastOperationReport: operationReport } : {}),
       },
       input.expectedRevision,
     );
@@ -92,4 +135,34 @@ function hasOverflow(result: ResumeWorkspace["compileResult"]): boolean {
   return result.violations.some((violation) =>
     violation.code === "page_overflow" || violation.code === "multiple_pages",
   );
+}
+
+function summarizeResolvedRanges(
+  resolved: ReturnType<typeof resolveOperationsBestEffort>["resolved"],
+): string {
+  return resolved
+    .map((operation) => {
+      if (operation.op === "replace_bullet") {
+        return `${operation.bulletId}=[${summarizeExcerpts(operation.binding)}]`;
+      }
+      if (operation.op === "add_bullet") {
+        return `${operation.binding.bulletId}=[${summarizeExcerpts(operation.binding)}]`;
+      }
+      return operation.op;
+    })
+    .join("; ");
+}
+
+function summarizeExcerpts(
+  binding: Extract<
+    ReturnType<typeof resolveOperationsBestEffort>["resolved"][number],
+    { op: "replace_bullet" }
+  >["binding"],
+): string {
+  return binding.excerpts
+    .map(
+      (excerpt) =>
+        `${excerpt.experienceId}:${excerpt.sourceStart}-${excerpt.sourceEnd}`,
+    )
+    .join(",");
 }

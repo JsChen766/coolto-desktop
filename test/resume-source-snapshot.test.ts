@@ -42,7 +42,10 @@ test("source snapshot locks current revision content with a deterministic finger
   const serializedProjection = JSON.stringify(projection);
   assert.match(serializedProjection, /revisionContentHash/);
   assert.match(serializedProjection, /availableEvidence/);
-  assert.match(serializedProjection, /sourceStart/);
+  assert.match(serializedProjection, /evidenceId/);
+  assert.match(serializedProjection, /sourceQuote/);
+  assert.doesNotMatch(serializedProjection, /sourceStart/);
+  assert.doesNotMatch(serializedProjection, /valueScore/);
   assert.doesNotMatch(serializedProjection, /revisionHistory/);
 });
 

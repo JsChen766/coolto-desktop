@@ -6,9 +6,11 @@ import {
   type ResumeGenerationRunSummary,
   type ResumeGenerationTrace,
   type ResumeTraceEvent,
+  type ResumeTraceModelUsage,
   type ResumeTraceOutcome,
   type ResumeTraceStage,
 } from "./trace-types.js";
+import { summarizeTrace } from "./trace-summary.js";
 
 const RESUME_TOOLS = new Set([
   "get_resume_source_snapshot",
@@ -70,13 +72,18 @@ export class ResumeGenerationTraceStore {
     if (active) active.modelStartedAtMs.push(this.#offset(active));
   }
 
-  public recordModelCompleted(conversationId: string, outcome: ResumeTraceOutcome): void {
+  public recordModelCompleted(
+    conversationId: string,
+    outcome: ResumeTraceOutcome,
+    usage?: ResumeTraceModelUsage,
+  ): void {
     const active = this.#active.get(conversationId);
     if (!active) return;
     const startedAtMs = active.modelStartedAtMs.shift();
     const endedAtMs = this.#offset(active);
     this.#record(active, "model_call", {
       outcome,
+      ...(usage ? { usage } : {}),
       ...(startedAtMs === undefined ? {} : { durationMs: endedAtMs - startedAtMs }),
     }, startedAtMs ?? endedAtMs);
   }
@@ -185,29 +192,9 @@ export class ResumeGenerationTraceStore {
   }
 }
 
-export function summarizeTrace(trace: ResumeGenerationTrace): ResumeGenerationRunSummary {
-  const elapsedMs = trace.events.at(-1)?.offsetMs ?? 0;
-  const stageDurationsMs = trace.events.reduce<Record<string, number>>(
-    (durations, event) => {
-      if (event.durationMs !== undefined) {
-        durations[event.stage] = (durations[event.stage] ?? 0) + event.durationMs;
-      }
-      return durations;
-    },
-    {},
-  );
-  return {
-    traceId: trace.traceId,
-    elapsedMs,
-    modelCallCount: count(trace, "model_call"),
-    compileCount: count(trace, "chromium_compile"),
-    repairRoundCount: count(trace, "patch"),
-    qualifiedPreviewDelivered: count(trace, "qualified_preview_delivered") > 0,
-    outcome: trace.outcome ?? "error",
-    workspaceStatus: trace.workspaceStatus,
-    stageDurationsMs,
-  };
-}
+// Re-exported for callers that previously imported it from the store; the
+// summary computation lives in trace-summary.ts.
+export { summarizeTrace } from "./trace-summary.js";
 
 function stageForTool(name: string): ResumeTraceStage {
   if (name === "get_resume_source_snapshot") return "source_snapshot";
@@ -215,10 +202,6 @@ function stageForTool(name: string): ResumeTraceStage {
   if (name === "review_resume_candidate") return "quality_review";
   if (name === "prepare_resume_save") return "save_prepared";
   return "tool";
-}
-
-function count(trace: ResumeGenerationTrace, stage: ResumeTraceStage): number {
-  return trace.events.filter((event) => event.stage === stage).length;
 }
 
 function round(value: number): number {

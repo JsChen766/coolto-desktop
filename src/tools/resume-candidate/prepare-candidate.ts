@@ -4,6 +4,7 @@ import { Type } from "@earendil-works/pi-ai";
 import type { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
 import type { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
+import { buildModelPayload } from "../../resume/workspace/model-payload.js";
 import { projectResumeWorkspace } from "../../resume/workspace/workspace-projection.js";
 import { evidenceBindingSchema } from "./schemas.js";
 
@@ -46,7 +47,7 @@ export function createPrepareResumeCandidateTool(
       const workspace = reviewQualifiedCandidate(prepared, reviewer);
       const projection = projectResumeWorkspace(workspace);
       return {
-        content: [{ type: "text", text: JSON.stringify(projection) }],
+        content: [{ type: "text", text: JSON.stringify(buildModelPayload(workspace)) }],
         details: projection,
       };
     },

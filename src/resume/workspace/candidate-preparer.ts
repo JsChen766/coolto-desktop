@@ -7,7 +7,7 @@ import { applyCandidatePatch } from "./candidate-patch.js";
 import { buildResumeSkeleton } from "./candidate-skeleton.js";
 import type { ResumeCompiler } from "./compiler-port.js";
 import { ResumeWorkspaceError } from "./errors.js";
-import { resolveEvidenceBindingInputs } from "./evidence-resolution.js";
+import { resolveInitialBindingsBestEffort } from "./evidence-resolution.js";
 import type {
   PrepareResumeCandidateInput,
   ResumePatchOperation,
@@ -45,22 +45,22 @@ export class ResumeCandidatePreparer {
       input.experienceIds,
       input.language,
     );
-    const initialBindings = input.initialBindings?.length
-      ? resolveEvidenceBindingInputs(
-          snapshot,
-          input.initialBindings,
-          (index) => `bl-${index}`,
-        )
-      : [];
-    const initial = initialBindings.length
+    const draft = input.initialBindings?.length
+      ? resolveInitialBindingsBestEffort(snapshot, input.initialBindings)
+      : { bindings: [] as BulletEvidenceBinding[], rejected: [], repairs: [] };
+    const initial = draft.bindings.length
       ? applyCandidatePatch(
           snapshot,
           skeleton,
           [],
-          initialOperations(skeleton, initialBindings),
+          initialOperations(skeleton, draft.bindings),
         )
       : { structure: skeleton, bindings: [] };
     const compileResult = await this.compiler.compile(initial.structure);
+    const operationReport =
+      draft.rejected.length || draft.repairs.length
+        ? { repairs: draft.repairs, rejected: draft.rejected }
+        : undefined;
     const workspace: ResumeWorkspace = {
       candidateId:
         this.options.createCandidateId?.() ?? `resume-candidate-${randomUUID()}`,
@@ -74,6 +74,7 @@ export class ResumeCandidatePreparer {
       qualityReviewStarted: false,
       repairRound: 0,
       repairHistory: [],
+      ...(operationReport ? { lastOperationReport: operationReport } : {}),
       bestSnapshot: {
         revision: 0,
         structure: structuredClone(initial.structure),

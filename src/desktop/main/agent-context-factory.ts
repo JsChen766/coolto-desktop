@@ -135,6 +135,7 @@ export class AgentContextFactory {
     const context: ConversationAgentContext = {
       agent,
       workspaceStore,
+      resumeCompiler,
       jdProposalStore,
       matchReportStore,
       artifactIdByCandidate: new Map(),

@@ -35,7 +35,7 @@ export async function compactResumeGenerationContext(
               compacted: true,
               toolName: message.toolName,
               instruction:
-                "Use the latest resume Workspace result. It contains the complete accepted resume, all active evidence bindings, ranked unused evidence, and current diagnostics.",
+                "Use the latest resume Workspace result. It contains the complete accepted resume text, ranked unused evidence, and current diagnostics.",
             }),
           },
         ],

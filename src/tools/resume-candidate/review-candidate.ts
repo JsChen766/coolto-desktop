@@ -2,6 +2,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import type { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
+import { buildModelPayload } from "../../resume/workspace/model-payload.js";
 import { projectResumeWorkspace } from "../../resume/workspace/workspace-projection.js";
 
 const parameters = Type.Object({
@@ -25,7 +26,7 @@ export function createReviewResumeCandidateTool(
       );
       const projection = projectResumeWorkspace(workspace);
       return {
-        content: [{ type: "text", text: JSON.stringify(projection) }],
+        content: [{ type: "text", text: JSON.stringify(buildModelPayload(workspace)) }],
         details: projection,
       };
     },

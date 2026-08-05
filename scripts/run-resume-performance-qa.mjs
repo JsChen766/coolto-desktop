@@ -45,7 +45,6 @@ for (const run of runs) {
   assert.equal(typeof run.compileCount, "number");
   assert.equal(typeof run.qualifiedPreviewDelivered, "boolean");
 }
-
 const summary = summarize(report);
 await writeFile(
   join(artifactDirectory, "summary.json"),
@@ -65,16 +64,21 @@ function summarize(report) {
     const modelCalls = runs.map((run) => run.modelCallCount).sort((a, b) => a - b);
     const compiles = runs.map((run) => run.compileCount).sort((a, b) => a - b);
     const failures = runs.filter((run) => run.status !== "ready_for_approval");
+    const qualified = runs.filter((run) => run.status === "ready_for_approval");
     const retried = runs.filter((run) => (run.failedToolCount ?? 0) > 0);
     const retryCount = runs.reduce(
       (total, run) => total + (run.failedToolCount ?? 0),
       0,
     );
     const aggregateStage = {};
+    const aggregateUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0 };
     for (const run of runs) {
       for (const [stage, durationMs] of Object.entries(run.stageDurationsMs ?? {})) {
         aggregateStage[stage] = (aggregateStage[stage] ?? 0) + durationMs;
       }
+      aggregateUsage.inputTokens += run.modelUsage?.inputTokens ?? 0;
+      aggregateUsage.outputTokens += run.modelUsage?.outputTokens ?? 0;
+      aggregateUsage.cacheReadTokens += run.modelUsage?.cacheReadTokens ?? 0;
     }
     return {
       sampleId,
@@ -84,6 +88,17 @@ function summarize(report) {
         iteration: run.iteration,
         status: run.status,
         error: run.error,
+      })),
+      qualifiedQuality: qualified.map((run) => ({
+        iteration: run.iteration,
+        elapsedS: Math.round(run.elapsedMs / 1000),
+        usageRatio: run.quality?.usageRatio,
+        qualityPassed: run.quality?.qualityPassed,
+        qualityScore: run.quality?.qualityScore,
+        violations: run.quality?.violations.length ?? 0,
+        qualityIssues: run.quality?.qualityIssues.length ?? 0,
+        bulletCount: run.quality?.bulletCount,
+        coverage: run.quality?.requirementCoverage,
       })),
       retriedRuns: retried.map((run) => run.iteration),
       retryCount,
@@ -97,6 +112,7 @@ function summarize(report) {
       medianCompiles: median(compiles),
       maxCompiles: compiles.at(-1),
       aggregateStageDurationsMs: aggregateStage,
+      aggregateModelUsage: aggregateUsage,
       qualifiedPreviewDelivered: runs.every((run) => run.qualifiedPreviewDelivered),
     };
   });

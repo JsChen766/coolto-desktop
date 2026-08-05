@@ -11,6 +11,7 @@ import { computed, ref } from "vue";
 export interface ToolRun {
   callId: string;
   name: string;
+  label?: string;
   status: "running" | "completed" | "error";
 }
 
@@ -63,7 +64,8 @@ const hasError = computed(() =>
           :stroke-width="1.8"
           aria-hidden="true"
         />
-        <code>{{ run.name }}</code>
+        <code v-if="!run.label">{{ run.name }}</code>
+        <span v-else class="tool-label">{{ run.label }}</span>
       </div>
     </div>
   </div>

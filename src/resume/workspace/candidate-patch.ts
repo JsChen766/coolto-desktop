@@ -1,5 +1,6 @@
 import { EvidenceLedger } from "../evidence-ledger.js";
 import { normalizeEvidenceBinding } from "../evidence-validation.js";
+import type { ResumeCompileResult } from "../compiler-types.js";
 import type {
   BulletEvidenceBinding,
   ResumeSourceSnapshot,
@@ -11,6 +12,28 @@ import type { ResumePatchOperation } from "./types.js";
 export interface PatchedResumeCandidate {
   structure: ResumeStructure;
   bindings: BulletEvidenceBinding[];
+}
+
+export function introducesWorseViolations(
+  before: ResumeCompileResult,
+  after: ResumeCompileResult,
+): boolean {
+  if (
+    after.violations.some(
+      (violation) =>
+        violation.code === "page_overflow" ||
+        violation.code === "multiple_pages",
+    )
+  ) {
+    return true;
+  }
+  const countWorse = (result: ResumeCompileResult): number =>
+    result.violations.filter(
+      (violation) =>
+        violation.code !== "bullet_tail_too_short" &&
+        violation.code !== "page_underfilled",
+    ).length;
+  return countWorse(after) > countWorse(before);
 }
 
 export function applyCandidatePatch(
