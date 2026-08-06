@@ -42,9 +42,19 @@ function fakeWriter(requests: readonly BulletWritingRequest[]) {
         .join("");
       const filler = request.language === "zh-CN" ? "推进项目落地并沉淀可复用方法论，" : " and delivered measurable impact, ";
       const text = `${source}${filler}`;
-      const padded = text.padEnd(request.targetChars.min + 10, "的");
+      const gap = Math.max(0, request.targetChars.min - [...text].length + 10);
+      const sentences = [
+        "完成数据清洗与字段映射，",
+        "建立异常检查与抽样复核规则，",
+        "沉淀可复用的处理流程，",
+        "配合团队完成月度复盘，",
+      ];
+      const tail = Array.from(
+        { length: Math.ceil(gap / 16) },
+        (_, index) => sentences[index % sentences.length],
+      ).join("");
       void requests;
-      return Promise.resolve(padded);
+      return Promise.resolve(text + tail);
     },
   });
 }
@@ -65,7 +75,7 @@ test("validateBulletText accepts in-target bullets and rejects short ones", () =
     language: "zh-CN" as const,
   };
   assert.equal(validateBulletText("太短", request), "length 2 outside target 92-165");
-  const inTarget = `基于 Python 完成数据清洗，${"".padEnd(80, "的")}无数字表述。`;
+  const inTarget = `基于 Python 完成数据清洗，建立字段映射与抽样复核规则，沉淀可复用的处理流程，配合团队完成月度复盘并支撑多轮迭代，同时输出标准化文档供业务方直接使用。`;
   assert.equal(validateBulletText(inTarget, request), null);
 });
 

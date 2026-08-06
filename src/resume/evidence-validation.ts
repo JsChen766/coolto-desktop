@@ -3,36 +3,13 @@ import type {
   ResumeSourceExperienceSnapshot,
   SourceEvidenceExcerpt,
 } from "./source-types.js";
-import { extractEvidenceNumbers } from "./evidence-numbers.js";
+import { EvidenceValidationError } from "./evidence-error.js";
+import { validateExcerpt, validateNumbers, validateSoftExcerpt } from "./excerpt-validation.js";
 
-export type EvidenceValidationErrorCode =
-  | "source_snapshot_mismatch"
-  | "invalid_bullet_id"
-  | "duplicate_bullet_id"
-  | "empty_bullet_text"
-  | "unknown_source_experience"
-  | "missing_source_excerpt"
-  | "excerpt_experience_mismatch"
-  | "excerpt_revision_mismatch"
-  | "invalid_source_range"
-  | "source_quote_mismatch"
-  | "duplicate_source_range"
-  | "duplicate_requirement_id"
-  | "unknown_requirement_id"
-  | "unknown_evidence_id"
-  | "invalid_evidence_id"
-  | "unsupported_numeric_claim";
-
-export class EvidenceValidationError extends Error {
-  public constructor(
-    public readonly code: EvidenceValidationErrorCode,
-    message: string,
-    public readonly bulletId?: string,
-  ) {
-    super(message);
-    this.name = "EvidenceValidationError";
-  }
-}
+export {
+  EvidenceValidationError,
+  type EvidenceValidationErrorCode,
+} from "./evidence-error.js";
 
 export interface ReservedEvidenceRange {
   bulletId: string;
@@ -101,6 +78,13 @@ export function validateEvidenceBinding(
     );
   }
   validateRequirements(binding, context.requirementIds);
+  if (binding.sharedEvidence) {
+    for (const excerpt of binding.excerpts) {
+      validateSoftExcerpt(context, binding, excerpt);
+    }
+    validateNumbers(binding);
+    return;
+  }
   const currentRanges = [...context.reservedRanges];
   for (const excerpt of binding.excerpts) {
     validateExcerpt(binding, experience, excerpt, currentRanges);
@@ -153,94 +137,5 @@ function validateRequirements(
   }
 }
 
-function validateExcerpt(
-  binding: BulletEvidenceBinding,
-  experience: ResumeSourceExperienceSnapshot,
-  excerpt: SourceEvidenceExcerpt,
-  reservedRanges: readonly ReservedEvidenceRange[],
-): void {
-  const bulletId = binding.bulletId;
-  if (
-    excerpt.experienceId !== binding.sourceExperienceId ||
-    excerpt.experienceId !== experience.id
-  ) {
-    throw new EvidenceValidationError(
-      "excerpt_experience_mismatch",
-      `Bullet ${bulletId} cites an excerpt from another experience.`,
-      bulletId,
-    );
-  }
-  if (
-    excerpt.revisionId !== experience.revisionId ||
-    excerpt.revisionContentHash !== experience.contentHash
-  ) {
-    throw new EvidenceValidationError(
-      "excerpt_revision_mismatch",
-      `Bullet ${bulletId} cites a stale or mismatched revision.`,
-      bulletId,
-    );
-  }
-  if (
-    !Number.isInteger(excerpt.sourceStart) ||
-    !Number.isInteger(excerpt.sourceEnd) ||
-    excerpt.sourceStart < 0 ||
-    excerpt.sourceEnd <= excerpt.sourceStart ||
-    excerpt.sourceEnd > experience.content.length
-  ) {
-    throw new EvidenceValidationError(
-      "invalid_source_range",
-      `Bullet ${bulletId} has an invalid source range.`,
-      bulletId,
-    );
-  }
-  if (
-    !excerpt.sourceQuote ||
-    experience.content.slice(excerpt.sourceStart, excerpt.sourceEnd) !==
-      excerpt.sourceQuote
-  ) {
-    throw new EvidenceValidationError(
-      "source_quote_mismatch",
-      `Bullet ${bulletId} quote does not match its source offsets.`,
-      bulletId,
-    );
-  }
-  if (
-    !binding.sharedEvidence &&
-    reservedRanges.some(
-      (range) =>
-        range.experienceId === excerpt.experienceId &&
-        range.revisionId === excerpt.revisionId &&
-        rangesOverlap(
-          range.start,
-          range.end,
-          excerpt.sourceStart,
-          excerpt.sourceEnd,
-        ),
-    )
-  ) {
-    throw new EvidenceValidationError(
-      "duplicate_source_range",
-      `Bullet ${bulletId} reuses source text already reserved by another bullet.`,
-      bulletId,
-    );
-  }
-}
 
-function validateNumbers(binding: BulletEvidenceBinding): void {
-  const citedText = binding.excerpts.map((excerpt) => excerpt.sourceQuote).join("\n");
-  const sourceNumbers = extractEvidenceNumbers(citedText);
-  const unsupported = extractEvidenceNumbers(binding.bulletText).filter(
-    (value) => !sourceNumbers.includes(value),
-  );
-  if (unsupported.length) {
-    throw new EvidenceValidationError(
-      "unsupported_numeric_claim",
-      `Bullet ${binding.bulletId} contains numbers absent from its cited source: ${Array.from(new Set(unsupported)).join(", ")}.`,
-      binding.bulletId,
-    );
-  }
-}
 
-function rangesOverlap(leftStart: number, leftEnd: number, rightStart: number, rightEnd: number): boolean {
-  return leftStart < rightEnd && rightStart < leftEnd;
-}

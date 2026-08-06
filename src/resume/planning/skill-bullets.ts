@@ -18,46 +18,39 @@ export function appendSkillBullets(
   const selected = snapshot.experiences.filter((experience) =>
     experienceIds.includes(experience.id),
   );
-  const skillsByExperience = new Map<string, string[]>();
-  for (const { skill, experienceId } of collectSkillEvidence(selected)) {
-    const list = skillsByExperience.get(experienceId) ?? [];
-    list.push(skill);
-    skillsByExperience.set(experienceId, list);
-  }
-  if (!skillsByExperience.size) return plan;
+  const skillEvidence = collectSkillEvidence(selected);
+  if (!skillEvidence.length) return plan;
   const candidates = allEvidenceCandidates(snapshot);
   const charsPerLine = Math.max(1, Math.round(typography.charsPerLine));
   const target = {
     min: Math.round(charsPerLine * 1.0),
     max: Math.round(charsPerLine * 1.3),
   };
-  const bullets = [...plan.bullets];
-  let nextIndex = plan.bullets.length;
-  let addedLines = 0;
-  for (const [experienceId, skills] of skillsByExperience) {
-    const cited = candidates
-      .filter(
-        (candidate) =>
-          candidate.experienceId === experienceId &&
-          skills.some((skill) =>
-            candidate.sourceQuote.toLocaleLowerCase().includes(skill.toLocaleLowerCase()),
-          ),
-      )
-      .slice(0, 2);
-    if (!cited.length) continue;
-    bullets.push({
-      bulletIndex: nextIndex++,
-      itemId: `item-skills-${experienceId}`,
-      experienceId,
+  const skills = [...new Set(skillEvidence.map((entry) => entry.skill))];
+  const cited = candidates
+    .filter((candidate) =>
+      skills.some((skill) =>
+        candidate.sourceQuote.toLocaleLowerCase().includes(skill.toLocaleLowerCase()),
+      ),
+    )
+    .slice(0, 3);
+  if (!cited.length) return plan;
+  const bullets = [
+    ...plan.bullets,
+    {
+      bulletIndex: plan.bullets.length,
+      itemId: "item-skills-synthetic",
+      experienceId: skillEvidence[0]!.experienceId,
       evidenceIds: cited.map((candidate) => candidate.evidenceId),
       targetChars: target,
-    });
-    addedLines += 1;
-  }
-  if (!addedLines) return plan;
+    },
+  ];
+  const addedLines = 1;
+  void addedLines;
+  if (!cited.length) return plan;
   return {
     ...plan,
     bullets,
-    totalBulletLines: plan.totalBulletLines + addedLines,
+    totalBulletLines: plan.totalBulletLines + 1,
   };
 }

@@ -199,6 +199,7 @@ function assertItemSource(
   item: ResumeSectionItem,
   binding: BulletEvidenceBinding,
 ): void {
+  if (item.id.startsWith("item-skills-") || binding.sharedEvidence) return;
   if (item.source_experience_id !== binding.sourceExperienceId) {
     throw new ResumeWorkspaceError(
       "bullet_source_mismatch",

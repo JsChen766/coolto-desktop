@@ -49,7 +49,7 @@ export async function writeWorkspace(
   const bindings = bindingsFromPlan(snapshot, plan).map((binding, index) => ({
     ...binding,
     bulletText: textByBullet.get(index) ?? "",
-    ...(plan.bullets[index]?.itemId.startsWith("item-skills-")
+    ...(plan.bullets[index]?.itemId === "item-skills-synthetic"
       ? { sharedEvidence: true }
       : {}),
   }));

@@ -148,6 +148,7 @@ function assertItemOwnership(
   sourceExperienceId: string,
 ): void {
   const item = findItem(structure, itemId);
+  if (itemId.startsWith("item-skills-")) return;
   if (item.source_experience_id !== sourceExperienceId) {
     throw new ResumeWorkspaceError(
       "bullet_source_mismatch",

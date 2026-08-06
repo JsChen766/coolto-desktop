@@ -2,6 +2,7 @@ import type { StreamFn } from "@earendil-works/pi-agent-core";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { extractEvidenceNumbers } from "../evidence-numbers.js";
 import type { AvailableEvidenceCandidate } from "../quality/types.js";
+import { findRepeatedFragment } from "./text-repetition.js";
 
 const MAX_CONCURRENCY = 8;
 const MAX_REWRITE_ROUNDS = 2;
@@ -204,6 +205,10 @@ export function validateBulletText(
   );
   if (missing.length) {
     return `numbers absent from evidence: ${[...new Set(missing)].join(", ")}`;
+  }
+  const repeated = findRepeatedFragment(trimmed);
+  if (repeated) {
+    return `repeated fragment "${repeated}"`;
   }
   return null;
 }

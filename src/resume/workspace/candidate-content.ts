@@ -12,7 +12,7 @@ export function unwrittenExperienceItemIds(
         .filter(
           (item) =>
             Boolean(item.source_experience_id) &&
-            !item.id.startsWith("item-skills-") &&
+            item.id !== "item-skills-synthetic" &&
             item.bullets.length === 0,
         )
         .map((item) => item.id),

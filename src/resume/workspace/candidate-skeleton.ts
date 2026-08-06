@@ -107,24 +107,23 @@ function synthesizeSkillItems(
     list.push(skill);
     byExperience.set(experienceId, list);
   }
-  const experienceById = new Map(
-    experiences.map((experience) => [experience.id, experience]),
-  );
-  return [...byExperience.entries()].map(([experienceId, skills]) => {
-    const experience = experienceById.get(experienceId);
-    return {
-      id: `item-skills-${experienceId}`,
+  const firstExperience = [...byExperience.keys()][0];
+  if (!firstExperience) return [];
+  const skills = [...byExperience.values()].flat();
+  return [
+    {
+      id: "item-skills-synthetic",
       title: `专业技能：${skills.join("、")}`,
       organization: null,
       role: null,
       location: null,
       start_date: null,
       end_date: null,
-      source_experience_id: experienceId,
+      source_experience_id: firstExperience,
       bullets: [],
       raw_text: null,
-    };
-  });
+    },
+  ];
 }
 
 function createItem(experience: ResumeSourceExperienceSnapshot): ResumeSectionItem {
