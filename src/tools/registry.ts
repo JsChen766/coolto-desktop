@@ -91,7 +91,10 @@ export function createToolRegistry(
   }
   if (dependencies.plannedResumeWriter) {
     businessTools.push(
-      createPreparePlannedResumeTool(dependencies.plannedResumeWriter),
+      createPreparePlannedResumeTool(
+        dependencies.plannedResumeWriter,
+        dependencies.resumeCandidateReviewer,
+      ),
     );
   }
   if (dependencies.resumeLayoutInspector) {

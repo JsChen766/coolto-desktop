@@ -59,59 +59,55 @@ export async function trySectionFill(
       fills: [],
     };
   }
-  const resolution = resolveOperationsBestEffort(
-    snapshot,
-    structure,
-    bindings,
-    operations.map((operation) =>
-      operation.bulletId
-        ? {
-            op: "append_text" as const,
-            bulletId: operation.bulletId,
-            text: operation.bulletText,
-            evidenceIds: [operation.evidenceId],
-          }
-        : {
-            op: "add_bullet" as const,
-            itemId: operation.itemId,
-            binding: {
-              bulletText: operation.bulletText,
+  // Per-operation application: one overflowing or worsening fill only skips
+  // that operation; the rest still land.
+  let current = { structure, bindings: [...bindings], compileResult };
+  const appliedFills: SectionFillOperation[] = [];
+  for (const operation of operations) {
+    const resolution = resolveOperationsBestEffort(
+      snapshot,
+      current.structure,
+      current.bindings,
+      [
+        operation.bulletId
+          ? {
+              op: "append_text" as const,
+              bulletId: operation.bulletId,
+              text: operation.bulletText,
               evidenceIds: [operation.evidenceId],
+            }
+          : {
+              op: "add_bullet" as const,
+              itemId: operation.itemId,
+              binding: {
+                bulletText: operation.bulletText,
+                evidenceIds: [operation.evidenceId],
+              },
             },
-          },
-    ),
-  );
-  if (!resolution.resolved.length) {
-    return {
-      structure,
-      bindings: [...bindings],
-      compileResult,
-      applied: false,
-      fills: [],
+      ],
+    );
+    if (!resolution.resolved.length) continue;
+    const applied = applyCandidatePatch(
+      snapshot,
+      current.structure,
+      current.bindings,
+      resolution.resolved,
+    );
+    const compiled = await compiler.compile(applied.structure);
+    if (introducesWorseViolations(current.compileResult, compiled)) continue;
+    current = {
+      structure: applied.structure,
+      bindings: applied.bindings,
+      compileResult: compiled,
     };
-  }
-  const applied = applyCandidatePatch(
-    snapshot,
-    structure,
-    bindings,
-    resolution.resolved,
-  );
-  const compiled = await compiler.compile(applied.structure);
-  if (introducesWorseViolations(compileResult, compiled)) {
-    return {
-      structure,
-      bindings: [...bindings],
-      compileResult,
-      applied: false,
-      fills: [],
-    };
+    appliedFills.push(operation);
   }
   return {
-    structure: applied.structure,
-    bindings: applied.bindings,
-    compileResult: compiled,
-    applied: true,
-    fills: operations,
+    structure: current.structure,
+    bindings: current.bindings,
+    compileResult: current.compileResult,
+    applied: appliedFills.length > 0,
+    fills: appliedFills,
   };
 }
 

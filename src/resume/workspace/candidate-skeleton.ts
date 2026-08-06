@@ -6,7 +6,10 @@ import type {
 } from "../types.js";
 import { ResumeWorkspaceError } from "./errors.js";
 import type { ResumeCandidateLanguage } from "./types.js";
-import { resumeSectionRegistry } from "./section-registry.js";
+import {
+  collectSkillEvidence,
+  resumeSectionRegistry,
+} from "./section-registry.js";
 
 export function buildResumeSkeleton(
   snapshot: ResumeSourceSnapshot,
@@ -22,7 +25,13 @@ export function buildResumeSkeleton(
     );
   }
   const sections = resumeSectionRegistry(ordered, language).map((definition) =>
-    createSection(definition.id, definition.type, definition.heading, definition.experiences),
+    createSection(
+      definition.id,
+      definition.type,
+      definition.heading,
+      definition.experiences,
+      ordered,
+    ),
   );
   return {
     language,
@@ -75,8 +84,47 @@ function createSection(
   type: ResumeSection["type"],
   heading: string,
   experiences: readonly ResumeSourceExperienceSnapshot[],
+  allOrdered: readonly ResumeSourceExperienceSnapshot[],
 ): ResumeSection {
+  if (type === "skills" && !experiences.length) {
+    return { id, type, heading, items: synthesizeSkillItems(allOrdered) };
+  }
   return { id, type, heading, items: experiences.map(createItem) };
+}
+
+/**
+ * When no explicit skills experience exists, the skills section is built
+ * from traceable tags: one item per experience whose tag appears in its own
+ * content. The item title carries the skill words so the writer and the
+ * agent can author evidence-bound skill bullets.
+ */
+function synthesizeSkillItems(
+  experiences: readonly ResumeSourceExperienceSnapshot[],
+): ResumeSectionItem[] {
+  const byExperience = new Map<string, string[]>();
+  for (const { skill, experienceId } of collectSkillEvidence(experiences)) {
+    const list = byExperience.get(experienceId) ?? [];
+    list.push(skill);
+    byExperience.set(experienceId, list);
+  }
+  const experienceById = new Map(
+    experiences.map((experience) => [experience.id, experience]),
+  );
+  return [...byExperience.entries()].map(([experienceId, skills]) => {
+    const experience = experienceById.get(experienceId);
+    return {
+      id: `item-skills-${experienceId}`,
+      title: `专业技能：${skills.join("、")}`,
+      organization: null,
+      role: null,
+      location: null,
+      start_date: null,
+      end_date: null,
+      source_experience_id: experienceId,
+      bullets: [],
+      raw_text: null,
+    };
+  });
 }
 
 function createItem(experience: ResumeSourceExperienceSnapshot): ResumeSectionItem {

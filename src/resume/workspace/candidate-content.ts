@@ -10,7 +10,10 @@ export function unwrittenExperienceItemIds(
     .flatMap((section) =>
       section.items
         .filter(
-          (item) => Boolean(item.source_experience_id) && item.bullets.length === 0,
+          (item) =>
+            Boolean(item.source_experience_id) &&
+            !item.id.startsWith("item-skills-") &&
+            item.bullets.length === 0,
         )
         .map((item) => item.id),
     );

@@ -96,6 +96,12 @@ export interface BulletEvidenceBinding {
   bulletText: string;
   excerpts: readonly SourceEvidenceExcerpt[];
   matchedRequirementIds: readonly string[];
+  /**
+   * Soft-evidence bullets (e.g. skill lines) may share source ranges with
+   * other bullets; their ranges are not exclusive. Numbers and verbatim
+   * quote checks still apply.
+   */
+  sharedEvidence?: boolean;
 }
 
 export interface EvidenceCandidate {

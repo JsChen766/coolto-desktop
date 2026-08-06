@@ -46,10 +46,15 @@ export function resumeSectionRegistry(
   const custom = [...additional.values()].sort((left, right) =>
     firstSeen(left).localeCompare(firstSeen(right)),
   );
+  const explicitSkills = custom.filter((section) => section.type === "skills");
   return [
     ...core,
     ...custom.filter((section) => section.type !== "skills"),
-    ...custom.filter((section) => section.type === "skills"),
+    // Skills is a fixed section: an explicit skills experience wins; when
+    // none exists the caller synthesizes items from collectSkillEvidence.
+    ...(explicitSkills.length
+      ? explicitSkills
+      : [{ id: "section-skills", type: "skills" as const, heading: copy.skills, experiences: [] }]),
   ];
 }
 
@@ -67,6 +72,32 @@ export function collectSkillHints(
       includesNormalized(experience.content, tag),
     ) ? experience.tags : [],
   ));
+}
+
+export interface SkillEvidence {
+  skill: string;
+  experienceId: string;
+}
+
+/**
+ * Skills with a traceable source: a tag counts only when it actually appears
+ * in the experience content, so the skill bullet can bind to that sentence.
+ */
+export function collectSkillEvidence(
+  experiences: readonly ResumeSourceExperienceSnapshot[],
+): SkillEvidence[] {
+  const seen = new Set<string>();
+  const result: SkillEvidence[] = [];
+  for (const experience of experiences) {
+    for (const tag of experience.tags) {
+      if (!includesNormalized(experience.content, tag)) continue;
+      const key = `${experience.id}:${tag.trim().toLocaleLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push({ skill: tag, experienceId: experience.id });
+    }
+  }
+  return result;
 }
 
 function group(

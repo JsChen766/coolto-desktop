@@ -68,9 +68,8 @@ export function normalizeEvidenceBinding(
       revisionId: excerpt.revisionId.trim(),
       revisionContentHash: excerpt.revisionContentHash.trim(),
     })),
-    matchedRequirementIds: binding.matchedRequirementIds.map((value) =>
-      value.trim(),
-    ),
+    matchedRequirementIds: binding.matchedRequirementIds.map((value) => value.trim()),
+    ...(binding.sharedEvidence ? { sharedEvidence: true } : {}),
   };
 }
 
@@ -112,6 +111,7 @@ export function validateEvidenceBinding(
       start: excerpt.sourceStart,
       end: excerpt.sourceEnd,
     });
+
   }
   validateNumbers(binding);
 }
@@ -120,13 +120,15 @@ export function reservedRangesFromBindings(
   bindings: Iterable<BulletEvidenceBinding>,
 ): ReservedEvidenceRange[] {
   return Array.from(bindings).flatMap((binding) =>
-    binding.excerpts.map((excerpt) => ({
-      bulletId: binding.bulletId,
-      experienceId: excerpt.experienceId,
-      revisionId: excerpt.revisionId,
-      start: excerpt.sourceStart,
-      end: excerpt.sourceEnd,
-    })),
+    binding.sharedEvidence
+      ? []
+      : binding.excerpts.map((excerpt) => ({
+          bulletId: binding.bulletId,
+          experienceId: excerpt.experienceId,
+          revisionId: excerpt.revisionId,
+          start: excerpt.sourceStart,
+          end: excerpt.sourceEnd,
+        })),
   );
 }
 
@@ -203,6 +205,7 @@ function validateExcerpt(
     );
   }
   if (
+    !binding.sharedEvidence &&
     reservedRanges.some(
       (range) =>
         range.experienceId === excerpt.experienceId &&
@@ -224,9 +227,7 @@ function validateExcerpt(
 }
 
 function validateNumbers(binding: BulletEvidenceBinding): void {
-  const citedText = binding.excerpts
-    .map((excerpt) => excerpt.sourceQuote)
-    .join("\n");
+  const citedText = binding.excerpts.map((excerpt) => excerpt.sourceQuote).join("\n");
   const sourceNumbers = extractEvidenceNumbers(citedText);
   const unsupported = extractEvidenceNumbers(binding.bulletText).filter(
     (value) => !sourceNumbers.includes(value),
@@ -240,11 +241,6 @@ function validateNumbers(binding: BulletEvidenceBinding): void {
   }
 }
 
-function rangesOverlap(
-  leftStart: number,
-  leftEnd: number,
-  rightStart: number,
-  rightEnd: number,
-): boolean {
+function rangesOverlap(leftStart: number, leftEnd: number, rightStart: number, rightEnd: number): boolean {
   return leftStart < rightEnd && rightStart < leftEnd;
 }

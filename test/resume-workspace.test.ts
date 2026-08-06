@@ -27,7 +27,7 @@ test("preparer creates the fixed resume skeleton and returns a real pixel budget
   assert.equal(workspace.status, "writing");
   assert.deepEqual(
     workspace.structure.sections.map((section) => section.heading),
-    ["教育经历", "工作经历"],
+    ["教育经历", "工作经历", "专业技能"],
   );
   assert.equal(workspace.structure.sections[0]?.items[0]?.id, "item-edu-1");
   assert.equal(workspace.structure.sections[1]?.items[0]?.id, "item-work-1");

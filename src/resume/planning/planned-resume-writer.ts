@@ -1,22 +1,18 @@
-import { allEvidenceCandidates } from "../quality/evidence-candidates.js";
 import { ResumeSourceSnapshotBuilder } from "../source-snapshot.js";
 import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../template-contract.js";
 import type { ResumeSourceSnapshot } from "../source-types.js";
-import { applyCandidatePatch } from "../workspace/candidate-patch.js";
-import { fillToGate } from "./fill-to-gate.js";
-import { buildResumeSkeleton } from "../workspace/candidate-skeleton.js";
+
 import type { ResumeCompiler } from "../workspace/compiler-port.js";
+import { buildResumeSkeleton } from "../workspace/candidate-skeleton.js";
 import type { ResumeWorkspace } from "../workspace/types.js";
 import { ResumeWorkspaceStore } from "../workspace/workspace-store.js";
-import { deriveWorkspaceStatus } from "../workspace/workspace-status.js";
-import { autoExpandToGate } from "./auto-expand.js";
-import { bindingsFromPlan, planResumeWriting, type PlanningParameters, type WritingPlan } from "./planner.js";
+import { autoExpandToGate, rankByJdRelevance } from "./auto-expand.js";
+import { planResumeWriting, type PlanningParameters, type WritingPlan } from "./planner.js";
 import { validateAndPlanLayout } from "./ai-layout.js";
 import { calibrateTypography } from "./typography-calibration.js";
-import {
-  ParallelBulletWriter,
-  type BulletWritingRequest,
-} from "./parallel-writer.js";
+import { writeWorkspace } from "./write-workspace.js";
+import type { ParallelBulletWriter } from "./parallel-writer.js";
+import { appendSkillBullets } from "./skill-bullets.js";
 
 export interface PlannedResumeWriterOptions {
   snapshotBuilder: ResumeSourceSnapshotBuilder;
@@ -82,12 +78,46 @@ export class PlannedResumeWriter {
       });
       plan = await this.#plan(snapshot, input, typography, maxBulletLines);
     }
-    const workspace = await this.#writeWorkspace(
+    let workspace = await writeWorkspace(this.options,
       { ...input, experienceIds: selectedExperienceIds },
       snapshot,
       plan,
     );
+    // Output-driven expansion: when the written page still falls below the
+    // gate, add more relevant experiences (by JD relevance) and rewrite
+    // instead of leaving the model to struggle. Bounded to avoid loops.
+    for (let round = 0; round < 2; round += 1) {
+      if (workspace.compileResult.usageRatio >= 0.85) break;
+      if (!this.options.listAdditionalExperiences) break;
+      const extra = await this.#additionalByRelevance(
+        snapshot,
+        selectedExperienceIds,
+      );
+      if (!extra.length) break;
+      selectedExperienceIds = [...selectedExperienceIds, ...extra];
+      snapshot = await this.#buildSnapshot({
+        ...input,
+        experienceIds: selectedExperienceIds,
+      });
+      plan = await this.#plan(snapshot, input, typography, maxBulletLines);
+      workspace = await writeWorkspace(this.options,
+        { ...input, experienceIds: selectedExperienceIds },
+        snapshot,
+        plan,
+      );
+    }
     return { workspace, plan, addedExperienceIds, typography };
+  }
+
+  async #additionalByRelevance(
+    snapshot: ResumeSourceSnapshot,
+    selectedIds: readonly string[],
+  ): Promise<string[]> {
+    const all = await this.options.listAdditionalExperiences!();
+    return rankByJdRelevance(snapshot.jd.requirements, all)
+      .filter((experience) => !selectedIds.includes(experience.id))
+      .slice(0, 2)
+      .map((experience) => experience.id);
   }
 
   async #plan(
@@ -111,13 +141,14 @@ export class PlannedResumeWriter {
       }
       return validated.plan;
     }
-    return planResumeWriting(
+    const base = planResumeWriting(
       snapshot,
       input.experienceIds,
       typography,
       input.language,
       maxBulletLines,
     );
+    return appendSkillBullets(base, snapshot, input.experienceIds, typography);
   }
 
   async #expandIfNeeded(
@@ -162,79 +193,6 @@ export class PlannedResumeWriter {
       );
     }
     return result.addedExperienceIds;
-  }
-
-  async #writeWorkspace(
-    input: PlannedResumeWriteInput,
-    snapshot: ResumeSourceSnapshot,
-    plan: WritingPlan,
-  ): Promise<ResumeWorkspace> {
-    const candidateMap = new Map(
-      allEvidenceCandidates(snapshot).map((candidate) => [
-        candidate.evidenceId,
-        candidate,
-      ]),
-    );
-    const requests: BulletWritingRequest[] = plan.bullets.map((bullet) => ({
-      bulletIndex: bullet.bulletIndex,
-      itemId: bullet.itemId,
-      experienceId: bullet.experienceId,
-      evidence: bullet.evidenceIds.map((evidenceId) => {
-        const candidate = candidateMap.get(evidenceId);
-        if (!candidate) throw new Error(`Plan references unknown evidence ${evidenceId}`);
-        return candidate;
-      }),
-      targetChars: bullet.targetChars,
-      language: input.language,
-    }));
-    const results = await this.options.bulletWriter.writeAll(requests);
-    const textByBullet = new Map(
-      results.map((result) => [result.bulletIndex, result.bulletText]),
-    );
-    const bindings = bindingsFromPlan(snapshot, plan).map((binding, index) => ({
-      ...binding,
-      bulletText: textByBullet.get(index) ?? "",
-    }));
-    const skeleton = buildResumeSkeleton(snapshot, input.experienceIds, input.language);
-    const patched = applyCandidatePatch(
-      snapshot,
-      skeleton,
-      [],
-      bindings.map((binding) => ({
-        op: "add_bullet" as const,
-        itemId: `item-${binding.sourceExperienceId}`,
-        binding,
-      })),
-    );
-    const compileResult = await this.options.compiler.compile(patched.structure);
-    const filled = await fillToGate(
-      this.options.compiler,
-      snapshot,
-      patched.structure,
-      patched.bindings,
-      compileResult,
-    );
-    const workspace: ResumeWorkspace = {
-      candidateId: `planned-${Date.now()}`,
-      revision: 0,
-      patchCount: 0,
-      status: deriveWorkspaceStatus(filled.compileResult, filled.structure),
-      sourceSnapshot: snapshot,
-      structure: filled.structure,
-      bindings: filled.bindings,
-      compileResult: filled.compileResult,
-      qualityReviewStarted: false,
-      repairRound: 0,
-      repairHistory: [],
-      maxBulletLines: this.options.maxBulletLines ?? 3,
-      bestSnapshot: {
-        revision: 0,
-        structure: structuredClone(filled.structure),
-        bindings: structuredClone(filled.bindings),
-        compileResult: structuredClone(filled.compileResult),
-      },
-    };
-    return this.options.store.create(workspace);
   }
 
   #buildSnapshot(input: PlannedResumeWriteInput): Promise<ResumeSourceSnapshot> {

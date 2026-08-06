@@ -2,6 +2,8 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import type { PlannedResumeWriter } from "../../resume/planning/planned-resume-writer.js";
+import type { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
+import type { ResumeWorkspace } from "../../resume/workspace/types.js";
 import { buildModelPayload } from "../../resume/workspace/model-payload.js";
 import { projectResumeWorkspace } from "../../resume/workspace/workspace-projection.js";
 
@@ -48,6 +50,7 @@ const parameters = Type.Object({
  */
 export function createPreparePlannedResumeTool(
   writer: PlannedResumeWriter,
+  reviewer?: ResumeCandidateReviewer,
 ): AgentTool<typeof parameters> {
   return {
     name: "prepare_planned_resume",
@@ -64,7 +67,7 @@ export function createPreparePlannedResumeTool(
           ? { layout: structuredClone(params.layout) }
           : {}),
       });
-      const workspace = result.workspace;
+      const workspace = reviewQualifiedCandidate(result.workspace, reviewer);
       const projection = projectResumeWorkspace(workspace);
       return {
         content: [{ type: "text", text: JSON.stringify(buildModelPayload(workspace)) }],
@@ -74,3 +77,10 @@ export function createPreparePlannedResumeTool(
   };
 }
 
+function reviewQualifiedCandidate(
+  workspace: ResumeWorkspace,
+  reviewer: ResumeCandidateReviewer | undefined,
+): ResumeWorkspace {
+  if (!reviewer || workspace.status !== "layout_qualified") return workspace;
+  return reviewer.review(workspace.candidateId, workspace.revision);
+}
