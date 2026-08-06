@@ -1,4 +1,5 @@
 import type {
+  AgentMessage,
   AgentTool,
   BeforeToolCallContext,
   BeforeToolCallResult,
@@ -26,14 +27,15 @@ export interface CreateAgentOptions {
   modelId?: string;
   systemPrompt?: string;
   tools?: AgentTool[];
+  thinkingLevel?: import("@earendil-works/pi-ai").ThinkingLevel;
   beforeToolCall?: (
     context: BeforeToolCallContext,
     signal?: AbortSignal,
   ) => Promise<BeforeToolCallResult | undefined>;
   transformContext?: (
-    messages: import("@earendil-works/pi-agent-core").AgentMessage[],
+    messages: AgentMessage[],
     signal?: AbortSignal,
-  ) => Promise<import("@earendil-works/pi-agent-core").AgentMessage[]>;
+  ) => Promise<AgentMessage[]>;
   approvalManager?: ApprovalManager;
 }
 
@@ -79,6 +81,9 @@ export function createCooltoAgent(
     streamFn: runtime.streamFn,
     systemPrompt: options.systemPrompt ?? COOLTO_SYSTEM_PROMPT,
     tools: options.tools ?? createToolRegistry(),
+    ...(options.thinkingLevel
+      ? { thinkingLevel: options.thinkingLevel }
+      : {}),
     ...(options.apiKey
       ? { getApiKey: () => options.apiKey }
       : {}),

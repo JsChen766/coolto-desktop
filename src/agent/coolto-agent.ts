@@ -7,7 +7,7 @@ import {
   type BeforeToolCallResult,
   type StreamFn,
 } from "@earendil-works/pi-agent-core";
-import type { Api, Model } from "@earendil-works/pi-ai";
+import type { Api, Model, ThinkingLevel } from "@earendil-works/pi-ai";
 
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import type {
@@ -24,6 +24,7 @@ export interface CooltoAgentOptions {
   streamFn: StreamFn;
   systemPrompt: string;
   tools: AgentTool[];
+  thinkingLevel?: ThinkingLevel;
   getApiKey?: (provider: string) => string | undefined;
   beforeToolCall?: (
     context: BeforeToolCallContext,
@@ -53,7 +54,7 @@ export class CooltoAgent {
         systemPrompt: options.systemPrompt,
         model: options.model,
         tools: options.tools,
-        thinkingLevel: "off",
+        thinkingLevel: options.thinkingLevel ?? "off",
       },
       streamFn: options.streamFn,
       toolExecution: "sequential",

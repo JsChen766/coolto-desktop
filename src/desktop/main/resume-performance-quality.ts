@@ -42,6 +42,28 @@ export interface PerformanceRun {
   quality: PerformanceQualitySnapshot | null;
 }
 
+export function syntheticProfile() {
+  return {
+    fullName: "Section F QA",
+    contactEmail: "section-f-qa@example.test",
+    phone: "+852 5555 0101",
+    email: null,
+    location: "Hong Kong",
+    linkedinUrl: null,
+    githubUrl: null,
+    personalWebsite: null,
+    currentTitle: null,
+    currentCompany: null,
+    yearsOfExperience: 2,
+    careerStage: "early_career",
+    targetRoles: [],
+    targetIndustries: [],
+    targetLocations: [],
+    preferredLanguage: "zh-CN",
+    resumeStyle: "standard",
+  };
+}
+
 export function qualitySnapshot(
   workspace: ResumeWorkspace,
 ): PerformanceQualitySnapshot {

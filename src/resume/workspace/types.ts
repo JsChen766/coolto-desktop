@@ -47,6 +47,8 @@ export interface ResumeWorkspace {
   repairHistory: RepairRoundDiagnostic[];
   qualityReport?: ResumeQualityReport;
   lastOperationReport?: ResumeOperationReport;
+  /** Maximum bullet height in lines (2 or 3); defaults to 3. */
+  maxBulletLines?: 2 | 3;
 }
 
 export interface PrepareResumeCandidateInput {

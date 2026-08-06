@@ -92,7 +92,7 @@ p0-product-completion-roadmap/
 | S2 | JD 同步接入 | 建立 `JdSyncStore`；让 JD 审批入库、查询、聚合更新和删除统一经过本地 projection 与 Outbox；保持 requirement ID 稳定 | 离线写入和重放通过；requirements 全量更新不漂移 ID；另一设备修改可 Pull；冲突不静默覆盖；既有匹配与简历生成仍能读取稳定 JD |
 | S3 | Tracker 基础接入 | 增加 Application、status event、Interview、Note、Reminder 的 App 类型、Normalizer、Store 和 Adapter；先完成 Application 看板、详情与合法状态迁移 | Application 离线创建/编辑/删除、跨设备同步和墓碑通过；非法状态迁移显示服务端错误；JD/Resume 引用与标题快照正确 |
 | S4 | Tracker 业务闭环 | 接入 Interview、Note、Reminder UI 与本地通知调度；补齐同步状态、失败恢复和冲突处理界面 | 状态事件与当前状态一致；终态不可继续迁移；提醒可跨设备同步并由本机执行通知；父 Application 删除能传播子实体墓碑 |
-| S4.5 | 简历生成与交付修复 | 补齐个人资料、可扩展经历/技能、教育排版、三分钟生成目标与预览直接导出；保持既有工作/项目渲染和生成界面形态 | 信息有事实来源；门槛不降；每次真实用户命令的完整生成耗时不超过 180 秒；预览按钮直接导出当前合格版本；真实 Electron/PDF 质检通过 |
+| S4.5 | 简历生成与交付修复 | 补齐个人资料、可扩展经历/技能、教育排版、三分钟生成目标与预览直接导出；保持既有工作/项目渲染和生成界面形态 | 信息有事实来源；门槛不降；每次真实用户命令的完整生成耗时不超过 240 秒（2026-08-05 由 180 秒放宽，见 Section F 门槛更新记录）；预览按钮直接导出当前合格版本；真实 Electron/PDF 质检通过 |
 | S5 | 整体联调与性能验收 | 使用 Docker 后端完成真实 App 主路径、离线恢复、双设备冲突、分页与重启重放；清理迁移后不再使用的 Direct 写路径 | App 全量检查通过；500 条同步分页和 Tracker 看板达到约定指标；无重复创建、静默覆盖、跨账号泄漏或绕过 Outbox 的业务写入 |
 
 ### 完成记录
@@ -1236,10 +1236,11 @@ Vue/CSS。实现后完成视觉截图、键盘/ARIA、主题/语言、窄宽屏�
 - App 登录/空闲时预热隐藏 renderer 与字体；仅对完全相同的 structure、Profile、字体和 Chromium
   版本复用 compile 结果。若数据证明备选修复的 Chromium 编译是主要瓶颈，再实现上限为 2 的隔离
   BrowserWindow 池，并用串行/并行结果一致性测试证明无竞态、跨账号或字体差异。
-- 性能硬门槛：每次真实用户生成命令都必须在 `≤ 180s` 内按 Section A 的完整端到端口径交付合格预览。
+- 性能硬门槛：每次真实用户生成命令都必须在 `≤ 240s`（2026-08-05 由 180s 放宽）内按 Section A
+  的完整端到端口径交付合格预览。
   不建立合成样本、优化前基线、p95/median 或模型调用次数的独立验收指标；失败重试仍须计入，不得剔除。
 
-**完成门槛**：获授权的真实用户生成命令均在 `≤ 180s` 内完成；一页/占用率/尾部、字体、证据、
+**完成门槛**：获授权的真实用户生成命令均在 `≤ 240s`（2026-08-05 由 180s 放宽）内完成；一页/占用率/尾部、字体、证据、
 must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流程和交互截图无改变。
 
 **S4.5 Section F 实施决策（2026-08-04，用户确认）**：
@@ -1527,6 +1528,51 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   `needs_user_decision`——不再静默停在 needs_revision；模型结束回复将按指令向用户说明
   证据不足与两条出路（补充经历 / 放宽匹配重选）。真实 Electron 对话验收归入后续人工验收。
 
+**S4.5 Section F 性能门槛更新记录（2026-08-05，用户确认）**：
+
+- **正式门槛由 `≤180s` 放宽为 `≤240s`**（"略高于三分钟"）；理由：已验证的达标样本最高 223s
+  （en-data #3），180s 在 flash 模型行为方差下无法稳定达成；240s 覆盖已证达标的全部样本并
+  留余量。zh-analytics 类困难样本（228–500s）仍可能超时，验收时如实报告不达标次数与原因。
+- **同步更新**：阶段表格 S4.5 行、Section F 性能硬门槛与完成门槛、用户确认结果（2026-08-02）
+  中的 180s 引用全部改为 240s（历史实测分析记录保留原文）；`PERFORMANCE_GATE_MS = 240_000`
+  写入 `run-resume-performance-qa.mjs` 验收判定；续接预算 `DEFAULT_CONTINUATION_BUDGET.maxMs`
+  200s→230s（240s 门槛留 ~10s 给保存/审批）。质量门槛（一页/占用率/尾行/字体/证据/must-have/
+  quality review）不降。
+- **剩余验收项**：按新门槛执行 3×10 正式验收（`COOLTO_RESUME_PERF_RUNS=10`），记录达标率、
+  超时样本与原因；真实 Electron 对话验收（证据不足告知、放宽匹配重选）归入人工验收。
+
+**S4.5 Section F 3 行 bullet 配置记录（2026-08-05，用户决定）**：
+
+- **决定**：bullet 允许写到 3 行，主链路支持可配置（默认 3，`COOLTO_RESUME_MAX_BULLET_LINES=2|3`
+  可回退 2 行）。依据：规划实验证明"≤2 行 + 85% 页面 + 现有材料"数学不可兼得（zh-ai 需 22 条
+  但证据只够 ~16 条 2 行 bullet，上限 ~76%）；模型实测达标样本本就依赖 3 行 bullet。
+- **实现**：`AppConfig.resumeMaxBulletLines`（默认 3，枚举校验 2/3）；`ResumeWorkspace.maxBulletLines`
+  （可选字段，兼容旧草稿默认 3）；`ResumeCandidatePreparer` 选项注入（agent-context-factory 从
+  config 传入）；`bulletCharTarget` 字符上限 = charsPerLine × maxBulletLines（3 行 → 中文
+  92–165 字，2 行 → 92–110 字），`instructionFor` 的 remainingBullets 估算随行数调整；
+  system-prompt v23 与 snapshot draftPlanRule 文字同步"1.7–3 行"。
+- **实验目录同步**：planner 默认 maxBulletLines=3；材料不足判定（estimatedMaxUsageRatio<85%）
+  与自动扩充流程（按 JD 匹配度纳入更多经历，穷尽才通知补经历）已实现并通过真实数据验证
+  （zh-analytics 自动 +1 条 → 90.9%）。
+- **验证**：config 测试扩展（默认 3、env 覆盖 2、非法值拒绝）；npm run check 全绿
+  （379/379 tests、550 源文件 ≤250 行、两端类型检查与构建），git diff --check 通过。
+
+**S4.5 Section F 模型与思考实验记录（2026-08-05，thinking 配置化 + pro 对比）**：
+
+- **thinking 配置化**：`AppConfig` 新增 `thinkingLevel`（`COOLTO_AGENT_THINKING_LEVEL`，
+  默认 `off`，枚举校验），经 `createCooltoAgent`/`CooltoAgent` 透传到 pi-agent-core
+  （deepseek-v4 系列仅支持 off/high/max）；prompt 升 v22（bullet 长度硬要求：中文 85–105 字/
+  英文 160–200 字符、首轮写满 planned 条数 ≥70% 占用率、宁长勿短；instruction 增加
+  "every existing bullet must reach the same target length"）。
+- **flash+high 3×1 实测**：thinking 确实解决"写不满"——zh-analytics 首次 `ready_for_approval`
+  （876s/85.6%/score 0.986）；但单次调用 40–62s，总耗时 300–876s，性能不可接受；zh-ai/en-data
+  占用率反而下降（想太多、动得少）。
+- **pro+off 3×1 实测（配置 `COOLTO_MODEL=deepseek-v4-pro`）**：三样本占用率 85.7–95.9%
+  （历史最高），zh-ai 231s/score 1.0、en-data 176s/score 0.99 均 `ready_for_approval` 且
+  ≤240s；zh-analytics 235s/85.7%/score 0.99 内容达标，30 次调用上限触发、差布局收尾一步
+  （归一 needs_user_decision 可续）。单次调用 ~9s（pro 基座输出效率高、返工少），工具错误
+  0–2 次/run。**pro+off 暂为最优配置，是否定为正式配置待 3×3 稳定性复测后决策。**
+
 #### S4.5 Section G：当前预览直接导出
 
 - 保留预览右上角现有导出按钮及视觉样式；点击后直接调用专用 `resume-drafts:export-pdf` IPC，传递当前
@@ -1575,7 +1621,8 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   布局，其余侧栏、聊天与生成界面不变。
 - 直接导出保留系统“另存为”对话框，只导出当前达到 `ready_for_approval` 的合格 revision；生成中的
   中间预览不可导出，点击不创建聊天消息、不调用 LLM。
-- 性能目标只以每次真实用户命令从下发到合格预览交付的完整耗时 `≤ 180s` 判定；不要求合成样本、
+- 性能目标只以每次真实用户命令从下发到合格预览交付的完整耗时 `≤ 240s`（2026-08-05 由 180s
+  放宽）判定；不要求合成样本、
   优化前基线或性能模拟。测试账号和测试资产只能精确创建、记录并在验收后清理，不得操作用户已有业务数据。
 - 开始 S4.5 前将 App API 环境覆盖从线上服务器切换为本地 Docker `http://127.0.0.1:8080`；代码默认值
   与 `.env.example` 原本已是该地址，本次只修改被 `.gitignore` 排除的本机 `.env` 覆盖项。API 基址

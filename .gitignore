@@ -10,3 +10,4 @@ coverage/
 /output
 .claude
 .DS_Store
+/experiments

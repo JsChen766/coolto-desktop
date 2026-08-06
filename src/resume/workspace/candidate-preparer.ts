@@ -18,6 +18,8 @@ import { deriveWorkspaceStatus } from "./workspace-status.js";
 
 export interface ResumeCandidatePreparerOptions {
   createCandidateId?: () => string;
+  /** Maximum bullet height in lines (2 or 3). Defaults to 3. */
+  maxBulletLines?: 2 | 3;
 }
 
 export class ResumeCandidatePreparer {
@@ -72,6 +74,9 @@ export class ResumeCandidatePreparer {
       bindings: initial.bindings,
       compileResult,
       qualityReviewStarted: false,
+      ...(this.options.maxBulletLines
+        ? { maxBulletLines: this.options.maxBulletLines }
+        : {}),
       repairRound: 0,
       repairHistory: [],
       ...(operationReport ? { lastOperationReport: operationReport } : {}),

@@ -82,6 +82,7 @@ export class AgentContextFactory {
       sourceBuilder,
       resumeCompiler,
       workspaceStore,
+      { maxBulletLines: config.resumeMaxBulletLines },
     );
     const resumeCandidatePatcher = new ResumeCandidatePatcher(
       resumeCompiler,
@@ -109,6 +110,7 @@ export class AgentContextFactory {
     const agent = createCooltoAgent({
       apiKey: config.apiKey,
       modelId: config.modelId,
+      thinkingLevel: config.thinkingLevel,
       approvalManager,
       tools: createToolRegistry({
         currentUserReader: deps.apiClient,

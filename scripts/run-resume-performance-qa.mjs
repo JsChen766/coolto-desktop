@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 
 import electron from "electron";
 
+const PERFORMANCE_GATE_MS = 240_000;
 const runCount = Number.parseInt(process.env.COOLTO_RESUME_PERF_RUNS ?? "10", 10);
 assert.ok(Number.isInteger(runCount) && runCount >= 1 && runCount <= 30);
 const artifactDirectory =
@@ -124,8 +125,8 @@ function summarize(report) {
     passed: samples.every(
       (sample) =>
         sample.failures.length === 0 &&
-        sample.medianMs <= 180_000 &&
-        sample.p95Ms <= 180_000,
+        sample.medianMs <= PERFORMANCE_GATE_MS &&
+        sample.p95Ms <= PERFORMANCE_GATE_MS,
     ),
     overallMedianMs: median(allElapsed),
     overallP95Ms: percentile(allElapsed, 0.95),

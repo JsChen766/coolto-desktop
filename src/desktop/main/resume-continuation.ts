@@ -19,7 +19,8 @@ export interface ContinuationBudget {
 }
 
 export const DEFAULT_CONTINUATION_BUDGET: ContinuationBudget = {
-  maxMs: 200_000,
+  // 240s performance gate minus ~10s margin for save/approval steps.
+  maxMs: 230_000,
   maxModelCalls: 30,
 };
 

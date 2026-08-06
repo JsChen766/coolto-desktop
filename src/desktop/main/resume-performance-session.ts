@@ -26,6 +26,7 @@ import {
 import {
   exportQualifiedPdf,
   qualitySnapshot,
+  syntheticProfile,
   type PerformanceRun,
 } from "./resume-performance-quality.js";
 import type { ElectronResumeCompilerService } from "./resume-compiler-service.js";
@@ -85,6 +86,7 @@ export async function runPerformanceSession(
   const agent = createCooltoAgent({
     apiKey: config.apiKey,
     modelId: config.modelId,
+    thinkingLevel: config.thinkingLevel,
     tools: createToolRegistry({
       currentUserReader: client,
       userProfileReader: { getUserProfile: async () => syntheticProfile() },
@@ -238,13 +240,4 @@ function promptFor(
 ): string {
   const experienceIds = sample.experienceIndexes.map((index) => manifest.experienceIds[index]);
   return `请基于目标 JD ${manifest.jdIds[sample.id]} 和以下按顺序选择的经历生成一页${sample.language}简历：${experienceIds.join("、")}。必须先锁定 source snapshot；所有 bullet 都要使用精确 quote/UTF-16 offset 证据；布局合格后必须完成质量审查及必要修复；最终只在 ready_for_approval 或 needs_user_decision 时停止；不要保存简历。`;
-}
-
-function syntheticProfile() {
-  return {
-    fullName: "Section F QA", contactEmail: "section-f-qa@example.test", phone: "+852 5555 0101",
-    email: null, location: "Hong Kong", linkedinUrl: null, githubUrl: null, personalWebsite: null,
-    currentTitle: null, currentCompany: null, yearsOfExperience: null, careerStage: null,
-    targetRoles: [], targetIndustries: [], targetLocations: [], preferredLanguage: "zh-CN", resumeStyle: "standard",
-  };
 }

@@ -104,7 +104,11 @@ export function instructionFor(workspace: ResumeWorkspace): string {
     return "Use only the reported repairTargets and bounded alternativeTargets. Do not modify frozen bullets or bypass the three-round limit.";
   }
   const budget = calculateResumeBudget(workspace.compileResult);
-  const linesPerBullet = Math.max(1, workspace.compileResult.bodyLineHeightPx * 2.2);
+  const maxLines = workspace.maxBulletLines ?? 3;
+  const linesPerBullet = Math.max(
+    1,
+    workspace.compileResult.bodyLineHeightPx * (maxLines + 0.2),
+  );
   const remainingBullets = Math.max(1, Math.ceil(budget.pxToMinimum / linesPerBullet));
   const bulletChars = bulletCharTarget(workspace);
   const tailHints = bulletTailDiagnostics(workspace)
@@ -135,7 +139,7 @@ export function instructionFor(workspace: ResumeWorkspace): string {
         return `${value.itemId} needs ${value.missing} more (${value.unusedEvidenceCount} unused evidence)`;
       })
       .join("; ");
-    return `The page is at ${(workspace.compileResult.usageRatio * 100).toFixed(1)}% (need ≥85%), roughly ${remainingBullets} more bullets. Submit one complete batch now, not a single lengthen-only tweak: ${planHints || "no item needs more bullets — lengthen the shortest ones"}. New bullets about ${bulletChars} each so the last line stays ≥ two-thirds wide. ${incremental} ${continuation}`;
+    return `The page is at ${(workspace.compileResult.usageRatio * 100).toFixed(1)}% (need ≥85%), roughly ${remainingBullets} more bullets. Submit one complete batch now, not a single lengthen-only tweak: ${planHints || "no item needs more bullets — lengthen the shortest ones"}. New bullets about ${bulletChars} each so the last line stays ≥ two-thirds wide; every existing bullet must reach the same target length in this or the next batch. ${incremental} ${continuation}`;
   }
   return `Fix the reported violations in one bounded batch of 2–8 incremental operations. Tail-deficit bullets (${tailHints || "none"}): append_text about shortByChars characters of source-backed facts. Overlong/overflow: trim_text or replace_substring. ${incremental} ${continuation}`;
 }
@@ -170,7 +174,7 @@ function bulletCharTarget(workspace: ResumeWorkspace): string {
       ? Math.max(20, Math.round(widthPx / fontSize))
       : Math.max(30, Math.round((widthPx / fontSize) * 1.9));
   const minimum = Math.round(charsPerLine * 1.68);
-  const maximum = Math.round(charsPerLine * 2.0);
+  const maximum = Math.round(charsPerLine * (workspace.maxBulletLines ?? 3));
   return workspace.structure.language === "zh-CN"
     ? `${minimum}–${maximum} 个汉字`
     : `${minimum}–${maximum} characters`;
