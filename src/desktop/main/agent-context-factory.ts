@@ -21,6 +21,8 @@ import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-prepar
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { TracedResumeCompiler } from "../../resume/performance/traced-compiler.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
+import { createPlannedResumeWriter } from "../../resume/planning/create-planned-writer.js";
+import { ResumeLayoutInspector } from "../../resume/planning/layout-inspector.js";
 import { createToolRegistry } from "../../tools/registry.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
@@ -107,6 +109,19 @@ export class AgentContextFactory {
       ),
         resumeCompiler,
     );
+    const resumeLayoutInspector = new ResumeLayoutInspector(
+      sourceBuilder,
+      resumeCompiler,
+      config.resumeMaxBulletLines,
+    );
+    const plannedResumeWriter = createPlannedResumeWriter({
+      snapshotBuilder: sourceBuilder,
+      compiler: resumeCompiler,
+      store: workspaceStore,
+      modelId: config.modelId,
+      experiences: deps.experiences,
+      maxBulletLines: config.resumeMaxBulletLines,
+    });
     const agent = createCooltoAgent({
       apiKey: config.apiKey,
       modelId: config.modelId,
@@ -120,6 +135,8 @@ export class AgentContextFactory {
         resumeReader: deps.resumePublications,
         resumeSourceSnapshotBuilder: sourceBuilder,
         resumeCandidatePreparer,
+        plannedResumeWriter,
+        resumeLayoutInspector,
         resumeCandidatePatcher,
         resumeCandidateReviewer,
         resumeAlternativeRepairer,

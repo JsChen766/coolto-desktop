@@ -74,9 +74,7 @@ export class ResumeCandidatePreparer {
       bindings: initial.bindings,
       compileResult,
       qualityReviewStarted: false,
-      ...(this.options.maxBulletLines
-        ? { maxBulletLines: this.options.maxBulletLines }
-        : {}),
+      maxBulletLines: this.options.maxBulletLines ?? 3,
       repairRound: 0,
       repairHistory: [],
       ...(operationReport ? { lastOperationReport: operationReport } : {}),

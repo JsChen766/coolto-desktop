@@ -4,6 +4,7 @@ import { performance } from "node:perf_hooks";
 
 import type { CooltoAgentEvent } from "../../agent/events.js";
 import { createCooltoAgent } from "../../agent/create-agent.js";
+
 import { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { AppConfig } from "../../config.js";
 import {
@@ -19,6 +20,8 @@ import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher
 import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../../tools/registry.js";
+import { createPlannedResumeWriter } from "../../resume/planning/create-planned-writer.js";
+import { ResumeLayoutInspector } from "../../resume/planning/layout-inspector.js";
 import {
   continueUntilTerminal,
   DEFAULT_CONTINUATION_BUDGET,
@@ -32,7 +35,6 @@ import {
 import type { ElectronResumeCompilerService } from "./resume-compiler-service.js";
 
 const MAX_MODEL_CALLS = 40;
-
 export interface PerformanceManifest {
   runLabel: string;
   experienceIds: string[];
@@ -42,20 +44,6 @@ export interface PerformanceManifest {
     language: "zh-CN" | "en-US";
     experienceIndexes: number[];
   }>;
-}
-
-export interface PerformanceQualitySnapshot {
-  status: string;
-  usageRatio: number;
-  qualified: boolean;
-  violations: Array<{ code: string; message: string }>;
-  qualityPassed: boolean | null;
-  qualityScore: number | null;
-  qualityIssues: Array<{ code: string; message: string }>;
-  bindingCount: number;
-  bulletCount: number;
-  unwrittenItemIds: string[];
-  requirementCoverage: { covered: number; uncovered: number };
 }
 
 
@@ -75,6 +63,7 @@ export async function runPerformanceSession(
   const sourceBuilder = new ResumeSourceSnapshotBuilder({
     currentUser: client,
     profile: { getUserProfile: async () => syntheticProfile() },
+
     jd: client,
     experience: client,
   });
@@ -94,6 +83,19 @@ export async function runPerformanceSession(
       jdReader: client,
       resumeSourceSnapshotBuilder: sourceBuilder,
       resumeCandidatePreparer: preparer,
+      resumeLayoutInspector: new ResumeLayoutInspector(
+        sourceBuilder,
+        tracedCompiler,
+        config.resumeMaxBulletLines,
+      ),
+      plannedResumeWriter: createPlannedResumeWriter({
+        snapshotBuilder: sourceBuilder,
+        compiler: tracedCompiler,
+        store: workspaceStore,
+        modelId: config.modelId,
+        experiences: client,
+        maxBulletLines: config.resumeMaxBulletLines,
+      }),
       resumeCandidatePatcher: patcher,
       resumeCandidateReviewer: reviewer,
       resumeAlternativeRepairer: repairer,

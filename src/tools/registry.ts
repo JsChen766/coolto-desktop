@@ -13,6 +13,8 @@ import { JdProposalStore } from "../jd/proposal-store.js";
 import type { ResumeSourceSnapshotBuilder } from "../resume/source-snapshot.js";
 import type { ResumeCandidatePatcher } from "../resume/workspace/candidate-patcher.js";
 import type { ResumeCandidatePreparer } from "../resume/workspace/candidate-preparer.js";
+import type { PlannedResumeWriter } from "../resume/planning/planned-resume-writer.js";
+import type { ResumeLayoutInspector } from "../resume/planning/layout-inspector.js";
 import type { ResumeCandidateReviewer } from "../resume/quality/candidate-reviewer.js";
 import type { ResumeAlternativeRepairer } from "../resume/quality/alternative-repairer.js";
 import type { ResumeSaveProposalBuilder } from "../resume/save/proposal-builder.js";
@@ -30,6 +32,8 @@ import { createJdTools } from "./jd-tools.js";
 import { createSearchExperiencesTool } from "./search-experiences.js";
 import { createSelectedFileTools } from "./selected-files.js";
 import { createResumeCandidateTools } from "./resume-candidate/index.js";
+import { createPreparePlannedResumeTool } from "./planned-resume/prepare-planned.js";
+import { createInspectResumeLayoutTool } from "./planned-resume/inspect-layout.js";
 import { createPrepareResumeSaveTool } from "./resume-candidate/prepare-save.js";
 import { createResumeReadTools } from "./resume-tools.js";
 import type { ResumePdfExportProposalBuilder } from "../resume/export/proposal-builder.js";
@@ -45,6 +49,8 @@ export interface ToolRegistryDependencies {
   jdReader?: JdReader;
   resumeSourceSnapshotBuilder?: ResumeSourceSnapshotBuilder;
   resumeCandidatePreparer?: ResumeCandidatePreparer;
+  plannedResumeWriter?: PlannedResumeWriter;
+  resumeLayoutInspector?: ResumeLayoutInspector;
   resumeCandidatePatcher?: ResumeCandidatePatcher;
   resumeCandidateReviewer?: ResumeCandidateReviewer;
   resumeAlternativeRepairer?: ResumeAlternativeRepairer;
@@ -82,6 +88,16 @@ export function createToolRegistry(
   }
   if (dependencies.resumeReader) {
     businessTools.push(...createResumeReadTools(dependencies.resumeReader));
+  }
+  if (dependencies.plannedResumeWriter) {
+    businessTools.push(
+      createPreparePlannedResumeTool(dependencies.plannedResumeWriter),
+    );
+  }
+  if (dependencies.resumeLayoutInspector) {
+    businessTools.push(
+      createInspectResumeLayoutTool(dependencies.resumeLayoutInspector),
+    );
   }
   if (dependencies.experienceReader) {
     businessTools.push(
