@@ -78,8 +78,11 @@ import type {
   CloudResumePreview,
   ResumeDraftDetail,
   ResumeDraftEditInput,
+  ResumeDraftExportPdfInput,
+  ResumeDraftExportPdfResult,
   ResumeDraftRestoreInput,
 } from "./resume-library.js";
+import type { AppUpdateState, UpdateTrigger } from "./updates.js";
 
 export interface DesktopApi {
   platform: DesktopPlatform;
@@ -109,6 +112,13 @@ export interface DesktopApi {
     restore(input: ResumeDraftRestoreInput): Promise<ResumeDraftDetail>;
     accept(artifactId: string): Promise<ResumeDraftDetail>;
     reject(artifactId: string): Promise<ResumeDraftDetail>;
+    exportPdf(input: ResumeDraftExportPdfInput): Promise<ResumeDraftExportPdfResult>;
+  };
+  updates: {
+    getState(): Promise<AppUpdateState>;
+    check(trigger: UpdateTrigger): Promise<void>;
+    install(): Promise<void>;
+    onStateChange(listener: (state: AppUpdateState) => void): () => void;
   };
   agent: {
     prompt(input: AgentPromptInput): Promise<ConversationDetail>;

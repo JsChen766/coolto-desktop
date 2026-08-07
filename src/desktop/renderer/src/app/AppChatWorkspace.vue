@@ -66,6 +66,8 @@ const {
         :artifact-open="artifactOpen"
         :browser-open="browser.state.isOpen"
         :resume-draft="resumeWorkspace.activeDraft.value"
+        :exporting="resumeWorkspace.exporting.value"
+        :export-message="resumeWorkspace.exportMessage.value"
         :platform="desktopApi.platform"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
         @toggle-artifact="toggleArtifact"

@@ -134,6 +134,19 @@
   gap: 2px;
 }
 
+.resume-export-status {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .resume-details-popover {
   position: absolute;
   z-index: 60;

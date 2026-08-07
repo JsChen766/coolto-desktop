@@ -7,6 +7,7 @@ import { useFillProgress } from "../browser/use-fill-progress";
 import { useChatSession } from "../chat/use-chat-session";
 import { desktopApi } from "../lib/desktop-api";
 import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
+import { useAppUpdates } from "../updates/use-app-updates";
 import { useJobFlowNavigation } from "./use-job-flow-navigation";
 import { useExperienceImportNavigation } from "./use-experience-import-navigation";
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
@@ -21,6 +22,7 @@ export function useAppShell() {
   const activeView = ref<AppView>("chat");
   const resumeWorkspace = useResumeWorkspace();
   const session = useChatSession(resumeWorkspace);
+  const updates = useAppUpdates(() => session.user.value);
   const conversationAttachment = useConversationAttachment(
     () => session.current.value?.id,
   );
@@ -232,6 +234,11 @@ export function useAppShell() {
     toggleArtifact,
     toggleBrowser,
     toggleTheme,
+    updateState: updates.updateState,
+    updateChecking: updates.updateChecking,
+    updateUpToDate: updates.updateUpToDate,
+    checkUpdate: updates.checkUpdate,
+    installUpdate: updates.installUpdate,
   };
 }
 

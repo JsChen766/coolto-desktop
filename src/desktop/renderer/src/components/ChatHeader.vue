@@ -5,6 +5,7 @@ import {
   Download,
   FileText,
   Globe,
+  LoaderCircle,
   Maximize2,
   Minus,
   PanelLeftClose,
@@ -23,6 +24,8 @@ defineProps<{
   artifactOpen: boolean;
   browserOpen: boolean;
   resumeDraft: ResumeDraftDetail | undefined;
+  exporting?: boolean;
+  exportMessage?: string;
   platform: DesktopPlatform;
 }>();
 
@@ -91,12 +94,20 @@ function factLabel(value: ResumeDraftDetail["quality"]["factIntegrity"]): string
           :icon="Download"
           :label="$t('导出到本地文件')"
           :disabled="
+            exporting ||
             resumeDraft.workspaceStatus !== 'ready_for_approval' ||
             !resumeDraft.compileResult.qualified ||
             Boolean(resumeDraft.pendingChange)
           "
           @click="$emit('exportResume')"
         />
+        <span v-if="exporting" class="resume-export-status">
+          <LoaderCircle class="spin" :size="13" :stroke-width="1.8" aria-hidden="true" />
+          {{ $t('正在导出…') }}
+        </span>
+        <span v-else-if="exportMessage" class="resume-export-status">
+          {{ exportMessage }}
+        </span>
         <div v-if="detailsOpen" class="resume-details-popover">
           <div class="resume-detail-row">
             <span>{{ $t('页面占比') }}</span>

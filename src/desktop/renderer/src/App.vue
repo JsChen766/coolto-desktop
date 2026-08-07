@@ -60,6 +60,11 @@ const {
   sidebarOpen,
   showSidebar,
   toggleTheme,
+  updateChecking,
+  updateState,
+  updateUpToDate,
+  checkUpdate,
+  installUpdate,
   user,
   verifyEmailCode,
 } = shell;
@@ -126,6 +131,9 @@ function closeProfile(): void {
       :resume-drafts="resumeWorkspace.drafts.value"
       :current-draft-id="resumeWorkspace.activeDraft.value?.artifactId"
       :active-view="activeView"
+      :update-state="updateState"
+      :update-checking="updateChecking"
+      :update-up-to-date="updateUpToDate"
       @create="guardNavigation(createChat)"
       @select="guardNavigation(() => selectChat($event))"
       @select-draft="guardNavigation(() => openResumeDraft($event))"
@@ -136,6 +144,8 @@ function closeProfile(): void {
       @delete="openDialog('delete', $event)"
       @toggle-theme="toggleTheme"
       @open-profile="openProfile"
+      @check-update="checkUpdate"
+      @install-update="installUpdate"
       @logout="guardNavigation(logout)"
     />
     <button

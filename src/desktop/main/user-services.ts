@@ -39,6 +39,7 @@ export interface UserServices {
   conversations: ConversationStore;
   resumeDrafts: ResumeDraftService;
   resumeDraftEditing: ResumeDraftEditingService;
+  resumePdfExports: ResumePdfExportService;
   agent: DesktopAgentRuntime;
   selectedFiles: ConversationSelectedFiles;
   resumes: ResumeSyncStore;
@@ -136,6 +137,7 @@ export class UserServicesResolver {
         resumeDrafts,
         new ResumeManualEditor(this.resumeCompiler),
       ),
+      resumePdfExports,
       agent: new DesktopAgentRuntime(
         this.auth.apiClient,
         conversations,

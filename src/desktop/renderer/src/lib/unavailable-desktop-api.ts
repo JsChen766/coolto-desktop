@@ -33,6 +33,13 @@ export function createUnavailableDesktopApi(): DesktopApi {
       restore: unavailable,
       accept: unavailable,
       reject: unavailable,
+      exportPdf: unavailable,
+    },
+    updates: {
+      getState: unavailable,
+      check: unavailable,
+      install: unavailable,
+      onStateChange: () => () => undefined,
     },
     agent: {
       prompt: unavailable,

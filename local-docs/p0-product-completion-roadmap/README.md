@@ -186,7 +186,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | E5 | 版本记录 | 在线分页历史、pending 本地版本说明和恢复为新 revision | ✅ 已完成 |
 | E6 | 经历仓库验收 | Electron + Docker、离线、冲突、日期、可访问性、跨账号与性能回归 | ✅ 已完成 |
 | S4 | Tracker 业务闭环 | 独立接入 Interview、Note、Reminder、状态历史与本地通知 | ✅ 已完成 |
-| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、三分钟生成目标与预览直接导出 | Section A–F 已完成（F 含遗留项，见完成记录）；G–H 未开始 |
+| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、三分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；H 未开始（用户决定由专职测试人员按 Section H 标准验收，见 Section G/G-1 完成记录） |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
 | R1 | 生产上线准备 | 邮件、限流、域名、备份、监控、密钥、发布与回滚 | 功能路线完成后执行 |
 
@@ -1608,6 +1608,178 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
 
 **完成门槛**：真实 Electron 点击一次即可保存并打开当前预览 PDF；文件内容 hash/revision 与预览一致，
 取消、同名文件、无权限、磁盘失败、陈旧版本和未合格版本均安全；聊天事件和模型调用数保持不变。
+
+**S4.5 Section G 完成记录（2026-08-06）**：
+
+- **行为变更**：预览右上角导出按钮从"向聊天发送'请将右侧当前简历导出为 PDF 到本地文件。'指令"
+  改为直接调用专用 `resume-drafts:export-pdf` IPC（按钮位置、图标与禁用条件不变；禁用条件继续要求
+  `ready_for_approval` 且 `qualified` 且无 `pendingChange`）。该操作不创建聊天消息、不调用 LLM、
+  不生成 ApprovalCard，也不导出比当前预览更新或更旧的隐式版本。原聊天指令路径（Agent 导出审批）
+  保留未动，聊天内仍可要求导出。
+- **Main 侧重新读取与门禁**：`ipc.ts` 新 handler 经
+  `src/desktop/main/resume-drafts/resume-draft-ipc.ts` 注册，Main 重新读取同一草稿并构建不可变
+  payload：`workspace.revision !== expectedRevision` 拒绝（`stale_candidate_revision`）、存在
+  `pendingChange` 拒绝（`draft_has_pending_change`）、非 `ready_for_approval` / `qualityReport` 未
+  通过 / `structure.quality_status` 未通过 / `compileResult` 未合格拒绝（`candidate_not_exportable`）。
+  随后复用既有 `ResumePdfExportService`（系统另存为对话框、同源 Chromium `compileForPdf`、PDF
+  postflight 完整性、原子写文件）；取消返回 `cancelled` 不报错，失败保留可重试错误。
+- **新增纯逻辑**：`src/resume/export/draft-export.ts`（77 行，无 electron 依赖）：`buildDraftPdfExportPayload`
+  校验并构建 payload（structureHash、`resumePdfFilename`、候选 ID/修订、冻结 structure/compileResult），
+  `isExportableWorkspace` 供复用；`ResumePdfExportError` 增加 `stale_candidate_revision` 与
+  `draft_has_pending_change` 两个 code。
+- **契约与接线**：`ResumeDraftDetail` 增加 `revision`（`draft-view.ts` 从 `workspace.revision` 投影）；
+  新增共享 `ResumeDraftExportPdfInput` / `ResumeDraftExportPdfResult`；`UserServices` 暴露既有
+  `resumePdfExports`；preload、`unavailable-desktop-api` 与 demo api（返回 `cancelled`）同步补齐；
+  `ResumePdfCompilation.pdf` 类型由 `Buffer` 收紧为 `Uint8Array`（消除共享契约对 node 类型的依赖，
+  消费方仅使用 `byteLength`/写文件，不受影响）。
+- **Renderer 反馈（用户 2026-08-06 确认"状态提示复用现有样式"）**：`use-resume-workspace` 新增
+  `exportActiveDraft`、`exporting` 与瞬态 `exportMessage`（4 秒后自动清除）；导出中按钮转加载态
+  （`LoaderCircle.spin` + 禁用），成功后按钮旁短暂显示"已导出到 {file}"轻提示，取消静默，失败复用
+  ArtifactPanel 现有错误条样式展示可重试错误；中英文新增"正在导出…"/"已导出到 {file}"两条文案。
+- **文件行数**：`ipc.ts` 因新增 handler 超出 250 行硬上限，已按既有 `register*Ipc` 模式把
+  `resume-drafts:*` 全部七个 IPC 收敛进新的 `resume-draft-ipc.ts`（102 行），`ipc.ts` 回落至 248 行；
+  新增业务文件均 ≤220 行目标。
+- **验证证据**：新增 `test/resume-draft-export.test.ts` 8 个纯单测（合格 payload 构建与结构深拷贝、
+  陈旧 revision、pendingChange、非终态、缺 qualityReport、quality_status 未通过、compile 未合格、
+  `isExportableWorkspace` 各失败模式）；`npm run check` 全绿（389/389 tests、570 个源文件 ≤250 行、
+  模板快照、Node/preload/renderer 类型检查与两端构建通过），`git diff --check` 通过。本轮未 commit。
+- **遗留项（如实记录）**：真实 Electron 点击一次保存并打开 PDF、取消/同名/无权限/磁盘失败及陈旧/
+  未合格版本安全性的端到端实测未在本轮执行——按用户 2026-08-06 决定，Section H 及真实 App 验收
+  由专职测试人员按 Section H 标准执行（含本 Section 门槛逐项复核），不以本轮自动门禁提前宣称
+  Section G 完成。
+
+#### S4.5 Section G-1：应用自动更新闭环
+
+- 在既有 electron-builder 打包链（`electron-builder@26`，`package:mac`）上接入 `electron-updater`：
+  登录进入工作区后静默检查一次更新并后台下载，下载完成提示重启安装；左下角账户菜单提供手动
+  "检查更新"入口；更新源 URL 可配置（环境变量 `COOLTO_UPDATE_FEED_URL` 覆盖，默认本地静态
+  服务器地址，与 API 基址处理方式一致）；electron-builder 预留 mac/win/linux 三个平台的
+  publish/发布配置，本次只验收 macOS。
+- macOS 自动更新依赖 Developer ID 签名（当前 `electron-builder.yml` 为 ad-hoc `identity: "-"`），
+  真实自动更新无法在无签名下运行，因此本 Section 采用"本地模拟验收先行"：同源 ad-hoc 打包包 +
+  本地静态目录 + `dev-app-update.yml` 跑通"发现新版本 → 后台下载 → 重启安装"全流程；真实签名、
+  公证（notarization）与远端发布基建归 R1。
+- 更新检查/下载失败必须 fail-closed：不影响启动、不阻塞业务主路径，错误只进入菜单状态并可重试。
+- 新业务 TypeScript、Vue 和 CSS 文件以 220 行为目标、250 行硬上限；更新服务、状态映射、IPC 与
+  组件各自职责单一，不建立万能 Updater Manager。
+
+**完成门槛**：登录后静默检查、后台下载、下载完成徽标与"重启并安装"提示、手动检查入口与全部
+状态文案可用；检查失败不阻塞启动；`npm run check` 全绿、行数门禁与 `git diff --check` 通过；
+本地模拟验收通过（打包 v0.1.0 → 本地源发布 v0.1.1 → 启动发现新版本 → 下载完成 → 重启安装后
+版本变为 v0.1.1）；ad-hoc 签名限制与真实发布遗留项如实写回。
+
+**用户确认结果（2026-08-06）**：
+
+- 签名策略：本地模拟验收先行；真实 Developer ID 签名、公证与远端发布留到 R1。
+- 更新源：本地目录 + 可配置 URL（环境变量 `COOLTO_UPDATE_FEED_URL`，代码默认本地地址）。
+- 更新范围：预留多平台 publish 配置，本次只验收 macOS。
+- 交互：启动登录后静默检查一次 + 后台下载，下载完成提示重启安装；同时提供手动检查入口。
+
+**UI 方案（2026-08-06，用户确认）**：
+
+- 入口：左下角账户菜单"个人信息"与分隔线之间新增"检查更新 v{当前版本号}"行（图标 + 版本号），
+  点击立即手动检查；检查中该行显示加载态并禁用。
+- 徽标：下载完成后账户触发器（用户菜单按钮）显示小圆点徽标提示有可安装更新；安装/已更新后消失。
+- 状态文案（都在菜单行内，复用现有菜单行样式，不新增 Toast 体系）：
+  检查中"正在检查更新…"；无更新"已是最新版本"（短暂显示后恢复）；发现新版本且下载中
+  "发现新版本 vX.Y.Z，正在下载…" + 进度百分比；下载完成菜单行变为"重启并安装"（点击后
+  安装并重启，可稍后再点）；失败"检查更新失败，点击重试"。
+- 版本号由主进程 `app.getVersion()` 提供，打包与开发模式均一致；dev 模式（未打包）不启用
+  真实自动更新逻辑，仅本地模拟验收时经 `dev-app-update.yml` 跑通下载链路。
+
+**S4.5 Section G-1 完成记录（2026-08-07）**：
+
+- **依赖与构建配置**：新增 `electron-updater@6.8.9`（dependencies，main 进程 externalizeDeps 需要
+  运行时依赖）；`electron-builder.yml` 新增 `publish`（generic，默认 `http://127.0.0.1:8099`）、
+  mac target 增加 `zip`（更新必需）、预留 `win/nsis` 与 `linux/AppImage` 配置；`package:mac`
+  的 ad-hoc codesign 增加 `--options runtime --entitlements build/entitlements.mac.plist`
+  （`com.apple.security.cs.disable-library-validation`，修复 hardened runtime 下框架加载失败）；
+  新增 `dev-app-update.yml`（本地模拟验收时 electron-updater 在非打包模式要求该文件存在）。
+- **主进程（职责单一拆分）**：
+  - `update-state.ts`：纯状态机 `idle/checking/available/downloading/downloaded/error` +
+    version/percent/message/currentVersion，`reduceUpdateState` 与 `isInstallable` 纯函数；
+  - `electron-update-service.ts`：封装 UpdateDriver 接口（注入便于测试），init 时
+    `setFeedURL`（`COOLTO_UPDATE_FEED_URL` 优先，默认本地地址）+ 事件接线，检查并发锁，
+    `checkForUpdates(trigger)` 失败落入 error 相位并释放锁，`install()` → `quitAndInstall`；
+  - `electron-updater-driver.ts`：CJS 默认导入（`import pkg from "electron-updater"`，Named
+    import 在 ESM 下报 SyntaxError）+ `forceDevUpdateConfig` 用 getter/setter 代理到真实
+    autoUpdater（初版误把标志写在自己包装对象上导致 dev 模式跳过检查，实测暴露并修复）；
+  - `update-ipc.ts`：`updates:state/check/install` + main→renderer 推送 `updates:event`；
+    `ipc.ts` 注册并组装 service（`forceDev = !app.isPackaged && COOLTO_UPDATE_DEV === "1"`）。
+- **共享与 Renderer**：共享 `AppUpdateState/UpdateTrigger/UpdateStateEvent`；`DesktopApi.updates`
+  （getState/check/install/onStateChange）+ preload + demo（idle 固定状态）+ unavailable api；
+  `use-updates.ts` composable（订阅状态、手动检查后"已是最新版本"4 秒瞬态提示）+ `use-app-updates.ts`
+  （挂载订阅、`watch(session.user)` 登录后静默检查一次、卸载清理，将 shell 压回 250 行内）；
+  账户菜单整体提取为 `UserAccountMenu.vue`（主题/语言/个人信息/检查更新/退出登录，含更新行
+  状态文案与触发器徽标，互斥开关状态收敛到 Sidebar 的 `openMenuId`），Sidebar 由 297 行回落
+  至 243 行；i18n 新增 6 条中英文文案；徽标与更新行样式追加到既有 token/CSS。
+- **验证证据（自动）**：新增 `test/update-state.test.ts` 11 个纯单测（初始状态、完整下载流、
+  not-available 重置、进度 clamp、error 保留上下文、仅 downloaded 可安装、事件映射与订阅通知、
+  错误相位、并发检查共享一次调用、失败释放锁、install 委托）；`npm run check` 全绿（400/400
+  tests、578 个源文件 ≤250 行、模板快照、Node/preload/renderer 类型检查与两端构建通过），
+  `git diff --check` 通过。本轮未 commit。
+- **验证证据（实测，本地模拟验收）**：本地静态源服务器（`scripts/update-feed-server.mjs`，
+  8099 端口）托管 electron-builder 生成的 `latest-mac.yml` + `Coolto-0.1.1-arm64-mac.zip`
+  （+blockmap）；dev 模式 `COOLTO_UPDATE_DEV=1` + 同 `COOLTO_UPDATE_FEED_URL` 启动，经 CDP
+  （`scripts/update-smoke.mjs`）驱动验证：
+  - 登录会话恢复后静默检查自动触发（日志 `Checking for update` → `Found version 0.1.1`）；
+  - 版本比较正确（0.1.0 → 0.1.1），后台下载完成（`New version 0.1.1 has been downloaded`，
+    状态经 `checking → available → downloading(100%) → downloaded` 全链路推送 renderer）；
+  - UI 状态机验证：下载完成相位账户触发器小圆点徽标出现（CDP DOM 断言 `badge: true`），
+    菜单行"重启并安装"可用；dev 模式 Squirrel 原生安装对 `com.github.Electron` 无法定位更新
+    bundle（zip 内是 `com.coolto.app`）属预期，状态如实落入 error，菜单行显示"检查更新失败，
+    点击重试"，再次手动检查可恢复（`available → downloaded` 且复用缓存不重复下载）；
+  - 账户菜单实际 DOM 行序验证：`["切换深色模式","切换到英文","个人信息","检查更新失败，点击重试","退出登录"]`。
+- **环境限制与遗留项（如实记录，不隐瞒）**：
+  1. **打包 app 在本机无法启动**：本机装有 eSafe MacSec DLP 安全代理（`/usr/local/MacSec/`，
+     注入 `libesafenet.dylib`），打包版 `Coolto.app` 启动即
+     `Fatal process out of memory: Failed to reserve virtual memory for CodeRange`（dev Electron
+     不受影响，已验证非包体/签名/entitlements 问题：换 bundle id、清环境、`--jitless` 均复现）。
+     因此"打包 v0.1.0 启动 → 重启安装后版本变 0.1.1"的物理安装验证在本机无法执行；
+  2. 真实重启安装、签名（Developer ID）、公证与远端发布归 R1（用户确认"本地模拟验收先行"）；
+  3. 多平台 publish 配置已预留但仅 macOS 链路实测。
+- **状态**：S4.5 Section G-1 按完成门槛与本记录判定完成；Section H 由专职测试人员按既定标准
+  验收（含 G-1 打包环境限制项）。
+
+**S4.5 Section G-1 更新方式变更记录（2026-08-07，用户确认路径 A：electron-updater 检查下载 + 自研替换安装）**：
+
+- **变更背景**：用户确认暂不购买 Developer ID 签名、以 GitHub Release/文件托管分发；由于
+  electron-updater 在 macOS 上的 Squirrel 原生安装校验更新包签名（ad-hoc 无证书 anchor），
+  应用内自动安装不可用，因此把最后一步替换为自研"解压替换 + 重启"。
+- **职责变化**：electron-updater 降级为纯检查器（`autoDownload = false`，只做 latest-mac.yml
+  解析、版本比较与 update-available 元数据产出）；下载（流式 + 进度 + SHA-512 比对
+  latest-mac.yml 的 base64 摘要）、解压（`ditto -x -k`，保留 .app 符号链接/权限）、替换与
+  重启全部自研；`install()` 从 `quitAndInstall` 改为自研替换执行器，不再触发 Squirrel。
+- **新模块（均 ≤220 行）**：`update-downloader.ts`（zip 文件选择、相对/绝对 URL 拼接、流式
+  下载与进度、SHA-512 校验失败删除残留）、`update-staging.ts`（下载 → 校验 → 解压 → 校验
+  内含 .app bundle，任何失败整目录清理，fail-closed）、`update-installer.ts`（`locateAppBundle`
+  exe 上溯、`buildReplaceScript` 生成替换脚本、`dispatchReplaceScript` detached 分离执行、
+  `recoverPendingBackup` 启动自检恢复）。
+- **替换时序（用户确认）**：点击"更新并安装" → 主进程校验 staging 完整性（失败进 error 相位
+  不退出）→ 定位当前 .app → 写替换脚本（等旧进程退出 → 旧 app mv 备份 → 新 app mv 就位 →
+  `open` 启动 → 清理）→ detached bash 分离执行（app 退出不终止）→ `app.quit()`；下次启动
+  `checkPendingInstall` 发现备份残留（上次中断）→ 恢复旧版/清理，并提示"上次更新未完成"。
+- **失败回滚与权限降级**：校验/下载/解压失败不动当前 app、可重试；替换先备份后替换，`mv`
+  失败恢复备份；`/Applications` 无写权限时脚本失败，启动自检恢复后提示手动下载，一个会话一次。
+- **状态机与 UI**：共享状态新增 `installing` 相位与 `errorStage: "check" | "install"`（错误
+  文案区分"检查更新失败"与"更新失败"）；菜单行文案"重启并安装"→"更新并安装"、"正在更新…"、
+  "更新失败，点击重试"；dev 模式 `install()` fail-closed（"开发模式不支持自动安装，请从发布页
+  手动下载。"），不触碰任何真实 app。
+- **验证证据（自动）**：新增/更新单测 26 个（服务事件映射、并发检查锁、下载失败/成功、dev
+  install fail-closed、未下载 install 空操作、downloader 流式下载+进度+sha512 校验与不匹配
+  清理、installer 脚本内容断言、**临时目录真实执行替换脚本**（成功替换 + 新包缺失时备份恢复
+  两条路径）、备份扫描）；`npm run check` 全绿（415/415 tests、581 个源文件 ≤250 行、两端
+  类型检查与构建通过），`git diff --check` 通过。本轮未 commit。
+- **验证证据（实测，本地模拟验收）**：本地 feed 服务器 + dev 模式 CDP 驱动全链路：静默检查
+  自动触发（日志 `Checking for update` → `Found version 0.1.1`）→ 自研下载 → SHA-512 通过 →
+  `ditto` 解压 → staging 目录出现 `Coolto.app/Contents` 与 `update.zip` → 状态
+  `downloaded`（percent 100，**不再出现 Squirrel 安装错误**）→ 账户菜单徽标出现 + 行文案
+  "更新并安装" → dev 模式点击安装 → error 相位"开发模式不支持自动安装…"（errorStage install）
+  → 菜单行显示"更新失败，点击重试"（阶段区分正确）。
+- **遗留项（如实记录）**：打包环境真实"替换 → 重启 → 版本变更"仍受本机 eSafe MacSec DLP
+  代理阻断（打包 app 无法启动，见 G-1 完成记录环境限制）；替换脚本逻辑已用临时目录完整执行
+  验证（成功与回滚路径），真实 /Applications 场景由专职测试人员在正常环境按 Section H 复验；
+  生产分发（GitHub Release 或对象存储直链 + README 下载说明）按用户路径 A 决策，发布流程归 R1。
 
 #### S4.5 Section H：统一质检与写回
 

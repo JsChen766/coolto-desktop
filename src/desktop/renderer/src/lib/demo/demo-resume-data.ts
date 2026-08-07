@@ -99,6 +99,7 @@ export function createDemoDraft(now: Date): ResumeDraftDetail {
     checkpointCount: 1,
     hasPendingChange: false,
     cloudState: "local_only",
+    revision: 12,
     structure,
     compileResult: {
       templateId: "resume-standard",
@@ -149,6 +150,7 @@ export function createDemoDraft(now: Date): ResumeDraftDetail {
 
 export function draftSummary(draft: ResumeDraftDetail) {
   const {
+    revision: _revision,
     structure: _structure,
     compileResult: _compileResult,
     workspaceStatus: _workspaceStatus,

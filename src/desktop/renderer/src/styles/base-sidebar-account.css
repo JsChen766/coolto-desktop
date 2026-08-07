@@ -60,6 +60,33 @@
   color: var(--text);
 }
 
+.user-menu-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+}
+
+.update-menu-row {
+  max-width: 100%;
+}
+
+.update-menu-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-divider {
+  height: 1px;
+  margin: 4px 5px;
+  background: var(--border);
+}
+
 .popover {
   position: absolute;
   z-index: 30;

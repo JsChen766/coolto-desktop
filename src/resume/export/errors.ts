@@ -1,5 +1,7 @@
 export type ResumePdfExportErrorCode =
   | "candidate_not_exportable"
+  | "stale_candidate_revision"
+  | "draft_has_pending_change"
   | "published_resume_not_exportable"
   | "resume_pdf_layout_failed"
   | "resume_pdf_integrity_failed"

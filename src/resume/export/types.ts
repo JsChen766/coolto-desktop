@@ -35,7 +35,7 @@ export interface ResumePdfExportApprovalPayload
 
 export interface ResumePdfCompilation {
   result: ResumeCompileResult;
-  pdf: Buffer;
+  pdf: Uint8Array;
 }
 
 export interface ResumePdfCompiler {

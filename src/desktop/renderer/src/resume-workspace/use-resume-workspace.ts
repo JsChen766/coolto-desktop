@@ -7,16 +7,20 @@ import type {
 } from "@desktop/types";
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { desktopApi } from "../lib/desktop-api";
+import { translateFormat } from "../i18n/locale";
 
 export function useResumeWorkspace() {
   const drafts = ref<ResumeDraftSummary[]>([]);
   const activeDraft = ref<ResumeDraftDetail>();
   const busy = ref(false);
   const error = ref<string>();
+  const exporting = ref(false);
+  const exportMessage = ref("");
   const localSaveState = ref<"idle" | "saving" | "saved" | "error">(
     "idle",
   );
   let editQueue = Promise.resolve();
+  let exportMessageTimer: ReturnType<typeof setTimeout> | undefined;
 
   async function loadDrafts(): Promise<void> {
     drafts.value = await desktopApi.resumeDrafts.list();
@@ -106,10 +110,39 @@ export function useResumeWorkspace() {
     }
   }
 
+  async function exportActiveDraft(): Promise<void> {
+    const draft = activeDraft.value;
+    if (!draft || exporting.value) return;
+    exporting.value = true;
+    error.value = undefined;
+    exportMessage.value = "";
+    try {
+      const result = await desktopApi.resumeDrafts.exportPdf({
+        artifactId: draft.artifactId,
+        expectedRevision: draft.revision,
+      });
+      if (result.status === "exported") {
+        exportMessage.value = translateFormat("已导出到 {file}", {
+          file: result.filename,
+        });
+        if (exportMessageTimer) clearTimeout(exportMessageTimer);
+        exportMessageTimer = setTimeout(() => {
+          exportMessage.value = "";
+        }, 4000);
+      }
+    } catch (cause: unknown) {
+      error.value = errorMessage(cause);
+    } finally {
+      exporting.value = false;
+    }
+  }
+
   function clear(): void {
     drafts.value = [];
     activeDraft.value = undefined;
     error.value = undefined;
+    exporting.value = false;
+    exportMessage.value = "";
     localSaveState.value = "idle";
   }
 
@@ -118,6 +151,8 @@ export function useResumeWorkspace() {
     activeDraft,
     busy,
     error,
+    exporting,
+    exportMessage,
     localSaveState,
     loadDrafts,
     openDraft,
@@ -126,6 +161,7 @@ export function useResumeWorkspace() {
     autosave,
     restore,
     resolvePending,
+    exportActiveDraft,
     clear,
   };
 }

@@ -1,25 +1,18 @@
 <script setup lang="ts">
-import {
-  Ellipsis,
-  FileText,
-  IdCard,
-  Languages,
-  LogOut,
-  Moon,
-  Sun,
-} from "@lucide/vue";
+import { Ellipsis, FileText } from "@lucide/vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
 import type {
+  AppUpdateState,
   ConversationSummary,
   DesktopUser,
 } from "@desktop/types";
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { relativeTime } from "../lib/relative-time";
-import { appLocale, toggleLocale } from "../i18n/locale";
 import SidebarPrimaryNavigation from "./SidebarPrimaryNavigation.vue";
+import UserAccountMenu from "./UserAccountMenu.vue";
 
-const props = defineProps<{
+defineProps<{
   conversations: ConversationSummary[];
   currentId: string | undefined;
   user: DesktopUser;
@@ -27,6 +20,9 @@ const props = defineProps<{
   resumeDrafts: ResumeDraftSummary[];
   currentDraftId: string | undefined;
   activeView: "chat" | "experiences" | "library" | "tracker";
+  updateState: AppUpdateState;
+  updateChecking: boolean;
+  updateUpToDate: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -40,12 +36,12 @@ const emit = defineEmits<{
   delete: [conversation: ConversationSummary];
   toggleTheme: [];
   openProfile: [trigger: HTMLElement];
+  checkUpdate: [];
+  installUpdate: [];
   logout: [];
 }>();
 
 const openMenuId = ref<string>();
-const userMenuOpen = ref(false);
-const userMenuTrigger = ref<HTMLButtonElement>();
 
 function toggleConversationMenu(
   event: MouseEvent,
@@ -54,23 +50,10 @@ function toggleConversationMenu(
   event.stopPropagation();
   openMenuId.value =
     openMenuId.value === conversationId ? undefined : conversationId;
-  userMenuOpen.value = false;
 }
 
 function closeMenus(): void {
   openMenuId.value = undefined;
-  userMenuOpen.value = false;
-}
-
-function toggleLanguage(): void {
-  toggleLocale();
-  closeMenus();
-}
-
-function openProfile(): void {
-  if (!userMenuTrigger.value) return;
-  closeMenus();
-  emit("openProfile", userMenuTrigger.value);
 }
 
 function runConversationAction(
@@ -192,53 +175,21 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
     </section>
 
     <div class="sidebar-footer">
-      <div class="user-row">
-        <div class="user-avatar" aria-hidden="true">
-          {{ user.email.slice(0, 1).toUpperCase() }}
-        </div>
-        <div class="user-copy">
-          <span class="user-email">{{ user.email }}</span>
-          <span>{{ $t('已登录') }}</span>
-        </div>
-        <button
-          class="user-menu-trigger"
-          ref="userMenuTrigger"
-          type="button"
-          :aria-label="$t('账户菜单')"
-          :title="$t('账户菜单')"
-          @click.stop="userMenuOpen = !userMenuOpen; openMenuId = undefined"
-        >
-          <Ellipsis :size="17" :stroke-width="1.8" aria-hidden="true" />
-        </button>
-        <div v-if="userMenuOpen" class="popover user-menu" @click.stop>
-          <button class="menu-row icon-label" type="button" @click="$emit('toggleTheme')">
-            <Sun v-if="dark" :size="16" :stroke-width="1.8" aria-hidden="true" />
-            <Moon v-else :size="16" :stroke-width="1.8" aria-hidden="true" />
-            <span>{{ dark ? $t('切换浅色模式') : $t('切换深色模式') }}</span>
-          </button>
-          <button class="menu-row icon-label" type="button" @click="toggleLanguage">
-            <Languages :size="16" :stroke-width="1.8" aria-hidden="true" />
-            <span>{{ appLocale === "zh-CN" ? $t('切换到英文') : 'Switch to Chinese' }}</span>
-          </button>
-          <button
-            class="menu-row icon-label"
-            type="button"
-            @click="openProfile"
-          >
-            <IdCard :size="16" :stroke-width="1.8" aria-hidden="true" />
-            <span>{{ $t('个人信息') }}</span>
-          </button>
-          <div class="menu-divider" />
-          <button
-            class="menu-row icon-label"
-            type="button"
-            @click="$emit('logout')"
-          >
-            <LogOut :size="16" :stroke-width="1.8" aria-hidden="true" />
-            <span>{{ $t('退出登录') }}</span>
-          </button>
-        </div>
-      </div>
+      <UserAccountMenu
+        :user="user"
+        :dark="dark"
+        :open="openMenuId === 'user'"
+        :update-state="updateState"
+        :update-checking="updateChecking"
+        :update-up-to-date="updateUpToDate"
+        @toggle="openMenuId = openMenuId === 'user' ? undefined : 'user'"
+        @close="openMenuId = undefined"
+        @toggle-theme="$emit('toggleTheme')"
+        @open-profile="$emit('openProfile', $event)"
+        @check-update="$emit('checkUpdate')"
+        @install-update="$emit('installUpdate')"
+        @logout="$emit('logout')"
+      />
     </div>
   </aside>
 </template>

@@ -1,4 +1,5 @@
-import { dialog, type BrowserWindow, type IpcMain } from "electron";
+import { app, dialog, type BrowserWindow, type IpcMain } from "electron";
+import { join } from "node:path";
 
 import type { ApprovalDecision } from "../../approvals/types.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
@@ -8,11 +9,13 @@ import type {
   AttachmentRemoveInput,
   ApprovalResolveInput,
   ConversationRenameInput,
-  ResumeDraftEditInput,
-  ResumeDraftRestoreInput,
 } from "../shared/types.js";
 import { DesktopAuthService } from "./auth-service.js";
 import { createElectronResumeDraftRepository } from "./resume-drafts/electron-draft-repository.js";
+import {
+  registerResumeDraftIpc,
+  RESUME_DRAFT_IPC_CHANNELS,
+} from "./resume-drafts/resume-draft-ipc.js";
 import { ResumeLibraryService } from "./resume-library/resume-library-service.js";
 import { registerResumeLibraryIpc, LIBRARY_IPC_CHANNELS } from "./resume-library/resume-library-ipc.js";
 import { AUTH_IPC_CHANNELS, registerAuthIpc } from "./auth-ipc.js";
@@ -35,6 +38,12 @@ import {
   TRACKER_CHILD_IPC_CHANNELS,
 } from "./tracker/tracker-ipc.js";
 import { PROFILE_IPC_CHANNELS, registerProfileIpc } from "./profile/profile-ipc.js";
+import { ElectronUpdateService } from "./update/electron-update-service.js";
+import { electronUpdaterDriver } from "./update/electron-updater-driver.js";
+import {
+  registerUpdateIpc,
+  UPDATE_IPC_CHANNELS,
+} from "./update/update-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -46,12 +55,14 @@ export function registerDesktopIpc(
   for (const channel of [
     ...AUTH_IPC_CHANNELS,
     ...IPC_CHANNELS,
+    ...RESUME_DRAFT_IPC_CHANNELS,
     ...LIBRARY_IPC_CHANNELS,
     ...APPLICATION_IPC_CHANNELS,
     ...JOB_ASSET_IPC_CHANNELS,
     ...EXPERIENCE_IPC_CHANNELS,
     ...TRACKER_CHILD_IPC_CHANNELS,
     ...PROFILE_IPC_CHANNELS,
+    ...UPDATE_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -70,6 +81,22 @@ export function registerDesktopIpc(
   const servicesForCurrentUser = () => services.get();
 
   registerAuthIpc(ipcMain, auth, () => services.clear());
+  registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
+
+  const updateService = new ElectronUpdateService(electronUpdaterDriver, {
+    feedUrl:
+      process.env.COOLTO_UPDATE_FEED_URL ?? "http://127.0.0.1:8099",
+    currentVersion: () => app.getVersion(),
+    forceDev:
+      !app.isPackaged && process.env.COOLTO_UPDATE_DEV === "1",
+    isPackaged: app.isPackaged,
+    exePath: () => app.getPath("exe"),
+    stagingRoot: join(app.getPath("userData"), "update-staging"),
+    quit: () => app.quit(),
+  });
+  updateService.init();
+  void updateService.checkPendingInstall();
+  registerUpdateIpc(ipcMain, window, updateService);
 
   ipcMain.handle("conversations:list", async () =>
     (await servicesForCurrentUser()).conversations.list(),
@@ -135,29 +162,6 @@ export function registerDesktopIpc(
       }
       current.selectedFiles.remove(input.conversationId, input.fileId);
     },
-  );
-
-  ipcMain.handle("resume-drafts:list", async () =>
-    (await servicesForCurrentUser()).resumeDrafts.list(),
-  );
-  ipcMain.handle("resume-drafts:get", async (_event, artifactId: string) =>
-    (await servicesForCurrentUser()).resumeDraftEditing.get(artifactId),
-  );
-  ipcMain.handle(
-    "resume-drafts:edit",
-    async (_event, input: ResumeDraftEditInput) =>
-      (await servicesForCurrentUser()).resumeDraftEditing.edit(input),
-  );
-  ipcMain.handle(
-    "resume-drafts:restore",
-    async (_event, input: ResumeDraftRestoreInput) =>
-      (await servicesForCurrentUser()).resumeDraftEditing.restore(input),
-  );
-  ipcMain.handle("resume-drafts:accept", async (_event, artifactId: string) =>
-    (await servicesForCurrentUser()).resumeDraftEditing.accept(artifactId),
-  );
-  ipcMain.handle("resume-drafts:reject", async (_event, artifactId: string) =>
-    (await servicesForCurrentUser()).resumeDraftEditing.reject(artifactId),
   );
 
   ipcMain.handle("agent:prompt", async (_event, input: AgentPromptInput) =>
@@ -231,12 +235,6 @@ const IPC_CHANNELS = [
   "attachments:list",
   "attachments:select",
   "attachments:remove",
-  "resume-drafts:list",
-  "resume-drafts:get",
-  "resume-drafts:edit",
-  "resume-drafts:restore",
-  "resume-drafts:accept",
-  "resume-drafts:reject",
   "agent:prompt",
   "agent:cancel",
   "agent:resolve-approval",

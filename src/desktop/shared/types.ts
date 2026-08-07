@@ -57,3 +57,4 @@ export type * from "./types/browser.js";
 export type * from "./types/conversations.js";
 export type * from "./types/desktop-api.js";
 export type * from "./types/resume-library.js";
+export type * from "./types/updates.js";

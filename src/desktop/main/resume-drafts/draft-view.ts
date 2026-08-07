@@ -11,6 +11,7 @@ export function toResumeDraftDetail(
 ): ResumeDraftDetail {
   return {
     ...summarizeDraft(draft),
+    revision: draft.workspace.revision,
     structure: structuredClone(draft.workspace.structure),
     compileResult: structuredClone(draft.workspace.compileResult),
     workspaceStatus: draft.workspace.status,

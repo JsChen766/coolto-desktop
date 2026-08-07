@@ -57,6 +57,7 @@ export function createDemoResumeDraftApi(
     },
     accept: async () => structuredClone(draft),
     reject: async () => structuredClone(draft),
+    exportPdf: async () => ({ status: "cancelled" as const }),
   };
 }
 

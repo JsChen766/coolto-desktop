@@ -33,7 +33,7 @@ export function useResumeInstructionActions(
   }
 
   function exportPdf(): void {
-    sendInstruction(translate("请将右侧当前简历导出为 PDF 到本地文件。"));
+    void options.workspace.exportActiveDraft();
   }
 
   return { exportPdf, saveToCloud };

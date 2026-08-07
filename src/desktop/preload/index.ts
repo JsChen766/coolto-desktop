@@ -51,6 +51,15 @@ const api: DesktopApi = {
       ipcRenderer.invoke("resume-drafts:accept", artifactId),
     reject: (artifactId) =>
       ipcRenderer.invoke("resume-drafts:reject", artifactId),
+    exportPdf: (input) =>
+      ipcRenderer.invoke("resume-drafts:export-pdf", input),
+  },
+  updates: {
+    getState: () => ipcRenderer.invoke("updates:state"),
+    check: (trigger) => ipcRenderer.invoke("updates:check", trigger),
+    install: () => ipcRenderer.invoke("updates:install"),
+    onStateChange: (listener) =>
+      subscribeIpc("updates:event", listener),
   },
   library: {
     list: () => ipcRenderer.invoke("library:list"),
