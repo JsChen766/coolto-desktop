@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>B5 附件上传 CDP 验证页</title>
+    <style>
+      body {
+        font-family: -apple-system, system-ui, sans-serif;
+        margin: 40px;
+        color: #222;
+      }
+      section {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 0 0 12px;
+      }
+      .result {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #0a7d33;
+        white-space: pre-wrap;
+      }
+      input[type="text"] {
+        width: 320px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>B5 附件上传 CDP 可行性验证</h1>
+    <p>
+      用于 <code>DOM.setFileInputFiles</code> 手动验收：先让 Agent
+      <code>browser_tag_elements</code> 打标，再对下面各 input 调用
+      <code>browser_upload_file</code>，观察是否成功注入并触发 change 事件。
+    </p>
+
+    <section>
+      <h2>1. 单文件（accept=".pdf"）</h2>
+      <input id="single" type="file" accept=".pdf" />
+      <div class="result" data-for="single">未选择文件</div>
+    </section>
+
+    <section>
+      <h2>2. 多文件（multiple, accept=".pdf,.doc,.docx"）</h2>
+      <input id="multi" type="file" accept=".pdf,.doc,.docx" multiple />
+      <div class="result" data-for="multi">未选择文件</div>
+    </section>
+
+    <section>
+      <h2>3. 无 accept 限制</h2>
+      <input id="any" type="file" />
+      <div class="result" data-for="any">未选择文件</div>
+    </section>
+
+    <section>
+      <h2>4. 禁用（应被拒绝）</h2>
+      <input id="disabled" type="file" disabled />
+      <div class="result" data-for="disabled">未选择文件</div>
+    </section>
+
+    <section>
+      <h2>5. 非 file input（应被拒绝并提示手动上传）</h2>
+      <input id="text" type="text" placeholder="这是文本框，不是文件输入" />
+    </section>
+
+    <section>
+      <h2>6. contenteditable 富文本正文（模拟 Webmail 邮件正文）</h2>
+      <div
+        id="body"
+        contenteditable="true"
+        aria-label="邮件正文"
+        style="min-height: 90px; border: 1px solid #ccc; border-radius: 6px; padding: 10px; outline: none;"
+      >
+        原有占位内容，填写后应被覆盖。
+      </div>
+      <div class="result" data-for="body">未填写</div>
+    </section>
+
+    <section>
+      <h2>7. 嵌套 contenteditable（外层可编辑，内层不应重复打标）</h2>
+      <div
+        id="outer-editable"
+        contenteditable="true"
+        aria-label="外层正文"
+        style="min-height: 60px; border: 1px solid #ccc; border-radius: 6px; padding: 10px; outline: none;"
+      >
+        外层 <span>嵌套 span（不可单独打标）</span>
+      </div>
+    </section>
+
+    <script>
+      for (const input of document.querySelectorAll('input[type="file"]')) {
+        input.addEventListener("change", () => {
+          const out = document.querySelector(
+            '.result[data-for="' + input.id + '"]',
+          );
+          if (!out) return;
+          const names = Array.from(input.files || []).map((f) => f.name);
+          out.textContent = names.length
+            ? "change 事件触发，已选：" + names.join("、")
+            : "change 事件触发，但 files 为空";
+        });
+      }
+      const body = document.getElementById("body");
+      body.addEventListener("input", () => {
+        const out = document.querySelector('.result[data-for="body"]');
+        if (out)
+          out.textContent =
+            "input 事件触发，当前正文：" + body.innerText.slice(0, 200);
+      });
+    </script>
+  </body>
+</html>

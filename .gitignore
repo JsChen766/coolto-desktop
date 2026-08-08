@@ -1,4 +1,7 @@
-/local-docs
+local-docs/**/*.pdf
+local-docs/**/*.png
+local-docs/**/*.docx
+local-docs/**/*.json
 node_modules/
 dist/
 dist-electron/
