@@ -68,6 +68,7 @@ export function useChatAuth(
     loginError.value = undefined;
     try {
       user.value = await authenticate();
+      localStorage.setItem("coolto-visited", "1");
       await onAuthenticated();
       return true;
     } catch (error: unknown) {

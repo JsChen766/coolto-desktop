@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref } from "vue";
+import { nextTick, ref, watch } from "vue";
 
 import {
   ApplicationTrackerView,
@@ -13,12 +13,17 @@ import AppChatWorkspace from "./app/AppChatWorkspace.vue";
 import { useAppShell } from "./app/use-app-shell";
 import ResumePreviewChoiceDialog from "./components/ResumePreviewChoiceDialog.vue";
 import CloudResumeCopyDialog from "./components/CloudResumeCopyDialog.vue";
+import PrivacyConsentDialog from "./components/PrivacyConsentDialog.vue";
 import ProfileDialog from "./components/ProfileDialog.vue";
+import SettingsDialog from "./components/SettingsDialog.vue";
 
 const shell = useAppShell();
 const experienceLibraryView = ref<InstanceType<typeof ExperienceLibraryView>>();
 const profileDialogOpen = ref(false);
 const profileTrigger = ref<HTMLElement>();
+const settingsDialogOpen = ref(false);
+const privacyConsent = ref(localStorage.getItem("coolto-privacy-consent") === "1");
+const firstVisit = ref(localStorage.getItem("coolto-visited") === null);
 const {
   activeView,
   booting,
@@ -56,6 +61,7 @@ const {
   resumeWorkspace,
   returnToImportConversation,
   clearExperienceImportFocus,
+  running,
   selectChat,
   sidebarOpen,
   showSidebar,
@@ -78,6 +84,7 @@ function recordFromRepository(
 
 function guardNavigation(action: () => void | Promise<void>): void {
   void (async () => {
+    if (running) return;
     if (
       activeView.value === "experiences"
       && (await experienceLibraryView.value?.confirmLeave()) === false
@@ -96,10 +103,24 @@ function openProfile(trigger: HTMLElement): void {
   profileDialogOpen.value = true;
 }
 
+function openProfileFromSettings(): void {
+  const trigger = document.querySelector(".user-menu-trigger") as HTMLElement | null;
+  openProfile(trigger ?? document.body);
+}
+
 function closeProfile(): void {
   profileDialogOpen.value = false;
   void nextTick(() => profileTrigger.value?.focus());
 }
+
+function acceptPrivacy(): void {
+  localStorage.setItem("coolto-privacy-consent", "1");
+  privacyConsent.value = true;
+}
+
+watch(user, (next, previous) => {
+  if (previous && !next) firstVisit.value = false;
+});
 </script>
 
 <template>
@@ -107,11 +128,17 @@ function closeProfile(): void {
     <div class="boot-pulse" />
   </div>
 
+  <PrivacyConsentDialog
+    v-else-if="!user && !privacyConsent"
+    @agree="acceptPrivacy"
+  />
+
   <LoginScreen
     v-else-if="!user"
     :busy="loginBusy"
     :error="loginError"
     :challenge="emailChallenge"
+    :first-visit="firstVisit"
     @password-login="login"
     @request-code="requestEmailCode"
     @verify-code="verifyEmailCode"
@@ -131,6 +158,7 @@ function closeProfile(): void {
       :resume-drafts="resumeWorkspace.drafts.value"
       :current-draft-id="resumeWorkspace.activeDraft.value?.artifactId"
       :active-view="activeView"
+      :generating="running"
       :update-state="updateState"
       :update-checking="updateChecking"
       :update-up-to-date="updateUpToDate"
@@ -144,6 +172,7 @@ function closeProfile(): void {
       @delete="openDialog('delete', $event)"
       @toggle-theme="toggleTheme"
       @open-profile="openProfile"
+      @open-settings="settingsDialogOpen = true"
       @check-update="checkUpdate"
       @install-update="installUpdate"
       @logout="guardNavigation(logout)"
@@ -208,6 +237,12 @@ function closeProfile(): void {
       v-if="profileDialogOpen"
       :api="desktopApi"
       @close="closeProfile"
+    />
+    <SettingsDialog
+      v-if="settingsDialogOpen"
+      :api="desktopApi"
+      @close="settingsDialogOpen = false"
+      @open-profile="openProfileFromSettings"
     />
   </div>
 </template>

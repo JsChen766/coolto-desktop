@@ -2,6 +2,7 @@
 import {
   ArrowRight,
   Check,
+  LoaderCircle,
   MessageSquareText,
   ShieldCheck,
   TriangleAlert,
@@ -71,7 +72,7 @@ function accept(): void {
       </div>
       <div>
         <h3>{{ $t(request.title) }}</h3>
-        <p>{{ $t('Agent 正在等待你的确认') }}</p>
+        <p>{{ busy ? $t('正在执行，请稍候…') : $t('Agent 正在等待你的确认') }}</p>
       </div>
     </header>
 
@@ -130,8 +131,15 @@ function accept(): void {
         :disabled="busy"
         @click="accept"
       >
-        <Check :size="16" :stroke-width="2" aria-hidden="true" />
-        <span>{{ $t('接受并执行') }}</span>
+        <LoaderCircle
+          v-if="busy"
+          class="spin"
+          :size="16"
+          :stroke-width="2"
+          aria-hidden="true"
+        />
+        <Check v-else :size="16" :stroke-width="2" aria-hidden="true" />
+        <span>{{ busy ? $t('正在执行…') : $t('接受并执行') }}</span>
         <ArrowRight
           class="action-arrow"
           :size="15"

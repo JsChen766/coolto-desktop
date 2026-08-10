@@ -4,6 +4,7 @@ import {
   readFile,
   readdir,
   rename,
+  rm,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -48,6 +49,10 @@ export class ResumeDraftFileRepository {
     } catch (error: unknown) {
       if (!isMissingFileError(error)) throw error;
     }
+  }
+
+  public async clearAll(): Promise<void> {
+    await rm(this.directory, { recursive: true, force: true });
   }
 
   public async save(draft: LocalResumeDraft): Promise<void> {

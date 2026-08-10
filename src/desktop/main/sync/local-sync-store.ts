@@ -186,6 +186,20 @@ export class LocalSyncStore {
   public retryPendingNow(): void {
     this.#outbox.retryPendingNow(new Date().toISOString());
   }
+
+  public purgeLocal(): void {
+    withImmediateTransaction(this.database, () => {
+      this.database.exec(`
+        DELETE FROM sync_entities;
+        DELETE FROM local_outbox;
+        DELETE FROM local_create_identities;
+        DELETE FROM sync_conflicts;
+        DELETE FROM sync_failures;
+        DELETE FROM reminder_delivery_receipts;
+        DELETE FROM sync_state;
+      `);
+    });
+  }
 }
 
 function syncDirectory(apiBaseUrl: string, userId: string): string {

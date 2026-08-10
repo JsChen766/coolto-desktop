@@ -4,6 +4,7 @@ import {
   readFile,
   readdir,
   rename,
+  rm,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -178,6 +179,10 @@ export class ConversationStore {
   public async delete(conversationId: string): Promise<void> {
     await this.getRecord(conversationId);
     await unlink(this.#pathFor(conversationId));
+  }
+
+  public async clearAll(): Promise<void> {
+    await rm(this.#directory, { recursive: true, force: true });
   }
 
   async #ensureDirectory(): Promise<void> {

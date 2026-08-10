@@ -51,6 +51,12 @@
   background: var(--surface);
 }
 
+.new-chat-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: transparent;
+}
+
 .new-chat-button.active {
   background: var(--surface-strong);
 }
@@ -120,6 +126,16 @@
 .conversation-row:hover {
   background: var(--surface);
   color: var(--text);
+}
+
+.conversation-row.disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.conversation-row.disabled:hover {
+  background: transparent;
+  color: var(--text-soft);
 }
 
 .conversation-row.active {

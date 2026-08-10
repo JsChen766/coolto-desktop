@@ -1,5 +1,6 @@
 @import "./base-foundations.css";
 @import "./base-login.css";
+@import "./base-privacy-dialog.css";
 @import "./base-sidebar-conversations.css";
 @import "./base-sidebar-account.css";
 @import "./base-workspace-chat.css";
@@ -16,3 +17,4 @@
 @import "./base-resume-library-grid.css";
 @import "./base-resume-library-row.css";
 @import "./base-resume-library-dialogs.css";
+@import "./base-settings-dialog.css";

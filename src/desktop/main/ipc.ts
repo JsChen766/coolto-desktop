@@ -11,6 +11,7 @@ import type {
   ConversationRenameInput,
 } from "../shared/types.js";
 import { DesktopAuthService } from "./auth-service.js";
+import { registerClearLocalDataIpc } from "./clear-local-data.js";
 import { createElectronResumeDraftRepository } from "./resume-drafts/electron-draft-repository.js";
 import {
   registerResumeDraftIpc,
@@ -79,7 +80,6 @@ export function registerDesktopIpc(
     void auth.dispose();
   });
   const servicesForCurrentUser = () => services.get();
-
   registerAuthIpc(ipcMain, auth, () => services.clear());
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
 
@@ -180,6 +180,11 @@ export function registerDesktopIpc(
       ),
   );
 
+  registerClearLocalDataIpc(ipcMain, {
+    services: servicesForCurrentUser,
+    syncStore: () => auth.requireSyncStore(),
+    triggerSync: () => void auth.syncNow(),
+  });
   ipcMain.handle("window:minimize", () => window.minimize());
   ipcMain.handle("window:toggle-maximize", () => {
     if (window.isMaximized()) {
@@ -238,6 +243,7 @@ const IPC_CHANNELS = [
   "agent:prompt",
   "agent:cancel",
   "agent:resolve-approval",
+  "data:clear-local",
   "window:minimize",
   "window:toggle-maximize",
   "window:close",

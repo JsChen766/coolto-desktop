@@ -104,6 +104,9 @@ export function createUnavailableDesktopApi(): DesktopApi {
       toggleMaximize: unavailable,
       close: unavailable,
     },
+    data: {
+      clearLocal: unavailable,
+    },
     browser: {
       open: unavailable,
       close: unavailable,

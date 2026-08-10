@@ -102,6 +102,16 @@
   color: var(--text);
 }
 
+.resume-draft-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.resume-draft-row:disabled:hover {
+  background: transparent;
+  color: var(--text-soft);
+}
+
 .resume-draft-row > span {
   min-width: 0;
   flex: 1;

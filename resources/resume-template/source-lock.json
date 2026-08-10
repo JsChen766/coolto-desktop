@@ -3,67 +3,67 @@
   "backend_manifest_schema": "resume-layout-templates-v1",
   "files": [
     {
-      "origin": "cv-agent/contracts/resume-layout-templates-v1.json",
+      "origin": "cv-agent-be/contracts/resume-layout-templates-v1.json",
       "target": "src/desktop/renderer/src/resume/template/resume-layout-templates-v1.json",
       "sha256": "e42c7842a05dd80954b81be5d008be71b47e058b769faca9be3562489e6da259",
       "size": 5568
     },
     {
-      "origin": "cv-agent/app/infra/layout/fonts/simsun.ttc",
+      "origin": "cv-agent-be/app/infra/layout/fonts/simsun.ttc",
       "target": "src/desktop/renderer/src/resume/template/fonts/simsun.ttc",
       "sha256": "120a51d2b14eb588700a21e15fc301f0ea55d7c1a4e1f3ae61db83b7c8d42cd6",
       "size": 18070492
     },
     {
-      "origin": "cv-agent/app/infra/layout/fonts/times.ttf",
+      "origin": "cv-agent-be/app/infra/layout/fonts/times.ttf",
       "target": "src/desktop/renderer/src/resume/template/fonts/times.ttf",
       "sha256": "2cff2a03d8034801979dd6d16f09b9a825c3d710fcf068f2ebfbf0e1425c87cf",
       "size": 1195688
     },
     {
-      "origin": "cv_agent_frontend/src/components/ResumeDocument.vue",
+      "origin": "cv-agent-app/src/components/ResumeDocument.vue",
       "target": "resources/resume-template/web-reference/ResumeDocument.vue.source",
       "sha256": "1c45232220598510bdc19c23b481da159c500fd808ca0826a829fcd4fee3999c",
       "size": 36980
     },
     {
-      "origin": "cv_agent_frontend/src/utils/resume-template-manifest.ts",
+      "origin": "cv-agent-app/src/utils/resume-template-manifest.ts",
       "target": "resources/resume-template/web-reference/resume-template-manifest.ts.source",
       "sha256": "15365c8fd8ee82e029b7b8ab8e5b5c370968a571efe3b8a091710bf20dab1826",
       "size": 8566
     },
     {
-      "origin": "cv_agent_frontend/src/utils/resume-layout-profile.ts",
+      "origin": "cv-agent-app/src/utils/resume-layout-profile.ts",
       "target": "resources/resume-template/web-reference/resume-layout-profile.ts.source",
       "sha256": "5d70a06497db1198ae3c3fbeba82c5d59aaacecbe5485b52d026b5bc7d109505",
       "size": 1812
     },
     {
-      "origin": "cv_agent_frontend/src/utils/resume-dom-measurement.ts",
+      "origin": "cv-agent-app/src/utils/resume-dom-measurement.ts",
       "target": "resources/resume-template/web-reference/resume-dom-measurement.ts.source",
       "sha256": "1ab79840b900373deabc2f94c238e91d8019da15701f630c2f0d190c6839be50",
       "size": 9965
     },
     {
-      "origin": "cv_agent_frontend/src/utils/resume-section-order.ts",
+      "origin": "cv-agent-app/src/utils/resume-section-order.ts",
       "target": "resources/resume-template/web-reference/resume-section-order.ts.source",
       "sha256": "fc54e0ee9a3bb032cebb17ce3be0c96c5bcc0549c9fb8a2784b94f1c680f9c77",
       "size": 608
     },
     {
-      "origin": "cv_agent_frontend/src/utils/structured-content.ts",
+      "origin": "cv-agent-app/src/utils/structured-content.ts",
       "target": "resources/resume-template/web-reference/structured-content.ts.source",
       "sha256": "1cbf6c2298a2344a6a5b5c3e7e64e533fbf8d6ef18b84c4db64904385d4ef30f",
       "size": 5407
     },
     {
-      "origin": "cv_agent_frontend/src/types/generated-content.ts",
+      "origin": "cv-agent-app/src/types/generated-content.ts",
       "target": "resources/resume-template/web-reference/generated-content.ts.source",
       "sha256": "1092e9f84919d5b14f0b1350705ab7836ed581e019917e3c9a3b4a984ad552a4",
       "size": 4000
     },
     {
-      "origin": "cv_agent_frontend/src/api/resumes.ts",
+      "origin": "cv-agent-app/src/api/resumes.ts",
       "target": "resources/resume-template/web-reference/resumes-api.ts.source",
       "sha256": "e1d80ba07ed2de14d5558e58939d89e6f97a6420d9006121291baef5dc71ba14",
       "size": 6220

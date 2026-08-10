@@ -12,11 +12,11 @@ import { fileURLToPath } from "node:url";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const backendRoot = path.resolve(
-  process.env.CV_AGENT_BACKEND_ROOT ?? path.join(appRoot, "..", "cv-agent"),
+  process.env.CV_AGENT_BACKEND_ROOT ?? path.join(appRoot, "..", "cv-agent-be"),
 );
 const webRoot = path.resolve(
   process.env.CV_AGENT_FRONTEND_ROOT ??
-    path.join(appRoot, "..", "cv_agent_frontend"),
+    path.join(appRoot, "..", "cv-agent-app"),
 );
 const checkOnly = process.argv.includes("--check");
 
@@ -50,17 +50,17 @@ const files = [
       "resume-layout-templates-v1.json",
     ),
     target: path.join(runtimeRoot, "resume-layout-templates-v1.json"),
-    origin: "cv-agent/contracts/resume-layout-templates-v1.json",
+    origin: "cv-agent-be/contracts/resume-layout-templates-v1.json",
   },
   {
     source: path.join(backendRoot, "app", "infra", "layout", "fonts", "simsun.ttc"),
     target: path.join(runtimeRoot, "fonts", "simsun.ttc"),
-    origin: "cv-agent/app/infra/layout/fonts/simsun.ttc",
+    origin: "cv-agent-be/app/infra/layout/fonts/simsun.ttc",
   },
   {
     source: path.join(backendRoot, "app", "infra", "layout", "fonts", "times.ttf"),
     target: path.join(runtimeRoot, "fonts", "times.ttf"),
-    origin: "cv-agent/app/infra/layout/fonts/times.ttf",
+    origin: "cv-agent-be/app/infra/layout/fonts/times.ttf",
   },
   ...[
     ["src/components/ResumeDocument.vue", "ResumeDocument.vue.source"],
@@ -74,7 +74,7 @@ const files = [
   ].map(([source, target]) => ({
     source: path.join(webRoot, source),
     target: path.join(referenceRoot, target),
-    origin: `cv_agent_frontend/${source}`,
+    origin: `cv-agent-app/${source}`,
   })),
 ];
 

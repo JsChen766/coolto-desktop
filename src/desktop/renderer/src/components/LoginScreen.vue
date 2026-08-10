@@ -8,6 +8,7 @@ const props = defineProps<{
   busy: boolean;
   error: string | undefined;
   challenge: EmailChallengeView | undefined;
+  firstVisit: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -66,8 +67,9 @@ function switchMode(): void {
   <main class="login-screen">
     <section class="login-card">
       <div class="login-copy">
-        <h1>{{ $t('欢迎回到 Coolto') }}</h1>
-        <p>{{ $t('登录后继续使用你的经历、JD 与简历。') }}</p>
+        <h1>{{ firstVisit ? $t('欢迎使用 Coolto') : $t('欢迎回到 Coolto') }}</h1>
+        <p v-if="firstVisit">{{ $t('我的求职助手：整理经历、分析 JD、生成简历、追踪投递。') }}</p>
+        <p v-else>{{ $t('登录后继续使用你的经历、JD 与简历。') }}</p>
       </div>
 
       <form class="login-form" @submit.prevent="submit">

@@ -17,6 +17,7 @@ interface AgentEventState {
   runError: Ref<string | undefined>;
   toolRuns: Ref<ToolRun[]>;
   pendingApproval: Ref<DesktopApprovalRequest | undefined>;
+  approvalBusy: Ref<boolean>;
   approvalByConversation: Map<string, DesktopApprovalRequest>;
   jd: ReturnType<typeof useJdArtifacts>;
   match: ReturnType<typeof useMatchReports>;
@@ -62,7 +63,16 @@ export function createAgentEventHandler(state: AgentEventState) {
       state.match.add(conversationId, event.data);
       return;
     }
+    if (event.type === "approval.executing") {
+      if (state.pendingApproval.value?.id === event.requestId) {
+        state.approvalBusy.value = true;
+      }
+      return;
+    }
     if (event.type === "approval.completed") {
+      if (state.pendingApproval.value?.id === event.requestId) {
+        state.approvalBusy.value = false;
+      }
       const details = event.details as { jdId?: string } | undefined;
       if (details?.jdId) {
         state.jd.updateStatus(
@@ -112,6 +122,7 @@ function handleCurrentConversationEvent(
       return;
     case "approval.failed":
     case "run.failed":
+      state.approvalBusy.value = false;
       state.runError.value = event.message;
       if (event.type === "run.failed") state.running.value = false;
       return;

@@ -155,6 +155,10 @@ export class ResumeDraftService {
       createdAt: draft.createdAt,
     };
   }
+
+  public async clearAll(): Promise<void> {
+    await this.repository.clearAll();
+  }
 }
 
 function workspaceContentChanged(

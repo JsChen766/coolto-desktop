@@ -149,6 +149,9 @@ const api: DesktopApi = {
     toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),
     close: () => ipcRenderer.invoke("window:close"),
   },
+  data: {
+    clearLocal: () => ipcRenderer.invoke("data:clear-local"),
+  },
   browser: {
     open: (input?: BrowserOpenInput) =>
       ipcRenderer.invoke("browser:open", input),

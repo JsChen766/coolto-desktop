@@ -108,6 +108,9 @@ export function createBrowserDemoApi(): DesktopApi {
       toggleMaximize: async () => undefined,
       close: async () => undefined,
     },
+    data: {
+      clearLocal: async () => undefined,
+    },
     browser: createDemoBrowserApi(),
   };
 }

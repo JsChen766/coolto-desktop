@@ -195,6 +195,9 @@ export interface DesktopApi {
     toggleMaximize(): Promise<void>;
     close(): Promise<void>;
   };
+  data: {
+    clearLocal(): Promise<void>;
+  };
   browser: {
     open(input?: BrowserOpenInput): Promise<BrowserState>;
     close(): Promise<void>;

@@ -9,9 +9,9 @@ src/desktop/renderer/src/resume/template/
 
 The three authorities are intentionally separate:
 
-- `../cv-agent`: persisted `Resume.structured` semantics, layout manifest,
+- `../cv-agent-be`: persisted `Resume.structured` semantics, layout manifest,
   profile hashes, and font binaries;
-- `../cv_agent_frontend`: canonical Web DOM/CSS renderer and DOM measurement;
+- `../cv-agent-app`: canonical Web DOM/CSS renderer and DOM measurement;
 - this App: an independent local Pi Agent and renderer that must preserve both
   contracts.
 

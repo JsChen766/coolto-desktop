@@ -16,9 +16,11 @@ import {
   ToolActivity,
 } from "./app-components";
 import type { AppShell } from "./use-app-shell";
+import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
 
 const props = defineProps<{ shell: AppShell }>();
+const emptyStages = useEmptyStateStages();
 const {
   activeArtifactType,
   activeJd,
@@ -38,7 +40,9 @@ const {
   openExperienceImportResult,
   openJdPanel,
   openMatchPanel,
+  openPrimaryView,
   openResumeDraft,
+  openTracker,
   pendingApproval,
   cloudCopyRequested,
   clearResumeOperationContext,
@@ -95,7 +99,13 @@ const {
             <div v-if="current" class="message-stream">
               <EmptyState
                 v-if="current.messages.length === 0 && !running"
+                :stage="emptyStages.stage.value"
                 @use-prompt="send"
+                @open-experiences="openPrimaryView('experiences')"
+                @open-library="openPrimaryView('library')"
+                @open-tracker="openTracker"
+                @open-browser="toggleBrowser"
+                @import-resume="conversationAttachment.select"
               />
               <template v-for="message in current.messages" :key="message.id">
                 <ChatMessageView :message="message" />

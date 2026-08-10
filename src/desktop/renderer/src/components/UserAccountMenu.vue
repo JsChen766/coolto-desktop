@@ -6,6 +6,7 @@ import {
   LogOut,
   Moon,
   RefreshCw,
+  Settings,
   Sun,
 } from "@lucide/vue";
 import { computed, ref } from "vue";
@@ -32,6 +33,7 @@ const emit = defineEmits<{
   close: [];
   toggleTheme: [];
   openProfile: [trigger: HTMLElement];
+  openSettings: [];
   checkUpdate: [];
   installUpdate: [];
   logout: [];
@@ -109,6 +111,10 @@ function emitClose(): void {
       <button class="menu-row icon-label" type="button" @click="openProfile">
         <IdCard :size="16" :stroke-width="1.8" aria-hidden="true" />
         <span>{{ $t('个人信息') }}</span>
+      </button>
+      <button class="menu-row icon-label" type="button" @click="emitClose(); $emit('openSettings')">
+        <Settings :size="16" :stroke-width="1.8" aria-hidden="true" />
+        <span>{{ $t('设置') }}</span>
       </button>
       <button
         class="menu-row icon-label update-menu-row"

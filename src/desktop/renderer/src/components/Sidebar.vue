@@ -20,6 +20,7 @@ defineProps<{
   resumeDrafts: ResumeDraftSummary[];
   currentDraftId: string | undefined;
   activeView: "chat" | "experiences" | "library" | "tracker";
+  generating: boolean;
   updateState: AppUpdateState;
   updateChecking: boolean;
   updateUpToDate: boolean;
@@ -36,6 +37,7 @@ const emit = defineEmits<{
   delete: [conversation: ConversationSummary];
   toggleTheme: [];
   openProfile: [trigger: HTMLElement];
+  openSettings: [];
   checkUpdate: [];
   installUpdate: [];
   logout: [];
@@ -82,6 +84,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
 
     <SidebarPrimaryNavigation
       :active-view="activeView"
+      :generating="generating"
       @create="$emit('create')"
       @open-experiences="$emit('openExperiences')"
       @open-library="$emit('openLibrary')"
@@ -100,6 +103,8 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
           class="resume-draft-row"
           :class="{ active: draft.artifactId === currentDraftId }"
           type="button"
+          :disabled="generating"
+          :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"
           @click="$emit('selectDraft', draft.artifactId)"
         >
           <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
@@ -129,12 +134,14 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
           v-for="conversation in conversations"
           :key="conversation.id"
           class="conversation-row"
-          :class="{ active: conversation.id === currentId }"
+          :class="{ active: conversation.id === currentId, disabled: generating }"
           role="button"
           tabindex="0"
-          @click="$emit('select', conversation.id)"
-          @keydown.enter="$emit('select', conversation.id)"
-          @keydown.space.prevent="$emit('select', conversation.id)"
+          :aria-disabled="generating"
+          :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"
+          @click="!generating && $emit('select', conversation.id)"
+          @keydown.enter="!generating && $emit('select', conversation.id)"
+          @keydown.space.prevent="!generating && $emit('select', conversation.id)"
         >
           <span class="conversation-title">{{ conversation.title === "新对话" ? $t('新对话') : conversation.title }}</span>
           <span class="conversation-slot">
@@ -186,6 +193,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
         @close="openMenuId = undefined"
         @toggle-theme="$emit('toggleTheme')"
         @open-profile="$emit('openProfile', $event)"
+        @open-settings="$emit('openSettings')"
         @check-update="$emit('checkUpdate')"
         @install-update="$emit('installUpdate')"
         @logout="$emit('logout')"

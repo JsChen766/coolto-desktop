@@ -6,7 +6,10 @@ import {
   SquarePen,
 } from "@lucide/vue";
 
-defineProps<{ activeView: "chat" | "experiences" | "library" | "tracker" }>();
+defineProps<{
+  activeView: "chat" | "experiences" | "library" | "tracker";
+  generating: boolean;
+}>();
 defineEmits<{
   create: [];
   openExperiences: [];
@@ -17,7 +20,13 @@ defineEmits<{
 
 <template>
   <nav class="sidebar-primary-navigation" :aria-label="$t('主要功能')">
-    <button class="new-chat-button icon-label" type="button" @click="$emit('create')">
+    <button
+      class="new-chat-button icon-label"
+      type="button"
+      :disabled="generating"
+      :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"
+      @click="$emit('create')"
+    >
       <SquarePen :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span>{{ $t('新对话') }}</span>
     </button>
@@ -25,6 +34,8 @@ defineEmits<{
       class="new-chat-button icon-label"
       :class="{ active: activeView === 'experiences' }"
       type="button"
+      :disabled="generating"
+      :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"
       @click="$emit('openExperiences')"
     >
       <Library :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -34,6 +45,8 @@ defineEmits<{
       class="new-chat-button icon-label"
       :class="{ active: activeView === 'library' }"
       type="button"
+      :disabled="generating"
+      :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"
       @click="$emit('openLibrary')"
     >
       <FolderOpen :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -43,6 +56,8 @@ defineEmits<{
       class="new-chat-button icon-label"
       :class="{ active: activeView === 'tracker' }"
       type="button"
+      :disabled="generating"
+      :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"
       @click="$emit('openTracker')"
     >
       <BriefcaseBusiness :size="16" :stroke-width="1.8" aria-hidden="true" />

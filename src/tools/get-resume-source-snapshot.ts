@@ -24,7 +24,7 @@ export function createGetResumeSourceSnapshotTool(
     name: "get_resume_source_snapshot",
     label: "锁定简历来源",
     description:
-      "在目标 JD 和经历范围已经明确后，读取 profile、完整 JD 和各经历 currentRevision，并冻结一次只读来源快照。该工具不生成或保存简历；后续证据应直接复制返回的 availableEvidence 精确 quote 和 UTF-16 offsets，不要自行计算。",
+      "在目标 JD 和经历范围已经明确后，读取 profile、完整 JD 和各经历 currentRevision，并冻结一次只读来源快照。该工具不生成或保存简历；后续证据应直接使用返回的 availableEvidence 中的 evidenceId/sourceQuote，不要自行构造或计算偏移量。",
     parameters,
     execute: async (_toolCallId, params, signal) => {
       const snapshot = await builder.build(

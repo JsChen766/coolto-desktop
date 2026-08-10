@@ -60,6 +60,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     runError,
     toolRuns,
     pendingApproval,
+    approvalBusy,
     approvalByConversation,
     jd,
     match,

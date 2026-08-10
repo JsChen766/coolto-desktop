@@ -19,7 +19,7 @@
 
 ## 已定稿契约决策
 
-> 更新日期：2026-07-24；来源：与用户逐项确认 + 三仓库源码核对（cv-agent-app / cv-agent / cv_agent_frontend）。
+> 更新日期：2026-07-24；来源：与用户逐项确认 + 三仓库源码核对（cv-agent-app / cv-agent-be / cv-agent-app）。
 
 - **Electron 文件句柄**：主进程持有绝对路径并注册到按登录用户/对话隔离的 SelectedFileRegistry，Renderer 只拿随机 ID、名称、类型、大小与状态；移除、对话销毁、退出登录时释放。
 - **P1 解析与导入**：复用现有 App 本地解析和导入 Proposal，不调用后端 LangGraph 或 `/files` 上传链路。
@@ -34,7 +34,7 @@
 
 ## 后端接口核对结果（2026-07-24）
 
-在 `cv-agent`（后端）与 `cv_agent_frontend`（Web）实际源码核对后确认：
+在 `cv-agent-be`（后端）与 `cv-agent-app`（Web）实际源码核对后确认：
 
 | 链路 | 现有后端接口 | 结论 |
 | --- | --- | --- |
