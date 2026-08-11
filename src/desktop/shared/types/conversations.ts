@@ -9,6 +9,20 @@ export interface DesktopUser {
   email: string;
 }
 
+export interface DesktopCreditTransaction {
+  amount: number;
+  transactionType: string;
+  createdAt: string;
+}
+
+export interface DesktopCreditSummary {
+  weeklyFreeCredits: number;
+  creditBalance: number;
+  planType: string;
+  hasFreeTrial: boolean;
+  recentTransactions: DesktopCreditTransaction[];
+}
+
 export interface EmailChallengeView {
   challengeId: string;
   expiresAt: string;

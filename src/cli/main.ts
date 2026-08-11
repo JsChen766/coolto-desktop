@@ -5,6 +5,7 @@ import { stdin, stdout } from "node:process";
 
 import { createActionApprovalManager } from "../actions/create-action-approvals.js";
 import { createCooltoAgent } from "../agent/create-agent.js";
+import { createConfiguredModelDependencies } from "../agent/create-configured-dependencies.js";
 import { CooltoApiClient } from "../api/coolto-api-client.js";
 import { KeychainSessionStore } from "../auth/keychain-session-store.js";
 import { ensureAuthenticated } from "../auth/session-manager.js";
@@ -67,8 +68,12 @@ async function main(): Promise<void> {
     jd: apiClient,
     experience: apiClient,
   });
+  const modelDependencies = createConfiguredModelDependencies(
+    config,
+    () => apiClient.getSessionToken(),
+  );
   const agent = createCooltoAgent({
-    apiKey: config.apiKey,
+    ...(config.apiKey ? { apiKey: config.apiKey } : {}),
     modelId: config.modelId,
     approvalManager,
     tools: createToolRegistry({
@@ -83,7 +88,7 @@ async function main(): Promise<void> {
       approvalManager,
       selectedFileRegistry: selectedFiles,
     }),
-  });
+  }, modelDependencies);
 
   agent.subscribe((event) => {
     renderEvent(event);

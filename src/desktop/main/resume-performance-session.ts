@@ -4,7 +4,7 @@ import { performance } from "node:perf_hooks";
 
 import type { CooltoAgentEvent } from "../../agent/events.js";
 import { createCooltoAgent } from "../../agent/create-agent.js";
-
+import { createConfiguredModelDependencies } from "../../agent/create-configured-dependencies.js";
 import { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { AppConfig } from "../../config.js";
 import {
@@ -72,8 +72,12 @@ export async function runPerformanceSession(
   const patcher = new ResumeCandidatePatcher(tracedCompiler, workspaceStore);
   const reviewer = new ResumeCandidateReviewer(evaluator, workspaceStore);
   const repairer = new ResumeAlternativeRepairer(tracedCompiler, evaluator, workspaceStore);
+  const modelDependencies = createConfiguredModelDependencies(
+    config,
+    () => client.getSessionToken(),
+  );
   const agent = createCooltoAgent({
-    apiKey: config.apiKey,
+    ...(config.apiKey ? { apiKey: config.apiKey } : {}),
     modelId: config.modelId,
     thinkingLevel: config.thinkingLevel,
     tools: createToolRegistry({
@@ -94,13 +98,14 @@ export async function runPerformanceSession(
         store: workspaceStore,
         modelId: config.modelId,
         experiences: client,
+        modelDependencies,
         maxBulletLines: config.resumeMaxBulletLines,
       }),
       resumeCandidatePatcher: patcher,
       resumeCandidateReviewer: reviewer,
       resumeAlternativeRepairer: repairer,
     }),
-  });
+  }, modelDependencies);
   traces.start(conversationId, config.modelId);
   let error: string | null = null;
   const toolSequence: string[] = [];

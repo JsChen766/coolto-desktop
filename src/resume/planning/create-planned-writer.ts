@@ -1,4 +1,7 @@
-import { createDeepSeekDependencies } from "../../agent/create-agent.js";
+import {
+  createDeepSeekDependencies,
+  type AgentDependencies,
+} from "../../agent/create-agent.js";
 import type { ExperienceReader } from "../../api/types.js";
 import { ResumeSourceSnapshotBuilder } from "../source-snapshot.js";
 import type { ResumeCompiler } from "../workspace/compiler-port.js";
@@ -12,6 +15,7 @@ export interface PlannedWriterDependencies {
   store: ResumeWorkspaceStore;
   modelId: string;
   experiences: ExperienceReader;
+  modelDependencies?: AgentDependencies;
   maxBulletLines?: 2 | 3;
 }
 
@@ -27,7 +31,8 @@ export function createPlannedResumeWriter(
     compiler: dependencies.compiler,
     store: dependencies.store,
     bulletWriter: new ParallelBulletWriter(
-      createDeepSeekDependencies(dependencies.modelId),
+      dependencies.modelDependencies ??
+        createDeepSeekDependencies(dependencies.modelId),
     ),
     listAdditionalExperiences: async () => {
       const page = await dependencies.experiences.searchExperiences({

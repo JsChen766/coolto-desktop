@@ -64,6 +64,7 @@ import type {
   ConversationRenameInput,
   ConversationSummary,
   DesktopAttachment,
+  DesktopCreditSummary,
   DesktopUser,
   EmailChallengeView,
 } from "./conversations.js";
@@ -88,6 +89,7 @@ export interface DesktopApi {
   platform: DesktopPlatform;
   auth: {
     getCurrentUser(): Promise<DesktopUser | undefined>;
+    getCredits(): Promise<DesktopCreditSummary>;
     login(email: string, password: string): Promise<DesktopUser>;
     requestEmailCode(email: string): Promise<EmailChallengeView>;
     verifyEmailCode(email: string, challengeId: string, code: string): Promise<DesktopUser>;

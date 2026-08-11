@@ -11,6 +11,7 @@ export function registerAuthIpc(
     const user = await auth.restore();
     return user ? { id: user.id, email: user.email } : undefined;
   });
+  ipcMain.handle("auth:credits", () => auth.getCredits());
   ipcMain.handle(
     "auth:login",
     async (_event, email: string, password: string) => {
@@ -42,6 +43,7 @@ export function registerAuthIpc(
 
 export const AUTH_IPC_CHANNELS = [
   "auth:current",
+  "auth:credits",
   "auth:login",
   "auth:email-code:request",
   "auth:email-code:verify",

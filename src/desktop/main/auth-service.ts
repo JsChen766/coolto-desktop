@@ -6,13 +6,14 @@ import type {
   DeviceInput,
   EmailChallengeAccepted,
 } from "../../api/types.js";
-import { loadLocalEnv, readApiBaseUrl } from "../../config.js";
+import { loadLocalEnv, readApiBaseUrl, readConfig } from "../../config.js";
 import { createUuidV7 } from "../../sync/uuid-v7.js";
 import { ElectronAuthSessionStore } from "./electron-auth-session-store.js";
 import { canRestoreOffline } from "../../auth/offline-session.js";
 import type { LocalSyncStore } from "./sync/local-sync-store.js";
 import { DeviceIdentityStore } from "./sync/device-identity-store.js";
 import { SyncRuntime } from "./sync/sync-runtime.js";
+import { fetchCreditSummary } from "./credit-api-client.js";
 
 export class DesktopAuthService {
   readonly apiClient: CooltoApiClient;
@@ -135,6 +136,13 @@ export class DesktopAuthService {
       throw new Error("请先登录 Coolto");
     }
     return this.#currentUser;
+  }
+
+  public getCredits() {
+    this.requireCurrentUser();
+    const baseUrl = readConfig().llmGatewayBaseUrl;
+    if (!baseUrl) throw new Error("尚未配置 Coolto Credit API");
+    return fetchCreditSummary(baseUrl, this.apiClient.getSessionToken());
   }
 
   public requireSyncStore(): LocalSyncStore {
