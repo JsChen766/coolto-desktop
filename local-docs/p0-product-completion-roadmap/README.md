@@ -2000,6 +2000,30 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
 
 ## 实施约束
 
+### S5 生产 LLM 网关真实接线记录（2026-08-11）
+
+- Desktop Agent 保留既有 DeepSeek/OpenAI-compatible 消息、工具和 SSE 解析，通过
+  `COOLTO_LLM_GATEWAY_BASE_URL` 将模型请求改发到 Credit API；每次调用复用当前主站
+  `access_token` Session，并自动附加合法 `operation_type` 和唯一 `request_id`。New API
+  内部 Token 和 DeepSeek Key 均不进入生产 APP、仓库或普通日志。主 Agent、CLI、性能验收及
+  简历并行写作共用同一网关依赖；仅未配置网关的本地直连开发回退需要 `DEEPSEEK_API_KEY`。
+- 新增只读 `auth.getCredits()` IPC，用同一 APP Session 调用 `GET /api/user/credits`，严格解析
+  Credit 契约；当前仅用于验收和后续额度展示接线，未改变现有 UI。
+- 真实 Electron + 生产账号验收：APP 指向 `https://hkapi.coolto.com.cn` 与
+  `https://credit.coolto.com.cn`，发送“不要调用工具、只回复固定文本”的单轮提示后约 1 秒显示
+  `COOLTO_APP_GATEWAY_OK`。随后只读余额为 weekly `5`、credit `15`，最近流水为
+  `WEEKLY_FREE_USAGE -5`（`2026-08-11T09:01:19.001223Z`），并保留同账号首次惰性创建的
+  weekly `+10` 与 trial `+15`；证明本次 `match_analyze` 只结算一次且优先消耗周免费额度。
+- 验证：网关-only 配置、网关 base URL/metadata、Session 复用、Credit 契约和简历规划相关测试
+  共 13/13 通过；Node 与
+  Renderer 类型检查、588 文件行数门禁、Electron production build 通过。`npm run check`
+  在进入测试阶段前的模板、行数和两端类型检查均通过，418 项测试中 414 通过；4 项既有
+  macOS 路径/`/bin/bash` 测试在 Windows 失败，导致全量命令未继续执行末尾 build，已另行执行
+  `desktop:build` 成功，本次改动相关测试无失败。
+- 当前验收环境显式使用 `COOLTO_LLM_OPERATION_TYPE=match_analyze`。正式覆盖 JD 解析、简历生成、
+  自我介绍等业务入口前，仍需把每个顶层用户操作映射到对应 operation type，避免所有 Agent
+  轮次都按匹配分析定价；本记录不将该后续映射误标为完成。
+
 - 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S4.5 → S5 → R1 推进；
 - 每阶段先复核现状和工作树；列出的确认点必须在该阶段开始时向用户确认，不提前假设；
 - 每阶段和阶段内 section 完成后单独质检，并将真实结果、失败和遗留项写回本 README；

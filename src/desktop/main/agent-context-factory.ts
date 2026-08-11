@@ -1,5 +1,6 @@
 import { createActionApprovalManager } from "../../actions/create-action-approvals.js";
 import { createCooltoAgent } from "../../agent/create-agent.js";
+import { createConfiguredModelDependencies } from "../../agent/create-configured-dependencies.js";
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter, UserProfileReader } from "../../api/types.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
@@ -114,16 +115,21 @@ export class AgentContextFactory {
       resumeCompiler,
       config.resumeMaxBulletLines,
     );
+    const modelDependencies = createConfiguredModelDependencies(
+      config,
+      () => deps.apiClient.getSessionToken(),
+    );
     const plannedResumeWriter = createPlannedResumeWriter({
       snapshotBuilder: sourceBuilder,
       compiler: resumeCompiler,
       store: workspaceStore,
       modelId: config.modelId,
       experiences: deps.experiences,
+      modelDependencies,
       maxBulletLines: config.resumeMaxBulletLines,
     });
     const agent = createCooltoAgent({
-      apiKey: config.apiKey,
+      ...(config.apiKey ? { apiKey: config.apiKey } : {}),
       modelId: config.modelId,
       thinkingLevel: config.thinkingLevel,
       approvalManager,
@@ -150,7 +156,7 @@ export class AgentContextFactory {
         browserPageReader: deps.browserPageReader,
         browserPageOperator: deps.browserPageOperator,
       }),
-    });
+    }, modelDependencies);
     const context: ConversationAgentContext = {
       agent,
       workspaceStore,

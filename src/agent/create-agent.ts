@@ -5,6 +5,7 @@ import type {
   BeforeToolCallResult,
   StreamFn,
 } from "@earendil-works/pi-agent-core";
+import { randomUUID } from "node:crypto";
 import {
   createModels,
   type Api,
@@ -44,14 +45,22 @@ export interface AgentDependencies {
   streamFn: StreamFn;
 }
 
+export interface CreditGatewayOptions {
+  baseUrl: string;
+  operationType: string;
+  getSessionToken: () => string;
+  createRequestId?: () => string;
+}
+
 export function createDeepSeekDependencies(
   modelId = DEFAULT_MODEL_ID,
+  gateway?: CreditGatewayOptions,
 ): AgentDependencies {
   const models: MutableModels = createModels();
   models.setProvider(deepseekProvider());
 
-  const model = models.getModel(DEFAULT_PROVIDER_ID, modelId);
-  if (!model) {
+  const registeredModel = models.getModel(DEFAULT_PROVIDER_ID, modelId);
+  if (!registeredModel) {
     const available = models
       .getModels(DEFAULT_PROVIDER_ID)
       .map((candidate) => candidate.id)
@@ -61,11 +70,58 @@ export function createDeepSeekDependencies(
     );
   }
 
+  const model = gateway
+    ? {
+        ...registeredModel,
+        baseUrl: `${gateway.baseUrl.replace(/\/+$/u, "")}/api/llm`,
+      }
+    : registeredModel;
+
   const baseStream = models.streamSimple.bind(models);
   return {
     model,
-    streamFn: (modelInput, context, options) =>
-      baseStream(modelInput, context, { ...options, temperature: 0 }),
+    streamFn: (modelInput, context, options) => {
+      if (!gateway) {
+        return baseStream(modelInput, context, {
+          ...options,
+          temperature: 0,
+        });
+      }
+      const originalPayloadTransform = options?.onPayload;
+      return baseStream(modelInput, context, {
+        ...options,
+        apiKey: "coolto-session-auth",
+        headers: {
+          ...options?.headers,
+          Cookie: `access_token=${gateway.getSessionToken()}`,
+        },
+        temperature: 0,
+        onPayload: async (payload, payloadModel) => {
+          const transformed =
+            (await originalPayloadTransform?.(payload, payloadModel)) ?? payload;
+          return withCreditMetadata(
+            transformed,
+            gateway.operationType,
+            gateway.createRequestId?.() ?? randomUUID(),
+          );
+        },
+      });
+    },
+  };
+}
+
+export function withCreditMetadata(
+  payload: unknown,
+  operationType: string,
+  requestId: string,
+): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("LLM 网关请求体必须是 JSON object");
+  }
+  return {
+    ...payload,
+    operation_type: operationType,
+    request_id: requestId,
   };
 }
 

@@ -14,10 +14,25 @@ export type AgentThinkingLevel =
   | "xhigh"
   | "max";
 
+const CREDIT_OPERATION_TYPES = [
+  "jd_parse",
+  "match_analyze",
+  "match_score",
+  "resume_generate",
+  "cover_letter",
+  "self_intro",
+  "experience_extract",
+  "jd_suggest",
+] as const;
+
+export type CreditOperationType = (typeof CREDIT_OPERATION_TYPES)[number];
+
 export interface AppConfig {
-  apiKey: string;
+  apiKey?: string;
   modelId: string;
   apiBaseUrl: string;
+  llmGatewayBaseUrl?: string;
+  llmOperationType: CreditOperationType;
   thinkingLevel: AgentThinkingLevel;
   /** Maximum lines a resume bullet may occupy (2 or 3). */
   resumeMaxBulletLines: 2 | 3;
@@ -34,19 +49,32 @@ export function readConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): AppConfig {
   const apiKey = env.DEEPSEEK_API_KEY?.trim();
-  if (!apiKey) {
+  const llmGatewayBaseUrl = env.COOLTO_LLM_GATEWAY_BASE_URL?.trim();
+  if (!apiKey && !llmGatewayBaseUrl) {
     throw new Error(
-      "缺少 DEEPSEEK_API_KEY。请复制 .env.example 为 .env 并填写本地开发密钥。",
+      "缺少模型访问配置。生产 APP 请设置 COOLTO_LLM_GATEWAY_BASE_URL；本地直连开发请设置 DEEPSEEK_API_KEY。",
     );
   }
 
   return {
-    apiKey,
+    ...(apiKey ? { apiKey } : {}),
     modelId: env.COOLTO_MODEL?.trim() || DEFAULT_MODEL_ID,
     apiBaseUrl: readApiBaseUrl(env),
+    ...(llmGatewayBaseUrl ? { llmGatewayBaseUrl } : {}),
+    llmOperationType: readOperationType(env),
     thinkingLevel: readThinkingLevel(env),
     resumeMaxBulletLines: readMaxBulletLines(env),
   };
+}
+
+function readOperationType(env: NodeJS.ProcessEnv): CreditOperationType {
+  const value = env.COOLTO_LLM_OPERATION_TYPE?.trim() || "match_analyze";
+  if ((CREDIT_OPERATION_TYPES as readonly string[]).includes(value)) {
+    return value as CreditOperationType;
+  }
+  throw new Error(
+    `COOLTO_LLM_OPERATION_TYPE 必须是 ${CREDIT_OPERATION_TYPES.join(" / ")}，当前为 "${value}"`,
+  );
 }
 
 function readMaxBulletLines(env: NodeJS.ProcessEnv): 2 | 3 {

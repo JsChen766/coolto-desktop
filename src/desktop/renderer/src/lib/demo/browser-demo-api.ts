@@ -28,6 +28,13 @@ export function createBrowserDemoApi(): DesktopApi {
     platform: "darwin",
     auth: {
       getCurrentUser: async () => currentUser,
+      getCredits: async () => ({
+        weeklyFreeCredits: 10,
+        creditBalance: 15,
+        planType: "NONE",
+        hasFreeTrial: true,
+        recentTransactions: [],
+      }),
       login: async (email) => {
         currentUser = { id: "preview-user", email };
         return currentUser;

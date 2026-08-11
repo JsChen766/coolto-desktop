@@ -16,6 +16,7 @@ const api: DesktopApi = {
   platform: process.platform,
   auth: {
     getCurrentUser: () => ipcRenderer.invoke("auth:current"),
+    getCredits: () => ipcRenderer.invoke("auth:credits"),
     login: (email, password) =>
       ipcRenderer.invoke("auth:login", email, password),
 	requestEmailCode: (email) =>

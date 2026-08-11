@@ -9,6 +9,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
     platform: "darwin",
     auth: {
       getCurrentUser: unavailable,
+      getCredits: unavailable,
       login: unavailable,
       requestEmailCode: unavailable,
       verifyEmailCode: unavailable,
