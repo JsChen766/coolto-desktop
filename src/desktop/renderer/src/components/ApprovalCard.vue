@@ -54,12 +54,13 @@ function submitCustom(): void {
 }
 
 function accept(): void {
-  const profileFields = selectedProfileFields.value.map((field) => ({
+  const profileFields = [...selectedProfileFields.value].map((field) => ({
     field, value: profileValues.value[field] ?? "",
   }));
+  const candidateIds = [...selectedCandidates.value];
   emit("decide", { type: "accept", selection: {
     ...(profileFields.length ? { profileFields } : {}),
-    ...(selectedCandidates.value.length ? { candidateIds: selectedCandidates.value } : {}),
+    ...(candidateIds.length ? { candidateIds } : {}),
   } });
 }
 </script>

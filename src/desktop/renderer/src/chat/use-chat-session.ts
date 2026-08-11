@@ -208,7 +208,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       current.value = await desktopApi.agent.resolveApproval({
         conversationId,
         requestId: pendingApproval.value.id,
-        decision,
+        decision: JSON.parse(JSON.stringify(decision)),
       });
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();

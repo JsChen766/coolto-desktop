@@ -84,7 +84,7 @@ function recordFromRepository(
 
 function guardNavigation(action: () => void | Promise<void>): void {
   void (async () => {
-    if (running) return;
+    if (running.value) return;
     if (
       activeView.value === "experiences"
       && (await experienceLibraryView.value?.confirmLeave()) === false
