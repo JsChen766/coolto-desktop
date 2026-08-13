@@ -185,4 +185,11 @@ export class UserServicesResolver {
     this.services?.reminderScheduler.dispose();
     this.services = undefined;
   }
+
+  /** Best-effort snapshot of the in-flight agent transcript. No-op when no
+   * services or no running generation exist; never creates services (used at
+   * window close / app quit, where the runtime must not be rebuilt). */
+  public async flushPending(): Promise<void> {
+    await this.services?.agent.flushPending();
+  }
 }

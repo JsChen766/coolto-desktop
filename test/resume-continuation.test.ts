@@ -149,6 +149,30 @@ test("continueUntilTerminal respects a terminal start state", async () => {
   assert.equal(idleAgent.prompts.length, 0);
 });
 
+test("continueUntilTerminal stops on a user cancel without touching the workspace", async () => {
+  // The stop button aborts the current model call, but the run settles
+  // silently; without the cancel check the loop would immediately re-prompt.
+  // On cancel the loop must stop AND leave the draft as the user left it.
+  const { store, workspace, compiler } = await createWritingWorkspace();
+  const agent = new FakeAgent();
+  const logs: string[] = [];
+  await continueUntilTerminal(
+    agent,
+    store,
+    compiler,
+    { maxMs: 60_000, maxModelCalls: 30 },
+    {
+      log: (line) => void logs.push(line),
+      isCancelled: () => true,
+    },
+  );
+  assert.equal(agent.prompts.length, 0, "no continuation round after cancel");
+  assert.ok(logs.includes("continuation:cancelled"), logs.join(","));
+  const latest = store.latest()!;
+  assert.equal(latest.status, "writing", "cancel must not normalize the draft");
+  assert.equal(latest.revision, workspace.revision);
+});
+
 class SwitchingAgent {
   public prompts: string[] = [];
   public modelCallCount = 0;

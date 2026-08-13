@@ -80,6 +80,13 @@ export function registerDesktopIpc(
     void auth.dispose();
   });
   const servicesForCurrentUser = () => services.get();
+  registerQuitFlush(services);
+  // Snapshot the in-flight transcript while the runtime is still alive: the
+  // closed handler clears services (cancelling the agent) right after, and
+  // before-quit waits for this snapshot to land before the process exits.
+  window.on("close", () => {
+    pendingQuitFlush = services.flushPending().catch(() => {});
+  });
   registerAuthIpc(ipcMain, auth, () => services.clear());
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
 
@@ -229,6 +236,40 @@ export function registerDesktopIpc(
     async () => (await servicesForCurrentUser()).profileProposals,
   );
   registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
+}
+
+/** In-flight transcript snapshot started on window close; before-quit waits
+ * for it (bounded) so the write lands before the process exits. */
+let pendingQuitFlush: Promise<void> | undefined;
+
+/**
+ * Persists the in-flight agent transcript when the app quits mid-generation
+ * (window close / app quit), so an interrupted run keeps its history instead
+ * of being lost with the pending prompt IPC. Registered once per process;
+ * the wait is bounded so quitting is never blocked.
+ */
+let quitFlushRegistered = false;
+function registerQuitFlush(services: UserServicesResolver): void {
+  if (quitFlushRegistered) return;
+  quitFlushRegistered = true;
+  let flushed = false;
+  app.on("before-quit", (event) => {
+    if (flushed) return;
+    flushed = true;
+    event.preventDefault();
+    void (async () => {
+      try {
+        await Promise.race([
+          pendingQuitFlush ?? services.flushPending().catch(() => {}),
+          new Promise((resolve) => setTimeout(resolve, 2000)),
+        ]);
+      } catch {
+        // Never block quitting on a failed snapshot.
+      } finally {
+        app.quit();
+      }
+    })();
+  });
 }
 
 const IPC_CHANNELS = [

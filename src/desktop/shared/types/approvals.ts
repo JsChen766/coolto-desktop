@@ -53,6 +53,7 @@ export type DesktopAgentEvent =
   | { type: "tool.completed"; callId: string; name: string; isError: boolean }
   | { type: "run.failed"; message: string }
   | { type: "run.completed" }
+  | { type: "turn.completed" }
   | { type: "resume.draft.updated"; artifactId: string }
   | { type: "approval.required"; request: DesktopApprovalRequest }
   | {

@@ -29,6 +29,7 @@ export type CooltoAgentEvent =
     }
   | { type: "run.failed"; message: string }
   | { type: "run.completed" }
+  | { type: "turn.completed" }
   | ApprovalEvent;
 
 export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
@@ -91,6 +92,9 @@ export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
 
     case "agent_end":
       return { type: "run.completed" };
+
+    case "turn_end":
+      return { type: "turn.completed" };
 
     default:
       return undefined;

@@ -4,6 +4,7 @@ import { performance } from "node:perf_hooks";
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter, UserProfileReader } from "../../api/types.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
+import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
 import {
   buildBrowserWriteAccessContinuationPrompt,
@@ -43,6 +44,13 @@ export class DesktopAgentRuntime {
   readonly #traces = new ResumeGenerationTraceStore();
   readonly #contexts = new Map<string, ConversationAgentContext>();
   #runningConversationId: string | undefined;
+  /** Set by the stop button; checked before every continuation round and
+   * before follow-up prompts. Aborting alone is not enough: the agent loop
+   * settles silently after an abort and would be re-prompted immediately. */
+  #cancelRequested = false;
+  /** Serializes background transcript snapshots so concurrent writes to the
+   * same conversation file never interleave. */
+  #persistChain: Promise<void> = Promise.resolve();
 
   public constructor(
     apiClient: CooltoApiClient,
@@ -89,9 +97,19 @@ export class DesktopAgentRuntime {
     const context = await this.#contextFor(conversationId);
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
+    this.#cancelRequested = false;
     this.#traces.start(conversationId, readConfig().modelId);
     const commandStartedAt = performance.now();
     let failed = false;
+    // Snapshot the transcript after every completed turn so an abrupt close
+    // or a hard failure never loses more than the in-flight turn.
+    const unsubscribePersist = context.agent.subscribe((event) => {
+      if (event.type === "turn.completed") {
+        void this.#persistSnapshot(conversationId, context.agent).catch(
+          () => {},
+        );
+      }
+    });
     try {
       if (input.resumeReference && input.jdReference) {
         throw new Error("一次消息不能同时引用 JD 和 Resume");
@@ -99,11 +117,11 @@ export class DesktopAgentRuntime {
       const editBase =
         input.resumeReference &&
         input.resumeReference.source !== "cloud"
-        ? await this.#activateReferencedDraft(
-            context,
-            input.resumeReference.artifactId,
-          )
-        : undefined;
+          ? await this.#activateReferencedDraft(
+              context,
+              input.resumeReference.artifactId,
+            )
+          : undefined;
       if (editBase) {
         context.activeEdit = {
           artifactId: editBase.artifactId,
@@ -135,22 +153,28 @@ export class DesktopAgentRuntime {
       while (context.agent.isRunning) {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
-      await continueUntilTerminal(
-        context.agent,
-        context.workspaceStore,
-        context.resumeCompiler,
-        {
-          ...UNLIMITED_CONTINUATION_BUDGET,
-          startedAtMs: commandStartedAt,
-        },
-        {
-          onHostFill: (fills) =>
-            this.#events.emitHostFill(
-              conversationId,
-              fills.map((fill) => `${fill.itemId}:${fill.bulletText.slice(0, 12)}…`),
-            ),
-        },
-      );
+      // A stop-button cancel aborts the model call but the run settles
+      // silently; skip the continuation entirely so the generation stops
+      // where the user left it instead of restarting immediately.
+      if (!this.#cancelRequested) {
+        await continueUntilTerminal(
+          context.agent,
+          context.workspaceStore,
+          context.resumeCompiler,
+          {
+            ...UNLIMITED_CONTINUATION_BUDGET,
+            startedAtMs: commandStartedAt,
+          },
+          {
+            isCancelled: () => this.#cancelRequested,
+            onHostFill: (fills) =>
+              this.#events.emitHostFill(
+                conversationId,
+                fills.map((fill) => `${fill.itemId}:${fill.bulletText.slice(0, 12)}…`),
+              ),
+          },
+        );
+      }
       const proposed = context.workspaceStore.latest();
       if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
         await this.#resumeDrafts.proposeChange({
@@ -168,6 +192,14 @@ export class DesktopAgentRuntime {
       failed = true;
       throw error;
     } finally {
+      unsubscribePersist();
+      if (failed) {
+        // Persist whatever the transcript holds (user message, completed
+        // turns) so an interrupted or failed run keeps its history.
+        await this.#persistSnapshot(conversationId, context.agent).catch(
+          () => {},
+        );
+      }
       this.#traces.finish(conversationId, {
         workspaceStatus: context.workspaceStore.latest()?.status ?? null,
         failed,
@@ -178,9 +210,28 @@ export class DesktopAgentRuntime {
   }
 
   public cancel(): void {
+    this.#cancelRequested = true;
     if (this.#runningConversationId) {
       this.#contexts.get(this.#runningConversationId)?.agent.cancel();
     }
+  }
+
+  /** Persists the in-flight transcript snapshot before the app quits. */
+  public async flushPending(): Promise<void> {
+    const conversationId = this.#runningConversationId;
+    if (!conversationId) return;
+    const context = this.#contexts.get(conversationId);
+    if (!context) return;
+    await this.#persistSnapshot(conversationId, context.agent);
+  }
+
+  /** Queued, best-effort snapshot of the agent transcript to the store. */
+  #persistSnapshot(conversationId: string, agent: CooltoAgent): Promise<void> {
+    const next = this.#persistChain.then(async () => {
+      await this.#store.saveMessages(conversationId, agent.getMessages());
+    });
+    this.#persistChain = next.catch(() => {});
+    return next;
   }
 
   public generationTrace(conversationId: string) {
@@ -195,6 +246,8 @@ export class DesktopAgentRuntime {
     const context = await this.#contextFor(conversationId);
     this.#assertCanRun(conversationId);
     this.#runningConversationId = conversationId;
+    this.#cancelRequested = false;
+    let failed = false;
     try {
       const jdContinuation = prepareJdContinuation(
         context.agent,
@@ -208,12 +261,12 @@ export class DesktopAgentRuntime {
       );
       await context.agent.resolveApproval(requestId, decision);
       const savedJd = jdContinuation?.getSavedJd();
-      if (savedJd) {
+      if (savedJd && !this.#cancelRequested) {
         this.#events.emitJdSaved(conversationId, requestId, savedJd.jdId);
         await context.agent.prompt(buildJdContinuationPrompt(savedJd));
       }
       const grantedReason = writeAccessContinuation?.getGrantedReason();
-      if (grantedReason) {
+      if (grantedReason && !this.#cancelRequested) {
         await context.agent.prompt(
           buildBrowserWriteAccessContinuationPrompt(grantedReason),
         );
@@ -222,7 +275,15 @@ export class DesktopAgentRuntime {
         conversationId,
         context.agent.getMessages(),
       );
+    } catch (error) {
+      failed = true;
+      throw error;
     } finally {
+      if (failed) {
+        await this.#persistSnapshot(conversationId, context.agent).catch(
+          () => {},
+        );
+      }
       this.#runningConversationId = undefined;
     }
   }

@@ -57,6 +57,9 @@ export interface HostFillSummary {
 export interface ContinuationCallbacks {
   log?: (line: string) => void | Promise<void>;
   onHostFill?: (fills: HostFillSummary[]) => void | Promise<void>;
+  /** User-initiated stop (desktop stop button): checked each round so an
+   * aborted model call does not immediately restart the generation. */
+  isCancelled?: () => boolean;
 }
 
 /**
@@ -100,6 +103,14 @@ export async function continueUntilTerminal(
     if (performance.now() - startedAt >= budget.maxMs) {
       await callbacks.log?.("continuation:time");
       normalizeToUserDecision(store);
+      return;
+    }
+    // User-initiated stop (desktop stop button): aborting the current model
+    // call alone would leave the loop unaware and immediately re-prompt. Stop
+    // without touching the workspace: the partial draft and transcript stay
+    // as the user left them.
+    if (callbacks.isCancelled?.()) {
+      await callbacks.log?.("continuation:cancelled");
       return;
     }
     // No-progress guard: a stuck model (repeating the same rejected text,
