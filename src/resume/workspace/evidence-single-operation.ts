@@ -8,7 +8,10 @@ import {
 import { ResumeWorkspaceError } from "./errors.js";
 import { resolveBindingWithAutoRepair } from "./evidence-auto-repair.js";
 import type { EvidenceRepairAction } from "./evidence-auto-repair.js";
-import { applyIncrementalText } from "./incremental-text-edit.js";
+import {
+  applyIncrementalText,
+  residualAppendText,
+} from "./incremental-text-edit.js";
 import type { ResumeStructure } from "../types.js";
 import type {
   ResumePatchOperation,
@@ -99,7 +102,33 @@ function resolveIncrementalText(
   >,
 ): { operation: ResumePatchOperation; repairs: EvidenceRepairAction[] } {
   const original = requireBinding(work, operation.bulletId);
-  const mergedText = applyIncrementalText(original.bulletText, operation);
+  // Idempotent merge: when the append's head already sits at the bullet's
+  // tail, the model is extending the existing sentence (its intent "the
+  // bullet should end with X" is satisfied by the overlap), so the operation
+  // is normalized to its non-overlapping remainder instead of rejected. A
+  // plain rejection would make the model retry the identical append forever:
+  // the error carries no current bullet state, so nothing can update its
+  // belief. This is the root fix for the bl-0 append loop.
+  const mergedText =
+    operation.op === "append_text"
+      ? original.bulletText +
+        residualAppendText(original.bulletText, operation.text)
+      : applyIncrementalText(original.bulletText, operation);
+  if (mergedText === original.bulletText) {
+    // Fully absorbed: the text the model wants is already in the bullet.
+    // Resolve as a successful no-op (unchanged binding) so the model sees
+    // "already present" in the response and moves on, instead of retrying a
+    // rejection forever. The binding is reused as-is: it is already
+    // normalized and unchanged.
+    return {
+      operation: {
+        op: "replace_bullet",
+        bulletId: original.bulletId,
+        binding: original,
+      },
+      repairs: [],
+    };
+  }
   // Same repetition gates as write_bullet: appending/prepending/inserting
   // text that repeats a fragment already present in the bullet (e.g. when
   // the model re-cites evidence the bullet already contains) would look
@@ -109,7 +138,10 @@ function resolveIncrementalText(
   if (repeated) {
     throw new EvidenceValidationError(
       "repeated_fragment",
-      `Bullet ${operation.bulletId} would contain a repeated fragment "${repeated}"; do not retry the same text. Append a non-duplicating transition phrase (e.g. "，并持续优化。") or rephrase the bullet's own cited facts; no new numbers allowed.`,
+      `Bullet ${operation.bulletId} would contain a repeated fragment "${repeated}". ` +
+        `当前 bullet（${[...original.bulletText].length} 字）："${original.bulletText.slice(0, 120)}". ` +
+        `若重复来自你打算追加的内容已存在于 bullet 中，说明该处目标已完成，请停止补长；` +
+        `若仍需加长，请追加不与现有文本重复的过渡表述（如 "，并持续优化"），或改写该 bullet 已引用证据的表述；禁止重发相同文本`,
       operation.bulletId,
     );
   }

@@ -44,6 +44,11 @@ export const INITIAL_TURN_MAX_MS = 600_000;
 /** Consecutive per-turn timeouts tolerated before giving up. */
 export const MAX_CONSECUTIVE_TURN_TIMEOUTS = 5;
 
+/** Consecutive rounds without a revision landing: the model is stuck
+ * (repeating rejected text, empty reasoning); stop instead of burning the
+ * whole budget. */
+export const MAX_NO_PROGRESS_ROUNDS = 8;
+
 export interface HostFillSummary {
   itemId: string;
   bulletText: string;
@@ -79,6 +84,8 @@ export async function continueUntilTerminal(
 ): Promise<void> {
   const startedAt = budget.startedAtMs ?? performance.now();
   let consecutiveTimeouts = 0;
+  let lastContentKey: string | undefined;
+  let noProgressRounds = 0;
   for (let round = 0; round < 200; round += 1) {
     const workspace = store.latest();
     if (!workspace || !isContinuable(workspace.status)) {
@@ -94,6 +101,24 @@ export async function continueUntilTerminal(
       await callbacks.log?.("continuation:time");
       normalizeToUserDecision(store);
       return;
+    }
+    // No-progress guard: a stuck model (repeating the same rejected text,
+    // empty reasoning loops) never lands a content change. The content digest
+    // (structure + bindings) rather than the revision is compared because
+    // idempotent no-op patches bump the revision without changing content;
+    // those must still count as no progress. Detect it and stop instead of
+    // burning the whole budget, especially in unlimited mode.
+    const contentKey = contentDigest(workspace);
+    if (contentKey === lastContentKey) {
+      noProgressRounds += 1;
+      if (noProgressRounds >= MAX_NO_PROGRESS_ROUNDS) {
+        await callbacks.log?.(`continuation:no-progress:${noProgressRounds}`);
+        normalizeToUserDecision(store);
+        return;
+      }
+    } else {
+      noProgressRounds = 0;
+      lastContentKey = contentKey;
     }
     await callbacks.log?.(`continuation:round:${agent.modelCallCount}`);
     const timedOut = await promptWithTurnTimeout(
@@ -151,6 +176,17 @@ async function promptWithTurnTimeout(
   } finally {
     if (timer) clearTimeout(timer);
   }
+}
+
+/**
+ * Deterministic fingerprint of the resume content a revision carries. Any
+ * patch that actually changes the draft (or the agent's bindings) flips the
+ * key; idempotent no-ops and timeouts do not.
+ */
+function contentDigest(workspace: ResumeWorkspace): string {
+  return `${JSON.stringify(workspace.structure)}\u0000${JSON.stringify(
+    workspace.bindings,
+  )}`;
 }
 
 /**

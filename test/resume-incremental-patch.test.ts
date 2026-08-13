@@ -328,6 +328,77 @@ test("a failing operation does not roll back the rest of the batch", async () =>
   assert.equal(workspace.structure.sections[1]!.items[0]!.bullets.length, 0);
 });
 
+test("append_text absorbs an overlapping tail extension instead of rejecting", async () => {
+  // The tail pass re-sends whole sentences whose head is already the bullet's
+  // tail ("…提供全面的技术支撑" + "，为…提供全面的技术支撑与工程保障").
+  // The host appends only the non-overlapping remainder; rejecting would make
+  // the model retry the identical append forever (stuck bl-0 loop).
+  const { snapshot, patcher, prepared } = await createInitial();
+  await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 0,
+    operations: [
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: createBinding(snapshot, "bullet-1", FIRST_QUOTE),
+      },
+    ],
+  });
+  const evidence = createBinding(snapshot, "ignored", SECOND_QUOTE).evidenceIds[0]!;
+  const extended = await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 1,
+    operations: [
+      {
+        op: "append_text",
+        bulletId: "bl-0",
+        text: `，${FIRST_QUOTE}并沉淀为团队知识库。`,
+        evidenceIds: [evidence],
+      },
+    ],
+  });
+  const bullet = extended.structure.sections[1]!.items[0]!.bullets[0]!;
+  assert.equal(bullet.text, stripped(FIRST_QUOTE + "并沉淀为团队知识库。"));
+  assert.equal(extended.lastOperationReport, undefined);
+});
+
+test("append_text fully absorbed by the bullet resolves as a successful no-op", async () => {
+  // The model re-sends a sentence already present verbatim at the tail. This
+  // must resolve successfully (no rejection to retry forever), leaving the
+  // content unchanged.
+  const { snapshot, patcher, prepared } = await createInitial();
+  await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 0,
+    operations: [
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: createBinding(snapshot, "bullet-1", FIRST_QUOTE),
+      },
+    ],
+  });
+  const evidence = createBinding(snapshot, "ignored", SECOND_QUOTE).evidenceIds[0]!;
+  const same = await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 1,
+    operations: [
+      {
+        op: "append_text",
+        bulletId: "bl-0",
+        text: FIRST_QUOTE,
+        evidenceIds: [evidence],
+      },
+    ],
+  });
+  assert.equal(
+    same.structure.sections[1]!.items[0]!.bullets[0]!.text,
+    stripped(FIRST_QUOTE),
+  );
+  assert.equal(same.lastOperationReport, undefined);
+});
+
 test("append_text rejects text that repeats content already inside the bullet", async () => {
   const { snapshot, patcher, prepared } = await createInitial();
   await patcher.patch({

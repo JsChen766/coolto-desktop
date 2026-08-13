@@ -11,7 +11,6 @@ import type {
 } from "./types.js";
 import { ResumeWorkspaceStore } from "./workspace-store.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
-import { degradeAdditionalSections } from "./section-space-policy.js";
 
 const MAX_PATCH_COUNT = 40;
 
@@ -77,19 +76,17 @@ export class ResumeCandidatePatcher {
       }
       throw error;
     }
+    // Overflow is reported to the agent as page_overflow / multiple_pages and
+    // the agent trims it back itself. The host never removes sections: a
+    // deleted section (e.g. skills) would disappear permanently even after
+    // the page shrinks again.
     const compileResult = await this.compiler.compile(patched.structure);
-    const degraded = hasOverflow(compileResult)
-      ? degradeAdditionalSections(patched.structure, patched.bindings)
-      : { ...patched, removedSectionIds: [] };
-    const finalCompile = degraded.removedSectionIds.length
-      ? await this.compiler.compile(degraded.structure)
-      : compileResult;
     const revision = current.revision + 1;
     const candidateSnapshot: ResumeCandidateSnapshot = {
       revision,
-      structure: structuredClone(degraded.structure),
-      bindings: structuredClone(degraded.bindings),
-      compileResult: structuredClone(finalCompile),
+      structure: structuredClone(patched.structure),
+      bindings: structuredClone(patched.bindings),
+      compileResult: structuredClone(compileResult),
     };
     const bestSnapshot = isBetterCandidate(
       candidateSnapshot,
@@ -109,10 +106,10 @@ export class ResumeCandidatePatcher {
         ...current,
         revision,
         patchCount: current.patchCount + 1,
-        status: deriveWorkspaceStatus(finalCompile, degraded.structure),
-        structure: degraded.structure,
-        bindings: degraded.bindings,
-        compileResult: finalCompile,
+        status: deriveWorkspaceStatus(compileResult, patched.structure),
+        structure: patched.structure,
+        bindings: patched.bindings,
+        compileResult,
         bestSnapshot,
         ...(operationReport ? { lastOperationReport: operationReport } : {}),
       },
@@ -121,11 +118,6 @@ export class ResumeCandidatePatcher {
   }
 }
 
-function hasOverflow(result: ResumeWorkspace["compileResult"]): boolean {
-  return result.violations.some((violation) =>
-    violation.code === "page_overflow" || violation.code === "multiple_pages",
-  );
-}
 
 function summarizeResolvedRanges(
   resolved: ReturnType<typeof resolveOperationsBestEffort>["resolved"],

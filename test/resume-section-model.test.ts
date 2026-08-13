@@ -10,7 +10,6 @@ import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../src/resume/template-contra
 import type { ResumeSourceSnapshot } from "../src/resume/source-types.js";
 import { buildResumeSkeleton } from "../src/resume/workspace/candidate-skeleton.js";
 import { unwrittenExperienceItemIds } from "../src/resume/workspace/candidate-content.js";
-import { degradeAdditionalSections } from "../src/resume/workspace/section-space-policy.js";
 import { collectSkillHints } from "../src/resume/workspace/section-registry.js";
 
 test("custom sections normalize, remain open, and preserve fixed display order", () => {
@@ -59,18 +58,6 @@ test("quality review rejects raw text in additional and skill sections", () => {
   );
   assert.ok(report.issues.some((issue) => issue.code === "unbound_additional_content"));
   assert.equal(report.passed, false);
-});
-
-test("space degradation removes skills then optional sections, never core content", () => {
-  const structure = buildResumeSkeleton(snapshot, snapshot.experiences.map((item) => item.id), "en-US");
-  const degraded = degradeAdditionalSections(structure, []);
-  assert.deepEqual(degraded.removedSectionIds, [
-    "section-skills", "section-custom-papers", "section-custom-awards", "section-custom-certificates",
-    "section-custom-research", "section-custom-activities",
-  ]);
-  assert.deepEqual(degraded.structure.sections.map((section) => section.type), [
-    "education", "experience", "project",
-  ]);
 });
 
 const snapshot: ResumeSourceSnapshot = {
