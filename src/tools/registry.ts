@@ -12,8 +12,6 @@ import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
 import type { ResumeSourceSnapshotBuilder } from "../resume/source-snapshot.js";
 import type { ResumeCandidatePatcher } from "../resume/workspace/candidate-patcher.js";
-import type { ResumeCandidatePreparer } from "../resume/workspace/candidate-preparer.js";
-import type { PlannedResumeWriter } from "../resume/planning/planned-resume-writer.js";
 import type { ResumeLayoutInspector } from "../resume/planning/layout-inspector.js";
 import type { ResumeCandidateReviewer } from "../resume/quality/candidate-reviewer.js";
 import type { ResumeAlternativeRepairer } from "../resume/quality/alternative-repairer.js";
@@ -23,6 +21,7 @@ import { createGetExperienceTool } from "./get-experience.js";
 import { createGetCurrentUserTool } from "./get-current-user.js";
 import { createGetResumeSourceSnapshotTool } from "./get-resume-source-snapshot.js";
 import { createGetUserProfileTool } from "./get-user-profile.js";
+import { createPrepareProfileUpdateTool } from "./prepare-profile-update.js";
 import { createPrepareExperienceImportTool } from "./import-experiences/prepare-import.js";
 import { createExtractPageTool } from "./extract-page.js";
 import { createBrowserWriteTools } from "./browser/index.js";
@@ -31,8 +30,7 @@ import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
 import { createSearchExperiencesTool } from "./search-experiences.js";
 import { createSelectedFileTools } from "./selected-files.js";
-import { createResumeCandidateTools } from "./resume-candidate/index.js";
-import { createPreparePlannedResumeTool } from "./planned-resume/prepare-planned.js";
+import { createResumePatchTools } from "./resume-candidate/index.js";
 import { createInspectResumeLayoutTool } from "./planned-resume/inspect-layout.js";
 import { createPrepareResumeSaveTool } from "./resume-candidate/prepare-save.js";
 import { createResumeReadTools } from "./resume-tools.js";
@@ -41,15 +39,19 @@ import { createPrepareResumePdfExportTool } from "./resume-candidate/prepare-pdf
 import { MatchReportStore } from "../match/report-store.js";
 import { createPrepareMatchAnalysisTool } from "./prepare-match-analysis.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../browser/types.js";
+import {
+  createAgentOrchestratedTools,
+  type AgentOrchestratedDependencies,
+} from "./agent-orchestrated/index.js";
+import type { ProfileProposalExecutor } from "../profile/types.js";
 
 export interface ToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
   userProfileReader?: UserProfileReader;
+  profileProposals?: ProfileProposalExecutor;
   experienceReader?: ExperienceReader;
   jdReader?: JdReader;
   resumeSourceSnapshotBuilder?: ResumeSourceSnapshotBuilder;
-  resumeCandidatePreparer?: ResumeCandidatePreparer;
-  plannedResumeWriter?: PlannedResumeWriter;
   resumeLayoutInspector?: ResumeLayoutInspector;
   resumeCandidatePatcher?: ResumeCandidatePatcher;
   resumeCandidateReviewer?: ResumeCandidateReviewer;
@@ -64,6 +66,7 @@ export interface ToolRegistryDependencies {
   matchReportStore?: MatchReportStore;
   browserPageReader?: BrowserPageReader;
   browserPageOperator?: BrowserPageOperator;
+  agentOrchestrated?: AgentOrchestratedDependencies;
 }
 
 /**
@@ -83,19 +86,24 @@ export function createToolRegistry(
   if (dependencies.userProfileReader) {
     businessTools.push(createGetUserProfileTool(dependencies.userProfileReader));
   }
+  if (
+    dependencies.userProfileReader &&
+    dependencies.profileProposals &&
+    dependencies.approvalManager
+  ) {
+    businessTools.push(
+      createPrepareProfileUpdateTool(
+        dependencies.userProfileReader,
+        dependencies.profileProposals,
+        dependencies.approvalManager,
+      ),
+    );
+  }
   if (dependencies.jdReader) {
     businessTools.push(...createJdTools(dependencies.jdReader));
   }
   if (dependencies.resumeReader) {
     businessTools.push(...createResumeReadTools(dependencies.resumeReader));
-  }
-  if (dependencies.plannedResumeWriter) {
-    businessTools.push(
-      createPreparePlannedResumeTool(
-        dependencies.plannedResumeWriter,
-        dependencies.resumeCandidateReviewer,
-      ),
-    );
   }
   if (dependencies.resumeLayoutInspector) {
     businessTools.push(
@@ -157,14 +165,12 @@ export function createToolRegistry(
     );
   }
   if (
-    dependencies.resumeCandidatePreparer &&
     dependencies.resumeCandidatePatcher &&
     dependencies.resumeCandidateReviewer &&
     dependencies.resumeAlternativeRepairer
   ) {
     businessTools.push(
-      ...createResumeCandidateTools(
-        dependencies.resumeCandidatePreparer,
+      ...createResumePatchTools(
         dependencies.resumeCandidatePatcher,
         dependencies.resumeCandidateReviewer,
         dependencies.resumeAlternativeRepairer,
@@ -198,6 +204,11 @@ export function createToolRegistry(
         dependencies.browserPageOperator,
         dependencies.approvalManager,
       ),
+    );
+  }
+  if (dependencies.agentOrchestrated) {
+    businessTools.push(
+      ...createAgentOrchestratedTools(dependencies.agentOrchestrated),
     );
   }
 

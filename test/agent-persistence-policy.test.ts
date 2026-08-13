@@ -60,7 +60,7 @@ test("in-memory resume candidates are redacted with a rebuild instruction", () =
 
   assert.doesNotMatch(serialized, /private candidate/);
   assert.doesNotMatch(serialized, /candidate-old/);
-  assert.match(serialized, /prepare_resume_candidate again/);
+  assert.match(serialized, /prepare_resume_draft again/);
   assert.match(serialized, /do not reuse the old candidateId/);
 });
 

@@ -109,7 +109,7 @@ test("manual edits autosave without creating history until the edit is committed
     const autosaved = await editing.edit({
       artifactId: synced.draft.artifactId,
       target: { type: "bullet", bulletId },
-      text: "基于已有访谈记录整理需求，并保留原始事实引用。",
+      text: "基于已有访谈记录整理需求，并保留原始事实引用",
       createCheckpoint: false,
     });
     assert.equal(autosaved.checkpoints.length, 0);
@@ -117,7 +117,7 @@ test("manual edits autosave without creating history until the edit is committed
       autosaved.structure.sections
         .flatMap((section) => section.items)
         .flatMap((item) => item.bullets)[0]?.text,
-      "基于已有访谈记录整理需求，并保留原始事实引用。",
+      "基于已有访谈记录整理需求，并保留原始事实引用",
     );
 
     const committed = await editing.edit({

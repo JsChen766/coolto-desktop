@@ -4,11 +4,9 @@ import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import { wrapInternalPrompt } from "../../agent/internal-prompt.js";
 import { instructionFor } from "../../resume/workspace/diagnostics-projection.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
-import { trySectionFill } from "../../resume/workspace/section-fill.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
 import type { ResumeWorkspaceStatus } from "../../resume/workspace/types.js";
 import type { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
-import { deriveWorkspaceStatus } from "../../resume/workspace/workspace-status.js";
 
 export interface ContinuationBudget {
   /** Remaining wall-clock budget from the caller-provided start (defaults to loop start). */
@@ -16,12 +14,15 @@ export interface ContinuationBudget {
   maxModelCalls: number;
   /** Monotonic start timestamp of the whole generation command. */
   startedAtMs?: number;
+  /** Per-turn guard: a model request that hangs past this is aborted. */
+  turnTimeoutMs?: number;
 }
 
 export const DEFAULT_CONTINUATION_BUDGET: ContinuationBudget = {
   // 240s performance gate minus ~10s margin for save/approval steps.
   maxMs: 230_000,
   maxModelCalls: 30,
+  turnTimeoutMs: 60_000,
 };
 
 export interface HostFillSummary {
@@ -44,20 +45,21 @@ export function isContinuable(status: ResumeWorkspaceStatus): boolean {
 
 /**
  * Host-side continuation loop. While the workspace is still
- * writing/needs_revision and the budget allows, the host first fills missing
- * planned bullets deterministically from unused evidence (visible as a host
- * tool activity), then re-prompts the agent with the same deterministic
- * diagnostics. Bounded by elapsed time and total model calls, so a stuck
- * model can never loop forever.
+ * writing/needs_revision and the budget allows, the host re-prompts the agent
+ * with the same deterministic diagnostics and lets the agent drive its own
+ * layout, writing and finishing decisions (agent orchestration). No host-side
+ * section filling: content decisions belong to the agent. Bounded by elapsed
+ * time and total model calls, so a stuck model can never loop forever.
  */
 export async function continueUntilTerminal(
-  agent: Pick<CooltoAgent, "prompt" | "modelCallCount">,
+  agent: Pick<CooltoAgent, "prompt" | "modelCallCount" | "cancel">,
   store: Pick<ResumeWorkspaceStore, "latest" | "replace">,
-  compiler: ResumeCompiler,
+  _compiler: ResumeCompiler,
   budget: ContinuationBudget = DEFAULT_CONTINUATION_BUDGET,
   callbacks: ContinuationCallbacks = {},
 ): Promise<void> {
   const startedAt = budget.startedAtMs ?? performance.now();
+  let consecutiveTimeouts = 0;
   for (let round = 0; round < 200; round += 1) {
     const workspace = store.latest();
     if (!workspace || !isContinuable(workspace.status)) {
@@ -74,50 +76,56 @@ export async function continueUntilTerminal(
       normalizeToUserDecision(store);
       return;
     }
-    const filled = await trySectionFill(
-      compiler,
-      workspace.sourceSnapshot,
-      workspace.structure,
-      workspace.bindings,
-      workspace.compileResult,
-    );
-    if (filled.applied) {
-      await callbacks.onHostFill?.(filled.fills);
-      await callbacks.log?.(`continuation:hostFill:${filled.fills.length}`);
-      const nextRevision = workspace.revision + 1;
-      store.replace(
-        {
-          ...workspace,
-          revision: nextRevision,
-          status: deriveWorkspaceStatus(
-            filled.compileResult,
-            filled.structure,
-          ),
-          structure: filled.structure,
-          bindings: filled.bindings,
-          compileResult: filled.compileResult,
-          lastOperationReport: {
-            repairs: filled.fills.map((fill) => ({
-              kind: "section_fill" as const,
-              action: "added" as const,
-              bulletId: fill.itemId,
-              evidenceIds: [fill.evidenceId],
-            })),
-            rejected: [],
-          },
-        },
-        workspace.revision,
-      );
-    }
-    const latest = store.latest();
-    if (!latest || !isContinuable(latest.status)) {
-      await callbacks.log?.(`continuation:stop:${latest?.status ?? "none"}`);
-      return;
-    }
     await callbacks.log?.(`continuation:round:${agent.modelCallCount}`);
-    await agent.prompt(wrapInternalPrompt(instructionFor(latest)));
+    const timedOut = await promptWithTurnTimeout(
+      agent,
+      wrapInternalPrompt(instructionFor(store.latest()!)),
+      budget.turnTimeoutMs ?? 90_000,
+    );
+    if (timedOut) {
+      // A hung model request is transient (network/gateway); keep the run
+      // alive and retry, only giving up after repeated consecutive hangs.
+      consecutiveTimeouts += 1;
+      await callbacks.log?.(`continuation:turn-timeout:${consecutiveTimeouts}`);
+      if (consecutiveTimeouts >= 3) {
+        normalizeToUserDecision(store);
+        return;
+      }
+      continue;
+    }
+    consecutiveTimeouts = 0;
   }
   await callbacks.log?.("continuation:rounds");
+}
+
+/**
+ * Guards one continuation turn: if the model request hangs (network stall,
+ * gateway issue) past the timeout, the agent is aborted so the loop can
+ * normalize the workspace instead of blocking forever.
+ */
+async function promptWithTurnTimeout(
+  agent: Pick<CooltoAgent, "prompt" | "cancel">,
+  prompt: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      agent.prompt(prompt),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("continuation turn timed out")), timeoutMs);
+      }),
+    ]);
+    return false;
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "continuation turn timed out") {
+      agent.cancel();
+      return true;
+    }
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /**

@@ -117,7 +117,7 @@ export function createDemoDraft(now: Date): ResumeDraftDetail {
       bodyLineHeightPx: 15.34,
       bodyFontSizePx: 13,
       usageRatio: 0.923,
-      effectiveTargetBand: { minimum: 0.85, target: 0.92, maximum: 0.98 },
+      effectiveTargetBand: { minimum: 0.92, target: 0.95, maximum: 0.98 },
       bullets: bullets.map((bullet, index) => ({
         bulletId: bullet.id,
         lineCount: 2,

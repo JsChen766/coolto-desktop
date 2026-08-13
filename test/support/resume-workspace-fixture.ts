@@ -53,9 +53,9 @@ export class FixtureResumeCompiler implements ResumeCompiler {
     const bullets = structure.sections.flatMap((section) =>
       section.items.flatMap((item) => item.bullets),
     );
-    const usageRatio = Math.min(1.05, 0.65 + bullets.length * 0.12);
+    const usageRatio = Math.min(1.05, 0.72 + bullets.length * 0.14);
     const violations: ResumeCompileViolation[] = [];
-    if (usageRatio < 0.85) {
+    if (usageRatio < 0.92) {
       violations.push({ code: "page_underfilled", message: "Page is underfilled." });
     }
     for (const bullet of bullets.filter((candidate) =>
@@ -86,7 +86,7 @@ export class FixtureResumeCompiler implements ResumeCompiler {
       bodyLineHeightPx: 20,
       bodyFontSizePx: 13,
       usageRatio,
-      effectiveTargetBand: { minimum: 0.85, target: 0.92, maximum: 0.98 },
+      effectiveTargetBand: { minimum: 0.92, target: 0.95, maximum: 0.98 },
       bullets: bullets.map((bullet) => ({
         bulletId: bullet.id,
         lineCount: 2,

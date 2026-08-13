@@ -38,7 +38,7 @@ export function requiredString(value: unknown, path: string): string {
 }
 
 export function nullableString(value: unknown, path: string): string | null {
-  if (value === null) return null;
+  if (value === null || value === undefined) return null;
   if (typeof value !== "string") {
     throw new ApiContractError(`${path} must be a string or null`);
   }
@@ -46,7 +46,7 @@ export function nullableString(value: unknown, path: string): string | null {
 }
 
 export function nullableNumber(value: unknown, path: string): number | null {
-  if (value === null) return null;
+  if (value === null || value === undefined) return null;
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new ApiContractError(`${path} must be a finite number or null`);
   }

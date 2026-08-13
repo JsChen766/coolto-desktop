@@ -24,7 +24,7 @@ export function validateRequest(
   if (!current.qualityReviewStarted || !current.qualityReport) {
     throw new ResumeWorkspaceError(
       "invalid_repair_target",
-      "Call review_resume_candidate before submitting quality alternatives.",
+      "Quality review must run before submitting quality alternatives.",
     );
   }
   if (current.repairRound >= MAX_REPAIR_ROUNDS) {

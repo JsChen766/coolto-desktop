@@ -25,6 +25,7 @@ export type CooltoAgentEvent =
       callId: string;
       name: string;
       isError: boolean;
+      error?: string;
     }
   | { type: "run.failed"; message: string }
   | { type: "run.completed" }
@@ -77,13 +78,16 @@ export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
         arguments: event.args,
       };
 
-    case "tool_execution_end":
+    case "tool_execution_end": {
+      const errorText = event.isError ? toolErrorText(event.result) : undefined;
       return {
         type: "tool.completed",
         callId: event.toolCallId,
         name: event.toolName,
         isError: event.isError,
+        ...(errorText ? { error: errorText } : {}),
       };
+    }
 
     case "agent_end":
       return { type: "run.completed" };
@@ -107,4 +111,24 @@ function slimModelUsage(usage: {
     cacheWrite: usage.cacheWrite ?? 0,
     ...(usage.reasoning !== undefined ? { reasoning: usage.reasoning } : {}),
   };
+}
+
+function toolErrorText(result: unknown): string | undefined {
+  if (typeof result === "string") return result.slice(0, 300);
+  if (result && typeof result === "object") {
+    const content = (result as { content?: unknown }).content;
+    if (Array.isArray(content)) {
+      for (const item of content) {
+        if (item && typeof item === "object") {
+          const text = (item as { text?: unknown }).text;
+          if (typeof text === "string") return text.slice(0, 300);
+        }
+      }
+    }
+    const text = (result as { text?: unknown }).text;
+    if (typeof text === "string") return text.slice(0, 300);
+    const message = (result as { message?: unknown }).message;
+    if (typeof message === "string") return message.slice(0, 300);
+  }
+  return undefined;
 }

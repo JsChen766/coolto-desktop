@@ -14,7 +14,7 @@ import {
   type ResumeCompileResult,
 } from "../../resume/compiler-types.js";
 import type { ResumeStructure } from "../../resume/types.js";
-import type { ResumePdfCompiler } from "../../resume/export/types.js";
+import type { ResumePdfCompiler, ResumePdfCompilation } from "../../resume/export/types.js";
 
 interface PendingCompile {
   resolve(result: ResumeCompileResult): void;
@@ -49,10 +49,11 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
     structure: ResumeStructure,
     fixtureId?: string,
     captureScreenshot = false,
+    allowUnqualified = false,
   ): Promise<ResumePdfCompilation> {
     return this.#enqueue(async () => {
       const result = await this.#compileNow(structure, fixtureId);
-      if (!result.qualified) {
+      if (!result.qualified && !allowUnqualified) {
         throw new Error("Refusing to print an unqualified resume candidate");
       }
       const window = await this.#ensureWindow();

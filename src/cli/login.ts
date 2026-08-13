@@ -6,10 +6,10 @@ import { createInterface } from "node:readline/promises";
 import type { CooltoApiClient } from "../api/coolto-api-client.js";
 import type { DeviceInput } from "../api/types.js";
 
-function buildDevice(): DeviceInput {
+export function buildDevice(deviceIdOverride?: string): DeviceInput {
   const p = process.platform;
   return {
-    id: randomUUID(),
+    id: deviceIdOverride ?? randomUUID(),
     name: hostname(),
     platform: p === "win32" ? "windows" : p === "darwin" ? "macos" : "linux",
     appVersion: "0.1.0",
@@ -18,6 +18,7 @@ function buildDevice(): DeviceInput {
 
 export async function performEmailOtpLogin(
   apiClient: CooltoApiClient,
+  deviceIdOverride?: string,
 ): Promise<void> {
   if (!stdin.isTTY || !stdout.isTTY) {
     throw new Error(
@@ -35,7 +36,7 @@ export async function performEmailOtpLogin(
     const email = (await terminal.question("Coolto 邮箱：")).trim();
     if (!email) throw new Error("邮箱不能为空");
 
-    const device = buildDevice();
+    const device = buildDevice(deviceIdOverride);
     const challengeId = randomUUID();
 
     stdout.write("正在发送验证码...\n");

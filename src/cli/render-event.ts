@@ -13,7 +13,11 @@ export function renderEvent(event: CooltoAgentEvent): void {
       break;
     case "tool.completed":
       if (event.isError) {
-        stdout.write(`[工具失败] ${event.name}\n`);
+        stdout.write(`[工具失败] ${event.name}`);
+        if (event.error) {
+          stdout.write(`：${event.error}`);
+        }
+        stdout.write("\n");
       }
       break;
     case "run.failed":

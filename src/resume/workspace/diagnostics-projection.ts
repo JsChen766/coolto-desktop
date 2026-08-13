@@ -26,7 +26,7 @@ export function bulletTailDiagnostics(
     )
     .map((violation) => {
       const measurement = byId.get(violation.bulletId);
-      const requiredWidthPx = (measurement?.availableLineWidthPx ?? 0) * 0.6671;
+      const requiredWidthPx = (measurement?.availableLineWidthPx ?? 0) * 0.7;
       const deficitPx = Math.max(
         0,
         requiredWidthPx - (measurement?.lastLineWidthPx ?? 0),
@@ -38,7 +38,9 @@ export function bulletTailDiagnostics(
         availableLineWidthPx: measurement?.availableLineWidthPx ?? 0,
         requiredWidthPx: round(requiredWidthPx),
         deficitPx: round(deficitPx),
-        shortByChars: Math.max(1, Math.round(deficitPx / charsPerUnit)),
+        // +2 chars margin absorbs font/punctuation approximation error so a
+        // single append clears the gate instead of leaving shortBy=1 loops.
+        shortByChars: Math.max(1, Math.round(deficitPx / charsPerUnit) + 2),
       };
     });
 }
@@ -95,7 +97,15 @@ export function instructionFor(workspace: ResumeWorkspace): string {
   }
   if (workspace.status === "needs_user_decision") {
     const usage = (workspace.compileResult.usageRatio * 100).toFixed(1);
-    return `自动生成已停止：当前所选经历的证据不足以生成满足全部门槛的简历（页面占用率 ${usage}%，需 ≥85%，或存在未解决的质量问题）。请向用户如实说明剩余问题，并给出两条出路：1) 用户补充或完善经历后重新生成；2) 用户要求放宽匹配条件时，调用 search_experiences 以更宽条件搜索并纳入更多相关经历，重新调用 get_resume_source_snapshot 建立新快照并生成新候选。不得降低任何质量门槛。`;
+    const minimum = workspace.compileResult.effectiveTargetBand.minimum * 100;
+    const tailHints = bulletTailDiagnostics(workspace)
+      .slice(0, 5)
+      .map((diagnostic) => {
+        const value = diagnostic as { bulletId: string; shortByChars: number };
+        return `${value.bulletId}=${value.shortByChars}`;
+      })
+      .join(", ");
+    return `自动生成尚未完成：页面占用率 ${usage}%（需 ≥${minimum.toFixed(0)}%）${tailHints ? `，尾行缺口 ${tailHints}` : ""}。若仍有尾行违规或页面未满，用修饰语改写补齐——基于每条 bullet 已引用的证据补充方法/对象/规模/结果细节或 XX% 占位量化，不依赖未消费证据；只有证据缺失导致内容无法成立时才向用户如实说明，并给出两条出路：1) 用户补充或完善经历后重新生成；2) 用户要求放宽匹配条件时，调用 search_experiences 以更宽条件搜索并纳入更多相关经历，重新调用 get_resume_source_snapshot 建立新快照并生成新候选。不得降低任何质量门槛。若简历包含占位符数字（XX% 等），同时逐条列出并请用户填写。`;
   }
   if (workspace.status === "layout_qualified") {
     return "All G3 source and layout gates pass; the host runs deterministic quality review automatically after this tool result.";
@@ -139,9 +149,13 @@ export function instructionFor(workspace: ResumeWorkspace): string {
         return `${value.itemId} needs ${value.missing} more (${value.unusedEvidenceCount} unused evidence)`;
       })
       .join("; ");
-    return `The page is at ${(workspace.compileResult.usageRatio * 100).toFixed(1)}% (need ≥85%), roughly ${remainingBullets} more bullets. Submit one complete batch now, not a single lengthen-only tweak: ${planHints || "no item needs more bullets — lengthen the shortest ones"}. New bullets about ${bulletChars} each so the last line stays ≥ two-thirds wide; every existing bullet must reach the same target length in this or the next batch. ${incremental} ${continuation}`;
+    const overTarget = workspace.compileResult.usageRatio >= 0.95;
+    const closing = overTarget
+      ? "Page is at/above 95%: STOP adding new bullets. Trim the 1-2 longest bullets (trim_text or replace_substring, keep evidence facts and numbers) until usage lands in [92%, 98%], then fix any remaining tail-deficit bullets."
+      : `Submit one complete batch now, not a single lengthen-only tweak: ${planHints || "no item needs more bullets — lengthen the shortest ones"}. New bullets about ${bulletChars} each so the last line stays ≥ 80% wide; every existing bullet must reach the same target length in this or the next batch.`;
+    return `The page is at ${(workspace.compileResult.usageRatio * 100).toFixed(1)}% (need ≥${(workspace.compileResult.effectiveTargetBand.minimum * 100).toFixed(0)}%, max ${(workspace.compileResult.effectiveTargetBand.maximum * 100).toFixed(0)}%), roughly ${remainingBullets} more bullets. ${closing} ${incremental} ${continuation}`;
   }
-  return `Fix the reported violations in one bounded batch of 2–8 incremental operations. Tail-deficit bullets (${tailHints || "none"}): append_text about shortByChars characters of source-backed facts. Overlong/overflow: trim_text or replace_substring. ${incremental} ${continuation}`;
+  return `Fix the reported violations in one bounded batch of 2–8 incremental operations. Page overflow/multiple pages is the TOP priority: trim the longest bullets first (trim_text or replace_substring, keep evidence facts and numbers) until usage ≤ 100% and the page fits; only then fix tail-deficit bullets (${tailHints || "none"}): enrich each bullet's own wording with more precise/specific/quantified detail from its cited evidence (methods, object, scale, result, responsibility — about shortByChars +2-6 chars); no literal repeats, no new numbers; if the same bullet still has a tail deficit after 2 attempts, stop fixing it and move on — report it in needs_user_decision instead of looping. ${incremental} ${continuation}`;
 }
 
 function unusedEvidenceCountByExperience(workspace: {

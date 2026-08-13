@@ -13,14 +13,21 @@ import { sha256, stableStringify } from "./stable-snapshot.js";
 import { experienceEvidenceEligibility } from "../experience/evidence-eligibility.js";
 import { normalizeResumeSection } from "./contracts/section-contract.js";
 
+/**
+ * The deployed profile sync protocol does not carry contactEmail, so the
+ * account email is used as the resume header email fallback when the profile
+ * has none.
+ */
 export function normalizeSourceProfile(
   userId: string,
+  accountEmail: string | null,
   profile: UserProfile,
 ): ResumeSourceProfileSnapshot {
   return {
     userId,
     fullName: cleanOptional(profile.fullName),
-    contactEmail: cleanOptional(profile.contactEmail),
+    contactEmail:
+      cleanOptional(profile.contactEmail) ?? cleanOptional(accountEmail),
     phone: cleanOptional(profile.phone),
     location: cleanOptional(profile.location),
     linkedinUrl: cleanOptional(profile.linkedinUrl),

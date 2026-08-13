@@ -246,7 +246,7 @@ test("available evidence preserves offsets and excludes consumed ranges", async 
 test("LLM context keeps only the latest full resume Workspace result", async () => {
   const messages = [
     toolResult("get_resume_source_snapshot", "very large source ".repeat(100)),
-    toolResult("prepare_resume_candidate", "old workspace ".repeat(100)),
+    toolResult("prepare_resume_draft", "old workspace ".repeat(100)),
     toolResult("patch_resume_candidate", "latest-workspace"),
   ];
   const compacted = await compactResumeGenerationContext(messages);

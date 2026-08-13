@@ -57,7 +57,7 @@ test("copied resume manifest pins the exact backend profiles", async () => {
     orientation: "portrait",
   });
   assert.deepEqual(standard.content, { width_mm: 192, height_mm: 279 });
-  assert.equal(standard.bullet.gate_ratio, 0.6671);
+  assert.equal(standard.bullet.gate_ratio, 0.7);
   assert.equal(sparse.profile_version, "resume-sparse-v1");
 });
 

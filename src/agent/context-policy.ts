@@ -2,9 +2,10 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 const SNAPSHOT_TOOL = "get_resume_source_snapshot";
 const CANDIDATE_TOOLS = new Set([
-  "prepare_resume_candidate",
+  "prepare_resume_draft",
+  "write_bullet",
+  "inspect_resume_draft",
   "patch_resume_candidate",
-  "review_resume_candidate",
 ]);
 
 export async function compactResumeGenerationContext(

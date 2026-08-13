@@ -52,7 +52,7 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
       truthRule:
         "Do not add numbers, technologies, scope, ownership, or results absent from the cited source text.",
       draftPlanRule:
-        "Round 1 initialBindings must follow plannedBullets per experience (education 2, work 4, project 3) and write each bullet about 1.7–3 lines so the first draft already approaches the 85% page target; the workspace instruction gives the precise character target after the first compile.",
+        "Round 1 initialBindings must follow plannedBullets per experience (education 2, work 4, project 3) and write each bullet about 1.7–3 lines so the first draft already approaches the 92% page target; the workspace instruction gives the precise character target after the first compile.",
     },
   };
 }

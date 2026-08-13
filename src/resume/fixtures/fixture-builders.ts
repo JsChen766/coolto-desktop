@@ -69,8 +69,8 @@ export function baseStructure(
       bullet_gap_scale: 1,
     },
     layout_target_band: {
-      minimum: 0.85,
-      target: 0.92,
+      minimum: 0.92,
+      target: 0.95,
       maximum: 0.98,
     },
   };

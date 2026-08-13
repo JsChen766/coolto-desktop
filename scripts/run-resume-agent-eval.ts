@@ -6,14 +6,18 @@ import { performance } from "node:perf_hooks";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import { createCooltoAgent } from "../src/agent/create-agent.js";
+import { createConfiguredModelDependencies } from "../src/agent/create-configured-dependencies.js";
+import { CooltoApiClient } from "../src/api/coolto-api-client.js";
+import { KeychainSessionStore } from "../src/auth/keychain-session-store.js";
+import { ensureAuthenticated } from "../src/auth/session-manager.js";
 import { loadLocalEnv, readConfig } from "../src/config.js";
 import { ResumeAlternativeRepairer } from "../src/resume/quality/alternative-repairer.js";
 import { ResumeCandidateReviewer } from "../src/resume/quality/candidate-reviewer.js";
 import { ResumeQualityEvaluator } from "../src/resume/quality/quality-evaluator.js";
 import { ResumeCandidatePatcher } from "../src/resume/workspace/candidate-patcher.js";
-import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../src/tools/registry.js";
+import { performEmailOtpLogin } from "../src/cli/login.js";
 import {
   createSemanticEvalBuilder,
   semanticEvalCases,
@@ -23,6 +27,18 @@ import { SemanticEvalCompiler } from "./support/semantic-eval-compiler.js";
 
 loadLocalEnv();
 const config = readConfig();
+const apiClient = new CooltoApiClient({ baseUrl: config.apiBaseUrl });
+const sessionStore = new KeychainSessionStore({ apiBaseUrl: config.apiBaseUrl });
+const authenticated = await ensureAuthenticated(
+  apiClient,
+  sessionStore,
+  config.apiBaseUrl,
+  performEmailOtpLogin,
+);
+const modelDependencies = createConfiguredModelDependencies(
+  config,
+  () => apiClient.getSessionToken(),
+);
 const reports = [];
 const selectedCase = process.env.COOLTO_RESUME_AGENT_EVAL_CASE;
 
@@ -58,23 +74,28 @@ async function runCase(evalCase: SemanticEvalCase) {
   const compiler = new SemanticEvalCompiler();
   const store = new ResumeWorkspaceStore();
   const evaluator = new ResumeQualityEvaluator();
-  const preparer = new ResumeCandidatePreparer(builder, compiler, store, {
-    createCandidateId: () => `candidate-${evalCase.id}`,
-  });
   const patcher = new ResumeCandidatePatcher(compiler, store);
   const reviewer = new ResumeCandidateReviewer(evaluator, store);
   const repairer = new ResumeAlternativeRepairer(compiler, evaluator, store);
-  const agent = createCooltoAgent({
-    apiKey: config.apiKey,
-    modelId: config.modelId,
-    tools: createToolRegistry({
-      resumeSourceSnapshotBuilder: builder,
-      resumeCandidatePreparer: preparer,
-      resumeCandidatePatcher: patcher,
-      resumeCandidateReviewer: reviewer,
-      resumeAlternativeRepairer: repairer,
-    }),
-  });
+  const agent = createCooltoAgent(
+    {
+      ...(config.apiKey ? { apiKey: config.apiKey } : {}),
+      modelId: config.modelId,
+      tools: createToolRegistry({
+        resumeSourceSnapshotBuilder: builder,
+        resumeCandidatePatcher: patcher,
+        resumeCandidateReviewer: reviewer,
+        resumeAlternativeRepairer: repairer,
+        agentOrchestrated: {
+          snapshotBuilder: builder,
+          compiler,
+          store,
+          reviewer,
+        },
+      }),
+    },
+    modelDependencies,
+  );
   const startedAt = performance.now();
   let runtimeError: string | undefined;
   try {
@@ -110,7 +131,7 @@ async function runCase(evalCase: SemanticEvalCase) {
   );
   let workspace;
   try {
-    workspace = store.get(`candidate-${evalCase.id}`);
+    workspace = store.latest();
   } catch {
     workspace = undefined;
   }
@@ -138,8 +159,11 @@ async function runCase(evalCase: SemanticEvalCase) {
       (term) => !bulletText.toLocaleLowerCase().includes(term.toLocaleLowerCase()),
     ),
     usedSnapshot: toolNames.includes("get_resume_source_snapshot"),
-    usedPrepare: toolNames.includes("prepare_resume_candidate"),
-    usedReview: toolNames.includes("review_resume_candidate"),
+    usedDraft: toolNames.includes("prepare_resume_draft"),
+    usedWriteOrPatch: (
+      toolNames.includes("write_bullet") ||
+      toolNames.includes("patch_resume_candidate")
+    ),
     respectedRepairLimit: (workspace?.repairRound ?? 0) <= 3,
   };
   const passed = Object.values(assertions).every(Boolean);
@@ -167,7 +191,7 @@ async function runCase(evalCase: SemanticEvalCase) {
 
 function promptFor(evalCase: SemanticEvalCase): string {
   const ids = evalCase.experiences.map((experience) => experience.id).join(", ");
-  return `请完成一次受控简历语义评测。目标 JD ID 是 ${evalCase.jd.id}，按顺序使用经历 ${ids}，语言为 ${evalCase.language}。必须先读取 source snapshot，然后增量生成真实、有精确 quote/UTF-16 offset 依据的 bullets，达到 layout_qualified 后执行质量 review，并持续进行允许的局部修复，直到 ready_for_approval 或 needs_user_decision。不得编造来源中不存在的数字、技术、结果或责任级别；不得跳过 review；不得声称保存。完成后只简短报告最终状态。`;
+  return `请完成一次受控简历语义评测。目标 JD ID 是 ${evalCase.jd.id}，按顺序使用经历 ${ids}，语言为 ${evalCase.language}。必须先读取 source snapshot，查看布局预算后自行决策布局，再并行逐条写入证据绑定的 bullets（数字、技术、结果必须逐字来自证据），达到 layout_qualified 后由程序自动质量 review 并持续进行允许的局部修复，直到 ready_for_approval 或 needs_user_decision。不得编造来源中不存在的数字、技术、结果或责任级别；不得声称保存。完成后只简短报告最终状态。`;
 }
 
 function summarizeUsage(messages: AgentMessage[]) {

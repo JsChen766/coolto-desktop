@@ -18,11 +18,9 @@ import { ResumeSaveProposalBuilder } from "../../resume/save/proposal-builder.js
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
-import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { TracedResumeCompiler } from "../../resume/performance/traced-compiler.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
-import { createPlannedResumeWriter } from "../../resume/planning/create-planned-writer.js";
 import { ResumeLayoutInspector } from "../../resume/planning/layout-inspector.js";
 import { createToolRegistry } from "../../tools/registry.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
@@ -81,12 +79,6 @@ export class AgentContextFactory {
       conversationId,
     );
     const qualityEvaluator = new ResumeQualityEvaluator();
-    const resumeCandidatePreparer = new ResumeCandidatePreparer(
-      sourceBuilder,
-      resumeCompiler,
-      workspaceStore,
-      { maxBulletLines: config.resumeMaxBulletLines },
-    );
     const resumeCandidatePatcher = new ResumeCandidatePatcher(
       resumeCompiler,
       workspaceStore,
@@ -119,15 +111,6 @@ export class AgentContextFactory {
       config,
       () => deps.apiClient.getSessionToken(),
     );
-    const plannedResumeWriter = createPlannedResumeWriter({
-      snapshotBuilder: sourceBuilder,
-      compiler: resumeCompiler,
-      store: workspaceStore,
-      modelId: config.modelId,
-      experiences: deps.experiences,
-      modelDependencies,
-      maxBulletLines: config.resumeMaxBulletLines,
-    });
     const agent = createCooltoAgent({
       ...(config.apiKey ? { apiKey: config.apiKey } : {}),
       modelId: config.modelId,
@@ -136,12 +119,11 @@ export class AgentContextFactory {
       tools: createToolRegistry({
         currentUserReader: deps.apiClient,
         userProfileReader: deps.profiles,
+        profileProposals: deps.profileProposals,
         experienceReader: deps.experiences,
         jdReader: deps.jds,
         resumeReader: deps.resumePublications,
         resumeSourceSnapshotBuilder: sourceBuilder,
-        resumeCandidatePreparer,
-        plannedResumeWriter,
         resumeLayoutInspector,
         resumeCandidatePatcher,
         resumeCandidateReviewer,
@@ -155,6 +137,12 @@ export class AgentContextFactory {
         selectedFileRegistry: selectedFiles,
         browserPageReader: deps.browserPageReader,
         browserPageOperator: deps.browserPageOperator,
+        agentOrchestrated: {
+          snapshotBuilder: sourceBuilder,
+          compiler: resumeCompiler,
+          store: workspaceStore,
+          reviewer: resumeCandidateReviewer,
+        },
       }),
     }, modelDependencies);
     const context: ConversationAgentContext = {

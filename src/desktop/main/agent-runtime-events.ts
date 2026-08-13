@@ -231,8 +231,9 @@ export class AgentRuntimeEvents {
 
 function isResumeWorkspaceTool(name: string): boolean {
   return [
-    "prepare_resume_candidate",
+    "prepare_resume_draft",
+    "write_bullet",
+    "inspect_resume_draft",
     "patch_resume_candidate",
-    "review_resume_candidate",
   ].includes(name);
 }

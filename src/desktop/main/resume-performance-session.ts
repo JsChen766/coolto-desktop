@@ -17,10 +17,8 @@ import { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer
 import { ResumeQualityEvaluator } from "../../resume/quality/quality-evaluator.js";
 import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
-import { ResumeCandidatePreparer } from "../../resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../../tools/registry.js";
-import { createPlannedResumeWriter } from "../../resume/planning/create-planned-writer.js";
 import { ResumeLayoutInspector } from "../../resume/planning/layout-inspector.js";
 import {
   continueUntilTerminal,
@@ -68,7 +66,6 @@ export async function runPerformanceSession(
     experience: client,
   });
   const evaluator = new ResumeQualityEvaluator();
-  const preparer = new ResumeCandidatePreparer(sourceBuilder, tracedCompiler, workspaceStore);
   const patcher = new ResumeCandidatePatcher(tracedCompiler, workspaceStore);
   const reviewer = new ResumeCandidateReviewer(evaluator, workspaceStore);
   const repairer = new ResumeAlternativeRepairer(tracedCompiler, evaluator, workspaceStore);
@@ -86,24 +83,20 @@ export async function runPerformanceSession(
       experienceReader: client,
       jdReader: client,
       resumeSourceSnapshotBuilder: sourceBuilder,
-      resumeCandidatePreparer: preparer,
       resumeLayoutInspector: new ResumeLayoutInspector(
         sourceBuilder,
         tracedCompiler,
         config.resumeMaxBulletLines,
       ),
-      plannedResumeWriter: createPlannedResumeWriter({
-        snapshotBuilder: sourceBuilder,
-        compiler: tracedCompiler,
-        store: workspaceStore,
-        modelId: config.modelId,
-        experiences: client,
-        modelDependencies,
-        maxBulletLines: config.resumeMaxBulletLines,
-      }),
       resumeCandidatePatcher: patcher,
       resumeCandidateReviewer: reviewer,
       resumeAlternativeRepairer: repairer,
+      agentOrchestrated: {
+        snapshotBuilder: sourceBuilder,
+        compiler: tracedCompiler,
+        store: workspaceStore,
+        reviewer,
+      },
     }),
   }, modelDependencies);
   traces.start(conversationId, config.modelId);

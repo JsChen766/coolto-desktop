@@ -18,6 +18,19 @@ const FIRST_QUOTE = "使用 Python 清洗运营数据产品。";
 const SECOND_QUOTE = "为 3 个团队建立周度报表。";
 const THIRD_QUOTE = "设计异常检查规则并与业务团队协作。";
 
+function stripped(text: string): string {
+  return text.replace(/[\s。．.！!？?；;]+$/u, "");
+}
+
+/** Merges append-style text: the original bullet was normalized at add
+ * time (trailing period stripped); appended parts keep their own internal
+ * punctuation and only the final result is stripped at the end. */
+function appendedText(original: string, ...parts: string[]): string {
+  return stripped(stripped(original) + parts.join(""));
+}
+
+
+
 async function createInitial() {
   const builder = createWorkspaceSnapshotBuilder();
   const compiler = new FixtureResumeCompiler();
@@ -67,10 +80,10 @@ test("append_text extends a bullet and merges its evidence", async () => {
     ],
   });
   const bullet = extended.structure.sections[1]!.items[0]!.bullets[0]!;
-  assert.equal(bullet.text, FIRST_QUOTE + SECOND_QUOTE);
+  assert.equal(bullet.text, appendedText(FIRST_QUOTE, SECOND_QUOTE));
   const binding = extended.bindings.find((candidate) => candidate.bulletId === "bl-0")!;
   assert.equal(binding.excerpts.length, 2);
-  assert.equal(binding.bulletText, FIRST_QUOTE + SECOND_QUOTE);
+  assert.equal(binding.bulletText, appendedText(FIRST_QUOTE, SECOND_QUOTE));
 });
 
 test("prepend_text and insert_text edit in place", async () => {
@@ -104,13 +117,14 @@ test("prepend_text and insert_text edit in place", async () => {
   });
   assert.equal(
     edited.structure.sections[1]!.items[0]!.bullets[0]!.text,
-    SECOND_QUOTE + THIRD_QUOTE + FIRST_QUOTE,
+    stripped(SECOND_QUOTE + THIRD_QUOTE + FIRST_QUOTE),
   );
 });
 
 test("insert_text rejects missing and ambiguous anchors", async () => {
   const { snapshot, patcher, prepared } = await createInitial();
   const firstEvidence = createBinding(snapshot, "ignored", FIRST_QUOTE).evidenceIds[0]!;
+  const thirdEvidence = createBinding(snapshot, "ignored", THIRD_QUOTE).evidenceIds[0]!;
   await patcher.patch({
     candidateId: prepared.candidateId,
     expectedRevision: 0,
@@ -119,8 +133,8 @@ test("insert_text rejects missing and ambiguous anchors", async () => {
         op: "add_bullet",
         itemId: "item-work-1",
         binding: {
-          bulletText: FIRST_QUOTE + FIRST_QUOTE,
-          evidenceIds: [firstEvidence],
+          bulletText: FIRST_QUOTE + "Python 设计异常检查规则。",
+          evidenceIds: [firstEvidence, thirdEvidence],
         },
       },
     ],
@@ -144,7 +158,7 @@ test("insert_text rejects missing and ambiguous anchors", async () => {
       candidateId: prepared.candidateId,
       expectedRevision: 1,
       operations: [
-        { op: "insert_text", bulletId: "bl-0", after: "使用 Python", text: "x", evidenceIds: [evidence] },
+        { op: "insert_text", bulletId: "bl-0", after: "Python", text: "x", evidenceIds: [evidence] },
       ],
     }),
     (error: unknown) =>
@@ -156,7 +170,7 @@ test("insert_text rejects missing and ambiguous anchors", async () => {
     candidateId: prepared.candidateId,
     expectedRevision: 1,
     operations: [
-      { op: "insert_text", bulletId: "bl-0", after: "。使用 Python", text: "指标", evidenceIds: [evidence] },
+      { op: "insert_text", bulletId: "bl-0", after: "。Python", text: "指标", evidenceIds: [evidence] },
     ],
   })).revision, 2);
 });
@@ -182,7 +196,7 @@ test("replace_substring swaps or deletes a unique substring", async () => {
       { op: "replace_substring", bulletId: "bl-0", from: "运营数据产品", to: "数据产品", evidenceIds: [evidence] },
     ],
   });
-  assert.equal(swapped.structure.sections[1]!.items[0]!.bullets[0]!.text, "使用 Python 清洗数据产品。");
+  assert.equal(swapped.structure.sections[1]!.items[0]!.bullets[0]!.text, "使用 Python 清洗数据产品");
 });
 
 test("trim_text shortens to keepChars without touching evidence", async () => {
@@ -296,7 +310,7 @@ test("a failing operation does not roll back the rest of the batch", async () =>
   assert.equal(partial.revision, 2);
   assert.equal(
     partial.structure.sections[1]!.items[0]!.bullets[0]!.text,
-    FIRST_QUOTE + SECOND_QUOTE,
+    appendedText(FIRST_QUOTE, SECOND_QUOTE),
   );
   assert.deepEqual(
     partial.lastOperationReport?.rejected.map((rejected) => rejected.index),
@@ -312,6 +326,87 @@ test("a failing operation does not roll back the rest of the batch", async () =>
     operations: [{ op: "remove_bullet", bulletId: "bl-0" }],
   });
   assert.equal(workspace.structure.sections[1]!.items[0]!.bullets.length, 0);
+});
+
+test("append_text rejects text that repeats content already inside the bullet", async () => {
+  const { snapshot, patcher, prepared } = await createInitial();
+  await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 0,
+    operations: [
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: createBinding(snapshot, "bullet-1", FIRST_QUOTE),
+      },
+    ],
+  });
+  const evidence = createBinding(snapshot, "ignored", SECOND_QUOTE).evidenceIds[0]!;
+  const partial = await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 1,
+    operations: [
+      { op: "append_text", bulletId: "bl-0", text: THIRD_QUOTE, evidenceIds: [evidence] },
+      { op: "append_text", bulletId: "bl-0", text: FIRST_QUOTE, evidenceIds: [evidence] },
+    ],
+  });
+  assert.equal(
+    partial.structure.sections[1]!.items[0]!.bullets[0]!.text,
+    appendedText(FIRST_QUOTE, THIRD_QUOTE),
+  );
+  assert.deepEqual(
+    partial.lastOperationReport?.rejected.map((rejected) => rejected.index),
+    [1],
+  );
+  assert.match(
+    partial.lastOperationReport?.rejected[0]?.message ?? "",
+    /repeated fragment/,
+  );
+});
+
+test("append_text rejects wording already used by another bullet", async () => {
+  const { snapshot, patcher, prepared } = await createInitial();
+  await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 0,
+    operations: [
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: createBinding(
+          snapshot,
+          "bullet-1",
+          FIRST_QUOTE,
+          FIRST_QUOTE + "建立周报机制并归档复盘沉淀流程以提升协作效率。",
+        ),
+      },
+    ],
+  });
+  const secondEvidence = createBinding(snapshot, "ignored", SECOND_QUOTE).evidenceIds[0]!;
+  const partial = await patcher.patch({
+    candidateId: prepared.candidateId,
+    expectedRevision: 1,
+    operations: [
+      {
+        op: "add_bullet",
+        itemId: "item-work-1",
+        binding: createBinding(snapshot, "bullet-2", SECOND_QUOTE),
+      },
+      { op: "append_text", bulletId: "bl-1", text: "建立周报机制并归档复盘沉淀流程以提升协作效率。", evidenceIds: [secondEvidence] },
+    ],
+  });
+  assert.equal(
+    partial.structure.sections[1]!.items[0]!.bullets[1]!.text,
+    stripped(SECOND_QUOTE),
+  );
+  assert.deepEqual(
+    partial.lastOperationReport?.rejected.map((rejected) => rejected.index),
+    [1],
+  );
+  assert.match(
+    partial.lastOperationReport?.rejected[0]?.message ?? "",
+    /already used in another bullet/,
+  );
 });
 
 function allEvidenceForEducation(snapshot: Parameters<typeof createBinding>[0]): string {

@@ -136,8 +136,9 @@ function missingSourceCase(): SemanticEvalCase {
 function profile(evalCase: SemanticEvalCase): UserProfile {
   return {
     fullName: evalCase.language === "zh-CN" ? "语义评测" : "Semantic Eval",
+    contactEmail: `${evalCase.id}@example.com`,
     email: `${evalCase.id}@example.com`,
-    phone: null,
+    phone: "+852 1234 5678",
     location: evalCase.language === "zh-CN" ? "香港" : "Hong Kong",
     linkedinUrl: null,
     githubUrl: null,
@@ -211,6 +212,8 @@ function experience(
     endDate: "2025-06",
     tags,
     status: "active",
+    deletedAt: null,
+    entityVersion: 1,
     currentRevisionId: revision.id,
     currentRevision: revision,
     revisions: [revision],

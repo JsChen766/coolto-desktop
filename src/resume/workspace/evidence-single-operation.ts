@@ -1,6 +1,10 @@
 import { EvidenceValidationError } from "../evidence-validation.js";
 import type { ResumeSourceSnapshot } from "../source-types.js";
 import type { BulletEvidenceBinding } from "../source-types.js";
+import {
+  findRepeatedFragment,
+  stripEvidenceQuotes,
+} from "../planning/text-repetition.js";
 import { ResumeWorkspaceError } from "./errors.js";
 import { resolveBindingWithAutoRepair } from "./evidence-auto-repair.js";
 import type { EvidenceRepairAction } from "./evidence-auto-repair.js";
@@ -96,6 +100,19 @@ function resolveIncrementalText(
 ): { operation: ResumePatchOperation; repairs: EvidenceRepairAction[] } {
   const original = requireBinding(work, operation.bulletId);
   const mergedText = applyIncrementalText(original.bulletText, operation);
+  // Same repetition gates as write_bullet: appending/prepending/inserting
+  // text that repeats a fragment already present in the bullet (e.g. when
+  // the model re-cites evidence the bullet already contains) would look
+  // broken in the final resume. Without this check the append path accepts
+  // duplicated sentences that the write path rejects.
+  const repeated = findRepeatedFragment(mergedText);
+  if (repeated) {
+    throw new EvidenceValidationError(
+      "repeated_fragment",
+      `Bullet ${operation.bulletId} would contain a repeated fragment "${repeated}"; do not retry the same text. Append a non-duplicating transition phrase (e.g. "，并持续优化。") or rephrase the bullet's own cited facts; no new numbers allowed.`,
+      operation.bulletId,
+    );
+  }
   const originalIds = original.excerpts.map(
     (excerpt) =>
       `${excerpt.experienceId}:${excerpt.sourceStart}:${excerpt.sourceEnd}`,
@@ -113,6 +130,27 @@ function resolveIncrementalText(
     throw new EvidenceValidationError(
       "excerpt_experience_mismatch",
       `Incremental text for bullet ${operation.bulletId} cites evidence from ${repaired.binding.sourceExperienceId} but the bullet belongs to ${original.sourceExperienceId}.`,
+      operation.bulletId,
+    );
+  }
+  // Cross-bullet repetition mirrors write_bullet: evidence source quotes are
+  // stripped first so two bullets citing different ranges of the same
+  // experience never deadlock on shared source sentences.
+  const strippedMerged = stripEvidenceQuotes(
+    mergedText,
+    repaired.binding.excerpts,
+  );
+  const strippedOthers = [...work.entries()]
+    .filter(([bulletId]) => bulletId !== operation.bulletId.trim())
+    .map(([, binding]) => stripEvidenceQuotes(binding.bulletText, binding.excerpts));
+  const crossRepeat = findRepeatedFragment(
+    [...strippedOthers, strippedMerged].join("\n"),
+    20,
+  );
+  if (crossRepeat) {
+    throw new EvidenceValidationError(
+      "repeated_fragment",
+      `Bullet ${operation.bulletId} would repeat wording already used in another bullet ("${crossRepeat}"); reword it. If the experience evidence is exhausted, stop filling and enter review.`,
       operation.bulletId,
     );
   }

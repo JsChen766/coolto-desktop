@@ -22,6 +22,9 @@ class FakeAgent {
     this.prompts.push(input);
     this.modelCallCount += 1;
   }
+  public cancel(): void {
+    // no-op for the fake
+  }
 }
 
 test("continuable statuses exclude terminal outcomes", () => {
@@ -32,7 +35,7 @@ test("continuable statuses exclude terminal outcomes", () => {
   assert.equal(isContinuable("needs_user_decision"), false);
 });
 
-test("host section fill completes a writing workspace without model calls", async () => {
+test("continuation injects diagnostics only; host never fills content", async () => {
   const { store, compiler } = await createWritingWorkspace();
   const agent = new FakeAgent();
   const fills: Array<{ itemId: string; bulletText: string }> = [];
@@ -40,17 +43,19 @@ test("host section fill completes a writing workspace without model calls", asyn
     agent,
     store,
     compiler,
-    { maxMs: 60_000, maxModelCalls: 30 },
+    { maxMs: 60_000, maxModelCalls: 2 },
     { onHostFill: (hostFills) => void fills.push(...hostFills) },
   );
-  assert.ok(fills.length >= 1, `expected host fills, got ${fills.length}`);
-  assert.equal(agent.prompts.length, 0, "host fill reached a terminal state");
+  assert.equal(fills.length, 0, "host must not fill content deterministically");
+  assert.equal(agent.prompts.length, 2, "diagnostics are injected each round");
+  for (const prompt of agent.prompts) {
+    assert.match(prompt, /coolto_internal_continuation/);
+  }
   const workspace = store.latest()!;
-  assert.ok(
-    workspace.structure.sections.flatMap((section) =>
-      section.items.flatMap((item) => item.bullets),
-    ).length >= 2,
-    "host fill added bullets",
+  assert.equal(
+    workspace.status,
+    "needs_user_decision",
+    "budget exhaustion normalizes to a user decision",
   );
 });
 
@@ -153,6 +158,9 @@ class SwitchingAgent {
     this.prompts.push(input);
     this.modelCallCount += 1;
     this.store.restore(structuredClone(this.terminal) as never);
+  }
+  public cancel(): void {
+    // no-op for the fake
   }
 }
 

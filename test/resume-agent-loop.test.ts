@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
@@ -8,77 +8,70 @@ import {
 } from "@earendil-works/pi-ai/providers/faux";
 
 import { createCooltoAgent } from "../src/agent/create-agent.js";
-import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../src/resume/template-contract.js";
-import { ResumeCandidatePatcher } from "../src/resume/workspace/candidate-patcher.js";
-import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-preparer.js";
+import { ResumeLayoutInspector } from "../src/resume/planning/layout-inspector.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
-import { ResumeQualityEvaluator } from "../src/resume/quality/quality-evaluator.js";
-import { ResumeCandidateReviewer } from "../src/resume/quality/candidate-reviewer.js";
-import { ResumeAlternativeRepairer } from "../src/resume/quality/alternative-repairer.js";
 import { createToolRegistry } from "../src/tools/registry.js";
 import {
   FixtureResumeCompiler,
-  createBinding,
   createWorkspaceSnapshotBuilder,
 } from "./support/resume-workspace-fixture.js";
 
-test("the Agent can prepare, patch, and stop after host quality review", async () => {
+test("the Agent drives draft, parallel bullet writes and inspect to layout_qualified", async () => {
   const builder = createWorkspaceSnapshotBuilder();
-  const snapshot = await builder.build({
-    jdId: "jd-1",
-    experienceIds: ["edu-1", "work-1"],
-    template: STANDARD_RESUME_TEMPLATE_SNAPSHOT,
-  });
   const compiler = new FixtureResumeCompiler();
   const store = new ResumeWorkspaceStore();
-  const preparer = new ResumeCandidatePreparer(builder, compiler, store, {
-    createCandidateId: () => "candidate-agent-loop",
-  });
-  const patcher = new ResumeCandidatePatcher(compiler, store);
-  const evaluator = new ResumeQualityEvaluator();
-  const reviewer = new ResumeCandidateReviewer(evaluator, store);
-  const repairer = new ResumeAlternativeRepairer(compiler, evaluator, store);
-  const first = createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据产品。");
-  const second = createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。");
   const faux = fauxProvider({ tokensPerSecond: 0 });
   faux.setResponses([
     fauxAssistantMessage(
       fauxToolCall(
-        "prepare_resume_candidate",
+        "prepare_resume_draft",
         {
           jdId: "jd-1",
           experienceIds: ["edu-1", "work-1"],
           language: "zh-CN",
-          initialBindings: [first],
         },
-        { id: "prepare-call" },
+        { id: "draft-call" },
       ),
       { stopReason: "toolUse" },
     ),
-    fauxAssistantMessage(
+    fauxAssistantMessage([
       fauxToolCall(
-        "patch_resume_candidate",
+        "write_bullet",
         {
-          candidateId: "candidate-agent-loop",
-          expectedRevision: 0,
-          operations: [
-            { op: "add_bullet", itemId: "item-work-1", binding: second },
-          ],
+          itemId: "item-work-1",
+          evidenceIds: ["work-1:0:19"],
+          bulletText: "使用 Python 清洗运营数据产品，设计异常检查规则并沉淀可复用流程。",
+          targetChars: { min: 20, max: 300 },
         },
-        { id: "patch-call" },
+        { id: "bullet-1" },
       ),
+      fauxToolCall(
+        "write_bullet",
+        {
+          itemId: "item-work-1",
+          evidenceIds: ["work-1:19:33"],
+          bulletText: "为 3 个团队建立周度报表，并与业务团队协作落地。",
+          targetChars: { min: 20, max: 300 },
+        },
+        { id: "bullet-2" },
+      ),
+    ], { stopReason: "toolUse" }),
+    fauxAssistantMessage(
+      fauxToolCall("inspect_resume_draft", {}, { id: "inspect-call" }),
       { stopReason: "toolUse" },
     ),
-    fauxAssistantMessage("G3 页面与来源门槛已经通过，已停止继续扩写。"),
+    fauxAssistantMessage("页面与证据门槛已通过，停止修改。"),
   ]);
   const agent = createCooltoAgent(
     {
       tools: createToolRegistry({
         resumeSourceSnapshotBuilder: builder,
-        resumeCandidatePreparer: preparer,
-        resumeCandidatePatcher: patcher,
-        resumeCandidateReviewer: reviewer,
-        resumeAlternativeRepairer: repairer,
+        resumeLayoutInspector: new ResumeLayoutInspector(builder, compiler),
+        agentOrchestrated: {
+          snapshotBuilder: builder,
+          compiler,
+          store,
+        },
       }),
     },
     {
@@ -89,99 +82,84 @@ test("the Agent can prepare, patch, and stop after host quality review", async (
 
   await agent.prompt("请基于这个 JD 和经历生成满足页面门槛的简历");
 
-  assert.equal(faux.state.callCount, 3);
-  assert.equal(store.get("candidate-agent-loop").status, "ready_for_approval");
-  assert.deepEqual(
-    agent.toolNames.filter((name) => name.includes("resume_candidate")),
-    [
-      "prepare_resume_candidate",
-      "patch_resume_candidate",
-      "review_resume_candidate",
-    ],
-  );
+  assert.equal(faux.state.callCount, 4);
+  assert.equal(store.latest()?.status, "layout_qualified");
+  const tools = agent.toolNames;
+  for (const name of [
+    "prepare_resume_draft",
+    "write_bullet",
+    "inspect_resume_draft",
+    "inspect_resume_layout",
+  ]) {
+    assert.ok(tools.includes(name), `missing tool ${name}`);
+  }
+  assert.ok(!tools.includes("prepare_planned_resume"), "retired tool must not be registered");
+  assert.ok(!tools.includes("prepare_resume_candidate"), "retired tool must not be registered");
   const transcript = JSON.stringify(agent.getMessages());
-  assert.match(transcript, /pxToMinimum/);
   assert.match(transcript, /使用 Python 清洗运营数据/);
-  assert.match(transcript, /ready_for_approval/);
+  assert.match(transcript, /layout_qualified/);
 });
 
-test("the Agent can review, repair one reported target, and stop at ready_for_approval", async () => {
+test("the Agent corrects a rejected bullet and still reaches layout_qualified", async () => {
   const builder = createWorkspaceSnapshotBuilder();
-  const snapshot = await builder.build({
-    jdId: "jd-1",
-    experienceIds: ["edu-1", "work-1"],
-    template: STANDARD_RESUME_TEMPLATE_SNAPSHOT,
-  });
   const compiler = new FixtureResumeCompiler();
   const store = new ResumeWorkspaceStore();
-  const evaluator = new ResumeQualityEvaluator();
-  const preparer = new ResumeCandidatePreparer(builder, compiler, store, {
-    createCandidateId: () => "candidate-quality-loop",
-  });
-  const patcher = new ResumeCandidatePatcher(compiler, store);
-  const reviewer = new ResumeCandidateReviewer(evaluator, store);
-  const repairer = new ResumeAlternativeRepairer(compiler, evaluator, store);
-  const first = createBinding(snapshot, "bullet-1", "使用 Python 清洗运营数据产品。");
-  const duplicate = createBinding(
-    snapshot,
-    "bullet-2",
-    "为 3 个团队建立周度报表。",
-    "使用 Python 清洗运营数据产品。",
-  );
-  const distinct = createBinding(snapshot, "bullet-2", "为 3 个团队建立周度报表。");
   const faux = fauxProvider({ tokensPerSecond: 0 });
   faux.setResponses([
     fauxAssistantMessage(
       fauxToolCall(
-        "prepare_resume_candidate",
+        "prepare_resume_draft",
         {
           jdId: "jd-1",
           experienceIds: ["edu-1", "work-1"],
           language: "zh-CN",
-          initialBindings: [first, duplicate],
         },
-        { id: "quality-prepare" },
+        { id: "draft-call" },
       ),
       { stopReason: "toolUse" },
     ),
     fauxAssistantMessage(
       fauxToolCall(
-        "patch_resume_candidate",
+        "write_bullet",
         {
-          candidateId: "candidate-quality-loop",
-          expectedRevision: 0,
-          alternativeTargets: [
-            {
-              targetId: "near_duplicate_bullet:bl-0-bl-1:0",
-              alternatives: [
-                {
-                  label: "use distinct evidence",
-                  operations: [
-                    {
-                      op: "replace_bullet",
-                      bulletId: "bl-1",
-                      binding: distinct,
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
+          itemId: "item-work-1",
+          evidenceIds: ["work-1:0:19"],
+          bulletText: "使用 Python 清洗数据，服务 99 个内部团队。",
+          targetChars: { min: 20, max: 300 },
         },
-        { id: "quality-repair" },
+        { id: "bullet-bad" },
       ),
       { stopReason: "toolUse" },
     ),
-    fauxAssistantMessage("质量和布局门禁均已通过，已停止修改。"),
+    fauxAssistantMessage(
+      fauxToolCall(
+        "write_bullet",
+        {
+          itemId: "item-work-1",
+          evidenceIds: ["work-1:0:19", "work-1:19:33"],
+          bulletText: "使用 Python 清洗运营数据产品，为 3 个团队建立周度报表并沉淀流程。",
+          targetChars: { min: 20, max: 300 },
+        },
+        { id: "bullet-good" },
+      ),
+      { stopReason: "toolUse" },
+    ),
+    fauxAssistantMessage(
+      fauxToolCall("inspect_resume_draft", {}, { id: "inspect-call" }),
+      { stopReason: "toolUse" },
+    ),
+    fauxAssistantMessage("页面与证据门槛已通过，停止修改。"),
   ]);
   const agent = createCooltoAgent(
     {
       tools: createToolRegistry({
         resumeSourceSnapshotBuilder: builder,
-        resumeCandidatePreparer: preparer,
-        resumeCandidatePatcher: patcher,
-        resumeCandidateReviewer: reviewer,
-        resumeAlternativeRepairer: repairer,
+        resumeLayoutInspector: new ResumeLayoutInspector(builder, compiler),
+        agentOrchestrated: {
+          snapshotBuilder: builder,
+          compiler,
+          store,
+        },
       }),
     },
     {
@@ -190,9 +168,12 @@ test("the Agent can review, repair one reported target, and stop at ready_for_ap
     },
   );
 
-  await agent.prompt("完成质量检查并只修复报告指出的问题");
+  await agent.prompt("生成一份简历，先写第一条 bullet 再补全");
 
-  assert.equal(faux.state.callCount, 3);
-  assert.equal(store.get("candidate-quality-loop").status, "ready_for_approval");
-  assert.match(JSON.stringify(agent.getMessages()), /ready_for_approval/);
+  assert.equal(faux.state.callCount, 5);
+  assert.equal(store.latest()?.bindings.length, 1);
+  assert.notEqual(store.latest()?.status, "needs_revision");
+  const transcript = JSON.stringify(agent.getMessages());
+  assert.match(transcript, /数字 99 在证据原文中不存在/);
+  assert.match(transcript, /accepted/);
 });

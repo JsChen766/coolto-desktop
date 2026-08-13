@@ -86,6 +86,11 @@ function renderRequest(request: ApprovalRequest): void {
       stdout.write(`  注意：${item.warning}\n`);
     }
   }
+  for (const field of request.preview.profileFields ?? []) {
+    stdout.write(`\n• ${field.label}\n`);
+    stdout.write(`  当前值：${field.currentValue ?? "（未填写）"}\n`);
+    stdout.write(`  新值：${field.proposedValue}\n`);
+  }
   for (const warning of request.preview.warnings ?? []) {
     stdout.write(`\n注意：${warning}\n`);
   }

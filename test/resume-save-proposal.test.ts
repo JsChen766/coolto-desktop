@@ -13,7 +13,7 @@ test("ready workspace becomes an immutable save proposal with raw layout data", 
   });
 
   assert.equal(payload.structured.quality_status, "passed");
-  assert.equal(payload.structured.layout_usage_ratio, 0.89);
+  assert.equal(payload.structured.layout_usage_ratio, 1);
   assert.equal(payload.evidenceBindings.length, 2);
   assert.equal(payload.observation.page_count, 1);
   assert.equal(payload.observation.fonts_ready, true);

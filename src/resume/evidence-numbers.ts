@@ -12,7 +12,16 @@ export function extractEvidenceNumbers(value: string): string[] {
     ),
     ...value.matchAll(/[零一二两三四五六七八九十百千万亿]+/gu),
   ];
-  return tokens.map((match) => canonicalNumber(match[0]));
+  return tokens
+    .map((match) => match[0])
+    // A standalone unit character (百/十/千/万/亿) without any digit
+    // character is vague wording ("数百", "十余", "上千"), not a specific
+    // numeric claim, and must not be treated as a verifiable number.
+    .filter(
+      (token) =>
+        /[零一二两三四五六七八九]/.test(token) || !/^[十百千万亿]+$/u.test(token),
+    )
+    .map(canonicalNumber);
 }
 
 function canonicalNumber(token: string): string {

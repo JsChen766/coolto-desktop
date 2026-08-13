@@ -91,7 +91,7 @@
         "indent_mm": 0.3,
         "gap_mm": 1.5,
         "target_ratio": 0.6967,
-        "gate_ratio": 0.6671
+        "gate_ratio": 0.7
       },
       "pagination": {
         "keep_section_heading_with_first_item": true,
@@ -102,7 +102,7 @@
       "density": {
         "minimum": 0.8,
         "target": 0.88,
-        "maximum": 0.95
+        "maximum": 0.98
       }
     },
     {
@@ -195,7 +195,7 @@
         "indent_mm": 0.3,
         "gap_mm": 1.5,
         "target_ratio": 0.6967,
-        "gate_ratio": 0.6671
+        "gate_ratio": 0.7
       },
       "pagination": {
         "keep_section_heading_with_first_item": true,
@@ -206,7 +206,7 @@
       "density": {
         "minimum": 0.52,
         "target": 0.68,
-        "maximum": 0.9
+        "maximum": 0.98
       }
     }
   ]

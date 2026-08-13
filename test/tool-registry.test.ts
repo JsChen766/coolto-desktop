@@ -142,6 +142,19 @@ test("resume source registry exposes profile and JD read tools", async () => {
   assert.equal(detailResult.details.rawText, "Full JD text");
 });
 
+test("profile update tool requires a profile proposal executor and approval manager", () => {
+  const tools = createToolRegistry({
+    userProfileReader: { getUserProfile: async () => ({}) } as never,
+    profileProposals: {} as never,
+    approvalManager: {} as never,
+  });
+
+  assert.deepEqual(
+    tools.map((tool) => tool.name),
+    ["get_runtime_info", "get_user_profile", "prepare_profile_update"],
+  );
+});
+
 const jdRecord = {
   id: "jd-1",
   title: "Product Manager",

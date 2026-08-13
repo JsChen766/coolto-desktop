@@ -68,7 +68,11 @@ export class ResumeSourceSnapshotBuilder {
     ]);
     const fingerprintPayload = {
       schemaVersion: RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION,
-      profile: normalizeSourceProfile(currentUser.id, profile),
+      profile: normalizeSourceProfile(
+        currentUser.id,
+        currentUser.email,
+        profile,
+      ),
       jd: normalizeSourceJd(jd, jdId),
       experiences: experiences.map((experience, index) =>
         normalizeSourceExperience(experience, experienceIds[index] ?? ""),

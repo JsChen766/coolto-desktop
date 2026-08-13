@@ -35,10 +35,21 @@ export function normalizeEvidenceBinding(
       "Evidence bindings require a non-empty stable bullet ID.",
     );
   }
+  // Bullets must never end with a period (product rule): strip trailing
+  // sentence punctuation and whitespace so every path (write, patch, tail
+  // fix) produces the same period-free contract.
+  const bulletText = stripTrailingPunctuation(binding.bulletText);
+  if (!bulletText) {
+    throw new EvidenceValidationError(
+      "empty_bullet_text",
+      "Evidence bindings require a non-empty bullet text.",
+      bulletId,
+    );
+  }
   return {
     bulletId,
     sourceExperienceId: binding.sourceExperienceId.trim(),
-    bulletText: binding.bulletText,
+    bulletText,
     excerpts: binding.excerpts.map((excerpt) => ({
       ...excerpt,
       experienceId: excerpt.experienceId.trim(),
@@ -48,6 +59,11 @@ export function normalizeEvidenceBinding(
     matchedRequirementIds: binding.matchedRequirementIds.map((value) => value.trim()),
     ...(binding.sharedEvidence ? { sharedEvidence: true } : {}),
   };
+}
+
+/** Removes trailing sentence punctuation and whitespace from a bullet text. */
+function stripTrailingPunctuation(text: string): string {
+  return text.replace(/[\s。．.！!？?；;]+$/u, "");
 }
 
 export function validateEvidenceBinding(

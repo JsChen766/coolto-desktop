@@ -15,9 +15,9 @@ import { parseSelectedFile } from "../src/files/parse-selected-file.js";
 import { SelectedFileRegistry } from "../src/files/selected-file-registry.js";
 import { ConversationSelectedFiles } from "../src/desktop/main/conversation-selected-files.js";
 
-test("CLI separates explicit attachments from natural-language input", () => {
+test("CLI separates explicit attachments from natural-language input", async () => {
   assert.deepEqual(
-    parseCliArguments([
+    await parseCliArguments([
       "--attach",
       "/tmp/resume.pdf",
       "--attach=/tmp/history.docx",

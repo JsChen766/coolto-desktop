@@ -20,6 +20,10 @@ import { createResumeSaveExecutor } from "../resume/save/save-executor.js";
 import type { ResumePdfExportGateway } from "../resume/export/types.js";
 import { RESUME_PDF_EXPORT_ACTION_TYPE } from "../resume/export/approval-draft.js";
 import { createResumePdfExportExecutor } from "../resume/export/export-executor.js";
+import {
+  PROFILE_UPDATE_ACTION_TYPE,
+} from "../profile/approval-draft.js";
+import { createProfileUpdateExecutor } from "./profile-update-executor.js";
 
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
@@ -44,6 +48,12 @@ export function createActionApprovalManager(
       deps.profileProposals,
     ),
   );
+  if (deps.profileProposals) {
+    executors.register(
+      PROFILE_UPDATE_ACTION_TYPE,
+      createProfileUpdateExecutor(deps.profileProposals),
+    );
+  }
   if (deps.jdWriter && deps.jdProposalStore) {
     executors.register(
       JD_SAVE_ACTION_TYPE,

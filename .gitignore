@@ -11,6 +11,7 @@ out/
 coverage/
 *.log
 /output
+/local-output
 .claude
 .DS_Store
 /experiments

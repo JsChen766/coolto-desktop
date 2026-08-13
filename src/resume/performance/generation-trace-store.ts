@@ -14,9 +14,10 @@ import { summarizeTrace } from "./trace-summary.js";
 
 const RESUME_TOOLS = new Set([
   "get_resume_source_snapshot",
-  "prepare_resume_candidate",
+  "prepare_resume_draft",
+  "write_bullet",
+  "inspect_resume_draft",
   "patch_resume_candidate",
-  "review_resume_candidate",
   "prepare_resume_save",
 ]);
 
@@ -198,8 +199,10 @@ export { summarizeTrace } from "./trace-summary.js";
 
 function stageForTool(name: string): ResumeTraceStage {
   if (name === "get_resume_source_snapshot") return "source_snapshot";
+  if (name === "prepare_resume_draft") return "source_snapshot";
+  if (name === "write_bullet") return "patch";
+  if (name === "inspect_resume_draft") return "chromium_compile";
   if (name === "patch_resume_candidate") return "patch";
-  if (name === "review_resume_candidate") return "quality_review";
   if (name === "prepare_resume_save") return "save_prepared";
   return "tool";
 }

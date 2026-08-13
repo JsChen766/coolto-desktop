@@ -14,7 +14,8 @@ export type EvidenceValidationErrorCode =
   | "unknown_requirement_id"
   | "unknown_evidence_id"
   | "invalid_evidence_id"
-  | "unsupported_numeric_claim";
+  | "unsupported_numeric_claim"
+  | "repeated_fragment";
 
 export class EvidenceValidationError extends Error {
   public constructor(

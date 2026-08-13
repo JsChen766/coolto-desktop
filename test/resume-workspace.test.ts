@@ -34,7 +34,7 @@ test("preparer creates the fixed resume skeleton and returns a real pixel budget
   assert.equal(workspace.structure.layout_template_id, "resume-standard");
   assert.equal(compiler.structures.length, 1);
   assert.equal(projection.budget.pxToMinimum, 200);
-  assert.equal(projection.budget.estimatedBodyLinesRemaining, 17.5);
+  assert.equal(projection.budget.estimatedBodyLinesRemaining, 14);
   assert.deepEqual(projection.contentDiagnostics.unwrittenExperienceItemIds, [
     "item-work-1",
   ]);
@@ -50,7 +50,7 @@ test("needs_user_decision instruction explains the evidence gap and the relaxed 
   const projection = projectResumeWorkspace(withDecision) as {
     instruction: string;
   };
-  assert.match(projection.instruction, /证据不足以生成满足全部门槛/);
+  assert.match(projection.instruction, /修饰语改写补齐/);
   assert.match(projection.instruction, /search_experiences/);
   assert.match(projection.instruction, /不得降低任何质量门槛/);
 });
@@ -198,7 +198,7 @@ test("a worse revision does not replace the best qualified candidate", async () 
   assert.equal(worse.bestSnapshot.compileResult.qualified, true);
   const projection = projectResumeWorkspace(worse) as Record<string, any>;
   assert.equal(projection.bulletTailDiagnostics[0].bulletId, "bl-1");
-  assert.equal(projection.bulletTailDiagnostics[0].deficitPx, 200.26);
+  assert.equal(projection.bulletTailDiagnostics[0].deficitPx, 220);
 });
 
 test("move and remove patches preserve stable IDs and evidence coverage", async () => {

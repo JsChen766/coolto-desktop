@@ -14,7 +14,7 @@ test("resume compiler fixtures preserve stable evidence-linked IDs", () => {
   const bullets = structure.sections.flatMap((section) =>
     section.items.flatMap((item) => item.bullets),
   );
-  assert.equal(bullets.length, 20);
+  assert.equal(bullets.length, 22);
   assert.equal(new Set(bullets.map((bullet) => bullet.id)).size, bullets.length);
   assert.ok(
     bullets.every((bullet) => (bullet.source_fact_ids?.length ?? 0) > 0),
@@ -43,7 +43,7 @@ test("fixture reads are isolated clones", () => {
 });
 
 test("global page gates cannot drift below the product requirements", () => {
-  assert.equal(RESUME_GLOBAL_MINIMUM_USAGE_RATIO, 0.85);
+  assert.equal(RESUME_GLOBAL_MINIMUM_USAGE_RATIO, 0.92);
   assert.equal(RESUME_LAYOUT_TOLERANCE_PX, 1);
 });
 

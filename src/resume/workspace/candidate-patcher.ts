@@ -12,7 +12,6 @@ import type {
 import { ResumeWorkspaceStore } from "./workspace-store.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
 import { degradeAdditionalSections } from "./section-space-policy.js";
-import { tryTailFill } from "./tail-fill.js";
 
 const MAX_PATCH_COUNT = 40;
 
@@ -78,26 +77,19 @@ export class ResumeCandidatePatcher {
       }
       throw error;
     }
-    const overflow = await this.compiler.compile(patched.structure);
-    const tailFilled = await tryTailFill(
-      this.compiler,
-      current.sourceSnapshot,
-      patched.structure,
-      patched.bindings,
-      overflow,
-    );
-    const degraded = hasOverflow(tailFilled.compileResult)
-      ? degradeAdditionalSections(tailFilled.structure, tailFilled.bindings)
-      : { ...tailFilled, removedSectionIds: [] };
-    const compileResult = degraded.removedSectionIds.length
+    const compileResult = await this.compiler.compile(patched.structure);
+    const degraded = hasOverflow(compileResult)
+      ? degradeAdditionalSections(patched.structure, patched.bindings)
+      : { ...patched, removedSectionIds: [] };
+    const finalCompile = degraded.removedSectionIds.length
       ? await this.compiler.compile(degraded.structure)
-      : tailFilled.compileResult;
+      : compileResult;
     const revision = current.revision + 1;
     const candidateSnapshot: ResumeCandidateSnapshot = {
       revision,
       structure: structuredClone(degraded.structure),
       bindings: structuredClone(degraded.bindings),
-      compileResult: structuredClone(compileResult),
+      compileResult: structuredClone(finalCompile),
     };
     const bestSnapshot = isBetterCandidate(
       candidateSnapshot,
@@ -106,11 +98,9 @@ export class ResumeCandidatePatcher {
       ? candidateSnapshot
       : current.bestSnapshot;
     const operationReport =
-      resolution.rejected.length ||
-      resolution.repairs.length ||
-      tailFilled.repairs.length
+      resolution.rejected.length || resolution.repairs.length
         ? {
-            repairs: [...resolution.repairs, ...tailFilled.repairs],
+            repairs: resolution.repairs,
             rejected: resolution.rejected,
           }
         : undefined;
@@ -119,10 +109,10 @@ export class ResumeCandidatePatcher {
         ...current,
         revision,
         patchCount: current.patchCount + 1,
-        status: deriveWorkspaceStatus(compileResult, degraded.structure),
+        status: deriveWorkspaceStatus(finalCompile, degraded.structure),
         structure: degraded.structure,
         bindings: degraded.bindings,
-        compileResult,
+        compileResult: finalCompile,
         bestSnapshot,
         ...(operationReport ? { lastOperationReport: operationReport } : {}),
       },

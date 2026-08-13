@@ -118,9 +118,9 @@ test("trace records only metadata and captures complete generation timing", () =
   monotonic = 30;
   traces.recordTool("run-1", "patch-1", "patch_resume_candidate", "success");
   monotonic = 35;
-  traces.recordToolStarted("run-1", "review-1", "review_resume_candidate");
+  traces.recordToolStarted("run-1", "inspect-1", "inspect_resume_draft");
   monotonic = 37;
-  traces.recordTool("run-1", "review-1", "review_resume_candidate", "success");
+  traces.recordTool("run-1", "inspect-1", "inspect_resume_draft", "success");
   traces.recordDraftSaved("run-1");
   traces.recordQualifiedPreviewDelivered("run-1");
   monotonic = 40;
@@ -134,7 +134,7 @@ test("trace records only metadata and captures complete generation timing", () =
   const summary = summarizeTrace(trace);
   assert.equal(summary.elapsedMs, 40);
   assert.equal(summary.modelCallCount, 1);
-  assert.equal(summary.compileCount, 1);
+  assert.equal(summary.compileCount, 2);
   assert.equal(summary.repairRoundCount, 1);
   assert.equal(summary.qualifiedPreviewDelivered, true);
   assert.equal(summary.stageDurationsMs.model_call, 5);

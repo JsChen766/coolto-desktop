@@ -97,8 +97,15 @@ test("resume generation names every missing required confirmed Profile field", a
     builder.build(input),
     (error: unknown) => error instanceof ResumeSourceSnapshotError &&
       error.code === "missing_required_profile_fields" &&
-      error.message === "Resume generation requires: fullName, contactEmail.",
+      error.message === "Resume generation requires: fullName.",
   );
+});
+
+test("missing profile contactEmail falls back to the account email", async () => {
+  const profile = createProfile();
+  profile.contactEmail = null;
+  const snapshot = await createBuilderWithProfile(profile).build(input);
+  assert.equal(snapshot.profile.contactEmail, "login@example.com");
 });
 
 test("source evidence allows pending but rejects conflict and failed experiences", async () => {
@@ -389,7 +396,9 @@ function createBinding(
   return {
     bulletId,
     sourceExperienceId: experience.id,
-    bulletText: experience.content.slice(sourceStart, sourceEnd),
+    bulletText: experience.content
+      .slice(sourceStart, sourceEnd)
+      .replace(/[\s。．.！!？?；;]+$/u, ""),
     excerpts: [
       {
         experienceId: experience.id,
