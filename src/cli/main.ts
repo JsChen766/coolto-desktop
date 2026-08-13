@@ -28,6 +28,8 @@ import { cliDeviceId } from "./cli-profile-writer.js";
 import {
   continueUntilTerminal,
   DEFAULT_CONTINUATION_BUDGET,
+  INITIAL_TURN_MAX_MS,
+  UNLIMITED_CONTINUATION_BUDGET,
 } from "../desktop/main/resume-continuation.js";
 import {
   resolvePendingApprovals,
@@ -159,7 +161,7 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
       ? Number.POSITIVE_INFINITY
       : Math.max(60_000, maxMs - 30_000);
     const initialPromptMaxMs = unlimited
-      ? INITIAL_PROMPT_MAX_MS_UNLIMITED
+      ? INITIAL_TURN_MAX_MS
       : INITIAL_PROMPT_MAX_MS;
     // The initial prompt is time-capped (soft): if it overruns, it is
     // cancelled but the run still continues through the continuation budget,
@@ -193,10 +195,11 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
         resumeWorkspaceStore,
         compiler,
         {
+          ...(unlimited ? UNLIMITED_CONTINUATION_BUDGET : {}),
           maxMs: continuationMaxMs,
           startedAtMs,
           maxModelCalls: unlimited
-            ? MAX_CONTINUATION_MODEL_CALLS_UNLIMITED
+            ? UNLIMITED_CONTINUATION_BUDGET.maxModelCalls
             : MAX_CONTINUATION_MODEL_CALLS,
         },
       );
@@ -206,10 +209,11 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
         resumeWorkspaceStore,
         compiler,
         {
+          ...(unlimited ? UNLIMITED_CONTINUATION_BUDGET : {}),
           maxMs: continuationMaxMs,
           startedAtMs,
           maxModelCalls: unlimited
-            ? MAX_CONTINUATION_MODEL_CALLS_UNLIMITED
+            ? UNLIMITED_CONTINUATION_BUDGET.maxModelCalls
             : MAX_CONTINUATION_MODEL_CALLS,
         },
         {
@@ -260,12 +264,10 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
 const AUTO_APPROVE_LOG = "local-output/approvals.log";
 /** Initial one-shot turn cap: overrunning is soft-cancelled, not fatal. */
 const INITIAL_PROMPT_MAX_MS = 210_000;
-/** Unlimited mode: initial turn may run longer before handing over. */
-const INITIAL_PROMPT_MAX_MS_UNLIMITED = 360_000;
+
 /** Continuation cap aligned with the desktop DEFAULT_CONTINUATION_BUDGET philosophy. */
 const MAX_CONTINUATION_MODEL_CALLS = 40;
-/** Unlimited mode: generous runaway guard (hang protection still applies). */
-const MAX_CONTINUATION_MODEL_CALLS_UNLIMITED = 120;
+
 /** Generation budget gate: ≤ 5 minutes end to end (testing target only). */
 const DEFAULT_MAX_MINUTES = 5;
 

@@ -27,17 +27,22 @@ export const DEFAULT_CONTINUATION_BUDGET: ContinuationBudget = {
 
 /**
  * Production budget aligned with the CLI --no-timeout mode: no wall-clock
- * hard cap (generation is state-driven and must finish), only a generous
- * call-count runaway guard and per-turn hang protection remain.
+ * hard cap (generation is state-driven and must finish), only generous
+ * runaway guards remain. Time and round limits are set wide on purpose so
+ * the continuation never interrupts an in-flight generation: the per-turn
+ * timeout only guards against a truly dead network connection.
  */
 export const UNLIMITED_CONTINUATION_BUDGET: ContinuationBudget = {
   maxMs: Number.POSITIVE_INFINITY,
-  maxModelCalls: 120,
-  turnTimeoutMs: 60_000,
+  maxModelCalls: 300,
+  turnTimeoutMs: 180_000,
 };
 
 /** Initial user-message turn soft cap before handing over to continuation. */
-export const INITIAL_TURN_MAX_MS = 360_000;
+export const INITIAL_TURN_MAX_MS = 600_000;
+
+/** Consecutive per-turn timeouts tolerated before giving up. */
+export const MAX_CONSECUTIVE_TURN_TIMEOUTS = 5;
 
 export interface HostFillSummary {
   itemId: string;
@@ -101,7 +106,7 @@ export async function continueUntilTerminal(
       // alive and retry, only giving up after repeated consecutive hangs.
       consecutiveTimeouts += 1;
       await callbacks.log?.(`continuation:turn-timeout:${consecutiveTimeouts}`);
-      if (consecutiveTimeouts >= 3) {
+      if (consecutiveTimeouts >= MAX_CONSECUTIVE_TURN_TIMEOUTS) {
         normalizeToUserDecision(store);
         return;
       }
