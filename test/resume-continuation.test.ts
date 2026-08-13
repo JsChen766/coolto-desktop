@@ -25,6 +25,9 @@ class FakeAgent {
   public cancel(): void {
     // no-op for the fake
   }
+  public get isRunning(): boolean {
+    return false;
+  }
 }
 
 test("continuable statuses exclude terminal outcomes", () => {
@@ -161,6 +164,9 @@ class SwitchingAgent {
   }
   public cancel(): void {
     // no-op for the fake
+  }
+  public get isRunning(): boolean {
+    return false;
   }
 }
 

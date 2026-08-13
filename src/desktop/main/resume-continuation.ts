@@ -66,7 +66,7 @@ export function isContinuable(status: ResumeWorkspaceStatus): boolean {
  * time and total model calls, so a stuck model can never loop forever.
  */
 export async function continueUntilTerminal(
-  agent: Pick<CooltoAgent, "prompt" | "modelCallCount" | "cancel">,
+  agent: Pick<CooltoAgent, "prompt" | "modelCallCount" | "cancel" | "isRunning">,
   store: Pick<ResumeWorkspaceStore, "latest" | "replace">,
   _compiler: ResumeCompiler,
   budget: ContinuationBudget = DEFAULT_CONTINUATION_BUDGET,
@@ -118,7 +118,7 @@ export async function continueUntilTerminal(
  * normalize the workspace instead of blocking forever.
  */
 async function promptWithTurnTimeout(
-  agent: Pick<CooltoAgent, "prompt" | "cancel">,
+  agent: Pick<CooltoAgent, "prompt" | "cancel" | "isRunning">,
   prompt: string,
   timeoutMs: number,
 ): Promise<boolean> {
@@ -134,6 +134,12 @@ async function promptWithTurnTimeout(
   } catch (error: unknown) {
     if (error instanceof Error && error.message === "continuation turn timed out") {
       agent.cancel();
+      // The aborted stream may still be flushing; wait until the agent is
+      // idle so the next continuation prompt does not hit
+      // "already processing".
+      while (agent.isRunning) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
       return true;
     }
     throw error;

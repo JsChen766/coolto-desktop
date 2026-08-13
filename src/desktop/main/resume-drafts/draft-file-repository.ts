@@ -65,7 +65,10 @@ export class ResumeDraftFileRepository {
     const temporary = `${destination}.${randomUUID()}.tmp`;
     const encoded = this.codec.encode(JSON.stringify(draft));
     await writeFile(temporary, encoded, { mode: 0o600 });
-    await rename(temporary, destination);
+    // On Windows the target may be transiently locked (antivirus scan,
+    // indexer, a racing save); retry with backoff instead of failing the
+    // whole save with EPERM/EBUSY.
+    await retryRename(temporary, destination);
   }
 
   private async ensureDirectory(): Promise<void> {
@@ -121,4 +124,25 @@ function isMissingFileError(error: unknown): boolean {
     "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT"
   );
+}
+
+const RENAME_RETRY_ATTEMPTS = 5;
+
+async function retryRename(from: string, to: string): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await rename(from, to);
+      return;
+    } catch (error: unknown) {
+      if (attempt >= RENAME_RETRY_ATTEMPTS || !isRetryableRenameError(error)) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 80 * attempt));
+    }
+  }
+}
+
+function isRetryableRenameError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === "EPERM" || code === "EBUSY" || code === "EACCES";
 }
