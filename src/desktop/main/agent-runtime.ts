@@ -27,7 +27,8 @@ import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
 import {
   continueUntilTerminal,
-  DEFAULT_CONTINUATION_BUDGET,
+  INITIAL_TURN_MAX_MS,
+  UNLIMITED_CONTINUATION_BUDGET,
 } from "./resume-continuation.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { readConfig } from "../../config.js";
@@ -115,13 +116,31 @@ export class DesktopAgentRuntime {
         : input.resumeReference
           ? promptWithResumeReference(input.text, input.resumeReference)
           : input.text;
+      // Initial turn soft cap (aligned with CLI --no-timeout): if the model
+      // overruns, cancel the turn and hand over to the unlimited
+      // continuation loop instead of hard-stopping the generation.
+      const unsubscribeInitialTurn = context.agent.subscribe((event) => {
+        if (
+          event.type === "model.started" &&
+          performance.now() - commandStartedAt >= INITIAL_TURN_MAX_MS
+        ) {
+          context.agent.cancel();
+        }
+      });
       await context.agent.prompt(prompt);
+      unsubscribeInitialTurn();
+      // A soft-cancelled turn may still be flushing its stream; wait until
+      // the agent is idle before continuing, otherwise the next prompt()
+      // rejects with "already processing".
+      while (context.agent.isRunning) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
       await continueUntilTerminal(
         context.agent,
         context.workspaceStore,
         context.resumeCompiler,
         {
-          ...DEFAULT_CONTINUATION_BUDGET,
+          ...UNLIMITED_CONTINUATION_BUDGET,
           startedAtMs: commandStartedAt,
         },
         {

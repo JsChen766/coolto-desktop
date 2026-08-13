@@ -25,6 +25,20 @@ export const DEFAULT_CONTINUATION_BUDGET: ContinuationBudget = {
   turnTimeoutMs: 60_000,
 };
 
+/**
+ * Production budget aligned with the CLI --no-timeout mode: no wall-clock
+ * hard cap (generation is state-driven and must finish), only a generous
+ * call-count runaway guard and per-turn hang protection remain.
+ */
+export const UNLIMITED_CONTINUATION_BUDGET: ContinuationBudget = {
+  maxMs: Number.POSITIVE_INFINITY,
+  maxModelCalls: 120,
+  turnTimeoutMs: 60_000,
+};
+
+/** Initial user-message turn soft cap before handing over to continuation. */
+export const INITIAL_TURN_MAX_MS = 360_000;
+
 export interface HostFillSummary {
   itemId: string;
   bulletText: string;
