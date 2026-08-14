@@ -255,6 +255,28 @@ const prepareInput = {
   language: "zh-CN" as const,
 };
 
+test("synthetic skills title dedupes tags shared across experiences", async () => {
+  const { preparer } = createServices();
+  const workspace = await preparer.prepare(prepareInput);
+  const skillsItem = workspace.structure.sections
+    .flatMap((section) => section.items)
+    .find((item) => item.id.startsWith("item-skills-"));
+  assert.ok(skillsItem);
+  // fixture: edu-1 tags ["数据分析"], work-1 tags ["Python", "数据分析"]
+  const title = skillsItem.title ?? "";
+  const words = title.replace(/^专业技能：/, "").split("、");
+  assert.equal(
+    words.filter((word) => word === "数据分析").length,
+    1,
+    `skill title must not repeat a tag: ${title}`,
+  );
+  assert.equal(
+    words.filter((word) => word === "Python").length,
+    1,
+    `skill title must not repeat a tag: ${title}`,
+  );
+});
+
 function createServices() {
   const builder = createWorkspaceSnapshotBuilder();
   const compiler = new FixtureResumeCompiler();

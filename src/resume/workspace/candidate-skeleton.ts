@@ -109,7 +109,9 @@ function synthesizeSkillItems(
   }
   const firstExperience = [...byExperience.keys()][0];
   if (!firstExperience) return [];
-  const skills = [...byExperience.values()].flat();
+  // The same tag can appear on several experiences ("Python" in two roles);
+  // dedupe while keeping the first occurrence order for a clean title.
+  const skills = [...new Set([...byExperience.values()].flat())];
   return [
     {
       id: "item-skills-synthetic",
