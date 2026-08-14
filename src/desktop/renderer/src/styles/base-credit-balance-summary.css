@@ -1,0 +1,116 @@
+.credit-balance-summary {
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 15px 18px;
+}
+
+.credit-balance-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.credit-balance-heading > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.credit-balance-label,
+.credit-balance-sources dd,
+.credit-balance-sources dt,
+.credit-balance-sources small {
+  margin: 0;
+}
+
+.credit-balance-label,
+.credit-balance-sources dt,
+.credit-balance-sources small {
+  color: var(--muted);
+}
+
+.credit-balance-label {
+  font-size: 12px;
+}
+
+.credit-balance-total {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.credit-balance-total span,
+.credit-balance-sources dd span {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.credit-plan-badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.credit-composition-bar {
+  height: 5px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.credit-composition-free {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--text);
+  opacity: 0.75;
+}
+
+.credit-balance-sources {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 11px 0 0;
+}
+
+.credit-balance-sources > div + div {
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+}
+
+.credit-balance-sources dt,
+.credit-balance-sources small {
+  font-size: 11px;
+}
+
+.credit-balance-sources dd {
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.credit-balance-sources small {
+  display: block;
+  margin-top: 3px;
+}
+
+@media (max-width: 540px) {
+  .credit-balance-sources {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-balance-sources > div + div {
+    padding: 12px 0 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}

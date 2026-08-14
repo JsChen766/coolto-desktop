@@ -3,12 +3,11 @@
 }
 
 .credit-dialog {
-  width: min(560px, calc(100vw - 48px));
+  width: min(760px, calc(100vw - 48px));
   max-height: min(720px, calc(100vh - 48px));
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  overflow: hidden;
 }
 
 .credit-dialog-header {
@@ -16,6 +15,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  flex: 0 0 auto;
 }
 
 .credit-dialog-header h2 {
@@ -31,11 +31,26 @@
   font-size: 12.5px;
 }
 
-.credit-dialog-error {
-  padding: 9px 10px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--danger) 10%, transparent);
+.credit-dialog-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 26px;
+  margin-top: 20px;
+}
+
+.credit-dialog-error,
+.credit-payment-error {
+  margin: 0;
   color: var(--danger) !important;
+}
+
+.credit-dialog-error {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  font-size: 12.5px;
 }
 
 .credit-dialog-loading {
@@ -43,196 +58,9 @@
   color: var(--muted);
 }
 
-.credit-section {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  padding: 14px;
-}
-
-.credit-section-title {
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--text-soft);
-}
-
-.credit-balance-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.credit-balance-label {
-  margin: 0;
-  color: var(--muted);
-  font-size: 11.5px;
-}
-
-.credit-balance-total {
-  margin: 2px 0 0;
-  font-family: var(--font-serif);
-  font-size: 30px;
-  font-weight: 650;
-  line-height: 1.1;
-}
-
-.credit-balance-total span {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted);
-}
-
-.credit-plan-badge {
-  flex: 0 0 auto;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: var(--paper);
-  color: var(--text-soft);
-  font-size: 11.5px;
-}
-
-.credit-composition-bar {
-  margin-top: 12px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--surface-strong);
-  overflow: hidden;
-}
-
-.credit-composition-free {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--text);
-  opacity: 0.75;
-}
-
-.credit-balance-sources {
-  margin-top: 9px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.credit-balance-sources p {
-  margin: 0;
-  color: var(--text-soft);
-  font-size: 12px;
-}
-
-.credit-balance-sources span {
-  color: var(--muted);
-}
-
-.credit-plans {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.credit-plan-card {
-  border: 1px solid var(--border);
-  border-radius: 11px;
-  background: var(--paper);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.credit-plan-name {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.credit-plan-price {
-  margin: 2px 0 0;
-  font-family: var(--font-serif);
-  font-size: 22px;
-  font-weight: 650;
-}
-
-.credit-plan-meta {
-  margin: 0;
-  color: var(--muted);
-  font-size: 11.5px;
-}
-
-.credit-plan-tag {
-  margin: 2px 0 8px;
-  color: var(--muted-light);
-  font-size: 11px;
-}
-
-.credit-plan-buy {
-  margin-top: auto;
-  min-height: 32px;
-  font-size: 12.5px;
-}
-
-.credit-note {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.credit-payment-status {
-  border-color: var(--border-strong);
-}
-
-.credit-payment-status p {
-  margin: 0 0 8px;
-  color: var(--text-soft);
-  font-size: 12.5px;
-}
-
-.credit-payment-status.is-success {
-  border-color: color-mix(in srgb, var(--text) 35%, var(--border));
-}
-
-.credit-payment-status.is-success p {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.credit-payment-error {
-  color: var(--danger) !important;
-}
-
-.credit-transactions {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-}
-
-.credit-transactions li {
-  padding: 7px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-soft);
-  font-size: 12px;
-}
-
-.credit-transactions li:last-child {
-  border-bottom: 0;
-}
-
-.credit-tx-amount {
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-  font-weight: 600;
-}
-
-.credit-tx-amount.negative {
-  color: var(--danger);
+@media (max-width: 680px) {
+  .credit-dialog {
+    width: min(100vw - 24px, 760px);
+    max-height: calc(100vh - 24px);
+  }
 }

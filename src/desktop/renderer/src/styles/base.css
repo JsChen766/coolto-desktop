@@ -19,4 +19,6 @@
 @import "./base-resume-library-dialogs.css";
 @import "./base-settings-dialog.css";
 @import "./base-credit-dialog.css";
+@import "./base-credit-balance-summary.css";
+@import "./base-credit-plan-catalog.css";
 @import "./base-insufficient-credits.css";

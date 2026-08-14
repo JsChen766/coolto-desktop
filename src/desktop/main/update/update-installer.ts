@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { readdir, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, posix } from "node:path";
 
 export interface ReplaceScriptInput {
   appPath: string;
@@ -22,7 +22,7 @@ export interface ReplaceScriptResult {
  * (<bundle>/Contents/MacOS/<name>).
  */
 export function locateAppBundle(exePath: string): string {
-  return resolve(dirname(exePath), "..", "..");
+  return posix.resolve(posix.dirname(exePath), "..", "..");
 }
 
 export function buildReplaceScript(

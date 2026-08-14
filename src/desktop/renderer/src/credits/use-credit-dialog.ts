@@ -122,6 +122,11 @@ export function useCreditDialog(api: DesktopApi) {
     }
   }
 
+  function resetPurchase(): void {
+    phase.value = "idle";
+    purchaseError.value = undefined;
+  }
+
   function dispose(): void {
     disposed = true;
   }
@@ -138,6 +143,7 @@ export function useCreditDialog(api: DesktopApi) {
     refreshSummary,
     startPurchase,
     verifyPayment,
+    resetPurchase,
     dispose,
   };
 }

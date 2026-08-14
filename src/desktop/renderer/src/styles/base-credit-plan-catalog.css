@@ -1,0 +1,138 @@
+.credit-section-title {
+  margin: 0 0 11px;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.credit-plans {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.credit-plan-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 142px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+}
+
+.credit-plan-card:hover {
+  border-color: var(--border-strong);
+}
+
+.credit-plan-card.is-primary {
+  border-color: var(--text);
+}
+
+.credit-plan-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.credit-plan-name,
+.credit-plan-price,
+.credit-plan-meta,
+.credit-plan-tag,
+.credit-note,
+.credit-payment-status p {
+  margin: 0;
+}
+
+.credit-plan-name {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.credit-plan-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.credit-plan-tag {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.credit-plan-price {
+  margin-top: 9px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.credit-plan-meta,
+.credit-note {
+  color: var(--muted);
+}
+
+.credit-plan-meta {
+  margin-top: 7px;
+  font-size: 12px;
+}
+
+.credit-plan-buy {
+  min-height: 34px;
+  margin-top: auto;
+  font-size: 12.5px;
+}
+
+.credit-note {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.credit-payment-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.credit-payment-status p {
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.credit-payment-status.is-success p {
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (max-width: 540px) {
+  .credit-plans {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-plan-card {
+    min-height: 142px;
+  }
+
+  .credit-payment-status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

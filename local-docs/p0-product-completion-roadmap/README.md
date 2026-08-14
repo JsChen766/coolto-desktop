@@ -2051,6 +2051,55 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   到账、超时手动 verify）需在爱发电真实 plan_id/sku_id 就绪后执行；周付/月付套餐名与操作定价
   前端文案（周付/月付标签）暂为常量，后端 plans 接口就绪后以接口数据为准。
 
+**额度弹窗信息层级重构记录（2026-08-14，用户确认）**：
+
+- **信息布局**：`CreditDialog` 改为固定标题栏和独立可滚动内容区，内容区直接复用既有
+  `conversation-scroll` 的 5px 悬停滚动条。余额概览使用 `--surface` 底色且无边框，周免费与付费余额
+  用两列指标、到期日期与进度条呈现；“最近流水”已从弹窗移除，既有接口流水字段保留但不再渲染。
+  最新调整中，“可用余额”与余额值合并为同一行，并缩小了概览区的内外间距。
+- **套餐主次**：两张套餐卡均保持透明底与边框，均统一为 UI 字体、14px 套餐名与 22px 价格；月付仅以
+  正文色强边框和 primary 按钮作为主推强调，周付保留标准边框与 secondary 按钮。“推荐”和“更划算”
+  已收为月付卡片右上角的 10px 小标签，卡片移除了重复说明并压缩纵向间距。未新增硬编码颜色或第二套主题，
+  窄窗保持单列降级。
+- **数据契约修复**：`checkout-api-client` 现在在主进程边界校验并映射 `/api/plans` 的
+  `plan_type` / `price_cny` / `valid_days` 蛇形字段，拒绝缺失、类型错误或非法套餐，修复前端读取
+  `priceCny` / `validDays` 所致的 `¥NaN` 与空有效期；`/api/checkout` 的 `checkout_id` / `afdian_url`
+  也会被校验并转换为前端字段，且仅允许 http(s) 付款链接，修复系统浏览器收到空链接的失败路径；新增有效与
+  无效契约回归测试。
+- **自动验证**：`npm.cmd run typecheck`、`npm.cmd run desktop:typecheck`、`npm.cmd run build` 与
+  `npm.cmd run desktop:build` 通过；新增 checkout 契约测试通过。`npm.cmd run test` 为 458/462 通过，
+  4 项 macOS `/bin/bash` / POSIX 路径基线失败与本次无关；`check:source-lines` 仅剩
+  `cli/main.ts`、`agent-runtime.ts`、`ipc.ts`、`bullet-validator.ts` 四个既有超限文件，本次文件均
+  不超过 220 行目标和 250 行硬限制；`git diff --check` 通过。
+- **未完成的可见验收**：已启动本地 Electron 开发窗口，但 Windows 自动截图辅助工具两次因
+  `SetIsBorderRequired` 接口错误无法捕获窗口，故不将其视为真实视觉验收。仍需在可用 Electron
+  环境手动确认宽/窄窗口、深浅主题、200% 缩放、键盘焦点和真实套餐返回值；购买 E2E 继续按上方
+  既有遗留项执行。当前 Credit API 仅返回剩余 `weekly_free_credits` 和 `credit_balance`，没有初始总额度
+  或已用额度，因此无法正确计算“已用越多、进度越高，0 时为 100%”的连续百分比；待用户确认临时口径或
+  后端补充字段后再完成该进度条语义。本轮未 commit、未 push。
+
+**发布前安全审计与全量门禁修复记录（2026-08-14，用户确认）**：
+
+- **生产依赖漏洞清零**：将 `dompurify` 升至 `3.4.13`、`pdfjs-dist` 升至 `6.2.108`，并更新锁文件中的
+  `js-yaml 4.3.1`、`nanoid 3.3.18` 与 `postcss 8.5.26`；修复审计发现的 3 项 High 和 2 项 Moderate
+  漏洞。使用 npm 官方 registry 复核 `npm audit --omit=dev --audit-level=high`，结果为
+  `found 0 vulnerabilities`。
+- **模板锁恢复一致**：保留 2026-08-13 已提交的简历质量门槛（尾行 `gate_ratio=0.7`、最大密度
+  `0.98`），把 `source-lock.json` 的哈希和大小更新到当前模板；未回退质量要求。
+  `check:resume-template` 已恢复通过。
+- **跨平台测试修复**：原子 PDF 写入测试不再硬编码 `/tmp`，改为按宿主路径规则验证同目录临时文件、
+  rename 与失败清理；macOS App Bundle 定位显式使用 POSIX 路径。两项真正调用 `/bin/bash` 的替换脚本
+  集成测试在 Windows 明确 skip，在具备 Bash 的平台继续执行，避免把“命令不存在”误当作恢复成功。
+- **250 行硬门禁恢复**：按职责拆分既有 4 个超限文件，公开入口和业务顺序不变：CLI 单次生成驱动移至
+  `one-shot.ts`（`main.ts` 358→193 行）；Agent 提示执行移至 `agent-runtime-prompt.ts`
+  （`agent-runtime.ts` 321→232 行）；会话/附件/Agent/窗口 IPC 移至 `conversation-agent-ipc.ts`
+  （`ipc.ts` 300→193 行）；数字证据补齐移至 `bullet-number-coverage.ts`
+  （`bullet-validator.ts` 260→205 行）。
+- **完整验证**：`npm run check` 全绿——模板锁通过、613 个业务源文件全部 `≤250` 行、Node 与 Renderer
+  类型检查通过、462 项测试中 460 通过/0 失败/2 项 Windows 平台 skip、Node build 与 Electron
+  production build 通过；`git diff --check` 通过。两项 Bash 替换脚本集成测试仍需在 macOS 发布机执行，
+  本记录不把 Windows skip 记为跨平台实测完成。本轮未 commit、未 push。
+
 - 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S4.5 → S5 → R1 推进；
 - 每阶段先复核现状和工作树；列出的确认点必须在该阶段开始时向用户确认，不提前假设；
 - 每阶段和阶段内 section 完成后单独质检，并将真实结果、失败和遗留项写回本 README；

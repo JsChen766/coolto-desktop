@@ -18,19 +18,11 @@ import type { ResumePdfCompiler, ResumePdfExportGateway } from "../../resume/exp
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import type { AgentPromptInput, ConversationDetail } from "../shared/types.js";
 import { AgentContextFactory } from "./agent-context-factory.js";
-import {
-  promptWithJdReference,
-  promptWithResumeReference,
-} from "./agent-prompt-reference.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
+import { executeAgentPrompt } from "./agent-runtime-prompt.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
-import {
-  continueUntilTerminal,
-  INITIAL_TURN_MAX_MS,
-  UNLIMITED_CONTINUATION_BUDGET,
-} from "./resume-continuation.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { readConfig } from "../../config.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
@@ -111,83 +103,15 @@ export class DesktopAgentRuntime {
       }
     });
     try {
-      if (input.resumeReference && input.jdReference) {
-        throw new Error("一次消息不能同时引用 JD 和 Resume");
-      }
-      const editBase =
-        input.resumeReference &&
-        input.resumeReference.source !== "cloud"
-          ? await this.#activateReferencedDraft(
-              context,
-              input.resumeReference.artifactId,
-            )
-          : undefined;
-      if (editBase) {
-        context.activeEdit = {
-          artifactId: editBase.artifactId,
-          base: structuredClone(editBase.workspace),
-          summary: `AI 修改：${input.resumeReference?.label ?? "简历内容"}`,
-        };
-      }
-      const prompt = input.jdReference
-        ? promptWithJdReference(input.text, input.jdReference)
-        : input.resumeReference
-          ? promptWithResumeReference(input.text, input.resumeReference)
-          : input.text;
-      // Initial turn soft cap (aligned with CLI --no-timeout): if the model
-      // overruns, cancel the turn and hand over to the unlimited
-      // continuation loop instead of hard-stopping the generation.
-      const unsubscribeInitialTurn = context.agent.subscribe((event) => {
-        if (
-          event.type === "model.started" &&
-          performance.now() - commandStartedAt >= INITIAL_TURN_MAX_MS
-        ) {
-          context.agent.cancel();
-        }
+      return await executeAgentPrompt({
+        prompt: input,
+        context,
+        store: this.#store,
+        resumeDrafts: this.#resumeDrafts,
+        events: this.#events,
+        commandStartedAt,
+        isCancelled: () => this.#cancelRequested,
       });
-      await context.agent.prompt(prompt);
-      unsubscribeInitialTurn();
-      // A soft-cancelled turn may still be flushing its stream; wait until
-      // the agent is idle before continuing, otherwise the next prompt()
-      // rejects with "already processing".
-      while (context.agent.isRunning) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      // A stop-button cancel aborts the model call but the run settles
-      // silently; skip the continuation entirely so the generation stops
-      // where the user left it instead of restarting immediately.
-      if (!this.#cancelRequested) {
-        await continueUntilTerminal(
-          context.agent,
-          context.workspaceStore,
-          context.resumeCompiler,
-          {
-            ...UNLIMITED_CONTINUATION_BUDGET,
-            startedAtMs: commandStartedAt,
-          },
-          {
-            isCancelled: () => this.#cancelRequested,
-            onHostFill: (fills) =>
-              this.#events.emitHostFill(
-                conversationId,
-                fills.map((fill) => `${fill.itemId}:${fill.bulletText.slice(0, 12)}…`),
-              ),
-          },
-        );
-      }
-      const proposed = context.workspaceStore.latest();
-      if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
-        await this.#resumeDrafts.proposeChange({
-          artifactId: editBase.artifactId,
-          base: editBase.workspace,
-          proposed,
-          summary: context.activeEdit?.summary ?? "AI 修改简历内容",
-        });
-      }
-      return await this.#store.saveMessages(
-        conversationId,
-        context.agent.getMessages(),
-      );
     } catch (error) {
       failed = true;
       throw error;
@@ -286,19 +210,6 @@ export class DesktopAgentRuntime {
       }
       this.#runningConversationId = undefined;
     }
-  }
-
-  async #activateReferencedDraft(
-    context: ConversationAgentContext,
-    artifactId: string,
-  ) {
-    const draft = await this.#resumeDrafts.get(artifactId);
-    context.workspaceStore.restore(draft.workspace);
-    context.artifactIdByCandidate.set(
-      draft.workspace.candidateId,
-      draft.artifactId,
-    );
-    return draft;
   }
 
   async #contextFor(conversationId: string): Promise<ConversationAgentContext> {

@@ -9,6 +9,7 @@ import {
   findRepeatedFragment,
   stripEvidenceQuotes,
 } from "../../resume/planning/text-repetition.js";
+import { coverMissingNumbers } from "./bullet-number-coverage.js";
 
 export const LENGTH_TOLERANCE = { min: 0.8, max: 1.15 };
 export const MAX_EVIDENCE_PER_BULLET = 3;
@@ -201,60 +202,4 @@ function candidateRequirements(
       `${excerpt.experienceId}:${excerpt.sourceStart}:${excerpt.sourceEnd}`,
     )?.matchedRequirementIds ?? []
   );
-}
-
-/**
- * Finds unused candidates of the same experience whose quotes contain the
- * missing numbers, so the citation can be extended to cover them (same
- * mechanic as the patch path's number coverage). Returns null when no such
- * candidate exists — the claim then stays unsupported.
- */
-function coverMissingNumbers(
-  candidates: Map<string, ReturnType<typeof allEvidenceCandidates>[number]>,
-  experienceId: string | undefined,
-  cited: readonly { sourceStart: number; sourceEnd: number }[],
-  missing: readonly string[],
-): Array<{
-  experienceId: string;
-  revisionId: string;
-  revisionContentHash: string;
-  sourceStart: number;
-  sourceEnd: number;
-  sourceQuote: string;
-}> {
-  const added: Array<{
-    experienceId: string;
-    revisionId: string;
-    revisionContentHash: string;
-    sourceStart: number;
-    sourceEnd: number;
-    sourceQuote: string;
-  }> = [];
-  let remaining = [...missing];
-  for (const candidate of candidates.values()) {
-    if (experienceId && candidate.experienceId !== experienceId) continue;
-    if (
-      cited.some(
-        (range) =>
-          range.sourceStart < candidate.sourceEnd &&
-          candidate.sourceStart < range.sourceEnd,
-      )
-    ) {
-      continue;
-    }
-    const numbers = extractEvidenceNumbers(candidate.sourceQuote);
-    const covers = remaining.filter((value) => numbers.includes(value));
-    if (!covers.length) continue;
-    added.push({
-      experienceId: candidate.experienceId,
-      revisionId: candidate.revisionId,
-      revisionContentHash: candidate.revisionContentHash,
-      sourceStart: candidate.sourceStart,
-      sourceEnd: candidate.sourceEnd,
-      sourceQuote: candidate.sourceQuote,
-    });
-    remaining = remaining.filter((value) => !covers.includes(value));
-    if (!remaining.length) break;
-  }
-  return added;
 }

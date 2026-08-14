@@ -21,6 +21,9 @@ import {
 } from "../src/desktop/main/update/update-installer.js";
 
 const execFileAsync = promisify(execFile);
+const bashIntegration = {
+  skip: process.platform === "win32" ? "requires /bin/bash" : false,
+};
 
 test("locateAppBundle climbs from the executable to the bundle", () => {
   assert.equal(
@@ -49,7 +52,7 @@ test("buildReplaceScript contains backup, replace, recovery and cleanup steps", 
   );
 });
 
-test("replace script swaps the bundle and relaunches", async () => {
+test("replace script swaps the bundle and relaunches", bashIntegration, async () => {
   const dir = await mkdtemp(join(tmpdir(), "update-install-"));
   try {
     const appDir = join(dir, "Applications");
@@ -89,7 +92,7 @@ test("replace script swaps the bundle and relaunches", async () => {
   }
 });
 
-test("replace script recovers the backup when the new app is missing", async () => {
+test("replace script recovers the backup when the new app is missing", bashIntegration, async () => {
   const dir = await mkdtemp(join(tmpdir(), "update-install-"));
   try {
     const appDir = join(dir, "Applications");
