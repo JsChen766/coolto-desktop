@@ -26,6 +26,8 @@ export interface UpdateDriverEventMap {
   "checking-for-update": () => void;
   "update-available": (info: UpdateInfo) => void;
   "update-not-available": (info: UpdateInfo) => void;
+  "download-progress": (progress: { percent: number }) => void;
+  "update-downloaded": (info: UpdateInfo) => void;
   "error": (error: Error) => void;
 }
 
@@ -34,6 +36,8 @@ export interface UpdateDriver {
   forceDevUpdateConfig: boolean;
   setFeedURL(url: string): void;
   checkForUpdates(): Promise<unknown>;
+  /** Runs the downloaded installer and quits the app (NSIS/Windows flow). */
+  quitAndInstall(): void;
   on<Event extends keyof UpdateDriverEventMap>(
     event: Event,
     listener: UpdateDriverEventMap[Event],
@@ -57,6 +61,12 @@ export interface ElectronUpdateServiceOptions {
   download?: PrepareStagingInput["download"];
   extractZip?: PrepareStagingInput["extractZip"];
   launchCommand?: string;
+  /**
+   * Process platform; defaults to process.platform. Windows runs the native
+   * electron-updater NSIS flow (auto-download + quitAndInstall); macOS keeps
+   * the self-owned zip staging/replace flow.
+   */
+  platform?: NodeJS.Platform;
 }
 
 export class ElectronUpdateService {
@@ -65,17 +75,22 @@ export class ElectronUpdateService {
   private checkingPromise: Promise<void> | null = null;
   private downloadPromise: Promise<void> | null = null;
   private pendingUpdate: UpdateInfo | null = null;
+  /** Windows: electron-updater owns download+install (NSIS). macOS: self-owned. */
+  private readonly nativeWindowsFlow: boolean;
 
   public constructor(
     private readonly driver: UpdateDriver,
     private readonly options: ElectronUpdateServiceOptions,
   ) {
+    this.nativeWindowsFlow = (options.platform ?? process.platform) === "win32";
     this.state = initialState(options.currentVersion());
   }
 
   public init(): void {
     this.driver.forceDevUpdateConfig = this.options.forceDev ?? false;
-    this.driver.autoDownload = false;
+    // Windows: let electron-updater download the NSIS installer and report
+    // progress/downloaded events. macOS: check-only, download is self-owned.
+    this.driver.autoDownload = this.nativeWindowsFlow;
     this.driver.setFeedURL(this.options.feedUrl);
     this.driver.on("checking-for-update", () =>
       this.apply({ type: "checking" }),
@@ -83,7 +98,9 @@ export class ElectronUpdateService {
     this.driver.on("update-available", (info) => {
       this.pendingUpdate = info;
       this.apply({ type: "available", version: info?.version ?? "未知版本" });
-      void this.startDownload();
+      if (!this.nativeWindowsFlow) {
+        void this.startDownload();
+      }
     });
     this.driver.on("update-not-available", () =>
       this.apply({ type: "not-available" }),
@@ -95,6 +112,20 @@ export class ElectronUpdateService {
         stage: "check",
       }),
     );
+    if (this.nativeWindowsFlow) {
+      this.driver.on("download-progress", (progress) =>
+        this.apply({
+          type: "download-progress",
+          percent: progress.percent,
+        }),
+      );
+      this.driver.on("update-downloaded", (info) =>
+        this.apply({
+          type: "downloaded",
+          version: info?.version ?? this.pendingUpdate?.version ?? "未知版本",
+        }),
+      );
+    }
   }
 
   public getState(): AppUpdateState {
@@ -135,6 +166,20 @@ export class ElectronUpdateService {
         message: "开发模式不支持自动安装，请从发布页手动下载。",
         stage: "install",
       });
+      return;
+    }
+    if (this.nativeWindowsFlow) {
+      try {
+        // Silently runs the downloaded NSIS installer and relaunches the app.
+        this.driver.quitAndInstall();
+        this.apply({ type: "installing" });
+      } catch (error) {
+        this.apply({
+          type: "error",
+          message: `更新安装失败：${errorMessage(error)}`,
+          stage: "install",
+        });
+      }
       return;
     }
     void this.dispatchReplacement(state.updateVersion);

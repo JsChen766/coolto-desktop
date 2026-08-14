@@ -98,7 +98,10 @@ export function registerDesktopIpc(
 
   const updateService = new ElectronUpdateService(electronUpdaterDriver, {
     feedUrl:
-      process.env.COOLTO_UPDATE_FEED_URL ?? "http://127.0.0.1:8099",
+      process.env.COOLTO_UPDATE_FEED_URL ??
+      (app.isPackaged
+        ? "https://home.coolto.com.cn/downloads/"
+        : "http://127.0.0.1:8099"),
     currentVersion: () => app.getVersion(),
     forceDev:
       !app.isPackaged && process.env.COOLTO_UPDATE_DEV === "1",

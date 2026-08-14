@@ -1,0 +1,69 @@
+name: Build macOS Release
+
+# 手动触发（workflow_dispatch），或在 main 上打 mac-v* tag 自动触发。
+# 产物：dist-electron/mac-universal/Coolto.app（dir）、
+#       Coolto-<version>-universal-mac.zip + latest-mac.yml（更新 feed）
+# 上传到发布服务器 /srv/coolto-releases/（home.coolto.com.cn/downloads/）。
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "mac-v*"
+
+jobs:
+  build-mac:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust (universal targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build native core (universal)
+        run: npm run native:build:mac
+
+      - name: Build protected desktop bundle
+        run: npm run desktop:build:protected
+
+      - name: Package macOS app (dir + zip)
+        run: npx electron-builder --mac zip --universal --publish never
+
+      - name: Verify release hardening
+        run: npm run verify:release:mac
+
+      - name: Upload artifacts to release server
+        env:
+          SSH_KEY: ${{ secrets.RELEASE_SERVER_SSH_KEY }}
+          SERVER_HOST: ${{ secrets.RELEASE_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.RELEASE_SERVER_USER }}
+        run: |
+          set -euo pipefail
+          ls -la dist-electron/ | grep -E "zip|yml"
+          mkdir -p ~/.ssh
+          umask 077
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/release_ci
+          ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          scp -i ~/.ssh/release_ci \
+            dist-electron/*.zip dist-electron/latest-mac.yml \
+            "$SERVER_USER@$SERVER_HOST:/home/$SERVER_USER/"
+          ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" bash -s <<'REMOTE'
+            set -euo pipefail
+            sudo install -o root -g root -m 644 \
+              /home/$USER/Coolto-*.zip /home/$USER/latest-mac.yml \
+              /srv/coolto-releases/
+            rm -f /home/$USER/Coolto-*.zip /home/$USER/latest-mac.yml
+            ls -la /srv/coolto-releases/
+REMOTE

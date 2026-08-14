@@ -241,6 +241,56 @@ test("checkPendingInstall is skipped in dev mode", async () => {
   assert.equal(service.getState().phase, "idle");
 });
 
+test("windows flow lets the driver auto-download and reports its events", async () => {
+  const driver = new FakeUpdateDriver();
+  const service = createService(driver, { platform: "win32" });
+  service.init();
+  assert.equal(driver.autoDownload, true, "win32 driver must auto-download");
+
+  driver.emit("update-available", { version: "0.2.0", files: [] });
+  await sleep(10);
+  assert.equal(
+    service.getState().phase,
+    "available",
+    "win32 flow must not self-download after update-available",
+  );
+
+  driver.emit("download-progress", { percent: 30 });
+  assert.equal(service.getState().phase, "downloading");
+  assert.equal(service.getState().percent, 30);
+
+  driver.emit("update-downloaded", { version: "0.2.0", files: [] });
+  assert.equal(service.getState().phase, "downloaded");
+  assert.equal(service.getState().updateVersion, "0.2.0");
+});
+
+test("windows install runs quitAndInstall and enters installing", () => {
+  const driver = new FakeUpdateDriver();
+  const service = createService(driver, { platform: "win32" });
+  service.init();
+  driver.emit("update-available", { version: "0.2.0", files: [] });
+  driver.emit("download-progress", { percent: 100 });
+  driver.emit("update-downloaded", { version: "0.2.0", files: [] });
+  service.install();
+  assert.equal(driver.quitAndInstallCalls, 1);
+  assert.equal(service.getState().phase, "installing");
+});
+
+test("windows install in dev mode is fail-closed", () => {
+  const driver = new FakeUpdateDriver();
+  const service = createService(driver, {
+    platform: "win32",
+    isPackaged: false,
+  });
+  service.init();
+  driver.emit("update-available", { version: "0.2.0", files: [] });
+  driver.emit("update-downloaded", { version: "0.2.0", files: [] });
+  service.install();
+  assert.equal(driver.quitAndInstallCalls, 0);
+  assert.equal(service.getState().phase, "error");
+  assert.equal(service.getState().errorStage, "install");
+});
+
 function createService(
   driver: UpdateDriver,
   overrides: Partial<Parameters<typeof createServiceBase>[1]> = {},
@@ -259,6 +309,9 @@ function createServiceBase(
     exePath: () => "/Applications/Coolto.app/Contents/MacOS/Coolto",
     stagingRoot: "/tmp/update-staging-test",
     quit: () => undefined,
+    // The default platform is win32 (NSIS flow) in this environment; these
+    // tests exercise the self-owned macOS staging/replace flow.
+    platform: "darwin",
     ...overrides,
   });
 }
@@ -290,6 +343,12 @@ class FakeUpdateDriver implements UpdateDriver {
     this.checkCalls += 1;
     if (this.failChecks) throw new Error("feed unreachable");
   }
+
+  public quitAndInstall(): void {
+    this.quitAndInstallCalls += 1;
+  }
+
+  public quitAndInstallCalls = 0;
 
   public on<Event extends keyof UpdateDriverEventMap>(
     event: Event,

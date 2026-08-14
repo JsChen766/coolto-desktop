@@ -33,6 +33,9 @@ export const electronUpdaterDriver: UpdateDriver = {
   checkForUpdates() {
     return autoUpdater.checkForUpdates();
   },
+  quitAndInstall() {
+    autoUpdater.quitAndInstall();
+  },
   on(event, listener) {
     switch (event) {
       case "checking-for-update":
@@ -52,6 +55,24 @@ export const electronUpdaterDriver: UpdateDriver = {
           (listener as UpdateDriverEventMap["update-not-available"])(
             toDriverInfo(info),
           ),
+        );
+        break;
+      case "download-progress":
+        autoUpdater.on(
+          "download-progress",
+          (progress: { percent: number }) =>
+            (listener as UpdateDriverEventMap["download-progress"])({
+              percent: progress.percent,
+            }),
+        );
+        break;
+      case "update-downloaded":
+        autoUpdater.on(
+          "update-downloaded",
+          (info: UpdaterUpdateInfo) =>
+            (listener as UpdateDriverEventMap["update-downloaded"])(
+              toDriverInfo(info),
+            ),
         );
         break;
       case "error":
