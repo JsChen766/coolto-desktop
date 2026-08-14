@@ -3,9 +3,9 @@
  * Generates the /downloads/ landing page from the release feed metadata.
  *
  * Reads dist-electron/latest.yml (Windows) and latest-mac.yml (macOS, when
- * present) and writes dist-electron/download-index.html. The page links the
- * installers at relative paths so it works both on the release server and in
- * the local update-feed simulation.
+ * present) and writes dist-electron/index.html. The page links the installers
+ * at relative paths so it works both on the release server (installed as
+ * /srv/coolto-releases/index.html) and in the local update-feed simulation.
  *
  * Usage: node scripts/generate-download-page.mjs [dist-dir]
  */
@@ -112,6 +112,6 @@ const html = `<!doctype html>
 </html>
 `;
 
-await writeFile(join(distDir, "download-index.html"), html);
-console.log("wrote download-index.html in", distDir);
+await writeFile(join(distDir, "index.html"), html);
+console.log("wrote index.html in", distDir);
 console.log("  win:", winUrl ?? "-", "| mac:", macUrl ?? "-");
