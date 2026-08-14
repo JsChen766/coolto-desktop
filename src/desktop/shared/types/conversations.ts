@@ -17,10 +17,38 @@ export interface DesktopCreditTransaction {
 
 export interface DesktopCreditSummary {
   weeklyFreeCredits: number;
+  weeklyFreeExpiresAt?: string;
   creditBalance: number;
+  creditExpiresAt?: string;
   planType: string;
   hasFreeTrial: boolean;
   recentTransactions: DesktopCreditTransaction[];
+}
+
+export interface CheckoutPlan {
+  planType: "WEEKLY" | "MONTHLY";
+  priceCny: number;
+  credits: number;
+  validDays: number;
+}
+
+export interface CheckoutResult {
+  checkoutId: string;
+  afdianUrl: string;
+}
+
+export type CheckoutVerifyStatus = "completed" | "pending" | "not_found";
+
+export interface CheckoutVerifyResult {
+  status: CheckoutVerifyStatus;
+  credits: number;
+}
+
+export interface CreditBalanceDetail {
+  total: number;
+  weeklyFree: number;
+  creditBalance: number;
+  estimated: number;
 }
 
 export interface EmailChallengeView {

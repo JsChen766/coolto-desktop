@@ -1,0 +1,78 @@
+.insufficient-dialog-backdrop {
+  z-index: 64;
+}
+
+.insufficient-dialog {
+  width: min(400px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.insufficient-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.insufficient-dialog-header h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.insufficient-dialog-header p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.insufficient-balance-list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.insufficient-balance-list p {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.insufficient-balance-list p span:last-child {
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.insufficient-options p {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.insufficient-options ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.insufficient-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

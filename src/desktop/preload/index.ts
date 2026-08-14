@@ -25,6 +25,17 @@ const api: DesktopApi = {
 		ipcRenderer.invoke("auth:email-code:verify", email, challengeId, code),
     logout: () => ipcRenderer.invoke("auth:logout"),
   },
+  checkout: {
+    plans: () => ipcRenderer.invoke("checkout:plans"),
+    create: (planType: string) =>
+      ipcRenderer.invoke("checkout:create", planType),
+    verify: (checkoutId: string) =>
+      ipcRenderer.invoke("checkout:verify", checkoutId),
+  },
+  shell: {
+    openExternal: (url: string) =>
+      ipcRenderer.invoke("shell:open-external", url),
+  },
   conversations: {
     list: () => ipcRenderer.invoke("conversations:list"),
     create: () => ipcRenderer.invoke("conversations:create"),

@@ -50,6 +50,20 @@ export function createBrowserDemoApi(): DesktopApi {
       },
       logout: async () => undefined,
     },
+    checkout: {
+      plans: async () => [
+        { planType: "WEEKLY", priceCny: 990, credits: 100, validDays: 7 },
+        { planType: "MONTHLY", priceCny: 2990, credits: 400, validDays: 30 },
+      ],
+      create: async (planType) => ({
+        checkoutId: `demo-${planType}-${Date.now()}`,
+        afdianUrl: `https://ifdian.net/order/create?custom_order_id=demo&plan_type=${planType}`,
+      }),
+      verify: async () => ({ status: "pending", credits: 0 }),
+    },
+    shell: {
+      openExternal: async () => undefined,
+    },
     conversations: chat.conversations,
     attachments: chat.attachments,
     resumeDrafts: createDemoResumeDraftApi(draft),

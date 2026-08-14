@@ -2,6 +2,7 @@ import { ref } from "vue";
 
 import { commonMessages } from "./catalog-common.js";
 import { copyMessages } from "./catalog-copy.js";
+import { creditMessages } from "./catalog-credits.js";
 import { detailMessages } from "./catalog-details.js";
 import { formatMessages } from "./catalog-format.js";
 import { domainMessages } from "./catalog-domain.js";
@@ -34,6 +35,7 @@ const messages: Record<string, string> = {
   ...copyMessages,
   ...domainMessages,
   ...resumeAgentMessages,
+  ...creditMessages,
 };
 let storageListening = false;
 

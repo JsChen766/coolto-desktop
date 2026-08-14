@@ -7,6 +7,7 @@ import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { parseExperienceImportResult } from "../../import/result-artifact.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
+import { extractInsufficientCreditsDetail } from "./insufficient-credits-detect.js";
 
 export class AgentRuntimeEvents {
   public constructor(
@@ -39,6 +40,16 @@ export class AgentRuntimeEvents {
       }
       if (event.type === "run.failed") {
         this.traces.recordModelCompleted(conversationId, "error");
+        // A gateway insufficient_credits rejection surfaces here as a folded
+        // error string; forward the structured balance breakdown so the
+        // renderer can open the purchase dialog.
+        const detail = extractInsufficientCreditsDetail(event.message);
+        if (detail && !this.target.isDestroyed()) {
+          this.target.send("agent:event", {
+            conversationId,
+            event: { type: "agent.insufficient-credits", detail },
+          });
+        }
       }
       if (event.type === "tool.started") {
         this.traces.recordToolStarted(conversationId, event.callId, event.name);

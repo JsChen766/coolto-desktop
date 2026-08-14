@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Settings,
   Sun,
+  Zap,
 } from "@lucide/vue";
 import { computed, ref } from "vue";
 
@@ -26,6 +27,7 @@ const props = defineProps<{
   updateState: AppUpdateState;
   updateChecking: boolean;
   updateUpToDate: boolean;
+  credits?: number | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -34,6 +36,7 @@ const emit = defineEmits<{
   toggleTheme: [];
   openProfile: [trigger: HTMLElement];
   openSettings: [];
+  openCredits: [];
   checkUpdate: [];
   installUpdate: [];
   logout: [];
@@ -81,7 +84,19 @@ function emitClose(): void {
     </div>
     <div class="user-copy">
       <span class="user-email">{{ user.email }}</span>
-      <span>{{ $t('已登录') }}</span>
+      <span class="user-status-row">
+        <span>{{ $t('已登录') }}</span>
+        <button
+          v-if="credits !== undefined"
+          class="user-credits-chip"
+          type="button"
+          :title="$t('Credit 与套餐')"
+          @click="emitClose(); $emit('openCredits')"
+        >
+          <Zap :size="11" :stroke-width="2" aria-hidden="true" />
+          <span>{{ credits }}</span>
+        </button>
+      </span>
     </div>
     <button
       class="user-menu-trigger"
@@ -115,6 +130,10 @@ function emitClose(): void {
       <button class="menu-row icon-label" type="button" @click="emitClose(); $emit('openSettings')">
         <Settings :size="16" :stroke-width="1.8" aria-hidden="true" />
         <span>{{ $t('设置') }}</span>
+      </button>
+      <button class="menu-row icon-label" type="button" @click="emitClose(); $emit('openCredits')">
+        <Zap :size="16" :stroke-width="1.8" aria-hidden="true" />
+        <span>{{ $t('Credit 与套餐') }}</span>
       </button>
       <button
         class="menu-row icon-label update-menu-row"

@@ -2024,6 +2024,33 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   自我介绍等业务入口前，仍需把每个顶层用户操作映射到对应 operation type，避免所有 Agent
   轮次都按匹配分析定价；本记录不将该后续映射误标为完成。
 
+### 额度展示与购买接线（2026-08-14，S5 前置接线）
+
+- 后端（cv-agent-api-service）新增 `GET /api/plans`（套餐目录：plan_type/price_cny 整数分/
+  credits/valid_days，不暴露爱发电内部 plan/sku id，未配置套餐过滤）与 402
+  `insufficient_credits` 明细（error.detail = {total, weekly_free, credit_balance, estimated}，
+  由 LLM 网关 Meter.CheckAndMark 拆分返回）；后端单测/vet 通过（postgres integration 因主站
+  库未启动跳过，为既有环境依赖）。
+- APP 新增 3 条 IPC 通道：`checkout:plans/create/verify`（checkout-api-client 走
+  llmGatewayBaseUrl + 主站 Session Cookie）与 `shell:open-external`（仅放行 http(s)，供系统
+  浏览器打开爱发电付款页，PRD D2 明确不用内置浏览器）。
+- 余额不足拦截：pi-ai 将网关 402 折叠为 `"402: {json}"` 错误串，main 进程
+  `insufficient-credits-detect.ts` 解析出 error.code/detail，经 `agent:event` 推
+  `agent.insufficient-credits`（含余额明细），renderer 弹余额不足窗；聊天错误消息照常展示。
+- UI（按已确认方案实现）：`CreditDialog`（余额卡：周免费/付费分列+过期+构成条；套餐卡 ×2 始终
+  可购买；购买状态机 opening→waiting 轮询 3s×10→success/timeout→「检查支付结果」verify，
+  checkout_id 存 localStorage 供重启后查单）、`InsufficientCreditsDialog`（PRD D4 文案）、
+  侧栏账户区余额 chip + 用户菜单「Credit 与套餐」入口；全部复用现有 dialog 模式、tokens.css
+  与 primary/secondary 按钮，样式文件在 base.css @import 链登记。
+- 验证：Node 与 Renderer 两端类型检查通过、`npm run build` 与 `desktop:build` 通过；
+  `check:source-lines` 新增/改动文件全部合规（仅存 4 项既有违规：cli/main.ts、agent-runtime.ts、
+  ipc.ts、bullet-validator.ts，其中 ipc.ts 为基线 291 行+本接线 9 行净增）；`npm run test`
+  4 项既有 macOS/`/bin/bash` 测试失败（与 2026-08-11 记录一致，git stash 基线复现验证与本
+  改动无关）。
+- 遗留项：真实 Electron + 生产账号的购买 E2E（套餐页拉取 /api/plans、浏览器付款、回程轮询
+  到账、超时手动 verify）需在爱发电真实 plan_id/sku_id 就绪后执行；周付/月付套餐名与操作定价
+  前端文案（周付/月付标签）暂为常量，后端 plans 接口就绪后以接口数据为准。
+
 - 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S4.5 → S5 → R1 推进；
 - 每阶段先复核现状和工作树；列出的确认点必须在该阶段开始时向用户确认，不提前假设；
 - 每阶段和阶段内 section 完成后单独质检，并将真实结果、失败和遗留项写回本 README；

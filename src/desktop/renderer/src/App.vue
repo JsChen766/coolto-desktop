@@ -16,6 +16,7 @@ import CloudResumeCopyDialog from "./components/CloudResumeCopyDialog.vue";
 import PrivacyConsentDialog from "./components/PrivacyConsentDialog.vue";
 import ProfileDialog from "./components/ProfileDialog.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
+import CreditsHost from "./components/CreditsHost.vue";
 
 const shell = useAppShell();
 const experienceLibraryView = ref<InstanceType<typeof ExperienceLibraryView>>();
@@ -118,9 +119,8 @@ function acceptPrivacy(): void {
   privacyConsent.value = true;
 }
 
-watch(user, (next, previous) => {
-  if (previous && !next) firstVisit.value = false;
-});
+watch(user, (next, previous) => { if (previous && !next) firstVisit.value = false; });
+const creditsHost = ref<InstanceType<typeof CreditsHost>>();
 </script>
 
 <template>
@@ -162,6 +162,7 @@ watch(user, (next, previous) => {
       :update-state="updateState"
       :update-checking="updateChecking"
       :update-up-to-date="updateUpToDate"
+      :credits="creditsHost?.totalCredits"
       @create="guardNavigation(createChat)"
       @select="guardNavigation(() => selectChat($event))"
       @select-draft="guardNavigation(() => openResumeDraft($event))"
@@ -173,6 +174,7 @@ watch(user, (next, previous) => {
       @toggle-theme="toggleTheme"
       @open-profile="openProfile"
       @open-settings="settingsDialogOpen = true"
+      @open-credits="creditsHost?.open()"
       @check-update="checkUpdate"
       @install-update="installUpdate"
       @logout="guardNavigation(logout)"
@@ -238,11 +240,7 @@ watch(user, (next, previous) => {
       :api="desktopApi"
       @close="closeProfile"
     />
-    <SettingsDialog
-      v-if="settingsDialogOpen"
-      :api="desktopApi"
-      @close="settingsDialogOpen = false"
-      @open-profile="openProfileFromSettings"
-    />
+    <SettingsDialog v-if="settingsDialogOpen" :api="desktopApi" @close="settingsDialogOpen = false" @open-profile="openProfileFromSettings" />
+    <CreditsHost ref="creditsHost" :api="desktopApi" :user="user" />
   </div>
 </template>

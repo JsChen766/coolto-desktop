@@ -15,6 +15,14 @@ export function createUnavailableDesktopApi(): DesktopApi {
       verifyEmailCode: unavailable,
       logout: unavailable,
     },
+    checkout: {
+      plans: unavailable,
+      create: unavailable,
+      verify: unavailable,
+    },
+    shell: {
+      openExternal: unavailable,
+    },
     conversations: {
       list: unavailable,
       create: unavailable,

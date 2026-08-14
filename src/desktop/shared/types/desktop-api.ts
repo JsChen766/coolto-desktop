@@ -60,6 +60,9 @@ import type {
   AgentPromptInput,
   ApprovalResolveInput,
   AttachmentRemoveInput,
+  CheckoutPlan,
+  CheckoutResult,
+  CheckoutVerifyResult,
   ConversationDetail,
   ConversationRenameInput,
   ConversationSummary,
@@ -94,6 +97,14 @@ export interface DesktopApi {
     requestEmailCode(email: string): Promise<EmailChallengeView>;
     verifyEmailCode(email: string, challengeId: string, code: string): Promise<DesktopUser>;
     logout(): Promise<void>;
+  };
+  checkout: {
+    plans(): Promise<CheckoutPlan[]>;
+    create(planType: string): Promise<CheckoutResult>;
+    verify(checkoutId: string): Promise<CheckoutVerifyResult>;
+  };
+  shell: {
+    openExternal(url: string): Promise<void>;
   };
   conversations: {
     list(): Promise<ConversationSummary[]>;

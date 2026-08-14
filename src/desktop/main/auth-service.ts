@@ -14,6 +14,11 @@ import type { LocalSyncStore } from "./sync/local-sync-store.js";
 import { DeviceIdentityStore } from "./sync/device-identity-store.js";
 import { SyncRuntime } from "./sync/sync-runtime.js";
 import { fetchCreditSummary } from "./credit-api-client.js";
+import {
+  createCheckout,
+  fetchPlans,
+  verifyCheckout,
+} from "./checkout-api-client.js";
 
 export class DesktopAuthService {
   readonly apiClient: CooltoApiClient;
@@ -143,6 +148,27 @@ export class DesktopAuthService {
     const baseUrl = readConfig().llmGatewayBaseUrl;
     if (!baseUrl) throw new Error("尚未配置 Coolto Credit API");
     return fetchCreditSummary(baseUrl, this.apiClient.getSessionToken());
+  }
+
+  public getCheckoutPlans() {
+    this.requireCurrentUser();
+    const baseUrl = readConfig().llmGatewayBaseUrl;
+    if (!baseUrl) throw new Error("尚未配置 Coolto Credit API");
+    return fetchPlans(baseUrl, this.apiClient.getSessionToken());
+  }
+
+  public createCheckout(planType: string) {
+    this.requireCurrentUser();
+    const baseUrl = readConfig().llmGatewayBaseUrl;
+    if (!baseUrl) throw new Error("尚未配置 Coolto Credit API");
+    return createCheckout(baseUrl, this.apiClient.getSessionToken(), planType);
+  }
+
+  public verifyCheckout(checkoutId: string) {
+    this.requireCurrentUser();
+    const baseUrl = readConfig().llmGatewayBaseUrl;
+    if (!baseUrl) throw new Error("尚未配置 Coolto Credit API");
+    return verifyCheckout(baseUrl, this.apiClient.getSessionToken(), checkoutId);
   }
 
   public requireSyncStore(): LocalSyncStore {

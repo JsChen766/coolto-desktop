@@ -21,6 +21,11 @@ import { ResumeLibraryService } from "./resume-library/resume-library-service.js
 import { registerResumeLibraryIpc, LIBRARY_IPC_CHANNELS } from "./resume-library/resume-library-ipc.js";
 import { AUTH_IPC_CHANNELS, registerAuthIpc } from "./auth-ipc.js";
 import {
+  CHECKOUT_IPC_CHANNELS,
+  registerCheckoutIpc,
+} from "./checkout-ipc.js";
+import { SHELL_IPC_CHANNELS, registerShellIpc } from "./shell-ipc.js";
+import {
   APPLICATION_IPC_CHANNELS,
   registerApplicationIpc,
 } from "./application-library/application-ipc.js";
@@ -55,6 +60,8 @@ export function registerDesktopIpc(
 ): void {
   for (const channel of [
     ...AUTH_IPC_CHANNELS,
+    ...CHECKOUT_IPC_CHANNELS,
+    ...SHELL_IPC_CHANNELS,
     ...IPC_CHANNELS,
     ...RESUME_DRAFT_IPC_CHANNELS,
     ...LIBRARY_IPC_CHANNELS,
@@ -88,6 +95,7 @@ export function registerDesktopIpc(
     pendingQuitFlush = services.flushPending().catch(() => {});
   });
   registerAuthIpc(ipcMain, auth, () => services.clear());
+  registerCheckoutIpc(ipcMain, auth);
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
 
   const updateService = new ElectronUpdateService(electronUpdaterDriver, {
@@ -201,6 +209,7 @@ export function registerDesktopIpc(
     }
   });
   ipcMain.handle("window:close", () => window.close());
+  registerShellIpc(ipcMain);
 
   const resumeLibraryForCurrentUser = async () => {
     const user = auth.requireCurrentUser();

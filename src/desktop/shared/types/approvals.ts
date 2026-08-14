@@ -1,5 +1,6 @@
 import type { JdArtifactData, MatchReportArtifactData } from "./artifacts.js";
 import type { BrowserFillRecordView } from "./browser.js";
+import type { CreditBalanceDetail } from "./conversations.js";
 
 export interface ApprovalPreviewField {
   label: string;
@@ -52,6 +53,7 @@ export type DesktopAgentEvent =
   | { type: "tool.started"; callId: string; name: string; arguments: unknown }
   | { type: "tool.completed"; callId: string; name: string; isError: boolean }
   | { type: "run.failed"; message: string }
+  | { type: "agent.insufficient-credits"; detail: CreditBalanceDetail }
   | { type: "run.completed" }
   | { type: "turn.completed" }
   | { type: "resume.draft.updated"; artifactId: string }

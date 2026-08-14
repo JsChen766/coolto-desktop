@@ -43,6 +43,28 @@
   white-space: nowrap;
 }
 
+.user-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-credits-chip {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.user-credits-chip:hover {
+  color: var(--text);
+}
+
 .user-menu-trigger {
   width: 28px;
   height: 28px;
