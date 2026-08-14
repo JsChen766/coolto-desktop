@@ -245,9 +245,15 @@ node scripts/generate-download-page.mjs
 
 - Workflow：`cv_agent_frontend` 仓库 `.github/workflows/mac-release.yml`（main 分支）。
 - 手动触发：GitHub → Actions → Build macOS Release → Run workflow → 选 `app` 分支。
-- 流程：macos-14 (arm64) → npm ci → native:build:mac（universal）→
-  desktop:build:protected → electron-builder --mac zip --universal → verify →
-  scp zip + latest-mac.yml 到服务器 → sudo install 到 /srv/coolto-releases/。
+- 流程：macos-14 (arm64) → npm ci → 强制安装 x64 可选原生包
+  （@napi-rs/canvas-darwin-x64、@napi-rs/keyring-darwin-x64，--force 跳过
+  EBADPLATFORM）→ native:build:mac（universal）→ desktop:build:protected →
+  electron-builder --mac zip --x64 --arm64（双架构独立 zip；universal 合并
+  无法处理 canvas/keyring 这类第三方双架构 napi 包，故不用 universal）→
+  对每个 .app 跑 verify → scp 两个 zip + latest-mac.yml → sudo install 到
+  /srv/coolto-releases/。
+- 产物：`Coolto-<v>-mac.zip`（x64，文件名无 arch 标记，electron-updater 默认
+  按 x64 匹配）+ `Coolto-<v>-arm64-mac.zip`；latest-mac.yml 含两个 files 条目。
 - Secrets（仓库级）：`RELEASE_SERVER_SSH_KEY`（专用 ed25519 私钥，公钥在服务器
   `~/.ssh/authorized_keys`，标签 `coolto-mac-ci`）、`RELEASE_SERVER_HOST`、
   `RELEASE_SERVER_USER`。
