@@ -10,10 +10,10 @@ import type {
 import { candidateMap, resolveExcerpts } from "./evidence-binding-resolver.js";
 import {
   bestCoverageCandidate,
-  conflictsWithWork,
   excerptFrom,
   firstUnusedCandidate,
 } from "./evidence-candidate-selection.js";
+import { repairRangeConflicts } from "./evidence-range-repair.js";
 import type { EvidenceBindingInput } from "./types.js";
 
 const MAX_EXCERPTS_PER_BULLET = 8;
@@ -50,6 +50,7 @@ export function resolveBindingWithAutoRepair(
   input: EvidenceBindingInput,
   bulletId: string,
   work: ReadonlyMap<string, BulletEvidenceBinding>,
+  sharedEvidence = false,
 ): ResolvedBindingWithRepair {
   const candidates = candidateMap(snapshot);
   const repairs: EvidenceRepairAction[] = [];
@@ -66,6 +67,7 @@ export function resolveBindingWithAutoRepair(
     candidates,
     bulletId,
     repairs,
+    sharedEvidence,
   );
   const { excerpts, unmatched } = addNumberCoverage(
     bulletId,
@@ -99,6 +101,7 @@ export function resolveBindingWithAutoRepair(
       bulletText: input.bulletText,
       excerpts,
       matchedRequirementIds,
+      ...(sharedEvidence ? { sharedEvidence: true } : {}),
     },
     repairs,
   };
@@ -160,46 +163,6 @@ function dedupeExcerpts(
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  });
-}
-
-function repairRangeConflicts(
-  excerpts: readonly SourceEvidenceExcerpt[],
-  experienceId: string,
-  work: ReadonlyMap<string, BulletEvidenceBinding>,
-  candidates: ReadonlyMap<string, AvailableEvidenceCandidate>,
-  bulletId: string,
-  repairs: EvidenceRepairAction[],
-): SourceEvidenceExcerpt[] {
-  const replaced: SourceEvidenceExcerpt[] = [];
-  return excerpts.map((excerpt) => {
-    if (
-      !conflictsWithWork(work, experienceId, excerpt.sourceStart, excerpt.sourceEnd)
-    ) {
-      return excerpt;
-    }
-    const replacement = firstUnusedCandidate(
-      candidates,
-      experienceId,
-      work,
-      excerpt,
-      [...replaced, ...excerpts.filter((other) => other !== excerpt)],
-    );
-    if (!replacement) {
-      throw new EvidenceValidationError(
-        "duplicate_source_range",
-        `Bullet ${bulletId} reuses source text reserved by another bullet and no unused evidence remains for its experience; rewrite the bullet or cite different evidence.`,
-        bulletId,
-      );
-    }
-    replaced.push(excerptFrom(replacement));
-    repairs.push({
-      kind: "range_conflict",
-      action: "replaced",
-      bulletId,
-      evidenceIds: [replacement.evidenceId],
-    });
-    return excerptFrom(replacement);
   });
 }
 

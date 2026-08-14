@@ -18,6 +18,12 @@ import type {
   ResumePatchOperationInput,
 } from "./types.js";
 import { candidateMap } from "./evidence-binding-resolver.js";
+import {
+  assertItemOwnership,
+  bulletItemId,
+  nextBulletIdFactory,
+  requireBinding,
+} from "./operation-helpers.js";
 
 /**
  * Resolves one model-facing operation against the evolving work map. All
@@ -33,11 +39,16 @@ export function resolveSingleOperation(
   nextId: () => string,
 ): { operation: ResumePatchOperation; repairs: EvidenceRepairAction[] } {
   if (operation.op === "add_bullet") {
+    // Skill items (item-skills-*) are soft-evidence: their ranges may be
+    // shared with other bullets, mirroring the write path's isSkillItem.
+    const sharedEvidence =
+      operation.itemId?.startsWith("item-skills-") ?? false;
     const repaired = resolveBindingWithAutoRepair(
       snapshot,
       operation.binding,
       nextId(),
       work,
+      sharedEvidence,
     );
     const itemId = operation.itemId ?? `item-${repaired.binding.sourceExperienceId}`;
     assertItemOwnership(structure, itemId, repaired.binding.bulletId, repaired.binding.sourceExperienceId);
@@ -48,13 +59,16 @@ export function resolveSingleOperation(
     };
   }
   if (operation.op === "replace_bullet") {
+    const itemId = bulletItemId(structure, operation.bulletId);
+    const sharedEvidence = itemId.startsWith("item-skills-");
     const repaired = resolveBindingWithAutoRepair(
       snapshot,
       operation.binding,
       operation.bulletId,
       work,
+      sharedEvidence,
     );
-    assertItemOwnership(structure, bulletItemId(structure, operation.bulletId), operation.bulletId, repaired.binding.sourceExperienceId);
+    assertItemOwnership(structure, itemId, operation.bulletId, repaired.binding.sourceExperienceId);
     work.set(repaired.binding.bulletId, repaired.binding);
     return {
       operation: { ...operation, binding: repaired.binding },
@@ -157,6 +171,7 @@ function resolveIncrementalText(
     },
     operation.bulletId,
     work,
+    original.sharedEvidence === true,
   );
   if (repaired.binding.sourceExperienceId !== original.sourceExperienceId) {
     throw new EvidenceValidationError(
@@ -195,73 +210,4 @@ function resolveIncrementalText(
     },
     repairs: repaired.repairs,
   };
-}
-
-function requireBinding(
-  bindings: ReadonlyMap<string, BulletEvidenceBinding>,
-  bulletId: string,
-): BulletEvidenceBinding {
-  const binding = bindings.get(bulletId.trim());
-  if (!binding) {
-    throw new ResumeWorkspaceError(
-      "bullet_not_found",
-      `Bullet ${bulletId} is not in the current candidate.`,
-    );
-  }
-  return binding;
-}
-
-function assertItemOwnership(
-  structure: ResumeStructure,
-  itemId: string,
-  bulletId: string,
-  sourceExperienceId: string,
-): void {
-  const item = findItem(structure, itemId);
-  if (itemId.startsWith("item-skills-")) return;
-  if (item.source_experience_id !== sourceExperienceId) {
-    throw new ResumeWorkspaceError(
-      "bullet_source_mismatch",
-      `Bullet ${bulletId} does not belong to item ${itemId}.`,
-    );
-  }
-}
-
-function bulletItemId(structure: ResumeStructure, bulletId: string): string {
-  for (const section of structure.sections) {
-    for (const item of section.items) {
-      if (item.bullets.some((bullet) => bullet.id === bulletId.trim())) {
-        return item.id;
-      }
-    }
-  }
-  throw new ResumeWorkspaceError(
-    "bullet_not_found",
-    `Bullet ${bulletId} was not found.`,
-  );
-}
-
-function findItem(
-  structure: ResumeStructure,
-  itemId: string,
-): ResumeStructure["sections"][number]["items"][number] {
-  for (const section of structure.sections) {
-    const item = section.items.find((candidate) => candidate.id === itemId.trim());
-    if (item) return item;
-  }
-  throw new ResumeWorkspaceError("item_not_found", `Item ${itemId} was not found.`);
-}
-
-export function nextBulletIdFactory(structure: ResumeStructure): () => string {
-  const suffixes = structure.sections.flatMap((section) =>
-    section.items.flatMap((item) =>
-      item.bullets.flatMap((bullet) => {
-        const match = /-(\d+)$/.exec(bullet.id);
-        return match ? [Number.parseInt(match[1]!, 10)] : [];
-      }),
-    ),
-  );
-  const maxSuffix = suffixes.length ? Math.max(...suffixes) : -1;
-  let index = 0;
-  return () => `bl-${maxSuffix + 1 + index++}`;
 }

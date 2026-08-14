@@ -103,12 +103,17 @@ export function conflictsWithWork(
   start: number,
   end: number,
 ): boolean {
-  return [...work.values()].some((binding) =>
-    binding.excerpts.some(
-      (excerpt) =>
-        excerpt.experienceId === experienceId &&
-        excerpt.sourceStart < end &&
-        start < excerpt.sourceEnd,
-    ),
+  return [...work.values()].some(
+    (binding) =>
+      // Soft-evidence bullets (skill lines, sharedEvidence) may share source
+      // ranges with other bullets; their ranges are not exclusive and must
+      // not block a normal bullet from citing the same source text.
+      !binding.sharedEvidence &&
+      binding.excerpts.some(
+        (excerpt) =>
+          excerpt.experienceId === experienceId &&
+          excerpt.sourceStart < end &&
+          start < excerpt.sourceEnd,
+      ),
   );
 }

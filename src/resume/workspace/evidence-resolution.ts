@@ -6,10 +6,8 @@ import { ResumeWorkspaceError } from "./errors.js";
 import { candidateMap } from "./evidence-binding-resolver.js";
 import { resolveBindingWithAutoRepair } from "./evidence-auto-repair.js";
 import type { EvidenceRepairAction } from "./evidence-auto-repair.js";
-import {
-  nextBulletIdFactory,
-  resolveSingleOperation,
-} from "./evidence-single-operation.js";
+import { nextBulletIdFactory } from "./operation-helpers.js";
+import { resolveSingleOperation } from "./evidence-single-operation.js";
 import type {
   EvidenceBindingInput,
   ResumePatchOperation,
