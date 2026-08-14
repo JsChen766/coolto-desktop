@@ -59,11 +59,5 @@ jobs:
           scp -i ~/.ssh/release_ci \
             dist-electron/*.zip dist-electron/latest-mac.yml \
             "$SERVER_USER@$SERVER_HOST:/home/$SERVER_USER/"
-          ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" bash -s <<'REMOTE'
-            set -euo pipefail
-            sudo install -o root -g root -m 644 \
-              /home/$USER/Coolto-*.zip /home/$USER/latest-mac.yml \
-              /srv/coolto-releases/
-            rm -f /home/$USER/Coolto-*.zip /home/$USER/latest-mac.yml
-            ls -la /srv/coolto-releases/
-REMOTE
+          ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" \
+            "sudo install -o root -g root -m 644 /home/$SERVER_USER/Coolto-*.zip /home/$SERVER_USER/latest-mac.yml /srv/coolto-releases/ && rm -f /home/$SERVER_USER/Coolto-*.zip /home/$SERVER_USER/latest-mac.yml && ls -la /srv/coolto-releases/"
