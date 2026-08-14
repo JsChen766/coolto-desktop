@@ -49,11 +49,12 @@ jobs:
       - name: Package macOS app (x64 + arm64 zips)
         run: npx electron-builder --mac zip --x64 --arm64 --publish never
 
-      - name: Verify release hardening (x64)
-        run: node scripts/verify-release-hardening.mjs dist-electron/mac-x64/Coolto.app
-
-      - name: Verify release hardening (arm64)
-        run: node scripts/verify-release-hardening.mjs dist-electron/mac-arm64/Coolto.app
+      - name: Verify release hardening (all archs)
+        run: |
+          for app in $(find dist-electron -maxdepth 2 -name "Coolto.app" -type d); do
+            echo "verifying $app"
+            node scripts/verify-release-hardening.mjs "$app"
+          done
 
       - name: Upload artifacts to release server
         env:

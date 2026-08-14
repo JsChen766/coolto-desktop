@@ -36,7 +36,10 @@ const win = await readFeed("latest.yml");
 const mac = await readFeed("latest-mac.yml");
 
 const winUrl = pick(win, [".exe"]);
-const macUrl = pick(mac, [".zip", ".dmg"]);
+// macOS ships separate x64/arm64 zips; arm64 urls carry the "arm64" marker.
+const macUrls = (mac?.urls ?? []).filter((url) => /\.(zip|dmg)$/.test(url));
+const macIntelUrl = macUrls.find((url) => !url.includes("arm64"));
+const macArmUrl = macUrls.find((url) => url.includes("arm64"));
 const releaseDate = new Date().toISOString().slice(0, 10);
 
 if (!win && !mac) {
@@ -98,14 +101,19 @@ const html = `<!doctype html>
           : `<span class="btn win disabled">Windows 版准备中</span>`
       }
       ${
-        macUrl
-          ? `<a class="btn mac" href="${macUrl}">⬇ macOS 版</a>`
+        macArmUrl
+          ? `<a class="btn mac" href="${macArmUrl}">⬇ macOS（Apple 芯片）</a>`
           : `<span class="btn mac disabled">macOS 版准备中</span>`
+      }
+      ${
+        macIntelUrl
+          ? `<a class="btn mac" href="${macIntelUrl}">⬇ macOS（Intel）</a>`
+          : ""
       }
     </div>
     <div class="note">
       安装后应用会自动检查更新。手动检查：设置 → 检查更新。<br>
-      更新源：<code>${winUrl ? `https://home.coolto.com.cn/downloads/` : ""}</code>
+      更新源：<code>https://home.coolto.com.cn/downloads/</code>
     </div>
   </div>
 </body>
@@ -114,4 +122,11 @@ const html = `<!doctype html>
 
 await writeFile(join(distDir, "index.html"), html);
 console.log("wrote index.html in", distDir);
-console.log("  win:", winUrl ?? "-", "| mac:", macUrl ?? "-");
+console.log(
+  "  win:",
+  winUrl ?? "-",
+  "| mac arm64:",
+  macArmUrl ?? "-",
+  "| mac intel:",
+  macIntelUrl ?? "-",
+);
