@@ -9,6 +9,7 @@ import { createActionApprovalManager } from "../actions/create-action-approvals.
 import { createCooltoAgent } from "../agent/create-agent.js";
 import { createConfiguredModelDependencies } from "../agent/create-configured-dependencies.js";
 import { CooltoApiClient } from "../api/coolto-api-client.js";
+import { FileSessionStore } from "../auth/file-session-store.js";
 import { KeychainSessionStore } from "../auth/keychain-session-store.js";
 import { ensureAuthenticated } from "../auth/session-manager.js";
 import { loadLocalEnv, readConfig } from "../config.js";
@@ -51,9 +52,11 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
   const apiClient = new CooltoApiClient({
     baseUrl: config.apiBaseUrl,
   });
-  const sessionStore = new KeychainSessionStore({
-    apiBaseUrl: config.apiBaseUrl,
-  });
+  const sessionStore = cliArguments.sessionFile
+    ? new FileSessionStore(cliArguments.sessionFile)
+    : new KeychainSessionStore({
+        apiBaseUrl: config.apiBaseUrl,
+      });
   const authenticated = await ensureAuthenticated(
     apiClient,
     sessionStore,

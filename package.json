@@ -20,7 +20,7 @@
     "qa:resume-renderer": "npm run desktop:build && node scripts/run-resume-renderer-qa.mjs",
     "smoke:resume-source": "node --import tsx scripts/run-resume-source-smoke.ts",
     "pdf:export": "npm run desktop:build && esbuild src/cli/pdf-export-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/pdf-export-entry.cjs && electron out/cli/pdf-export-entry.cjs",
-    "cli:electron": "npm run desktop:build && esbuild src/cli/electron-main.ts --bundle --platform=node --format=cjs --external:electron --external:@napi-rs/keyring --outfile=out/cli/electron-main.cjs && electron out/cli/electron-main.cjs",
+    "cli:electron": "npm run desktop:build && esbuild src/cli/electron-main.ts --bundle --platform=node --format=cjs --external:electron --external:@napi-rs/keyring --external:pdfjs-dist --outfile=out/cli/electron-main.cjs && electron out/cli/electron-main.cjs",
     "eval:resume-agent": "node --import tsx scripts/run-resume-agent-eval.ts",
     "qa:p0-single-resume-live": "node --import tsx scripts/run-p0-single-resume-live.ts",
     "logout": "node --import tsx src/cli/logout.ts",

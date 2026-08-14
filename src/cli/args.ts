@@ -12,6 +12,9 @@ export interface CliArguments {
   /** Production mode: never hard-stop the run for wall-clock time; the 5
    * minute target only applies when maxMinutes is set. */
   noTimeout?: boolean;
+  /** Restore the login session from this JSON file instead of the OS
+   * keychain (useful when the electron process cannot read the keychain). */
+  sessionFile?: string;
 }
 
 export async function parseCliArguments(args: string[]): Promise<CliArguments> {
@@ -21,6 +24,7 @@ export async function parseCliArguments(args: string[]): Promise<CliArguments> {
   let autoApprove = false;
   let maxMinutes: number | undefined;
   let noTimeout = false;
+  let sessionFile: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index]!;
@@ -94,6 +98,15 @@ export async function parseCliArguments(args: string[]): Promise<CliArguments> {
       index += 1;
       continue;
     }
+    if (value === "--session-file") {
+      const path = args[index + 1];
+      if (!path) {
+        throw new Error("--session-file 后必须提供文件路径");
+      }
+      sessionFile = path;
+      index += 1;
+      continue;
+    }
     if (value.startsWith("--prompt-file=")) {
       const path = value.slice("--prompt-file=".length);
       if (!path) {
@@ -115,6 +128,7 @@ export async function parseCliArguments(args: string[]): Promise<CliArguments> {
     ...(autoApprove ? { autoApprove } : {}),
     ...(maxMinutes ? { maxMinutes } : {}),
     ...(noTimeout ? { noTimeout } : {}),
+    ...(sessionFile ? { sessionFile } : {}),
   };
 }
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import {
   BrowserWindow,
@@ -154,6 +154,13 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
       await this.#loadPromise;
       return this.#window;
     }
+    // Renderer assets live next to the bundle by default
+    // (out/cli/electron-main.cjs -> out/renderer, out/preload). A custom
+    // entry bundle can point RESUME_RENDERER_DIR at the directory holding
+    // the renderer/ and preload/ folders instead of relocating the bundle.
+    const rendererRoot = process.env.RESUME_RENDERER_DIR
+      ? resolve(process.env.RESUME_RENDERER_DIR)
+      : join(__dirname, "..");
     const window = new BrowserWindow({
       width: 900,
       height: 1200,
@@ -161,7 +168,7 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
       show: false,
       backgroundColor: "#ffffff",
       webPreferences: {
-        preload: join(__dirname, "../preload/resume.cjs"),
+        preload: join(rendererRoot, "preload/resume.cjs"),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
@@ -183,7 +190,7 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
     this.#window = window;
     this.#loadPromise = process.env.ELECTRON_RENDERER_URL
       ? window.loadURL(`${process.env.ELECTRON_RENDERER_URL}/resume.html`)
-      : window.loadFile(join(__dirname, "../renderer/resume.html"));
+      : window.loadFile(join(rendererRoot, "renderer/resume.html"));
     window.on("closed", () => {
       if (this.#window === window) {
         this.#window = undefined;
