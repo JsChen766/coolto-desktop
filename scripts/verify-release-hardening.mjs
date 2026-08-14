@@ -1,4 +1,5 @@
-import { access, stat } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { basename, join, resolve } from "node:path";
 
 import { extractFile, listPackage } from "@electron/asar";
@@ -22,23 +23,26 @@ const files = await listPackage(asarPath);
 const normalized = files.map((file) =>
   file.replaceAll("\\", "/").replace(/^\/+/, ""),
 );
-if (isMac) {
-  requireFile(normalized, "out/main/index.arm64.cjsc");
-  requireFile(normalized, "out/main/index.x64.cjsc");
-  assertProtectedBytecode(extractFile(asarPath, archivePath("index.arm64.cjsc")));
-  assertProtectedBytecode(extractFile(asarPath, archivePath("index.x64.cjsc")));
-} else {
-  requireFile(normalized, "out/main/index.cjsc");
-  assertProtectedBytecode(extractFile(asarPath, archivePath("index.cjsc")));
-}
 requireFile(normalized, "out/main/index.cjs");
-requireFile(normalized, "out/main/bytecode-loader.cjs");
+requireFile(normalized, "out/main/index.bin");
+const unexpectedMainFiles = normalized.filter(
+  (file) =>
+    file.startsWith("out/main/") &&
+    file !== "out/main/index.cjs" &&
+    file !== "out/main/index.bin",
+);
+if (unexpectedMainFiles.length) {
+  throw new Error(
+    `Release contains unprotected main-process files:\n${unexpectedMainFiles.join("\n")}`,
+  );
+}
 
 const forbidden = normalized.filter(
   (file) =>
     !file.startsWith("node_modules/") &&
     (/(^|\/)\.(env|git)(\.|\/|$)/u.test(file) ||
-      /\.(map|ts|tsx|vue)$/u.test(file) ||
+      /\.(cjsc|map|ts|tsx|vue)$/u.test(file) ||
+      file.endsWith("/bytecode-loader.cjs") ||
       /(^|\/)(test|tests|local-docs|scripts)(\/|$)/u.test(file)),
 );
 if (forbidden.length) {
@@ -46,12 +50,21 @@ if (forbidden.length) {
 }
 
 const entry = extractFile(asarPath, archivePath("index.cjs"));
-const loader = extractFile(asarPath, archivePath("bytecode-loader.cjs"));
-if (entry.byteLength > 512 || loader.byteLength > 16_384) {
-  throw new Error("Main-process bytecode loader is unexpectedly large");
-}
+const payload = extractFile(asarPath, archivePath("index.bin"));
+assertEncryptedPayload(payload);
+assertNoProtectedMarkers(await readFile(asarPath));
+if (entry.byteLength > 4096) throw new Error("Protected main loader is unexpectedly large");
+if (payload.byteLength < 100_000) throw new Error("Protected main payload is unexpectedly small");
 const nativeSize = (await stat(nativePath)).size;
 if (nativeSize < 10_000) throw new Error("Native protection module is unexpectedly small");
+const require = createRequire(import.meta.url);
+const nativeBinding = require(nativePath);
+if (
+  typeof nativeBinding.runProtectedMain !== "function" ||
+  "decryptProtectedMain" in nativeBinding
+) {
+  throw new Error("Native protection module exposes an unsafe release interface");
+}
 
 const fuses = await getCurrentFuseWire(executable);
 const enabled = 49;
@@ -77,7 +90,7 @@ if (sourceMaps.length) {
   throw new Error(`Release contains source maps:\n${sourceMaps.join("\n")}`);
 }
 process.stdout.write(
-  `${JSON.stringify({ appPath, asarFiles: files.length, entryBytes: entry.byteLength, loaderBytes: loader.byteLength, nativeBytes: nativeSize, fuses: "verified" }, null, 2)}\n`,
+  `${JSON.stringify({ appPath, asarFiles: files.length, entryBytes: entry.byteLength, payloadBytes: payload.byteLength, nativeBytes: nativeSize, fuses: "verified" }, null, 2)}\n`,
 );
 
 function requireFile(files, expectedPath) {
@@ -88,14 +101,21 @@ function archivePath(fileName) {
   return join("out", "main", fileName);
 }
 
-function assertProtectedBytecode(bytecode) {
+function assertEncryptedPayload(payload) {
+  if (payload.subarray(0, 8).toString("ascii") !== "CLTOENC1") {
+    throw new Error("Protected main payload header is invalid");
+  }
+  assertNoProtectedMarkers(payload);
+}
+
+function assertNoProtectedMarkers(bytes) {
   const markers = [
     "你是 Coolto 桌面端的本地求职 Agent",
     "生成简历采用 Agent 全编排流程",
   ];
   for (const marker of markers) {
-    if (bytecode.includes(Buffer.from(marker, "utf8"))) {
-      throw new Error("Protected Agent prompt remains readable in bytecode");
+    if (bytes.includes(Buffer.from(marker, "utf8"))) {
+      throw new Error("Protected Agent prompt remains readable in release archive");
     }
   }
 }

@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -26,7 +28,17 @@ if (process.platform !== target.platform || process.arch !== target.arch) {
 const root = resolve(import.meta.dirname, "..");
 const cargoBin = join(process.env.CARGO_HOME ?? join(homedir(), ".cargo"), "bin");
 const cli = join(root, "node_modules", "@napi-rs", "cli", "dist", "cli.js");
-const buildEnv = createBuildEnvironment();
+const artifactDirectory = join(root, "native", "coolto-core", "artifacts");
+const mainKeyHex = randomBytes(32).toString("hex");
+mkdirSync(artifactDirectory, { recursive: true });
+writeFileSync(join(artifactDirectory, ".main-key"), mainKeyHex, {
+  encoding: "ascii",
+  mode: 0o600,
+});
+const buildEnv = {
+  ...createBuildEnvironment(),
+  COOLTO_MAIN_KEY_HEX: mainKeyHex,
+};
 const triples = target.triples ?? [target.triple];
 for (const triple of triples) {
   run(
@@ -59,6 +71,15 @@ if (targetName === "mac-universal") {
     "native/coolto-core/artifacts/coolto-core.darwin-universal.node",
   ]);
 }
+const testTriple = target.triples?.[0] ?? target.triple;
+run(join(cargoBin, process.platform === "win32" ? "cargo.exe" : "cargo"), [
+  "test",
+  "--release",
+  "--target",
+  testTriple,
+  "--manifest-path",
+  "native/coolto-core/Cargo.toml",
+]);
 
 function run(command, args) {
   const result = spawnSync(command, args, {

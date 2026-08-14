@@ -8,6 +8,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
+aes-gcm = "0.10"
 napi = { version = "3", default-features = false, features = ["napi8"] }
 napi-derive = "3"
 

@@ -1,6 +1,6 @@
 {
   "name": "coolto-local-agent",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "main": "out/main/index.cjs",
@@ -15,11 +15,12 @@
     "check:source-lines": "node scripts/check-source-lines.mjs",
     "desktop:dev": "electron-vite dev",
     "desktop:build": "electron-vite build",
+    "desktop:build:protected": "npm run desktop:build && node scripts/protect-main-bundle.mjs",
     "native:build:win": "node scripts/build-native-core.mjs win-x64",
     "native:build:mac": "node scripts/build-native-core.mjs mac-universal",
-    "desktop:build:mac-universal": "node scripts/build-mac-universal-bytecode.mjs",
     "desktop:preview": "electron-vite preview",
     "verify:release:win": "node scripts/verify-release-hardening.mjs dist-electron/win-unpacked",
+    "verify:installer:win": "node scripts/verify-windows-installer.mjs",
     "verify:release:mac": "node scripts/verify-release-hardening.mjs dist-electron/mac-universal/Coolto.app",
     "desktop:typecheck": "tsc -p tsconfig.preload.json --noEmit && vue-tsc -p tsconfig.web.json --noEmit",
     "qa:resume-renderer": "npm run desktop:build && node scripts/run-resume-renderer-qa.mjs",
@@ -34,9 +35,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test test/**/*.test.ts",
     "check": "npm run check:resume-template && npm run check:source-lines && npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build",
-    "package:win": "npm run native:build:win && npm run desktop:build && electron-builder --win nsis --x64 && npm run verify:release:win",
-    "package:mac": "npm run native:build:mac && npm run desktop:build:mac-universal && electron-builder --mac --dir --universal && npm run verify:release:mac",
-    "package:mac:dmg": "npm run native:build:mac && npm run desktop:build:mac-universal && electron-builder --mac --universal && npm run verify:release:mac"
+    "package:win": "npm run native:build:win && npm run desktop:build:protected && electron-builder --win nsis --x64 && npm run verify:release:win && npm run verify:installer:win",
+    "package:mac": "npm run native:build:mac && npm run desktop:build:protected && electron-builder --mac --dir --universal && npm run verify:release:mac",
+    "package:mac:dmg": "npm run native:build:mac && npm run desktop:build:protected && electron-builder --mac --universal && npm run verify:release:mac"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.81.1",
@@ -54,7 +55,6 @@
   "devDependencies": {
     "@electron/asar": "3.4.1",
     "@electron/fuses": "1.8.0",
-    "@electron/get": "5.0.0",
     "@napi-rs/cli": "3.8.6",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "24.10.1",

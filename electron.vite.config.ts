@@ -14,27 +14,18 @@ const nativeCorePath = resolve(
 const nativeCoreSha256 = existsSync(nativeCorePath)
   ? createHash("sha256").update(readFileSync(nativeCorePath)).digest("hex")
   : "";
-const systemPromptSource = readFileSync(
-  resolve("src/agent/system-prompt.ts"),
-  "utf8",
-);
-const protectedSystemPrompt = systemPromptSource.match(
-  /export const COOLTO_SYSTEM_PROMPT = `([\s\S]*?)`\.trim\(\);/u,
-)?.[1];
-if (!protectedSystemPrompt) {
-  throw new Error("Unable to locate the protected Coolto system prompt");
-}
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({
+        exclude: ["@earendil-works/pi-ai", "@earendil-works/pi-agent-core"],
+      }),
+    ],
     define: {
       __COOLTO_NATIVE_CORE_SHA256__: JSON.stringify(nativeCoreSha256),
     },
     build: {
-      bytecode: {
-        protectedStrings: [protectedSystemPrompt],
-      },
       minify: "esbuild",
       sourcemap: false,
       lib: {
@@ -44,6 +35,7 @@ export default defineConfig({
         output: {
           format: "cjs",
           entryFileNames: "[name].cjs",
+          inlineDynamicImports: true,
         },
       },
     },

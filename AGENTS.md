@@ -2,6 +2,8 @@
 
 本文件是本仓库的 Agent 协作约定。开始任何工作前先读一遍，并同步阅读
 `local-docs/p0-product-completion-roadmap/README.md` 中当前阶段的实施内容、确认点与完成门槛。
+涉及桌面端加固、Windows/macOS 打包、签名或自动更新时，还必须先阅读
+`local-docs/desktop-release-hardening-runbook.md`，按其中的固定顺序和真实启动门禁执行。
 
 ## 工作原则
 
@@ -46,7 +48,9 @@
 - 仅类型检查：`npm run typecheck`（Node 主进程）、`npm run desktop:typecheck`（渲染进程 Vue）
 - 单测：`npm run test`（`node --test`，测试不依赖 electron 运行时）
 - 桌面开发：`npm run desktop:dev`
-- macOS 打包（ad-hoc 签名）：`npm run package:mac`（生成 `dist-electron/mac-arm64/Coolto.app`）
+- Windows x64 加固打包：`npm run package:win`
+- macOS Universal 加固打包（ad-hoc 签名）：`npm run package:mac:dmg`
+- 发布前后的顺序、密钥生命周期和验收门禁见 `local-docs/desktop-release-hardening-runbook.md`
 
 ## 代码约定
 
