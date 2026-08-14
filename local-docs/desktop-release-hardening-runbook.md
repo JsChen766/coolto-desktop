@@ -200,3 +200,74 @@ bytecode 作为通用发行壳，也不得把“在构建机可运行”当作�
 6. 哪些代码被加密、哪些仅压缩，以及动态逆向仍存在的边界。
 7. 是否 commit、是否 push；没有用户明确授权时不得执行。
 8. 把真实结果、失败与遗留项写回正式 Roadmap，不能因局部测试通过提前标记完成。
+
+## 10. 自动更新与发布源（2026-08-15 起）
+
+### 10.1 发布源架构
+
+- 服务器：`43.132.228.181`（Ubuntu 24.04 + Docker + Caddy），域名 `*.coolto.com.cn`。
+- 发布目录：`/srv/coolto-releases/`（root:root 0644），经 Caddy 路由
+  `home.coolto.com.cn/downloads/` 静态托管（见 `cv-agent-app-be/Caddyfile` 与
+  `compose.prod.yaml` 的 caddy volumes）。
+- 更新 feed（electron-updater generic provider）：
+  - Windows：`https://home.coolto.com.cn/downloads/latest.yml`
+  - macOS：`https://home.coolto.com.cn/downloads/latest-mac.yml`
+- 客户端 feed URL：`src/desktop/main/ipc.ts` —— 生产默认
+  `https://home.coolto.com.cn/downloads/`，开发（unpackaged）默认
+  `http://127.0.0.1:8099`（本地模拟），可被 `COOLTO_UPDATE_FEED_URL` 覆盖。
+- 官网下载页：`/srv/coolto-releases/index.html`（由
+  `cv-agent-app/scripts/generate-download-page.mjs` 生成，从
+  `latest.yml`/`latest-mac.yml` 自动读取版本与产物名）。
+
+### 10.2 客户端更新链路（0.1.3+）
+
+- Windows：electron-updater 原生 NSIS 链路。`autoDownload=true`，
+  `update-available` 后由 electron-updater 下载 `.exe`（校验 latest.yml 的
+  sha512），`update-downloaded` 事件进入 `downloaded` 阶段，用户点击安装时
+  调用 `quitAndInstall()`（静默运行安装器并重启）。平台分支在
+  `src/desktop/main/update/electron-update-service.ts`（`nativeWindowsFlow`）。
+- macOS：保留自研 zip 链路（下载 zip → ditto 解压 → bash 替换 .app → 重启）。
+- 状态机阶段：`idle → checking → available → downloading → downloaded →
+  installing / error`，经 IPC `updates:event` 推送到渲染端。
+
+### 10.3 Windows 发布流程
+
+```bash
+# 1. 升版本（package.json）
+# 2. 打包（含 native core、源码保护、NSIS、release audit、安装器实测）
+npm run package:win
+# 3. 生成下载页（读取 latest.yml 自动更新版本号）
+node scripts/generate-download-page.mjs
+# 4. 上传到服务器（latest.yml + exe + blockmap + index.html → /srv/coolto-releases/）
+```
+
+### 10.4 macOS 发布流程（GitHub Actions）
+
+- Workflow：`cv_agent_frontend` 仓库 `.github/workflows/mac-release.yml`（main 分支）。
+- 手动触发：GitHub → Actions → Build macOS Release → Run workflow → 选 `app` 分支。
+- 流程：macos-14 (arm64) → npm ci → native:build:mac（universal）→
+  desktop:build:protected → electron-builder --mac zip --universal → verify →
+  scp zip + latest-mac.yml 到服务器 → sudo install 到 /srv/coolto-releases/。
+- Secrets（仓库级）：`RELEASE_SERVER_SSH_KEY`（专用 ed25519 私钥，公钥在服务器
+  `~/.ssh/authorized_keys`，标签 `coolto-mac-ci`）、`RELEASE_SERVER_HOST`、
+  `RELEASE_SERVER_USER`。
+- 限制：macOS 构建必须在 macOS 主机上（`build-native-core.mjs` 强制校验
+  darwin/arm64），Windows 构建只能在 Windows 主机上。CI 产物未签名
+  （`identity: "-"`）。
+
+### 10.5 已验证基线（2026-08-15）
+
+- Windows 端到端更新实测通过：0.1.3 已装客户端 → 手动检查 → 自动下载 0.1.4
+  （130MB，sha512 校验）→ `quitAndInstall` 静默安装 → 新实例自动重启，
+  版本 0.1.4。app.asar 版本校验一致。
+- 更新检查：`https://home.coolto.com.cn/downloads/latest.yml` 公网可访问。
+
+### 10.6 运维注意事项（坑）
+
+- 改 Caddyfile 后必须 `docker compose up -d --force-recreate caddy`：bind mount
+  单文件被 `install` 替换（新 inode）后，容器仍读旧文件；`caddy reload` 读到的
+  也是旧挂载。重建容器才重新挂载。
+- `package:win` 里的 `verify:installer:win` 会真实安装并**卸载**目标版本——
+  不要在验证更新链路期间重新打包（会把已装实例删掉）。
+- `latest.yml` 里 `releaseDate` 由 electron-builder 生成；覆盖上传时保持
+  exe/sha512/blockmap 三者一致，否则 electron-updater 校验失败。
