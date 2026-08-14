@@ -70,4 +70,4 @@ jobs:
           scp -i ~/.ssh/release_ci dist-electron/index.html \
             "$SERVER_USER@$SERVER_HOST:/home/$SERVER_USER/upload-index.html"
           ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" \
-            "sudo install -o root -g root -m 644 /home/$SERVER_USER/latest.yml /home/$SERVER_USER/Coolto-*.exe /home/$SERVER_USER/Coolto-*.exe.blockmap /home/$SERVER_USER/upload-index.html /srv/coolto-releases/ && sudo install -o root -g root -m 644 /home/$SERVER_USER/upload-index.html /srv/coolto-releases/index.html && rm -f /home/$SERVER_USER/latest.yml /home/$SERVER_USER/Coolto-*.exe /home/$SERVER_USER/Coolto-*.exe.blockmap /home/$SERVER_USER/upload-index.html && ls -la /srv/coolto-releases/"
+            "sudo install -o root -g root -m 644 /home/$SERVER_USER/latest.yml /home/$SERVER_USER/Coolto-*.exe /home/$SERVER_USER/Coolto-*.exe.blockmap /srv/coolto-releases/ && sudo install -o root -g root -m 644 /home/$SERVER_USER/upload-index.html /srv/coolto-releases/index.html && rm -f /home/$SERVER_USER/latest.yml /home/$SERVER_USER/Coolto-*.exe /home/$SERVER_USER/Coolto-*.exe.blockmap /home/$SERVER_USER/upload-index.html && ls -la /srv/coolto-releases/"

@@ -230,16 +230,18 @@ bytecode 作为通用发行壳，也不得把“在构建机可运行”当作�
 - 状态机阶段：`idle → checking → available → downloading → downloaded →
   installing / error`，经 IPC `updates:event` 推送到渲染端。
 
-### 10.3 Windows 发布流程
+### 10.3 Windows 发布流程（GitHub Actions，与 macOS 一致）
 
-```bash
-# 1. 升版本（package.json）
-# 2. 打包（含 native core、源码保护、NSIS、release audit、安装器实测）
-npm run package:win
-# 3. 生成下载页（读取 latest.yml 自动更新版本号）
-node scripts/generate-download-page.mjs
-# 4. 上传到服务器（latest.yml + exe + blockmap + index.html → /srv/coolto-releases/）
-```
+- Workflow：`cv_agent_frontend` 仓库 `.github/workflows/win-release.yml`（main 分支）。
+- 手动触发：GitHub → Actions → Build Windows Release → Run workflow → 选 `app` 分支。
+- 流程：windows-latest → npm ci → native:build:win（MSVC）→
+  desktop:build:protected → electron-builder --win nsis --x64 → verify release →
+  verify installer（真实安装 + bootstrap + 卸载，脚本自包含，CI 可跑）→
+  scp latest.yml + exe + blockmap → 从服务器拉 latest-mac.yml 重新生成下载页 →
+  上传 index.html。
+- 本地等效流程（无 CI 时）：
+  `npm run package:win` → `node scripts/generate-download-page.mjs` → 上传
+  latest.yml + exe + blockmap + index.html → /srv/coolto-releases/。
 
 ### 10.4 macOS 发布流程（GitHub Actions）
 
