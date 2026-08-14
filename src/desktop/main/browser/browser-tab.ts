@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { WebContentsView, type Rectangle } from "electron";
+import { app, WebContentsView, type Rectangle } from "electron";
 
 import type { BrowserTabState } from "../../shared/types.js";
 import { BROWSER_HOME_URL, isBrowserHomeUrl } from "./browser-home-page.js";
@@ -20,6 +20,7 @@ export class BrowserTab {
       webPreferences: {
         session: getBrowserSession(),
         contextIsolation: true,
+        devTools: !app.isPackaged,
         nodeIntegration: false,
         sandbox: true,
       },

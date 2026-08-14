@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
 
 import {
+  app,
   BrowserWindow,
   type IpcMain,
   type IpcMainEvent,
@@ -25,6 +26,10 @@ interface PendingCompile {
 export class ElectronResumeCompilerService implements ResumePdfCompiler {
   readonly #ipcMain: IpcMain;
   readonly #pending = new Map<string, PendingCompile>();
+  readonly #handleCompileResponse: (
+    event: IpcMainEvent,
+    response: ResumeCompileResponse,
+  ) => void;
   #operationQueue: Promise<void> = Promise.resolve();
   #window: BrowserWindow | undefined;
   #loadPromise: Promise<void> | undefined;
@@ -32,6 +37,7 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
 
   public constructor(ipcMain: IpcMain) {
     this.#ipcMain = ipcMain;
+    this.#handleCompileResponse = this.#onCompileResponse.bind(this);
     this.#ipcMain.on(
       RESUME_COMPILE_RESULT_CHANNEL,
       this.#handleCompileResponse,
@@ -114,10 +120,10 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
     this.#loadPromise = undefined;
   }
 
-  readonly #handleCompileResponse = (
+  #onCompileResponse(
     event: IpcMainEvent,
     response: ResumeCompileResponse,
-  ): void => {
+  ): void {
     if (!this.#window || event.sender !== this.#window.webContents) return;
     const pending = this.#pending.get(response.requestId);
     if (!pending) return;
@@ -132,7 +138,7 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
       return;
     }
     pending.resolve(response.result);
-  };
+  }
 
   #enqueue<T>(operation: () => Promise<T>): Promise<T> {
     if (this.#disposed) {
@@ -158,7 +164,7 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
     // (out/cli/electron-main.cjs -> out/renderer, out/preload). A custom
     // entry bundle can point RESUME_RENDERER_DIR at the directory holding
     // the renderer/ and preload/ folders instead of relocating the bundle.
-    const rendererRoot = process.env.RESUME_RENDERER_DIR
+    const rendererRoot = !app.isPackaged && process.env.RESUME_RENDERER_DIR
       ? resolve(process.env.RESUME_RENDERER_DIR)
       : join(__dirname, "..");
     const window = new BrowserWindow({
@@ -170,6 +176,7 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
       webPreferences: {
         preload: join(rendererRoot, "preload/resume.cjs"),
         contextIsolation: true,
+        devTools: !app.isPackaged,
         nodeIntegration: false,
         sandbox: true,
         backgroundThrottling: false,
@@ -181,15 +188,18 @@ export class ElectronResumeCompilerService implements ResumePdfCompiler {
       const current = window.webContents.getURL();
       if (current && destination !== current) event.preventDefault();
     });
-    if (!process.env.ELECTRON_RENDERER_URL) {
+    const developmentRendererUrl = !app.isPackaged
+      ? process.env.ELECTRON_RENDERER_URL
+      : undefined;
+    if (!developmentRendererUrl) {
       window.webContents.session.webRequest.onBeforeRequest(
         { urls: ["http://*/*", "https://*/*"] },
         (_details, callback) => callback({ cancel: true }),
       );
     }
     this.#window = window;
-    this.#loadPromise = process.env.ELECTRON_RENDERER_URL
-      ? window.loadURL(`${process.env.ELECTRON_RENDERER_URL}/resume.html`)
+    this.#loadPromise = developmentRendererUrl
+      ? window.loadURL(`${developmentRendererUrl}/resume.html`)
       : window.loadFile(join(rendererRoot, "renderer/resume.html"));
     window.on("closed", () => {
       if (this.#window === window) {

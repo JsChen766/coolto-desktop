@@ -1,3 +1,5 @@
+import { protectedBulletSimilarity } from "./protected-core.js";
+
 const NORMALIZE_PUNCTUATION = /[^\p{L}\p{N}]+/gu;
 
 export function normalizedBulletText(text: string): string {
@@ -5,6 +7,10 @@ export function normalizedBulletText(text: string): string {
 }
 
 export function bulletSimilarity(left: string, right: string): number {
+  return protectedBulletSimilarity(left, right, javascriptBulletSimilarity);
+}
+
+function javascriptBulletSimilarity(left: string, right: string): number {
   const normalizedLeft = normalizedBulletText(left);
   const normalizedRight = normalizedBulletText(right);
   if (!normalizedLeft || !normalizedRight) return 0;

@@ -3,6 +3,18 @@ productName: Coolto
 directories:
   output: dist-electron
   buildResources: build
+asar: true
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  loadBrowserProcessSpecificV8Snapshot: false
+  # The packaged renderer still uses loadFile(). Keep this enabled until the
+  # app migrates to a privileged custom protocol.
+  grantFileProtocolExtraPrivileges: true
 files:
   - out/**/*
   - node_modules/**/*
@@ -13,19 +25,25 @@ publish:
 mac:
   category: public.app-category.productivity
   identity: "-"
+  extraResources:
+    - from: native/coolto-core/artifacts/coolto-core.darwin-universal.node
+      to: native/coolto-core.node
   target:
     - target: dir
       arch:
-        - arm64
+        - universal
     - target: zip
       arch:
-        - arm64
+        - universal
     - target: dmg
       arch:
-        - arm64
+        - universal
 dmg:
   artifactName: ${productName}-${version}-${arch}.dmg
 win:
+  extraResources:
+    - from: native/coolto-core/artifacts/coolto-core.win32-x64-msvc.node
+      to: native/coolto-core.node
   target:
     - nsis
   artifactName: ${productName}-${version}-${arch}.${ext}

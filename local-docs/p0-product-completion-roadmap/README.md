@@ -2099,6 +2099,29 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   类型检查通过、462 项测试中 460 通过/0 失败/2 项 Windows 平台 skip、Node build 与 Electron
   production build 通过；`git diff --check` 通过。两项 Bash 替换脚本集成测试仍需在 macOS 发布机执行，
   本记录不把 Windows skip 记为跨平台实测完成。本轮未 commit、未 push。
+- **桌面发行加固**：生产 Main 改为 V8 字节码并对完整 Agent system prompt 使用 protected strings，
+  仅保留 73-byte CJS 启动入口与 2,308-byte loader；Preload 继续保持 sandbox，只做压缩且不生成 source map，
+  Renderer 同样压缩且不携带 TypeScript/Vue/source map。Electron 启用 ASAR 完整性、OnlyLoadAppFromAsar、
+  Cookie 加密并关闭 RunAsNode、`NODE_OPTIONS`、CLI inspect；Browser-specific V8 snapshot Fuse 因真实包缺少
+  专用 snapshot 会导致 `0x80000003` 启动崩溃，已在冒烟中发现并关闭，其余加固保持。
+- **原生核心与篡改阻断**：新增 Rust/NAPI release 核心，将简历综合质量权重和 bullet 相似度算法移出
+  JavaScript；release 使用 fat LTO、单 codegen unit、`opt-level=3`、panic abort 与符号剥离。正式包启动时
+  必须加载平台 `.node`，并用编译进字节码的 SHA-256 校验原生文件；缺失、替换或接口错误均 fail-closed。
+  Windows x64 原生模块为 233,984 bytes，导出与计算结果已真实加载验证。
+- **Windows x64 发行证据**：`npm run package:win` 已生成并审计
+  `Coolto-0.1.0-x64.exe`（135,526,756 bytes，SHA-256
+  `8A43757ADDC28457EE57234FC6E723FDE03752E03A907394F6D50F29135E8A15`）；ASAR 反向清单确认没有产品
+  TypeScript/Vue/source map，受保护提示词两项 marker 在最终 `app.asar` 中均不可检出，Fuse wire、字节码
+  入口和原生模块均通过自动门禁。真实 `win-unpacked/Coolto.exe` 持续启动 10 秒成功后仅终止本次测试
+  进程。新增依赖后用 npm 官方 registry 复核生产依赖仍为 `found 0 vulnerabilities`；最终
+  `npm run check` 全绿：615 个业务源文件均 `≤250` 行，462 项测试 460 通过/0 失败/2 项 Windows skip。
+- **macOS Universal 与发行遗留**：新增 Apple Silicon 构建链，分别用 arm64/x64 Electron 生成架构绑定的
+  Main 字节码，分别编译两架构 Rust 模块后以 `lipo` 合并；electron-builder 目标改为 Universal，并新增
+  手动 `macos-26` GitHub Actions，对 APP 主程序、原生模块双架构及 ad-hoc codesign 做强制校验。当前
+  Windows 无法可信执行 macOS V8 字节码、`lipo`、DMG 和签名验证，因此该产物必须在工作流真实通过后
+  才记为完成。Windows 安装器 Authenticode 实测为 `NotSigned`，macOS 仍为 ad-hoc、未 notarize，不能据此
+  承诺无 SmartScreen/Gatekeeper 提醒；自动更新源仍为 `http://127.0.0.1:8099`，须在用户提供准确 HTTPS
+  发布基础地址后重打最终分发包。本轮只完成本地 Windows 测试发行，未上传产物。
 
 - 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S4.5 → S5 → R1 推进；
 - 每阶段先复核现状和工作树；列出的确认点必须在该阶段开始时向用户确认，不提前假设；

@@ -1,0 +1,13 @@
+{
+  "name": "@coolto/core-native",
+  "version": "0.1.0",
+  "private": true,
+  "napi": {
+    "binaryName": "coolto-core",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin"
+    ]
+  }
+}

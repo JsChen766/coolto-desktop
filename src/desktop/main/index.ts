@@ -11,8 +11,11 @@ import { getResumeFixture } from "../../resume/fixtures.js";
 import { inspectResumePdf } from "../../resume/pdf-postflight.js";
 import { runResumePdfExportQa } from "./resume-pdf-export-qa.js";
 import { runResumePerformanceQa } from "./resume-performance-qa.js";
+import { initializeNativeProtection } from "./native-protection.js";
 
 let mainWindow: BrowserWindow | undefined;
+
+initializeNativeProtection();
 
 function createWindow(): void {
   const isMac = process.platform === "darwin";
@@ -34,13 +37,17 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
+      devTools: !app.isPackaged,
       nodeIntegration: false,
       sandbox: true,
     },
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("https://") || url.startsWith("http://")) {
+    if (
+      url.startsWith("https://") ||
+      (!app.isPackaged && url.startsWith("http://"))
+    ) {
       void shell.openExternal(url);
     }
     return { action: "deny" };
@@ -53,7 +60,9 @@ function createWindow(): void {
   });
   window.once("ready-to-show", () => {
     window.show();
-    const screenshotPath = process.env.COOLTO_SCREENSHOT_PATH;
+    const screenshotPath = app.isPackaged
+      ? undefined
+      : process.env.COOLTO_SCREENSHOT_PATH;
     if (screenshotPath) {
       const screenshotDelay = Number.parseInt(
         process.env.COOLTO_SCREENSHOT_DELAY ?? "1200",
@@ -74,7 +83,7 @@ function createWindow(): void {
 
   const browser = registerBrowserIpc(ipcMain, window);
   registerDesktopIpc(ipcMain, window, resumeCompiler, browser, browser.pageOperator);
-  if (process.env.ELECTRON_RENDERER_URL) {
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
     void window.loadFile(join(__dirname, "../renderer/index.html"));
@@ -173,7 +182,10 @@ async function runResumeRendererQa(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
-  if (process.env.COOLTO_RESUME_PERFORMANCE_QA === "1") {
+  if (
+    !app.isPackaged &&
+    process.env.COOLTO_RESUME_PERFORMANCE_QA === "1"
+  ) {
     try {
       await runResumePerformanceQa();
     } catch (error: unknown) {
@@ -186,7 +198,7 @@ app.whenReady().then(async () => {
     }
     return;
   }
-  if (process.env.COOLTO_RESUME_QA === "1") {
+  if (!app.isPackaged && process.env.COOLTO_RESUME_QA === "1") {
     try {
       await runResumeRendererQa();
     } catch (error: unknown) {

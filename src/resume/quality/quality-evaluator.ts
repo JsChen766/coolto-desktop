@@ -5,6 +5,7 @@ import type { ResumeStructure } from "../types.js";
 import { unwrittenExperienceItemIds } from "../workspace/candidate-content.js";
 import { findUnsupportedClaims } from "./claim-support.js";
 import { buildRepairTargets } from "./repair-planner.js";
+import { protectedQualityScore } from "./protected-core.js";
 import {
   calculateRequirementQuality,
   sourceSupportsRequirement,
@@ -74,11 +75,11 @@ export class ResumeQualityEvaluator {
       informationDiversity: diversityScore(bullets.length, duplicates.length),
       overall: 0,
     };
-    score.overall = round(
-      score.weightedJdCoverage * 0.35 +
-        score.mustHaveCoverage * 0.3 +
-        score.evidenceSpecificity * 0.15 +
-        score.informationDiversity * 0.2,
+    score.overall = protectedQualityScore(
+      score.weightedJdCoverage,
+      score.mustHaveCoverage,
+      score.evidenceSpecificity,
+      score.informationDiversity,
     );
     const repairTargets = buildRepairTargets(issues, compileResult);
     const targeted = new Set(repairTargets.flatMap((target) => target.bulletIds));

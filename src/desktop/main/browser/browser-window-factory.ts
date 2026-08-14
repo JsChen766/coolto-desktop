@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import { BrowserWindow } from "electron";
+import { app, BrowserWindow } from "electron";
 
 import type {
   BrowserShellState,
@@ -44,6 +44,7 @@ export function createBrowserWindow(
       preload: join(__dirname, "../preload/browser-shell.cjs"),
       session: getBrowserSession(),
       contextIsolation: true,
+      devTools: !app.isPackaged,
       nodeIntegration: false,
       sandbox: true,
     },
@@ -61,7 +62,7 @@ export function createBrowserWindow(
 }
 
 function loadShell(window: BrowserWindow): Promise<void> {
-  if (process.env.ELECTRON_RENDERER_URL) {
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
     return window.webContents.loadURL(
       `${process.env.ELECTRON_RENDERER_URL}/browser-shell.html`,
     );
