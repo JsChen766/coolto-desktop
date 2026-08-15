@@ -22,6 +22,8 @@ export interface DesktopCreditSummary {
   creditExpiresAt?: string;
   planType: string;
   hasFreeTrial: boolean;
+  /** 管理员不限量用户（不扣费、不计费展示）。 */
+  unlimited: boolean;
   recentTransactions: DesktopCreditTransaction[];
 }
 

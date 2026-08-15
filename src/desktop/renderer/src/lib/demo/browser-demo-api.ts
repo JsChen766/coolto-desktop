@@ -33,6 +33,7 @@ export function createBrowserDemoApi(): DesktopApi {
         creditBalance: 15,
         planType: "NONE",
         hasFreeTrial: true,
+        unlimited: false,
         recentTransactions: [],
       }),
       requestEmailCode: async () => ({
@@ -50,7 +51,7 @@ export function createBrowserDemoApi(): DesktopApi {
     checkout: {
       plans: async () => [
         { planType: "WEEKLY", priceCny: 990, credits: 100, validDays: 7 },
-        { planType: "MONTHLY", priceCny: 2990, credits: 400, validDays: 30 },
+        { planType: "MONTHLY", priceCny: 2990, credits: 350, validDays: 30 },
       ],
       create: async (planType) => ({
         checkoutId: `demo-${planType}-${Date.now()}`,

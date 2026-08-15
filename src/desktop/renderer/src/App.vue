@@ -167,6 +167,7 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
       :update-checking="updateChecking"
       :update-up-to-date="updateUpToDate"
       :credits="creditsHost?.totalCredits"
+      :unlimited="creditsHost?.unlimited === true"
       @create="guardNavigation(createChat)"
       @select="guardNavigation(() => selectChat($event))"
       @select-draft="guardNavigation(() => openResumeDraft($event))"

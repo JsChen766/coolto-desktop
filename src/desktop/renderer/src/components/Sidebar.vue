@@ -25,6 +25,7 @@ defineProps<{
   updateChecking: boolean;
   updateUpToDate: boolean;
   credits?: number | undefined;
+  unlimited?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -192,6 +193,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
         :update-checking="updateChecking"
         :update-up-to-date="updateUpToDate"
         :credits="credits"
+        :unlimited="unlimited"
         @toggle="openMenuId = openMenuId === 'user' ? undefined : 'user'"
         @close="openMenuId = undefined"
         @toggle-theme="$emit('toggleTheme')"

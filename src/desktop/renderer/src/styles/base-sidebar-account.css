@@ -158,3 +158,19 @@
   background: var(--border);
 }
 
+
+/* 不限量用户 VIP 式黄色标识（2026-08-15） */
+.user-unlimited-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f6d365, #fda085);
+  color: #6b3d00;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  box-shadow: 0 1px 3px rgba(246, 211, 101, 0.45);
+}

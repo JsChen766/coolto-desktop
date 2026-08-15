@@ -17,16 +17,19 @@ export function useCreditShell(
   user: Ref<DesktopUser | undefined>,
 ) {
   const totalCredits = ref<number>();
+  const unlimited = ref(false);
   const insufficientDetail = ref<CreditBalanceDetail>();
 
   async function load(): Promise<void> {
     if (!user.value) {
       totalCredits.value = undefined;
+      unlimited.value = false;
       return;
     }
     try {
       const summary = await api.auth.getCredits();
       totalCredits.value = summary.weeklyFreeCredits + summary.creditBalance;
+      unlimited.value = summary.unlimited;
     } catch {
       // The chip is a convenience surface; a failure must not disturb the UI.
     }
@@ -39,6 +42,7 @@ export function useCreditShell(
         void load();
       } else {
         totalCredits.value = undefined;
+        unlimited.value = false;
         insufficientDetail.value = undefined;
       }
     },
@@ -67,6 +71,7 @@ export function useCreditShell(
 
   return {
     totalCredits,
+    unlimited,
     insufficientDetail,
     load,
     handleAgentEvent,

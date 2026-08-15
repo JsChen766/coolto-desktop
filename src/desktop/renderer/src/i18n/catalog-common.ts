@@ -12,6 +12,8 @@ export const commonMessages: Record<string, string> = {
   "账户与设置": "Account and settings",
   "账户菜单": "Account menu",
   "已登录": "Signed in",
+  "无限量": "Unlimited",
+  "不限量用户（不扣费）": "Unlimited user (no charge)",
   "切换浅色模式": "Switch to light mode",
   "切换深色模式": "Switch to dark mode",
   "切换到英文": "Switch to English",
