@@ -304,6 +304,28 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
   版本 0.1.4。app.asar 版本校验一致。
 - 更新检查：`https://home.coolto.com.cn/downloads/latest.yml` 公网可访问。
 
+### 10.7 已验证基线（2026-08-15，0.1.10 发布）
+
+- 发布源：PR #19 → `app` 分支 → `Build Windows Release`（win-release.yml，
+  5m48s success）+ `Build macOS Release`（mac-release.yml，4m53s success）。
+- 发布前本地 `npm run check` 全绿：474 tests passed / 0 failed、双 typecheck、
+  双构建、resume-template 同步、source-lines 623 文件 ≤250 行。
+- Windows 产物（CI 真实安装 + bootstrap + 卸载验证通过）：
+  - `Coolto-0.1.10-x64.exe`，135,769,405 bytes；
+  - SHA-256 由 CI 验证，latest.yml sha512：
+    `tTGAWvyVltZ139Ev8BoNgUIZa1tzAS/gvamSbuwXpqjIPHodmf+YfcYpmzCTNp1WjCXGN9JV/q8Y0ys582gMmg==`；
+  - Authenticode：NotSigned（与历史一致）。
+- macOS 产物（CI verify release hardening all archs 通过）：
+  - `Coolto-0.1.10-mac.zip`（190,253,348 B，sha512
+    `DEhjz4d/1XFgwKXb6tjABP81x/D2K/c+BfNG2PETQps1Mt0y6Jv9hukfWCjKz79mF1vgl0XlxzLY0L0VCZ/4Ow==`）、
+    `Coolto-0.1.10-arm64-mac.zip`（186,693,741 B，sha512
+    `zw8Q0sI9j8fe5LTkaEXL4fwI9w0Wi/SQWdgOdPjKa8g1rf5KK043y6pbExf3CN1me6f+RbbxLTeJ3Ssy0MsQ1A==`）；
+  - 另含 x64/arm64 两个 DMG（官网下载）；ad-hoc 签名，未 notarize。
+- 更新源：生产 `https://home.coolto.com.cn/downloads/`，latest.yml /
+  latest-mac.yml 均已指向 0.1.10，公网可访问。
+- 本版功能：PDF 坐标布局解析（双栏/行聚类）、附件进消息（元数据持久化 +
+  消息流附件卡片 + 实时状态）、带附件发送自动注入解析提示。
+
 ### 10.6 运维注意事项（坑）
 
 - 改 Caddyfile 后必须 `docker compose up -d --force-recreate caddy`：bind mount
