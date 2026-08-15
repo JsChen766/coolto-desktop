@@ -328,6 +328,13 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 
 ### 10.6 运维注意事项（坑）
 
+- **macOS 0.1.12：`coolto-core.node` 必须跳过签名（signIgnore）。**
+  osx-sign 会签名 app 内所有 Mach-O（含 extraResources 的 `.node`），
+  签名改写字节后与 protect 阶段嵌入 loader 的 SHA-256 不一致，运行时抛
+  「原生保护模块完整性校验失败」。`mac.signIgnore: ["coolto-core\\.node$"]`
+  让模块保持字节不变；`disable-library-validation` 允许其未签名加载。
+  修改 protect/打包链路后，必须下载产物解包实证 loader hash 与
+  `Resources/native/coolto-core.node` hash 一致，再交付真机。
 - **macOS 启动即崩（0.1.8/0.1.10）根因：entitlements 缺 `allow-jit`。**
   `build/entitlements.mac.plist` 在 0.1.11 之前只有 `disable-library-validation`。
   ad-hoc + hardened runtime 下 V8 无法分配 JIT 内存，`v8::Isolate::Initialize`
