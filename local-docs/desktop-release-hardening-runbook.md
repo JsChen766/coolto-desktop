@@ -328,6 +328,13 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 
 ### 10.6 运维注意事项（坑）
 
+- **macOS 启动即崩（0.1.8/0.1.10）根因：entitlements 缺 `allow-jit`。**
+  `build/entitlements.mac.plist` 在 0.1.11 之前只有 `disable-library-validation`。
+  ad-hoc + hardened runtime 下 V8 无法分配 JIT 内存，`v8::Isolate::Initialize`
+  确定性 `EXC_BREAKPOINT`，业务代码未执行即崩。CI 的 verify 只查文件结构，
+  不真实启动，因此长期未被发现。0.1.11 起加入 `allow-jit` +
+  `allow-unsigned-executable-memory`；**修改 entitlements 后必须在真机启动验证**，
+  不能只依赖 CI success。
 - 改 Caddyfile 后必须 `docker compose up -d --force-recreate caddy`：bind mount
   单文件被 `install` 替换（新 inode）后，容器仍读旧文件；`caddy reload` 读到的
   也是旧挂载。重建容器才重新挂载。
