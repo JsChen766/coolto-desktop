@@ -61,9 +61,12 @@ export class SyncRuntime {
 
   #handleError(error: unknown): void {
 	if (isAbort(error)) return;
+	// Keep the periodic timer alive even on 401: a transient session hiccup
+	// must not leave the outbox permanently stalled (items would stay
+	// "pending" until a manual sync). The next cycle retries and recovers.
 	if (error instanceof CooltoApiError && error.status === 401) {
-		if (this.#timer) clearInterval(this.#timer);
-		this.#timer = undefined;
+		this.#store?.recordFailure("sync_unauthorized");
+		return;
 	}
 	try {
 		this.#store?.recordFailure(runtimeErrorCode(error));

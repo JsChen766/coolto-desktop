@@ -6,15 +6,12 @@ import {
   FileText,
   Globe,
   LoaderCircle,
-  Maximize2,
-  Minus,
   PanelLeftClose,
   PanelLeftOpen,
-  X,
 } from "@lucide/vue";
 import { ref } from "vue";
 
-import type { DesktopPlatform, ResumeDraftDetail } from "@desktop/types";
+import type { ResumeDraftDetail } from "@desktop/types";
 import { translate } from "../i18n/locale";
 import IconButton from "./IconButton.vue";
 
@@ -26,7 +23,6 @@ defineProps<{
   resumeDraft: ResumeDraftDetail | undefined;
   exporting?: boolean;
   exportMessage?: string;
-  platform: DesktopPlatform;
 }>();
 
 defineEmits<{
@@ -36,9 +32,6 @@ defineEmits<{
   saveResume: [];
   exportResume: [];
   rename: [];
-  minimize: [];
-  maximize: [];
-  close: [];
 }>();
 
 const detailsOpen = ref(false);
@@ -141,11 +134,6 @@ function factLabel(value: ResumeDraftDetail["quality"]["factIntegrity"]): string
         <FileText :size="16" :stroke-width="1.8" aria-hidden="true" />
         <span>{{ $t('预览') }}</span>
       </button>
-      <template v-if="platform !== 'darwin'">
-        <IconButton :icon="Minus" :label="$t('最小化')" @click="$emit('minimize')" />
-        <IconButton :icon="Maximize2" :label="$t('最大化')" @click="$emit('maximize')" />
-        <IconButton :icon="X" :label="$t('关闭')" @click="$emit('close')" />
-      </template>
     </div>
   </header>
 </template>

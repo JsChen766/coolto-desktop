@@ -6,6 +6,7 @@ import type {
   DesktopApprovalRequest,
 } from "@desktop/types";
 import type { ToolRun } from "../components/ToolActivity.vue";
+import { desktopErrorMessage } from "./desktop-error-message";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import type { useJdArtifacts } from "./use-jd-artifacts";
 import type { useMatchReports } from "./use-match-reports";
@@ -123,7 +124,7 @@ function handleCurrentConversationEvent(
     case "approval.failed":
     case "run.failed":
       state.approvalBusy.value = false;
-      state.runError.value = event.message;
+      state.runError.value = desktopErrorMessage(event.message);
       if (event.type === "run.failed") state.running.value = false;
       return;
     case "run.completed":

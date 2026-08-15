@@ -51,6 +51,13 @@ export function useCreditShell(
   ): void {
     if (event.type === "agent.insufficient-credits") {
       insufficientDetail.value = event.detail;
+      void load();
+      return;
+    }
+    // Every completed run consumed credits on the gateway; refresh the chip
+    // so the sidebar balance stays in sync with the server.
+    if (event.type === "run.completed" || event.type === "run.failed") {
+      void load();
     }
   }
 

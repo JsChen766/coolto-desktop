@@ -109,6 +109,11 @@ export function useExperienceLibraryController(
     });
   }
 
+  async function syncAll(): Promise<void> {
+    await page.syncAll();
+    await page.load();
+  }
+
   watch(importFocus, (focus) => {
     if (focus) void page.focusImportedExperiences(focus.experienceIds);
     else if (page.focusActive.value) page.clearImportedFocus();
@@ -116,7 +121,8 @@ export function useExperienceLibraryController(
 
   return {
     clearImportFocus, editExperience, focusPosition, leaveEditor, maintenance,
-    newExperience, page, prepareDetailAction, refresh, restoreRevision, selectExperience,
+    newExperience, page, pendingCount: page.pendingCount, prepareDetailAction,
+    refresh, restoreRevision, selectExperience, syncAll, syncing: page.syncing,
     updateFilter,
   };
 }

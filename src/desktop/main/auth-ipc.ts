@@ -31,6 +31,7 @@ export function registerAuthIpc(
     resetUserServices();
     await auth.logout();
   });
+  ipcMain.handle("auth:sync-now", () => auth.syncNow());
 }
 
 export const AUTH_IPC_CHANNELS = [
@@ -39,4 +40,5 @@ export const AUTH_IPC_CHANNELS = [
   "auth:email-code:request",
   "auth:email-code:verify",
   "auth:logout",
+  "auth:sync-now",
 ] as const;

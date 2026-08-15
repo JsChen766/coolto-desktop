@@ -72,7 +72,6 @@ const {
         :resume-draft="resumeWorkspace.activeDraft.value"
         :exporting="resumeWorkspace.exporting.value"
         :export-message="resumeWorkspace.exportMessage.value"
-        :platform="desktopApi.platform"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
         @toggle-artifact="toggleArtifact"
         @toggle-browser="toggleBrowser"
@@ -88,9 +87,6 @@ const {
             messageCount: current.messageCount,
           })
         "
-        @minimize="desktopApi.window.minimize"
-        @maximize="desktopApi.window.toggleMaximize"
-        @close="desktopApi.window.close"
       />
 
       <div class="workspace-body">

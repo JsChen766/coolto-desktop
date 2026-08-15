@@ -28,6 +28,7 @@ export function useExperienceLibrary() {
   const detailOpen = ref(false);
   const loading = ref(false);
   const detailLoading = ref(false);
+  const syncing = ref(false);
   const error = ref<string>();
   const focusedItems = ref<ExperienceSummary[]>([]);
   const focusedIds = ref<string[]>([]);
@@ -198,12 +199,27 @@ export function useExperienceLibrary() {
   );
   onMounted(() => void load());
 
+  const pendingCount = computed(
+    () => catalog.value.filter((item) => item.syncStatus && item.syncStatus !== "clean").length,
+  );
+
+  async function syncAll(): Promise<void> {
+    if (syncing.value) return;
+    syncing.value = true;
+    try {
+      await desktopApi.auth.syncNow();
+      await load(selectedId.value);
+    } finally {
+      syncing.value = false;
+    }
+  }
+
   return {
     availableTags, catalog, category, clearFilters, detailLoading, detailOpen,
     clearImportedFocus, error, filterCount, focusActive, focusLoading,
     focusMissingCount, focusedIds, focusImportedExperiences, groups, load,
-    loading, moveImportedFocus, query, select, selected, selectedId, status,
-    tags, toggleTag, visible,
+    loading, moveImportedFocus, pendingCount, query, select, selected, selectedId,
+    status, syncAll, syncing, tags, toggleTag, visible,
   };
 }
 

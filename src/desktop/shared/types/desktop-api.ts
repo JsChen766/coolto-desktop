@@ -96,6 +96,7 @@ export interface DesktopApi {
     requestEmailCode(email: string): Promise<EmailChallengeView>;
     verifyEmailCode(email: string, challengeId: string, code: string): Promise<DesktopUser>;
     logout(): Promise<void>;
+    syncNow(): Promise<void>;
   };
   checkout: {
     plans(): Promise<CheckoutPlan[]>;

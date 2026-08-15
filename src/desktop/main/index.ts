@@ -23,6 +23,19 @@ if (app.isPackaged) {
   process.env.COOLTO_LLM_GATEWAY_BASE_URL ??= "https://credit.coolto.com.cn";
 }
 
+// Single instance: two processes writing the same conversation files corrupt
+// each other's atomic saves (EPERM on rename); keep one instance and focus it.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  });
+  app.whenReady().then(bootstrap);
+}
+
 initializeNativeProtection();
 
 function createWindow(): void {
@@ -189,7 +202,7 @@ async function runResumeRendererQa(): Promise<void> {
   }
 }
 
-app.whenReady().then(async () => {
+async function bootstrap(): Promise<void> {
   if (
     !app.isPackaged &&
     process.env.COOLTO_RESUME_PERFORMANCE_QA === "1"
@@ -226,7 +239,7 @@ app.whenReady().then(async () => {
       createWindow();
     }
   });
-});
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

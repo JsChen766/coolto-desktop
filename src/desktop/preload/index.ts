@@ -22,6 +22,7 @@ const api: DesktopApi = {
 	verifyEmailCode: (email, challengeId, code) =>
 		ipcRenderer.invoke("auth:email-code:verify", email, challengeId, code),
     logout: () => ipcRenderer.invoke("auth:logout"),
+    syncNow: () => ipcRenderer.invoke("auth:sync-now"),
   },
   checkout: {
     plans: () => ipcRenderer.invoke("checkout:plans"),

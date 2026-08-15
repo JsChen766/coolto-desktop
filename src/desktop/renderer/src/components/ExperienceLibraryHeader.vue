@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Menu, Plus, RefreshCw, Search } from "@lucide/vue";
+import { CloudUpload, Menu, Plus, RefreshCw, Search } from "@lucide/vue";
 
 import type { ExperienceCategory } from "@desktop/types";
 import ExperienceFilterPopover from "./ExperienceFilterPopover.vue";
@@ -12,6 +12,8 @@ defineProps<{
   availableTags: string[];
   filterCount: number;
   loading: boolean;
+  hasPending?: boolean;
+  syncing?: boolean;
 }>();
 defineEmits<{
   "update:query": [value: string];
@@ -21,6 +23,7 @@ defineEmits<{
   clearFilters: [];
   newExperience: [];
   refresh: [];
+  syncAll: [];
   toggleSidebar: [];
 }>();
 </script>
@@ -66,6 +69,17 @@ defineEmits<{
         @toggle-tag="$emit('toggleTag', $event)"
         @clear="$emit('clearFilters')"
       />
+      <button
+        v-if="hasPending"
+        class="experience-refresh icon-button"
+        type="button"
+        :disabled="syncing"
+        :aria-label="$t('同步全部')"
+        :title="$t('同步全部')"
+        @click="$emit('syncAll')"
+      >
+        <CloudUpload :size="16" :class="{ spin: syncing }" aria-hidden="true" />
+      </button>
       <button
         class="experience-refresh icon-button"
         type="button"
