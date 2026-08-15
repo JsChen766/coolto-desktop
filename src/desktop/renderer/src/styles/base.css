@@ -1,4 +1,5 @@
 @import "./base-foundations.css";
+@import "./forced-update.css";
 @import "./base-login.css";
 @import "./base-privacy-dialog.css";
 @import "./base-sidebar-conversations.css";
