@@ -23,6 +23,9 @@ export function useAppUpdates(authenticated: () => unknown) {
     void mount().then((detach) => {
       unsubscribe = detach;
     });
+    // Forced updates: check right after the window loads, independent of
+    // login state. The driver dedupes concurrent checks.
+    checkSilently();
   });
   onBeforeUnmount(() => unsubscribe?.());
 

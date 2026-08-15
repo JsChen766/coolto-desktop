@@ -1,0 +1,86 @@
+/* ── 强制更新弹窗（无法跳过，覆盖登录页与主界面）── */
+.forced-update-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgb(15 17 21 / 55%);
+  backdrop-filter: blur(4px);
+  padding: 24px;
+}
+
+.forced-update-card {
+  width: min(420px, 100%);
+  border-radius: 18px;
+  background: var(--surface, #fff);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 28%);
+  padding: 36px 32px 28px;
+  text-align: center;
+}
+
+.forced-update-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--brand, #7c3aed) 12%, transparent);
+  color: var(--brand, #7c3aed);
+}
+
+.forced-update-card h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.forced-update-version {
+  margin: 10px 0 0;
+  color: var(--text-soft, #6b7280);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.forced-update-hint {
+  margin: 20px 0 0;
+  color: var(--text-soft, #6b7280);
+  font-size: 13px;
+}
+
+.forced-update-progress {
+  margin: 22px 0 0;
+}
+
+.forced-update-progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 9%);
+  overflow: hidden;
+}
+
+.forced-update-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand, #7c3aed);
+  transition: width 0.3s ease;
+}
+
+.forced-update-progress span {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-soft, #6b7280);
+  font-size: 12.5px;
+}
+
+.forced-update-action {
+  margin-top: 26px;
+  min-width: 180px;
+}
+
+.forced-update-note {
+  margin: 18px 0 0;
+  color: var(--muted, #9ca3af);
+  font-size: 12px;
+}
