@@ -47,6 +47,11 @@ win:
   target:
     - nsis
   artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  # 向导式安装：允许用户选择安装目录（oneClick 默认无目录选择页）。
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
 linux:
   target:
     - AppImage
