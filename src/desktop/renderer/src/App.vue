@@ -18,6 +18,7 @@ import ProfileDialog from "./components/ProfileDialog.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import CreditsHost from "./components/CreditsHost.vue";
 import WindowTitleBar from "./components/WindowTitleBar.vue";
+import ForcedUpdateDialog from "./components/ForcedUpdateDialog.vue";
 
 const shell = useAppShell();
 const experienceLibraryView = ref<InstanceType<typeof ExperienceLibraryView>>();
@@ -86,19 +87,14 @@ function recordFromRepository(
 function guardNavigation(action: () => void | Promise<void>): void {
   void (async () => {
     if (running.value) return;
-    if (
-      activeView.value === "experiences"
-      && (await experienceLibraryView.value?.confirmLeave()) === false
-    ) return;
+    if (activeView.value === "experiences" &&
+        (await experienceLibraryView.value?.confirmLeave()) === false) return;
     await action();
   })();
 }
-
 function requestPrimaryView(view: "experiences" | "library"): void {
-  if (activeView.value === view) return;
-  guardNavigation(() => openPrimaryView(view));
+  if (activeView.value !== view) guardNavigation(() => openPrimaryView(view));
 }
-
 function openProfile(trigger: HTMLElement): void {
   profileTrigger.value = trigger;
   profileDialogOpen.value = true;
@@ -126,6 +122,12 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
 <template>
   <div class="app-frame" :class="[`platform-${desktopApi.platform}`]">
     <WindowTitleBar v-if="desktopApi.platform !== 'darwin'" />
+
+    <ForcedUpdateDialog
+      :state="updateState"
+      @install="installUpdate"
+      @retry="checkUpdate"
+    />
 
     <div v-if="booting" class="boot-screen">
       <div class="boot-pulse" />
@@ -237,11 +239,7 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
       @close="cloudCopyConfirmation = false"
       @confirm="confirmCloudResumeCopy"
     />
-    <ProfileDialog
-      v-if="profileDialogOpen"
-      :api="desktopApi"
-      @close="closeProfile"
-    />
+    <ProfileDialog v-if="profileDialogOpen" :api="desktopApi" @close="closeProfile" />
     <SettingsDialog v-if="settingsDialogOpen" :api="desktopApi" @close="settingsDialogOpen = false" @open-profile="openProfileFromSettings" />
     <CreditsHost ref="creditsHost" :api="desktopApi" :user="user" />
     </div>
