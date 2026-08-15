@@ -10,7 +10,6 @@ export function createUnavailableDesktopApi(): DesktopApi {
     auth: {
       getCurrentUser: unavailable,
       getCredits: unavailable,
-      login: unavailable,
       requestEmailCode: unavailable,
       verifyEmailCode: unavailable,
       logout: unavailable,

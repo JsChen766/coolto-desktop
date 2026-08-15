@@ -35,10 +35,6 @@ export function createBrowserDemoApi(): DesktopApi {
         hasFreeTrial: true,
         recentTransactions: [],
       }),
-      login: async (email) => {
-        currentUser = { id: "preview-user", email };
-        return currentUser;
-      },
       requestEmailCode: async () => ({
         challengeId: crypto.randomUUID(),
         expiresAt: new Date(Date.now() + 600_000).toISOString(),

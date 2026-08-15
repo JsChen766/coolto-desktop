@@ -27,10 +27,6 @@ export function useChatAuth(
     }
   }
 
-  async function login(email: string, password: string): Promise<void> {
-    await runLogin(async () => desktopApi.auth.login(email, password));
-  }
-
   async function requestEmailCode(email: string): Promise<void> {
     loginBusy.value = true;
     loginError.value = undefined;
@@ -82,7 +78,6 @@ export function useChatAuth(
   return {
     booting,
     emailChallenge,
-    login,
     loginBusy,
     loginError,
     logout,

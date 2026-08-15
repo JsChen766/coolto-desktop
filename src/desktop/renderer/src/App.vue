@@ -17,6 +17,7 @@ import PrivacyConsentDialog from "./components/PrivacyConsentDialog.vue";
 import ProfileDialog from "./components/ProfileDialog.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import CreditsHost from "./components/CreditsHost.vue";
+import WindowTitleBar from "./components/WindowTitleBar.vue";
 
 const shell = useAppShell();
 const experienceLibraryView = ref<InstanceType<typeof ExperienceLibraryView>>();
@@ -37,7 +38,6 @@ const {
   dialog,
   emailChallenge,
   experienceImportFocus,
-  login,
   loginBusy,
   loginError,
   logout,
@@ -124,31 +124,33 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
 </script>
 
 <template>
-  <div v-if="booting" class="boot-screen">
-    <div class="boot-pulse" />
-  </div>
+  <div class="app-frame" :class="[`platform-${desktopApi.platform}`]">
+    <WindowTitleBar v-if="desktopApi.platform !== 'darwin'" />
 
-  <PrivacyConsentDialog
-    v-else-if="!user && !privacyConsent"
-    @agree="acceptPrivacy"
-  />
+    <div v-if="booting" class="boot-screen">
+      <div class="boot-pulse" />
+    </div>
 
-  <LoginScreen
-    v-else-if="!user"
-    :busy="loginBusy"
-    :error="loginError"
-    :challenge="emailChallenge"
-    :first-visit="firstVisit"
-    @password-login="login"
-    @request-code="requestEmailCode"
-    @verify-code="verifyEmailCode"
-  />
+    <PrivacyConsentDialog
+      v-else-if="!user && !privacyConsent"
+      @agree="acceptPrivacy"
+    />
 
-  <div
-    v-else
-    class="app-shell"
-    :class="[`platform-${desktopApi.platform}`, { 'sidebar-hidden': !sidebarOpen }]"
-  >
+    <LoginScreen
+      v-else-if="!user"
+      :busy="loginBusy"
+      :error="loginError"
+      :challenge="emailChallenge"
+      :first-visit="firstVisit"
+      @request-code="requestEmailCode"
+      @verify-code="verifyEmailCode"
+    />
+
+    <div
+      v-else
+      class="app-shell"
+      :class="[`platform-${desktopApi.platform}`, { 'sidebar-hidden': !sidebarOpen }]"
+    >
     <Sidebar
       v-if="sidebarOpen"
       :conversations="conversations"
@@ -242,5 +244,6 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
     />
     <SettingsDialog v-if="settingsDialogOpen" :api="desktopApi" @close="settingsDialogOpen = false" @open-profile="openProfileFromSettings" />
     <CreditsHost ref="creditsHost" :api="desktopApi" :user="user" />
+    </div>
   </div>
 </template>
