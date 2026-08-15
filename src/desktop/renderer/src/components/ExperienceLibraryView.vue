@@ -27,10 +27,13 @@ const {
   maintenance,
   newExperience,
   page,
+  pendingCount,
   prepareDetailAction,
   refresh,
   restoreRevision,
   selectExperience,
+  syncAll,
+  syncing,
   updateFilter,
 } = useExperienceLibraryController(
   () => props.importFocus,
@@ -61,6 +64,9 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
       @refresh="refresh"
       @new-experience="newExperience"
       @toggle-sidebar="$emit('toggleSidebar')"
+      @sync-all="syncAll"
+      :has-pending="pendingCount > 0"
+      :syncing="syncing"
     />
 
     <ExperienceImportFocusBar

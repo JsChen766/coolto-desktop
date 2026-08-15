@@ -151,7 +151,9 @@ function missingResult(operation: PendingOperation): SyncOperationResult {
 }
 
 function retryTime(attempt: number): string {
-  const baseSeconds = Math.min(3_600, 2 ** Math.min(attempt, 10) * 2);
+  // Cap the backoff at 5 minutes so a stalled outbox self-heals quickly
+  // instead of waiting up to an hour between retries.
+  const baseSeconds = Math.min(300, 2 ** Math.min(attempt, 10) * 2);
   const jittered = baseSeconds * (0.5 + Math.random());
   return new Date(Date.now() + jittered * 1_000).toISOString();
 }

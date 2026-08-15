@@ -213,6 +213,30 @@ export class ConversationStore {
     const temporary = `${destination}.${randomUUID()}.tmp`;
     const encrypted = encryptConversation(JSON.stringify(record));
     await writeFile(temporary, encrypted, { mode: 0o600 });
-    await rename(temporary, destination);
+    await renameWithRetry(temporary, destination);
+  }
+}
+
+const RENAME_RETRY_DELAYS_MS = [50, 200, 500] as const;
+
+/**
+ * Windows can transiently lock a just-written file (real-time AV scanning) or
+ * keep the destination open (stale process), failing the atomic rename with
+ * EPERM. Retrying instead of surfacing the raw error keeps saves reliable.
+ */
+async function renameWithRetry(
+  source: string,
+  destination: string,
+): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await rename(source, destination);
+      return;
+    } catch (error: unknown) {
+      if (attempt >= RENAME_RETRY_DELAYS_MS.length) throw error;
+      await new Promise((resolve) =>
+        setTimeout(resolve, RENAME_RETRY_DELAYS_MS[attempt]),
+      );
+    }
   }
 }

@@ -45,6 +45,7 @@ export function createBrowserDemoApi(): DesktopApi {
         return currentUser;
       },
       logout: async () => undefined,
+      syncNow: async () => undefined,
     },
     checkout: {
       plans: async () => [
