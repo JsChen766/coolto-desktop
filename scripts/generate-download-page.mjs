@@ -7,6 +7,9 @@
  * at relative paths so it works both on the release server (installed as
  * /srv/coolto-releases/index.html) and in the local update-feed simulation.
  *
+ * macOS download buttons prefer the dmg installer (standard distribution);
+ * the zip stays as a fallback and as the auto-update feed artifact.
+ *
  * Usage: node scripts/generate-download-page.mjs [dist-dir]
  */
 import { readFile, writeFile } from "node:fs/promises";
@@ -36,16 +39,34 @@ const win = await readFeed("latest.yml");
 const mac = await readFeed("latest-mac.yml");
 
 const winUrl = pick(win, [".exe"]);
-// macOS ships separate x64/arm64 zips; arm64 urls carry the "arm64" marker.
+// macOS ships separate x64/arm64 artifacts; arm64 urls carry the "arm64"
+// marker. Prefer dmg for the download buttons, fall back to zip.
 const macUrls = (mac?.urls ?? []).filter((url) => /\.(zip|dmg)$/.test(url));
-const macIntelUrl = macUrls.find((url) => !url.includes("arm64"));
-const macArmUrl = macUrls.find((url) => url.includes("arm64"));
+const macIntelDmg = macUrls.find(
+  (url) => url.endsWith(".dmg") && !url.includes("arm64"),
+);
+const macArmDmg = macUrls.find(
+  (url) => url.endsWith(".dmg") && url.includes("arm64"),
+);
+const macIntelZip = macUrls.find(
+  (url) => url.endsWith(".zip") && !url.includes("arm64"),
+);
+const macArmZip = macUrls.find(
+  (url) => url.endsWith(".zip") && url.includes("arm64"),
+);
+const macIntelUrl = macIntelDmg ?? macIntelZip;
+const macArmUrl = macArmDmg ?? macArmZip;
+const macIsDmg = Boolean(macArmDmg ?? macIntelDmg);
 const releaseDate = new Date().toISOString().slice(0, 10);
 
 if (!win && !mac) {
   console.error("no feed metadata found in", distDir);
   process.exit(1);
 }
+
+const macHint = macIsDmg
+  ? "macOS：首次打开如提示「无法验证开发者」，请右键应用 → 打开，或到 系统设置 → 隐私与安全性 → 仍要打开。<br>"
+  : "";
 
 const html = `<!doctype html>
 <html lang="zh-CN">
@@ -112,6 +133,7 @@ const html = `<!doctype html>
       }
     </div>
     <div class="note">
+      ${macHint}
       安装后应用会自动检查更新。手动检查：设置 → 检查更新。<br>
       更新源：<code>https://home.coolto.com.cn/downloads/</code>
     </div>
