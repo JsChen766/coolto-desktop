@@ -230,7 +230,26 @@ bytecode 作为通用发行壳，也不得把“在构建机可运行”当作�
 - 状态机阶段：`idle → checking → available → downloading → downloaded →
   installing / error`，经 IPC `updates:event` 推送到渲染端。
 
-### 10.3 Windows 发布流程（GitHub Actions，与 macOS 一致）
+### 10.3 CI 全景（2026-08-15 起）
+
+`cv_agent_frontend` 仓库三个发布 workflow（均在 main 分支）：
+
+| Workflow | 触发 | 产物/动作 |
+|---|---|---|
+| `Build Windows Release` | dispatch / `win-v*` tag | NSIS exe + latest.yml + blockmap → 服务器；重新生成下载页 |
+| `Build macOS Release` | dispatch / `mac-v*` tag | x64/arm64 zip + latest-mac.yml → 服务器；重新生成下载页 |
+| `Deploy Homepage` | dispatch | 从服务器 feed 读最新版本 → `VITE_RELEASE_VERSION` 注入 → 构建官网 → 备份 + 替换 website-dist |
+
+Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_keys，标签
+`coolto-mac-ci`）、`RELEASE_SERVER_HOST`、`RELEASE_SERVER_USER`。
+
+官网下载链接版本号由 `Deploy Homepage` 自动从服务器 `latest.yml` 读取注入
+（`homepage-web/src/lib/region.ts` 的 `RELEASE_VERSION` 读
+`import.meta.env.VITE_RELEASE_VERSION`，本地构建 fallback 0.1.4）；
+`scripts/generate-download-page.mjs` 生成 `/downloads/` 下载页，win/mac 两个
+发布 workflow 上传后都会重新生成。
+
+### 10.4 Windows 发布流程（GitHub Actions，与 macOS 一致）
 
 - Workflow：`cv_agent_frontend` 仓库 `.github/workflows/win-release.yml`（main 分支）。
 - 手动触发：GitHub → Actions → Build Windows Release → Run workflow → 选 `app` 分支。
