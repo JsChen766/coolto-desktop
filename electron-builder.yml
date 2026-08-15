@@ -25,6 +25,11 @@ publish:
 mac:
   category: public.app-category.productivity
   identity: "-"
+  # osx-sign would otherwise ad-hoc sign coolto-core.node, changing its bytes
+  # and breaking the SHA-256 check embedded in the protected-main loader.
+  # disable-library-validation entitlement allows the unsigned module to load.
+  signIgnore:
+    - "coolto-core\\.node$"
   extraResources:
     - from: native/coolto-core/artifacts/coolto-core.darwin-universal.node
       to: native/coolto-core.node
