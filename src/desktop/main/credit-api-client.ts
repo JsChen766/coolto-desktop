@@ -8,6 +8,7 @@ interface CreditEnvelope {
     credit_balance?: number;
     plan_type?: string;
     has_free_trial?: boolean;
+    unlimited?: boolean;
     recent_transactions?: Array<{
       amount?: number;
       transaction_type?: string;
@@ -49,6 +50,7 @@ export async function fetchCreditSummary(
     creditBalance: data.credit_balance,
     planType: data.plan_type,
     hasFreeTrial: data.has_free_trial,
+    unlimited: data.unlimited === true,
     recentTransactions: data.recent_transactions.map((transaction) => {
       if (
         typeof transaction.amount !== "number" ||

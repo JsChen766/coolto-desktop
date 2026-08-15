@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  Crown,
   Ellipsis,
   IdCard,
   Languages,
@@ -28,6 +29,8 @@ const props = defineProps<{
   updateChecking: boolean;
   updateUpToDate: boolean;
   credits?: number | undefined;
+  /** 管理员不限量用户：左下角显示 VIP 式黄色「无限量」标识。 */
+  unlimited?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -85,7 +88,11 @@ function emitClose(): void {
     <div class="user-copy">
       <span class="user-email">{{ user.email }}</span>
       <span class="user-status-row">
-        <span>{{ $t('已登录') }}</span>
+        <span v-if="unlimited" class="user-unlimited-badge" :title="$t('不限量用户（不扣费）')">
+          <Crown :size="11" :stroke-width="2" aria-hidden="true" />
+          <span>{{ $t('无限量') }}</span>
+        </span>
+        <span v-else>{{ $t('已登录') }}</span>
         <button
           v-if="credits !== undefined"
           class="user-credits-chip"

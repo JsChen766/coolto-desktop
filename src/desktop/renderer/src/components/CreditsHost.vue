@@ -15,6 +15,7 @@ const props = defineProps<{
 const userRef = computed(() => props.user);
 const {
   totalCredits,
+  unlimited,
   insufficientDetail,
   handleAgentEvent,
   clearInsufficient,
@@ -38,7 +39,7 @@ function goPurchase(): void {
   creditOpen.value = true;
 }
 
-defineExpose({ totalCredits, open });
+defineExpose({ totalCredits, unlimited, open });
 </script>
 
 <template>
