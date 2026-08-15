@@ -122,3 +122,58 @@ button:disabled {
   animation: spin 900ms linear infinite;
 }
 
+
+/* ── 窗口标题栏（Windows/Linux frameless 自绘；macOS 用系统红绿灯不渲染）── */
+.app-frame {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.app-frame > :not(.window-titlebar) {
+  flex: 1;
+  min-height: 0;
+}
+
+.window-titlebar {
+  flex: none;
+  height: 36px;
+  display: flex;
+  align-items: stretch;
+  background: var(--surface, #fbfbfa);
+  border-bottom: 1px solid var(--line, rgb(0 0 0 / 8%));
+  user-select: none;
+}
+
+.window-titlebar-drag {
+  flex: 1;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.window-titlebar-controls {
+  display: flex;
+  align-items: stretch;
+}
+
+.window-control {
+  width: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink, #26292e);
+  cursor: default;
+}
+
+.window-control:hover {
+  background: rgb(0 0 0 / 7%);
+}
+
+.window-control-close:hover {
+  background: #e81123;
+  color: #fff;
+}

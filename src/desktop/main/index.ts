@@ -15,6 +15,14 @@ import { initializeNativeProtection } from "./native-protection.js";
 
 let mainWindow: BrowserWindow | undefined;
 
+// Production defaults: packaged builds must reach the production API and the
+// Credit/LLM gateway. Development and custom deployments can still override
+// via COOLTO_* environment variables (??= keeps an existing value).
+if (app.isPackaged) {
+  process.env.COOLTO_API_BASE_URL ??= "https://hkapi.coolto.com.cn";
+  process.env.COOLTO_LLM_GATEWAY_BASE_URL ??= "https://credit.coolto.com.cn";
+}
+
 initializeNativeProtection();
 
 function createWindow(): void {

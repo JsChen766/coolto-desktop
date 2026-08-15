@@ -79,13 +79,6 @@ export class DesktopAuthService {
     }
   }
 
-  public async login(email: string, password: string): Promise<CurrentUser> {
-    const signal = AbortSignal.timeout(15_000);
-    const device = await this.#deviceInput(email);
-    await this.apiClient.login({ email, password, device }, signal);
-    return this.#completeLogin(device, signal);
-  }
-
   public async requestEmailCode(email: string): Promise<EmailChallengeAccepted> {
     const device = await this.#deviceInput(email);
     return this.apiClient.requestEmailChallenge(

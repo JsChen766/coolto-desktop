@@ -93,7 +93,6 @@ export interface DesktopApi {
   auth: {
     getCurrentUser(): Promise<DesktopUser | undefined>;
     getCredits(): Promise<DesktopCreditSummary>;
-    login(email: string, password: string): Promise<DesktopUser>;
     requestEmailCode(email: string): Promise<EmailChallengeView>;
     verifyEmailCode(email: string, challengeId: string, code: string): Promise<DesktopUser>;
     logout(): Promise<void>;

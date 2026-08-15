@@ -17,8 +17,6 @@ const api: DesktopApi = {
   auth: {
     getCurrentUser: () => ipcRenderer.invoke("auth:current"),
     getCredits: () => ipcRenderer.invoke("auth:credits"),
-    login: (email, password) =>
-      ipcRenderer.invoke("auth:login", email, password),
 	requestEmailCode: (email) =>
 		ipcRenderer.invoke("auth:email-code:request", email),
 	verifyEmailCode: (email, challengeId, code) =>

@@ -14,13 +14,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   requestCode: [email: string];
   verifyCode: [email: string, challengeId: string, code: string];
-  passwordLogin: [email: string, password: string];
 }>();
 
-const mode = ref<"otp" | "password">("otp");
 const email = ref("");
 const code = ref("");
-const password = ref("");
 const retryAfter = ref(0);
 let retryTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -45,10 +42,6 @@ onBeforeUnmount(() => {
 function submit(): void {
   const normalizedEmail = email.value.trim();
   if (!normalizedEmail) return;
-  if (mode.value === "password") {
-    if (password.value) emit("passwordLogin", normalizedEmail, password.value);
-    return;
-  }
   if (!props.challenge) {
     emit("requestCode", normalizedEmail);
     return;
@@ -56,10 +49,6 @@ function submit(): void {
   if (/^\d{6}$/u.test(code.value)) {
     emit("verifyCode", normalizedEmail, props.challenge.challengeId, code.value);
   }
-}
-
-function switchMode(): void {
-  mode.value = mode.value === "otp" ? "password" : "otp";
 }
 </script>
 
@@ -80,10 +69,10 @@ function switchMode(): void {
             type="email"
             autocomplete="username"
             placeholder="name@example.com"
-            :disabled="busy || (mode === 'otp' && Boolean(challenge))"
+            :disabled="busy || Boolean(challenge)"
           />
         </label>
-        <label v-if="mode === 'otp' && challenge">
+        <label v-if="challenge">
           <span>{{ $t('邮箱验证码') }}</span>
           <input
             v-model="code"
@@ -94,18 +83,8 @@ function switchMode(): void {
             :disabled="busy"
           />
         </label>
-        <label v-else-if="mode === 'password'">
-          <span>{{ $t('开发密码') }}</span>
-          <input
-            v-model="password"
-            type="password"
-            autocomplete="current-password"
-            :placeholder="$t('请输入开发密码')"
-            :disabled="busy"
-          />
-        </label>
-        <div v-if="challenge && mode === 'otp'" class="login-hint-row">
-          <p class="login-hint">{{ $t('验证码已发送；本地开发可在 Mailpit 查看。') }}</p>
+        <div v-if="challenge" class="login-hint-row">
+          <p class="login-hint">{{ $t('验证码已发送至你的邮箱，请查收。') }}</p>
           <button
             class="login-inline-button"
             type="button"
@@ -119,13 +98,10 @@ function switchMode(): void {
         <button
           class="primary-button icon-label"
           type="submit"
-          :disabled="busy || !email.trim() || (mode === 'password' ? !password : Boolean(challenge) && !/^\d{6}$/u.test(code))"
+          :disabled="busy || !email.trim() || (Boolean(challenge) && !/^\d{6}$/u.test(code))"
         >
-          <span>{{ busy ? $t('请稍候…') : mode === "password" ? $t('开发登录') : challenge ? $t('验证并登录') : $t('获取验证码') }}</span>
+          <span>{{ busy ? $t('请稍候…') : challenge ? $t('验证并登录') : $t('获取验证码') }}</span>
           <ArrowRight :size="16" :stroke-width="1.9" aria-hidden="true" />
-        </button>
-        <button class="login-mode-button" type="button" :disabled="busy" @click="switchMode">
-          {{ mode === "otp" ? $t('使用开发密码登录') : $t('使用邮箱验证码登录') }}
         </button>
       </form>
 
