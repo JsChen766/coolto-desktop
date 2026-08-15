@@ -1,0 +1,102 @@
+name: Deploy Homepage
+
+# 官网（homepage-web）构建并部署到 home.coolto.com.cn。
+# 版本号默认从服务器 feed（latest.yml / latest-mac.yml）读取最新版本注入
+# 下载链接；也可用 workflow_dispatch 的 release-version 输入覆盖。
+# 产物：vite build → dist/ → 备份服务器旧版 → 替换 website-dist。
+on:
+  workflow_dispatch:
+    inputs:
+      release-version:
+        description: "覆盖下载链接版本（默认读取服务器 feed 最新版）"
+        required: false
+        type: string
+
+jobs:
+  deploy-homepage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout (HomePage-Web)
+        uses: actions/checkout@v4
+        with:
+          ref: HomePage-Web
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        working-directory: homepage-web
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve release version from server feed
+        id: version
+        env:
+          SSH_KEY: ${{ secrets.RELEASE_SERVER_SSH_KEY }}
+          SERVER_HOST: ${{ secrets.RELEASE_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.RELEASE_SERVER_USER }}
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.release-version }}" ]; then
+            echo "version=${{ inputs.release-version }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          umask 077
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/release_ci
+          ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" \
+            "awk '/^version:/{print \$2; exit}' /srv/coolto-releases/latest.yml" > version.txt
+          cat version.txt
+          echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Build homepage
+        working-directory: homepage-web
+        env:
+          VITE_RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: pnpm run build
+
+      - name: Verify download URLs in bundle
+        working-directory: homepage-web
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          grep -q "Coolto-${VERSION}-arm64-mac.zip" dist/assets/*.js
+          grep -q "Coolto-${VERSION}-x64.exe" dist/assets/*.js
+          echo "bundle references version ${VERSION}"
+
+      - name: Deploy to release server
+        env:
+          SSH_KEY: ${{ secrets.RELEASE_SERVER_SSH_KEY }}
+          SERVER_HOST: ${{ secrets.RELEASE_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.RELEASE_SERVER_USER }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          umask 077
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/release_ci
+          ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          cd homepage-web
+          tar -czf /tmp/homepage-dist.tar.gz dist
+          scp -i ~/.ssh/release_ci /tmp/homepage-dist.tar.gz \
+            "$SERVER_USER@$SERVER_HOST:/home/$SERVER_USER/homepage-dist.tar.gz"
+          ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" bash -c '
+            set -euo pipefail
+            BACKUP=/home/ubuntu/cv-agent-app-be/website-dist.bak-ci-$(date +%Y%m%d-%H%M%S)
+            sudo cp -r /home/ubuntu/cv-agent-app-be/website-dist "$BACKUP"
+            sudo rm -rf /tmp/homepage-dist && sudo mkdir -p /tmp/homepage-dist
+            sudo tar -xzf /home/ubuntu/homepage-dist.tar.gz -C /tmp/homepage-dist --strip-components=1
+            sudo rm -rf /home/ubuntu/cv-agent-app-be/website-dist/*
+            sudo cp -r /tmp/homepage-dist/* /home/ubuntu/cv-agent-app-be/website-dist/
+            sudo chown -R ubuntu:ubuntu /home/ubuntu/cv-agent-app-be/website-dist
+            sudo rm -rf /tmp/homepage-dist /home/ubuntu/homepage-dist.tar.gz
+            echo "backup: $BACKUP"
+          '
+          # smoke: title should be the product name now
+          ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" \
+            "curl -sk https://home.coolto.com.cn/ | grep -q '<title>Coolto' && echo 'title ok'"

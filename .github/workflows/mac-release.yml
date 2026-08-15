@@ -73,3 +73,12 @@ jobs:
             "$SERVER_USER@$SERVER_HOST:/home/$SERVER_USER/"
           ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" \
             "sudo install -o root -g root -m 644 /home/$SERVER_USER/Coolto-*.zip /home/$SERVER_USER/latest-mac.yml /srv/coolto-releases/ && rm -f /home/$SERVER_USER/Coolto-*.zip /home/$SERVER_USER/latest-mac.yml && ls -la /srv/coolto-releases/"
+          # Regenerate the download page so the mac buttons stay current even
+          # when this workflow runs without a Windows release.
+          scp -i ~/.ssh/release_ci \
+            "$SERVER_USER@$SERVER_HOST:/srv/coolto-releases/latest.yml" dist-electron/ || true
+          node scripts/generate-download-page.mjs
+          scp -i ~/.ssh/release_ci dist-electron/index.html \
+            "$SERVER_USER@$SERVER_HOST:/home/$SERVER_USER/upload-index.html"
+          ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" \
+            "sudo install -o root -g root -m 644 /home/$SERVER_USER/upload-index.html /srv/coolto-releases/index.html && rm -f /home/$SERVER_USER/upload-index.html"
