@@ -239,9 +239,24 @@ bytecode 作为通用发行壳，也不得把“在构建机可运行”当作�
 | `Build Windows Release` | dispatch / `win-v*` tag | NSIS exe + latest.yml + blockmap → 服务器；重新生成下载页 |
 | `Build macOS Release` | dispatch / `mac-v*` tag | x64/arm64 zip + latest-mac.yml → 服务器；重新生成下载页 |
 | `Deploy Homepage` | dispatch | 从服务器 feed 读最新版本 → `VITE_RELEASE_VERSION` 注入 → 构建官网 → 备份 + 替换 website-dist |
+| `Admin CI and production deploy`（cv-agent 仓库） | push `admin` 分支 | make check + race tests → 服务器 `cv-agent-admin-deploy`（迁移 → 构建 → 重建 → 健康检查）。受 `ADMIN_DEPLOY_ENABLED` 变量控制 |
 
 Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_keys，标签
 `coolto-mac-ci`）、`RELEASE_SERVER_HOST`、`RELEASE_SERVER_USER`。
+
+### 10.4 分支保护（2026-08-15 起）
+
+以下分支全部启用 GitHub branch protection：**禁止直接推送（含管理员），
+代码必须通过 Pull Request 合入**（approvals 数 0，即只要求 MR 形式；如需
+强制 review 再调 `required_approving_review_count`）。同时禁止 force push
+与分支删除。
+
+- `cv-agent`：`main`（api-service CI）、`credit-api-main`（credit CI）、
+  `admin`（admin CI）
+- `cv_agent_frontend`：`main`（workflow 定义）、`app`（桌面端构建源）
+
+注意：分支保护生效后，**CI 的 workflow 文件本身也走 MR 合入**；服务器端
+部署脚本（/usr/local/bin/cv-agent-deploy 等）由 CI 调用，不在此列。
 
 官网下载链接版本号由 `Deploy Homepage` 自动从服务器 `latest.yml` 读取注入
 （`homepage-web/src/lib/region.ts` 的 `RELEASE_VERSION` 读
