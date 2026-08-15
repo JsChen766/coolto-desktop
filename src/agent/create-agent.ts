@@ -10,6 +10,7 @@ import {
   createModels,
   type Api,
   type Model,
+  type Models,
   type MutableModels,
 } from "@earendil-works/pi-ai";
 import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek";
@@ -43,6 +44,8 @@ export interface CreateAgentOptions {
 export interface AgentDependencies {
   model: Model<Api>;
   streamFn: StreamFn;
+  /** Models registry; exposed for context compaction (summary generation). */
+  models?: Models;
 }
 
 export interface CreditGatewayOptions {
@@ -80,6 +83,7 @@ export function createDeepSeekDependencies(
   const baseStream = models.streamSimple.bind(models);
   return {
     model,
+    models,
     streamFn: (modelInput, context, options) => {
       if (!gateway) {
         return baseStream(modelInput, context, {

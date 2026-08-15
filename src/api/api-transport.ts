@@ -154,6 +154,22 @@ export class CooltoApiTransport implements AuthenticatedRequester {
     });
     return readEnvelope<T>(response);
   }
+
+  /**
+   * GET request with the session cookie, used for read-only endpoints such as
+   * the public app configuration. Throws CooltoApiError on non-2xx responses.
+   */
+  public async getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+    const headers = this.#sessionCookie
+      ? { Cookie: this.#sessionCookie }
+      : {};
+    const response = await this.#fetch(`${this.#baseUrl}${path}`, {
+      method: "GET",
+      headers,
+      ...(signal ? { signal } : {}),
+    });
+    return readEnvelope<T>(response);
+  }
 }
 
 async function readEnvelope<T>(response: Response): Promise<T> {

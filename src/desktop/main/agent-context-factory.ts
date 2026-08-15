@@ -42,6 +42,8 @@ export interface AgentContextFactoryDependencies {
   profileProposals: ProfileProposalExecutor;
   events: AgentRuntimeEvents;
   traces: ResumeGenerationTraceStore;
+  /** Immediately runs one sync round (agent sync_now tool). */
+  syncNow: () => Promise<{ ok: boolean; message: string }>;
 }
 
 export class AgentContextFactory {
@@ -143,6 +145,7 @@ export class AgentContextFactory {
           store: workspaceStore,
           reviewer: resumeCandidateReviewer,
         },
+        syncNow: deps.syncNow,
       }),
     }, modelDependencies);
     const context: ConversationAgentContext = {
@@ -152,6 +155,10 @@ export class AgentContextFactory {
       jdProposalStore,
       matchReportStore,
       artifactIdByCandidate: new Map(),
+      compaction: {
+        models: modelDependencies.models,
+        model: modelDependencies.model,
+      },
     };
     deps.events.subscribe(conversationId, context);
     return context;

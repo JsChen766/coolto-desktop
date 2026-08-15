@@ -1,4 +1,5 @@
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
+import type { CompactionDependencies } from "./context-compaction.js";
 import { JdProposalStore } from "../../jd/proposal-store.js";
 import { MatchReportStore } from "../../match/report-store.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
@@ -11,6 +12,8 @@ export interface ConversationAgentContext {
   jdProposalStore: JdProposalStore;
   matchReportStore: MatchReportStore;
   artifactIdByCandidate: Map<string, string>;
+  /** Model plumbing for context compaction (summary generation). */
+  compaction?: CompactionDependencies;
   activeEdit?: {
     artifactId: string;
     base: NonNullable<ReturnType<ResumeWorkspaceStore["latest"]>>;

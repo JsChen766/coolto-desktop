@@ -6,7 +6,7 @@ import { ResumePublicationApi } from "./resume-publication-api.js";
 import { ResumeLibraryApi } from "./resume-library-api.js";
 import { SyncApi } from "./sync-api.js";
 import type { ResumePublicationGateway } from "../resume/save/types.js";
-import type {
+import type { AppConfigView,
   CurrentUser,
   CurrentUserReader,
   ExperienceCreateInput,
@@ -82,6 +82,10 @@ export class CooltoApiClient
 
   public get resumeLibrary(): ResumeLibraryApi {
     return this.#resumeLibrary;
+  }
+
+  public getAppConfig(signal?: AbortSignal): Promise<AppConfigView> {
+    return this.#transport.getJson<AppConfigView>("/v1/app-config", signal);
   }
 
   public get sync(): SyncApi {

@@ -112,3 +112,22 @@ async function activateReferencedDraft(
   );
   return draft;
 }
+
+
+/**
+ * Runs a follow-up prompt produced by an approval decision. The agent core
+ * rejects prompts while its previous run is still settling; that race is
+ * benign (the follow-up is an enhancement), so skip it instead of surfacing
+ * the raw error.
+ */
+export async function runContinuationPrompt(
+  run: () => Promise<unknown>,
+): Promise<void> {
+  try {
+    await run();
+  } catch (error: unknown) {
+    if (!(error instanceof Error) || !/already processing/iu.test(error.message)) {
+      throw error;
+    }
+  }
+}

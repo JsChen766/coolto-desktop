@@ -19,7 +19,6 @@ export function toExperienceWritePayload(
   input: ExperienceCreateInput,
   revisionId: string,
 ): Record<string, unknown> {
-  const section = sectionFor(input);
   return {
     revisionId,
     category: input.category,
@@ -31,8 +30,6 @@ export function toExperienceWritePayload(
     startDate: input.startDate ?? null,
     endDate: input.endDate ?? null,
     tags: input.tags ?? [],
-    resumeSectionKey: section.sectionKey,
-    resumeSectionLabel: section.sectionLabel,
     status: input.status ?? "active",
     source: "manual",
   };

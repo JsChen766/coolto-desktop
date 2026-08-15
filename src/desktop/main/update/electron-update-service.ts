@@ -50,8 +50,6 @@ export class ElectronUpdateService {
 
   public init(): void {
     this.driver.forceDevUpdateConfig = this.options.forceDev ?? false;
-    // Windows: let electron-updater download the NSIS installer and report
-    // progress/downloaded events. macOS: check-only, download is self-owned.
     this.driver.autoDownload = this.nativeWindowsFlow;
     this.driver.setFeedURL(this.options.feedUrl);
     this.driver.on("checking-for-update", () =>
@@ -60,9 +58,7 @@ export class ElectronUpdateService {
     this.driver.on("update-available", (info) => {
       this.pendingUpdate = info;
       this.apply({ type: "available", version: info?.version ?? "未知版本" });
-      if (!this.nativeWindowsFlow) {
-        void this.startDownload();
-      }
+      if (!this.nativeWindowsFlow) void this.startDownload();
     });
     this.driver.on("update-not-available", () =>
       this.apply({ type: "not-available" }),
@@ -132,7 +128,6 @@ export class ElectronUpdateService {
     }
     if (this.nativeWindowsFlow) {
       try {
-        // Silently runs the downloaded NSIS installer and relaunches the app.
         this.driver.quitAndInstall();
         this.apply({ type: "installing" });
       } catch (error) {
