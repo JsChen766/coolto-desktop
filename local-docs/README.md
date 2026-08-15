@@ -7,6 +7,7 @@ Coolto 当前的产品、架构和阶段实施文档统一收纳在：
 | [`resume-generation-roadmap/`](./resume-generation-roadmap/README.md) | ✅ 已完成 | G0–G7 简历生成完整链路 |
 | [`p0-product-completion-roadmap/`](./p0-product-completion-roadmap/README.md) | ✅ 已完成 | P0–P5 附件接入/JD 入库/匹配分析/简历仓库 |
 | [`browser-autofill-roadmap/`](./browser-autofill-roadmap/README.md) | 🔨 设计中 | B0–B6 内置浏览器、表单填写、邮件撰写填写 |
+| [`server-deploy-release-standards.md`](./server-deploy-release-standards.md) | ✅ 已生效 | 服务器推送、部署与发版规范（四端共享） |
 
 PRD 需求与各路线对照见 [`prd-requirements-tracker.md`](./prd-requirements-tracker.md)。
 
