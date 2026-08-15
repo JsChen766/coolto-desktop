@@ -158,3 +158,8 @@ export interface JdWriter {
   createJd(input: JdCreateInput, signal?: AbortSignal): Promise<JdRecord>;
 }
 export type * from "./experience-types.js";
+
+export interface AppConfigView {
+  /** Context compaction threshold in tokens; undefined when unset. */
+  contextCompactThresholdTokens?: number;
+}

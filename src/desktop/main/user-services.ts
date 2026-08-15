@@ -153,6 +153,8 @@ export class UserServicesResolver {
         jds,
         profiles,
         profileProposals,
+        () => readCompactionThreshold(this.auth.apiClient),
+        () => runSyncNow(this.auth),
       ),
       selectedFiles,
       resumes,
@@ -191,5 +193,39 @@ export class UserServicesResolver {
    * window close / app quit, where the runtime must not be rebuilt). */
   public async flushPending(): Promise<void> {
     await this.services?.agent.flushPending();
+  }
+}
+
+
+/**
+ * Reads the context-compaction threshold from the server app-config once and
+ * caches it; any failure falls back to the client default so conversation
+ * flow is never blocked by configuration availability.
+ */
+let compactionThresholdCache: number | undefined;
+async function readCompactionThreshold(
+  apiClient: CooltoApiClient,
+): Promise<number | undefined> {
+  if (compactionThresholdCache !== undefined) {
+    return compactionThresholdCache;
+  }
+  try {
+    const config = await apiClient.getAppConfig();
+    compactionThresholdCache = config.contextCompactThresholdTokens;
+  } catch {
+    compactionThresholdCache = undefined;
+  }
+  return compactionThresholdCache;
+}
+
+
+/** Agent sync_now tool: runs one sync round and reports the outcome. */
+async function runSyncNow(auth: DesktopAuthService): Promise<{ ok: boolean; message: string }> {
+  try {
+    await auth.syncNow();
+    return { ok: true, message: "本地数据已同步到云端。" };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, message: `同步失败：${message}` };
   }
 }

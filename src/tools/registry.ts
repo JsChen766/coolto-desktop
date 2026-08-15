@@ -29,6 +29,7 @@ import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
 import { createSearchExperiencesTool } from "./search-experiences.js";
+import { createSyncNowTool, type SyncNowResult } from "./sync-now.js";
 import { createSelectedFileTools } from "./selected-files.js";
 import { createResumePatchTools } from "./resume-candidate/index.js";
 import { createInspectResumeLayoutTool } from "./planned-resume/inspect-layout.js";
@@ -67,6 +68,8 @@ export interface ToolRegistryDependencies {
   browserPageReader?: BrowserPageReader;
   browserPageOperator?: BrowserPageOperator;
   agentOrchestrated?: AgentOrchestratedDependencies;
+  /** Immediately runs one sync round; resolves with a result summary. */
+  syncNow?: () => Promise<SyncNowResult>;
 }
 
 /**
@@ -78,6 +81,9 @@ export function createToolRegistry(
 ): AgentTool[] {
   const businessTools: AgentTool[] = [];
 
+  if (dependencies.syncNow) {
+    businessTools.push(createSyncNowTool(dependencies.syncNow));
+  }
   if (dependencies.currentUserReader) {
     businessTools.push(
       createGetCurrentUserTool(dependencies.currentUserReader),

@@ -49,8 +49,6 @@ test("toExperienceWritePayload matches backend createPayload keys", () => {
     "endDate",
     "location",
     "organization",
-    "resumeSectionKey",
-    "resumeSectionLabel",
     "role",
     "revisionId",
     "source",

@@ -20,7 +20,12 @@ import type { AgentPromptInput, ConversationDetail } from "../shared/types.js";
 import { AgentContextFactory } from "./agent-context-factory.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
-import { executeAgentPrompt } from "./agent-runtime-prompt.js";
+import {
+  executeAgentPrompt,
+  runContinuationPrompt,
+} from "./agent-runtime-prompt.js";
+import { maybeCompactAgentContext } from "./context-compaction.js";
+import type { SyncNowResult } from "../../tools/sync-now.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
@@ -59,6 +64,10 @@ export class DesktopAgentRuntime {
     jds: JdReader & JdWriter,
     profiles: UserProfileReader,
     profileProposals: ProfileProposalExecutor,
+    /** Reads the compaction threshold (tokens) from server app-config. */
+    private readonly compactionThreshold: () => Promise<number | undefined>,
+    /** Immediately runs one sync round (agent sync_now tool). */
+    private readonly syncNow: () => Promise<SyncNowResult>,
   ) {
     this.#store = store;
     this.#resumeDrafts = resumeDrafts;
@@ -77,6 +86,7 @@ export class DesktopAgentRuntime {
       profileProposals,
       events: this.#events,
       traces: this.#traces,
+      syncNow: this.syncNow,
     });
   }
 
@@ -88,13 +98,18 @@ export class DesktopAgentRuntime {
     const conversationId = input.conversationId;
     const context = await this.#contextFor(conversationId);
     this.#assertCanRun(conversationId);
+    if (context.agent.isRunning) {
+      throw new Error("正在处理上一条消息，请稍候再试");
+    }
+    await maybeCompactAgentContext(context.agent, {
+      ...context.compaction,
+      thresholdTokens: await this.compactionThreshold().catch(() => undefined),
+    }).catch(() => false);
     this.#runningConversationId = conversationId;
     this.#cancelRequested = false;
     this.#traces.start(conversationId, readConfig().modelId);
     const commandStartedAt = performance.now();
     let failed = false;
-    // Snapshot the transcript after every completed turn so an abrupt close
-    // or a hard failure never loses more than the in-flight turn.
     const unsubscribePersist = context.agent.subscribe((event) => {
       if (event.type === "turn.completed") {
         void this.#persistSnapshot(conversationId, context.agent).catch(
@@ -118,7 +133,6 @@ export class DesktopAgentRuntime {
     } finally {
       unsubscribePersist();
       if (failed) {
-        // Persist whatever the transcript holds (user message, completed
         // turns) so an interrupted or failed run keeps its history.
         await this.#persistSnapshot(conversationId, context.agent).catch(
           () => {},
@@ -187,12 +201,16 @@ export class DesktopAgentRuntime {
       const savedJd = jdContinuation?.getSavedJd();
       if (savedJd && !this.#cancelRequested) {
         this.#events.emitJdSaved(conversationId, requestId, savedJd.jdId);
-        await context.agent.prompt(buildJdContinuationPrompt(savedJd));
+        await runContinuationPrompt(
+          () => context.agent.prompt(buildJdContinuationPrompt(savedJd)),
+        );
       }
       const grantedReason = writeAccessContinuation?.getGrantedReason();
       if (grantedReason && !this.#cancelRequested) {
-        await context.agent.prompt(
-          buildBrowserWriteAccessContinuationPrompt(grantedReason),
+        await runContinuationPrompt(() =>
+          context.agent.prompt(
+            buildBrowserWriteAccessContinuationPrompt(grantedReason),
+          ),
         );
       }
       return await this.#store.saveMessages(

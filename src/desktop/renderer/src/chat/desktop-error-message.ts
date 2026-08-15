@@ -8,6 +8,9 @@ export function desktopErrorMessage(error: unknown): string {
   if (/insufficient_credits|余额不足|402/iu.test(cleaned)) {
     return "余额不足，请先补充额度或等待每周免费额度恢复。";
   }
+  if (/already processing/iu.test(cleaned)) {
+    return "正在处理上一条消息，请稍候再试。";
+  }
   // Gateway/proxy errors may embed the API envelope as JSON text; fall back
   // to the envelope's human-readable message instead of dumping raw JSON.
   const envelopeMessage = cleaned.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/u);
