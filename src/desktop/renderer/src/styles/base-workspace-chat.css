@@ -182,6 +182,17 @@
   word-break: break-word;
 }
 
+/* 消息携带的附件卡片（与 Composer 附件样式呼应） */
+/* 消息携带的附件卡片（与 Composer 附件样式呼应） */
+.message-attachments { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+.message-attachment { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px; background: var(--surface-strong); color: var(--text-soft); }
+.message-attachment-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.message-attachment-name { overflow: hidden; font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.message-attachment small { color: var(--muted); font-size: 9.5px; }
+.message-attachment.attachment-status-parsing, .message-attachment.attachment-status-partial { color: var(--text-soft); }
+.message-attachment.attachment-status-parsed, .message-attachment.attachment-status-saved { color: var(--text); }
+.message-attachment.attachment-status-error { color: var(--danger); }
+
 .role-assistant {
   display: flex;
   flex-direction: column;

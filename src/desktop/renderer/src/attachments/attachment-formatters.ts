@@ -1,7 +1,9 @@
-import type { AttachmentView } from "./use-conversation-attachment";
+import type { MessageAttachmentStatus } from "@desktop/types";
 import { translate } from "../i18n/locale";
 
-export function attachmentStatus(view: AttachmentView): string {
+export type AttachmentLike = { status: MessageAttachmentStatus | "selected" };
+
+export function attachmentStatus(view: AttachmentLike): string {
   if (view.status === "parsing") return translate("解析中");
   if (view.status === "parsed") return translate("已解析");
   if (view.status === "partial") return translate("部分已保存");

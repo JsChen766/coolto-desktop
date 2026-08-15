@@ -1,6 +1,10 @@
 import { performance } from "node:perf_hooks";
 
-import type { AgentPromptInput, ConversationDetail } from "../shared/types.js";
+import type {
+  AgentPromptInput,
+  ConversationDetail,
+  MessageAttachment,
+} from "../shared/types.js";
 import {
   promptWithJdReference,
   promptWithResumeReference,
@@ -8,6 +12,7 @@ import {
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import { ConversationStore } from "./conversation-store.js";
+import { buildAttachmentNotice } from "./conversation-attachments.js";
 import {
   continueUntilTerminal,
   INITIAL_TURN_MAX_MS,
@@ -23,6 +28,8 @@ export interface AgentPromptExecutionInput {
   events: AgentRuntimeEvents;
   commandStartedAt: number;
   isCancelled: () => boolean;
+  /** 发送该消息时会话的附件快照；最终保存时绑定到本次用户消息。 */
+  pendingAttachments: MessageAttachment[];
 }
 
 export async function executeAgentPrompt(
@@ -52,6 +59,10 @@ export async function executeAgentPrompt(
     : prompt.resumeReference
       ? promptWithResumeReference(prompt.text, prompt.resumeReference)
       : prompt.text;
+  const attachmentNotice =
+    input.pendingAttachments.length > 0
+      ? buildAttachmentNotice(input.pendingAttachments)
+      : "";
   const unsubscribeInitialTurn = context.agent.subscribe((event) => {
     if (
       event.type === "model.started" &&
@@ -60,7 +71,7 @@ export async function executeAgentPrompt(
       context.agent.cancel();
     }
   });
-  await context.agent.prompt(promptText);
+  await context.agent.prompt(promptText + attachmentNotice);
   unsubscribeInitialTurn();
   while (context.agent.isRunning) {
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -96,6 +107,7 @@ export async function executeAgentPrompt(
   return input.store.saveMessages(
     prompt.conversationId,
     context.agent.getMessages(),
+    input.pendingAttachments,
   );
 }
 

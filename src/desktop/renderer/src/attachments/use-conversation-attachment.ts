@@ -1,6 +1,9 @@
 import { onBeforeUnmount, ref, watch } from "vue";
 
-import type { DesktopAgentEvent } from "@desktop/types";
+import type {
+  DesktopAgentEvent,
+  MessageAttachmentStatus,
+} from "@desktop/types";
 import {
   AttachmentEventTracker,
   type AttachmentView,
@@ -16,10 +19,18 @@ export function useConversationAttachment(
   const selecting = ref(false);
   const error = ref<string>();
   const tracker = new AttachmentEventTracker();
+  const liveVersion = ref(0);
 
   const unsubscribe = desktopApi.agent.onEvent(handleAgentEvent);
   onBeforeUnmount(unsubscribe);
   watch(conversationId, (id) => void load(id), { immediate: true });
+
+  function liveStatusFor(
+    id: string,
+    fileId: string,
+  ): MessageAttachmentStatus | undefined {
+    return tracker.statusFor(id, fileId);
+  }
 
   async function load(id: string | undefined): Promise<void> {
     error.value = undefined;
@@ -77,10 +88,19 @@ export function useConversationAttachment(
     event: DesktopAgentEvent,
   ): void {
     const updated = tracker.handle(eventConversationId, event);
+    liveVersion.value = tracker.version;
     if (conversationId() === eventConversationId) attachment.value = updated;
   }
 
-  return { attachment, selecting, error, select, remove };
+  return {
+    attachment,
+    selecting,
+    error,
+    select,
+    remove,
+    liveStatusFor,
+    liveVersion,
+  };
 }
 
 function errorMessage(value: unknown): string {

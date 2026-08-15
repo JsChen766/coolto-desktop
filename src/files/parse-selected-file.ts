@@ -1,5 +1,6 @@
 import mammoth from "mammoth";
 
+import { extractLayoutText } from "./pdf-layout.js";
 import type { SelectedFileContent } from "./types.js";
 
 const MAX_PARSED_CHARS = 80_000;
@@ -62,13 +63,7 @@ async function parsePdf(content: Buffer): Promise<string> {
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const textContent = await page.getTextContent();
-      pages.push(
-        textContent.items
-          .flatMap((item) =>
-            "str" in item && typeof item.str === "string" ? [item.str] : [],
-          )
-          .join(" "),
-      );
+      pages.push(extractLayoutText(textContent));
     }
   } finally {
     await loadingTask.destroy();

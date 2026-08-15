@@ -64,6 +64,25 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: string;
+  /** 该消息携带的附件引用（仅用户消息），重启后随聊天记录持久化。 */
+  attachments?: MessageAttachment[];
+}
+
+export type MessageAttachmentStatus =
+  | "pending"
+  | "parsing"
+  | "parsed"
+  | "partial"
+  | "saved"
+  | "error";
+
+export interface MessageAttachment {
+  fileId: string;
+  filename: string;
+  type: "pdf" | "docx" | "text" | "markdown";
+  sizeBytes: number;
+  /** 运行时状态；持久化快照可能滞后于实时事件。 */
+  status: MessageAttachmentStatus;
 }
 
 export interface ConversationSummary {

@@ -17,6 +17,7 @@ import { sanitizeAgentMessagesForPersistence } from "../../agent/persistence-pol
 import type {
   ConversationDetail,
   ConversationSummary,
+  MessageAttachment,
 } from "../shared/types.js";
 import type { ResumeDraftArtifactReference } from "../../resume/draft/types.js";
 import {
@@ -24,6 +25,7 @@ import {
   type ExperienceImportResultDetails,
 } from "../../import/result-artifact.js";
 import { projectConversationMessages } from "./conversation-presentation.js";
+import { mergeMessageAttachments } from "./conversation-attachments.js";
 import {
   UNTITLED_CONVERSATION,
   assertConversationId,
@@ -35,6 +37,7 @@ import {
   isMissingConversationFile,
   isStoredConversation,
   type StoredConversation,
+  type StoredMessageAttachment,
   withArtifactAnchor,
 } from "./conversation-record.js";
 
@@ -69,7 +72,7 @@ export class ConversationStore {
   public async create(): Promise<ConversationDetail> {
     const now = new Date().toISOString();
     const conversation: StoredConversation = {
-      version: 2,
+      version: 3,
       id: randomUUID(),
       ownerId: this.#ownerId,
       title: UNTITLED_CONVERSATION,
@@ -103,11 +106,16 @@ export class ConversationStore {
   public async saveMessages(
     conversationId: string,
     messages: AgentMessage[],
+    pendingAttachments?: MessageAttachment[],
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 2;
+    record.version = 3;
     record.agentMessages = sanitizeAgentMessagesForPersistence(messages);
-    const visibleMessages = projectConversationMessages(record.agentMessages);
+    record.messageAttachments = mergeMessageAttachments(record.messageAttachments ?? [], pendingAttachments ?? [], messages);
+    const visibleMessages = projectConversationMessages(
+      record.agentMessages,
+      record.messageAttachments,
+    );
     record.resumeArtifacts = (record.resumeArtifacts ?? []).map((artifact) =>
       withArtifactAnchor(artifact, visibleMessages),
     );
@@ -124,7 +132,7 @@ export class ConversationStore {
     artifact: ResumeDraftArtifactReference,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 2;
+    record.version = 3;
     const artifacts = record.resumeArtifacts ?? [];
     const existing = artifacts.findIndex(
       (candidate) => candidate.artifactId === artifact.artifactId,
@@ -151,7 +159,7 @@ export class ConversationStore {
     result: ExperienceImportResultDetails,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 2;
+    record.version = 3;
     const artifacts = record.experienceImportArtifacts ?? [];
     const index = artifacts.findIndex(
       (artifact) => artifact.proposalId === result.proposalId,

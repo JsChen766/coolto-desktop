@@ -16,7 +16,7 @@ import {
 } from "./jd-continuation.js";
 import type { ResumePdfCompiler, ResumePdfExportGateway } from "../../resume/export/types.js";
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
-import type { AgentPromptInput, ConversationDetail } from "../shared/types.js";
+import type { AgentPromptInput, ConversationDetail, MessageAttachment } from "../shared/types.js";
 import { AgentContextFactory } from "./agent-context-factory.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
@@ -48,6 +48,9 @@ export class DesktopAgentRuntime {
   /** Serializes background transcript snapshots so concurrent writes to the
    * same conversation file never interleave. */
   #persistChain: Promise<void> = Promise.resolve();
+  /** Attachment snapshot at prompt time, bound to the next user message. */
+  #pendingAttachments: MessageAttachment[] = [];
+  readonly #selectedFiles: ConversationSelectedFiles;
 
   public constructor(
     apiClient: CooltoApiClient,
@@ -71,6 +74,7 @@ export class DesktopAgentRuntime {
   ) {
     this.#store = store;
     this.#resumeDrafts = resumeDrafts;
+    this.#selectedFiles = selectedFiles;
     this.#events = new AgentRuntimeEvents(target, store, resumeDrafts, this.#traces);
     this.#contextFactory = new AgentContextFactory({
       apiClient,
@@ -107,14 +111,14 @@ export class DesktopAgentRuntime {
     }).catch(() => false);
     this.#runningConversationId = conversationId;
     this.#cancelRequested = false;
+    this.#pendingAttachments = this.#selectedFiles.list(conversationId)
+      .map((f) => ({ ...f, fileId: f.id, status: "pending" as const }));
     this.#traces.start(conversationId, readConfig().modelId);
     const commandStartedAt = performance.now();
     let failed = false;
     const unsubscribePersist = context.agent.subscribe((event) => {
       if (event.type === "turn.completed") {
-        void this.#persistSnapshot(conversationId, context.agent).catch(
-          () => {},
-        );
+        void this.#persistSnapshot(conversationId, context.agent).catch(() => {});
       }
     });
     try {
@@ -126,6 +130,7 @@ export class DesktopAgentRuntime {
         events: this.#events,
         commandStartedAt,
         isCancelled: () => this.#cancelRequested,
+        pendingAttachments: this.#pendingAttachments,
       });
     } catch (error) {
       failed = true;
@@ -134,9 +139,7 @@ export class DesktopAgentRuntime {
       unsubscribePersist();
       if (failed) {
         // turns) so an interrupted or failed run keeps its history.
-        await this.#persistSnapshot(conversationId, context.agent).catch(
-          () => {},
-        );
+        await this.#persistSnapshot(conversationId, context.agent).catch(() => {});
       }
       this.#traces.finish(conversationId, {
         workspaceStatus: context.workspaceStore.latest()?.status ?? null,
@@ -149,9 +152,8 @@ export class DesktopAgentRuntime {
 
   public cancel(): void {
     this.#cancelRequested = true;
-    if (this.#runningConversationId) {
-      this.#contexts.get(this.#runningConversationId)?.agent.cancel();
-    }
+    const id = this.#runningConversationId;
+    if (id) this.#contexts.get(id)?.agent.cancel();
   }
 
   /** Persists the in-flight transcript snapshot before the app quits. */
@@ -166,7 +168,9 @@ export class DesktopAgentRuntime {
   /** Queued, best-effort snapshot of the agent transcript to the store. */
   #persistSnapshot(conversationId: string, agent: CooltoAgent): Promise<void> {
     const next = this.#persistChain.then(async () => {
-      await this.#store.saveMessages(conversationId, agent.getMessages());
+      const pending = this.#pendingAttachments;
+      this.#pendingAttachments = [];
+      await this.#store.saveMessages(conversationId, agent.getMessages(), pending);
     });
     this.#persistChain = next.catch(() => {});
     return next;
@@ -222,9 +226,7 @@ export class DesktopAgentRuntime {
       throw error;
     } finally {
       if (failed) {
-        await this.#persistSnapshot(conversationId, context.agent).catch(
-          () => {},
-        );
+        await this.#persistSnapshot(conversationId, context.agent).catch(() => {});
       }
       this.#runningConversationId = undefined;
     }
@@ -240,10 +242,8 @@ export class DesktopAgentRuntime {
   }
 
   #assertCanRun(conversationId: string): void {
-    if (
-      this.#runningConversationId &&
-      this.#runningConversationId !== conversationId
-    ) {
+    const running = this.#runningConversationId;
+    if (running && running !== conversationId) {
       throw new Error("另一个对话正在回复，请等待完成或先停止");
     }
   }

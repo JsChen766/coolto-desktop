@@ -1,6 +1,7 @@
 import type {
   DesktopAgentEvent,
   DesktopAttachment,
+  MessageAttachmentStatus,
 } from "../../../shared/types.js";
 import { translate, translateFormat } from "../i18n/locale.js";
 
@@ -27,6 +28,30 @@ export class AttachmentEventTracker {
     string,
     { conversationId: string; fileId: string }
   >();
+  /** 按 fileId 的实时状态，供消息流里的附件卡片合并展示。 */
+  readonly #runtimeStatus = new Map<string, MessageAttachmentStatus>();
+  #version = 0;
+
+  public statusFor(
+    conversationId: string,
+    fileId: string,
+  ): MessageAttachmentStatus | undefined {
+    return this.#runtimeStatus.get(runtimeKey(conversationId, fileId));
+  }
+
+  /** 事件驱动状态变化版本号，UI 用它触发消息卡片重渲染。 */
+  public get version(): number {
+    return this.#version;
+  }
+
+  #setRuntimeStatus(
+    conversationId: string,
+    fileId: string,
+    status: MessageAttachmentStatus,
+  ): void {
+    this.#runtimeStatus.set(runtimeKey(conversationId, fileId), status);
+    this.#version += 1;
+  }
 
   public sync(
     conversationId: string,
@@ -52,12 +77,16 @@ export class AttachmentEventTracker {
 
   public remove(conversationId: string): void {
     this.#attachments.delete(conversationId);
+    for (const key of this.#runtimeStatus.keys()) {
+      if (key.startsWith(`${conversationId}:`)) this.#runtimeStatus.delete(key);
+    }
   }
 
   public clear(): void {
     this.#attachments.clear();
     this.#parseCalls.clear();
     this.#importRequests.clear();
+    this.#runtimeStatus.clear();
   }
 
   public handle(
@@ -68,6 +97,7 @@ export class AttachmentEventTracker {
       const fileId = argumentFileId(event.arguments);
       if (!fileId) return this.get(conversationId);
       this.#parseCalls.set(event.callId, { conversationId, fileId });
+      this.#setRuntimeStatus(conversationId, fileId, "parsing");
       this.#update(conversationId, fileId, {
         status: "parsing",
         message: undefined,
@@ -79,6 +109,11 @@ export class AttachmentEventTracker {
       const selected = this.#parseCalls.get(event.callId);
       this.#parseCalls.delete(event.callId);
       if (selected) {
+        this.#setRuntimeStatus(
+          selected.conversationId,
+          selected.fileId,
+          event.isError ? "error" : "parsed",
+        );
         this.#update(selected.conversationId, selected.fileId, {
           status: event.isError ? "error" : "parsed",
           message: event.isError
@@ -110,6 +145,11 @@ export class AttachmentEventTracker {
       this.#importRequests.delete(event.requestId);
       if (selected) {
         const failed = failedImportCount(event.details);
+        this.#setRuntimeStatus(
+          selected.conversationId,
+          selected.fileId,
+          failed > 0 ? "partial" : "saved",
+        );
         this.#update(selected.conversationId, selected.fileId, {
           status: failed > 0 ? "partial" : "saved",
           message:
@@ -122,6 +162,7 @@ export class AttachmentEventTracker {
       const selected = this.#importRequests.get(event.requestId);
       this.#importRequests.delete(event.requestId);
       if (selected) {
+        this.#setRuntimeStatus(selected.conversationId, selected.fileId, "error");
         this.#update(selected.conversationId, selected.fileId, {
           status: "error",
           message: event.message,
@@ -142,6 +183,7 @@ export class AttachmentEventTracker {
     for (const [callId, selected] of this.#parseCalls) {
       if (selected.conversationId !== conversationId) continue;
       this.#parseCalls.delete(callId);
+      this.#setRuntimeStatus(selected.conversationId, selected.fileId, "error");
       this.#update(conversationId, selected.fileId, {
         status: "error",
         message,
@@ -176,4 +218,8 @@ function failedImportCount(value: unknown): number {
   if (!value || typeof value !== "object") return 0;
   const failed = (value as { failed?: unknown }).failed;
   return Array.isArray(failed) ? failed.length : 0;
+}
+
+function runtimeKey(conversationId: string, fileId: string): string {
+  return `${conversationId}:${fileId}`;
 }

@@ -1,14 +1,28 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import { isWrappedInternalPrompt } from "../../agent/internal-prompt.js";
-import type { ChatMessage } from "../shared/types.js";
+import type { ChatMessage, MessageAttachment } from "../shared/types.js";
+import type { StoredMessageAttachment } from "./conversation-record.js";
 
 export function projectConversationMessages(
   messages: AgentMessage[],
+  messageAttachments?: StoredMessageAttachment[],
 ): ChatMessage[] {
   // The Agent transcript is recovery state, not a UI transcript. The App only
   // projects user-originated input and assistant output; host continuations,
   // system/tool traffic, and embedded reference metadata remain internal.
+  const attachmentsByTimestamp = new Map<number, MessageAttachment[]>();
+  for (const stored of messageAttachments ?? []) {
+    const group = attachmentsByTimestamp.get(stored.messageTimestamp) ?? [];
+    group.push({
+      fileId: stored.fileId,
+      filename: stored.filename,
+      type: stored.type,
+      sizeBytes: stored.sizeBytes,
+      status: stored.status,
+    });
+    attachmentsByTimestamp.set(stored.messageTimestamp, group);
+  }
   const visible: ChatMessage[] = [];
   messages.forEach((message, index) => {
     if (message.role !== "user" && message.role !== "assistant") return;
@@ -20,11 +34,16 @@ export function projectConversationMessages(
       typeof message.timestamp === "number"
         ? new Date(message.timestamp).toISOString()
         : new Date().toISOString();
+    const attachments =
+      message.role === "user"
+        ? attachmentsByTimestamp.get(message.timestamp)
+        : undefined;
     visible.push({
       id: `${message.role}-${message.timestamp ?? index}-${index}`,
       role: message.role,
       content,
       createdAt: timestamp,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     });
   });
   return visible;
@@ -49,6 +68,7 @@ export function presentConversationContent(
   const stripped = value
     .replace(/\n*<resume_reference>[\s\S]*?<\/resume_reference>\s*$/u, "")
     .replace(/\n*<jd_reference>[\s\S]*?<\/jd_reference>\s*$/u, "")
+    .replace(/\n*<attachment_notice>[\s\S]*?<\/attachment_notice>\s*$/u, "")
     .trimEnd();
   if (role !== "user") return stripped;
   return stripped.replace(

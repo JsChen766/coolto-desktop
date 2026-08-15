@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from "vue";
+import type { ChatMessage } from "@desktop/types";
 import {
   ApprovalCard,
   ChatHeader,
@@ -61,6 +63,19 @@ const {
   toggleBrowser,
   toolRuns,
 } = props.shell;
+
+/** 合并附件实时状态到消息卡片；liveVersion 保证事件到来时重渲染。 */
+const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
+  void conversationAttachment.liveVersion.value;
+  const detail = current.value;
+  if (!detail) return [];
+  return detail.messages.map((message) =>
+    !message.attachments?.length ? message : {
+      ...message,
+      attachments: message.attachments.map((a) => ({ ...a, status: conversationAttachment.liveStatusFor(detail.id, a.fileId) ?? a.status })),
+    },
+  );
+});
 </script>
 
 <template>
@@ -77,16 +92,7 @@ const {
         @toggle-browser="toggleBrowser"
         @save-resume="saveResumeToCloud"
         @export-resume="exportResume"
-        @rename="
-          current &&
-          openDialog('rename', {
-            id: current.id,
-            title: current.title,
-            createdAt: current.createdAt,
-            updatedAt: current.updatedAt,
-            messageCount: current.messageCount,
-          })
-        "
+        @rename="current && openDialog('rename', { id: current.id, title: current.title, createdAt: current.createdAt, updatedAt: current.updatedAt, messageCount: current.messageCount })"
       />
 
       <div class="workspace-body">
@@ -103,7 +109,7 @@ const {
                 @open-browser="toggleBrowser"
                 @import-resume="conversationAttachment.select"
               />
-              <template v-for="message in current.messages" :key="message.id">
+              <template v-for="message in messagesWithLiveStatus" :key="message.id">
                 <ChatMessageView :message="message" />
                 <ResumeArtifactCard
                   v-for="artifact in current.resumeArtifacts.filter(

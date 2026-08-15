@@ -6,6 +6,7 @@ import type {
   ChatMessage,
   ConversationDetail,
   ConversationSummary,
+  MessageAttachment,
 } from "../shared/types.js";
 import type { ResumeDraftArtifactReference } from "../../resume/draft/types.js";
 import type { ExperienceImportResultArtifact } from "../../import/result-artifact.js";
@@ -14,8 +15,13 @@ import {
   projectConversationMessages,
 } from "./conversation-presentation.js";
 
+export interface StoredMessageAttachment extends MessageAttachment {
+  /** 绑定用户消息的 AgentMessage.timestamp（消息没有稳定 id）。 */
+  messageTimestamp: number;
+}
+
 export interface StoredConversation {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   id: string;
   ownerId: string;
   title: string;
@@ -24,6 +30,7 @@ export interface StoredConversation {
   agentMessages: AgentMessage[];
   resumeArtifacts?: ResumeDraftArtifactReference[];
   experienceImportArtifacts?: ExperienceImportResultArtifact[];
+  messageAttachments?: StoredMessageAttachment[];
 }
 
 export const UNTITLED_CONVERSATION = "新对话";
@@ -50,14 +57,20 @@ export function conversationSummary(
     title: presentConversationTitle(record.title, record.agentMessages),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    messageCount: projectConversationMessages(record.agentMessages).length,
+    messageCount: projectConversationMessages(
+      record.agentMessages,
+      record.messageAttachments,
+    ).length,
   };
 }
 
 export function conversationDetail(
   record: StoredConversation,
 ): ConversationDetail {
-  const messages = projectConversationMessages(record.agentMessages);
+  const messages = projectConversationMessages(
+    record.agentMessages,
+    record.messageAttachments,
+  );
   return {
     ...conversationSummary(record),
     messages,
@@ -114,7 +127,9 @@ export function isStoredConversation(
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<StoredConversation>;
   return (
-    (candidate.version === 1 || candidate.version === 2) &&
+    (candidate.version === 1 ||
+      candidate.version === 2 ||
+      candidate.version === 3) &&
     typeof candidate.id === "string" &&
     typeof candidate.ownerId === "string" &&
     typeof candidate.title === "string" &&
@@ -124,7 +139,27 @@ export function isStoredConversation(
     (candidate.resumeArtifacts === undefined ||
       Array.isArray(candidate.resumeArtifacts)) &&
     (candidate.experienceImportArtifacts === undefined ||
-      Array.isArray(candidate.experienceImportArtifacts))
+      Array.isArray(candidate.experienceImportArtifacts)) &&
+    (candidate.messageAttachments === undefined ||
+      candidate.messageAttachments.every(isStoredMessageAttachment))
+  );
+}
+
+function isStoredMessageAttachment(
+  value: unknown,
+): value is StoredMessageAttachment {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<StoredMessageAttachment>;
+  return (
+    typeof candidate.messageTimestamp === "number" &&
+    typeof candidate.fileId === "string" &&
+    typeof candidate.filename === "string" &&
+    typeof candidate.sizeBytes === "number" &&
+    (candidate.type === "pdf" ||
+      candidate.type === "docx" ||
+      candidate.type === "text" ||
+      candidate.type === "markdown") &&
+    typeof candidate.status === "string"
   );
 }
 
