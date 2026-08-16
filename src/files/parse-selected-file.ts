@@ -1,6 +1,7 @@
 import mammoth from "mammoth";
 
 import { extractLayoutText } from "./pdf-layout.js";
+import { ensurePdfEnvironment } from "./pdfjs-environment.js";
 import type { SelectedFileContent } from "./types.js";
 
 const MAX_PARSED_CHARS = 80_000;
@@ -50,6 +51,7 @@ export async function parseSelectedFile(
 }
 
 async function parsePdf(content: Buffer): Promise<string> {
+  await ensurePdfEnvironment();
   const { getDocument } = await import(
     "pdfjs-dist/legacy/build/pdf.mjs"
   );

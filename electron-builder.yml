@@ -4,6 +4,10 @@ directories:
   output: dist-electron
   buildResources: build
 asar: true
+# pdf.js 在 Node 环境需要 @napi-rs/canvas 提供 DOMMatrix 等 DOM 类型；
+# 原生 .node 必须从 asar 提出，否则打包产物解析 PDF 直接崩溃。
+asarUnpack:
+  - "node_modules/@napi-rs/canvas/**/*"
 electronFuses:
   runAsNode: false
   enableCookieEncryption: true
