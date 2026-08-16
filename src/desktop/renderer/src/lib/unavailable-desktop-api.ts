@@ -33,8 +33,10 @@ export function createUnavailableDesktopApi(): DesktopApi {
     attachments: {
       list: unavailable,
       select: unavailable,
+      selectPath: unavailable,
       remove: unavailable,
     },
+    getPathForFile: () => "", 
     resumeDrafts: {
       list: unavailable,
       get: unavailable,

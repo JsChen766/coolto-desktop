@@ -66,6 +66,24 @@ export function useConversationAttachment(
     }
   }
 
+  /** 拖入文件路径注册（与对话框选择走同一注册链路）。 */
+  async function selectPath(path: string): Promise<void> {
+    const id = conversationId();
+    if (!id || selecting.value) return;
+    selecting.value = true;
+    error.value = undefined;
+    try {
+      const selected = await desktopApi.attachments.selectPath(id, path);
+      if (selected && conversationId() === id) {
+        attachment.value = tracker.sync(id, selected);
+      }
+    } catch (cause: unknown) {
+      error.value = errorMessage(cause);
+    } finally {
+      selecting.value = false;
+    }
+  }
+
   async function remove(): Promise<void> {
     const id = conversationId();
     const selected = attachment.value;
@@ -97,6 +115,7 @@ export function useConversationAttachment(
     selecting,
     error,
     select,
+    selectPath,
     remove,
     liveStatusFor,
     liveVersion,

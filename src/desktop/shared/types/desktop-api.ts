@@ -116,8 +116,11 @@ export interface DesktopApi {
   attachments: {
     list(conversationId: string): Promise<DesktopAttachment[]>;
     select(conversationId: string): Promise<DesktopAttachment | undefined>;
+    selectPath(conversationId: string, path: string): Promise<DesktopAttachment | undefined>;
     remove(input: AttachmentRemoveInput): Promise<void>;
   };
+  /** 渲染层拖入文件时拿真实路径（webUtils.getPathForFile 的 preload 包装）。 */
+  getPathForFile(file: File): string;
   resumeDrafts: {
     list(): Promise<ResumeDraftSummary[]>;
     get(artifactId: string): Promise<ResumeDraftDetail>;

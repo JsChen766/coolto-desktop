@@ -31,6 +31,8 @@ export interface StoredConversation {
   resumeArtifacts?: ResumeDraftArtifactReference[];
   experienceImportArtifacts?: ExperienceImportResultArtifact[];
   messageAttachments?: StoredMessageAttachment[];
+  /** assistant 消息完成时间：key = 消息 timestamp，value = 结束时间 ISO。 */
+  assistantTimings?: Record<string, string>;
 }
 
 export const UNTITLED_CONVERSATION = "新对话";
@@ -141,7 +143,12 @@ export function isStoredConversation(
     (candidate.experienceImportArtifacts === undefined ||
       Array.isArray(candidate.experienceImportArtifacts)) &&
     (candidate.messageAttachments === undefined ||
-      candidate.messageAttachments.every(isStoredMessageAttachment))
+      candidate.messageAttachments.every(isStoredMessageAttachment)) &&
+    (candidate.assistantTimings === undefined ||
+      (typeof candidate.assistantTimings === "object" &&
+        Object.values(candidate.assistantTimings).every(
+          (value) => typeof value === "string",
+        )))
   );
 }
 

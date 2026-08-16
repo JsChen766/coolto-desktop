@@ -107,22 +107,19 @@ export class ConversationStore {
     conversationId: string,
     messages: AgentMessage[],
     pendingAttachments?: MessageAttachment[], attachTimestamp?: number,
+    assistantCompletedAt?: { timestamp: number; completedAt: string },
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
     record.version = 3;
     record.agentMessages = sanitizeAgentMessagesForPersistence(messages);
     record.messageAttachments = mergeMessageAttachments(record.messageAttachments ?? [], pendingAttachments ?? [], messages, attachTimestamp);
-    const visibleMessages = projectConversationMessages(
-      record.agentMessages,
-      record.messageAttachments,
-    );
+    if (assistantCompletedAt) record.assistantTimings = { ...(record.assistantTimings ?? {}), [String(assistantCompletedAt.timestamp)]: assistantCompletedAt.completedAt };
+    const visibleMessages = projectConversationMessages(record.agentMessages, record.messageAttachments, record.assistantTimings);
     record.resumeArtifacts = (record.resumeArtifacts ?? []).map((artifact) =>
       withArtifactAnchor(artifact, visibleMessages),
     );
     record.updatedAt = new Date().toISOString();
-    if (record.title === UNTITLED_CONVERSATION) {
-      record.title = deriveConversationTitle(messages);
-    }
+    if (record.title === UNTITLED_CONVERSATION) record.title = deriveConversationTitle(messages);
     await this.#write(record);
     return conversationDetail(record);
   }

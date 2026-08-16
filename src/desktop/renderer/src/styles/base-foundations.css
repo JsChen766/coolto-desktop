@@ -41,7 +41,7 @@ button:disabled {
 }
 
 ::selection {
-  background: var(--surface-strong);
+  background: var(--selection-bg);
 }
 
 .window-drag {

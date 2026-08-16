@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 
 import type {
   AgentPromptInput,
@@ -50,9 +50,12 @@ const api: DesktopApi = {
       ipcRenderer.invoke("attachments:list", conversationId),
     select: (conversationId) =>
       ipcRenderer.invoke("attachments:select", conversationId),
+    selectPath: (conversationId, path) =>
+      ipcRenderer.invoke("attachments:select-path", conversationId, path),
     remove: (input: AttachmentRemoveInput) =>
       ipcRenderer.invoke("attachments:remove", input),
   },
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   resumeDrafts: {
     list: () => ipcRenderer.invoke("resume-drafts:list"),
     get: (artifactId) => ipcRenderer.invoke("resume-drafts:get", artifactId),

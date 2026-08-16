@@ -63,6 +63,18 @@ export function registerConversationAgentIpc(
     return current.selectedFiles.replace(conversationId, path);
   });
   ipcMain.handle(
+    "attachments:select-path",
+    async (_event, conversationId: string, path: string) => {
+      const current = await servicesForCurrentUser();
+      await current.conversations.get(conversationId);
+      if (current.agent.isRunning) {
+        throw new Error("Agent 回复期间不能更换附件");
+      }
+      if (typeof path !== "string" || !path.trim()) return undefined;
+      return current.selectedFiles.replace(conversationId, path);
+    },
+  );
+  ipcMain.handle(
     "attachments:remove",
     async (_event, input: AttachmentRemoveInput) => {
       const current = await servicesForCurrentUser();

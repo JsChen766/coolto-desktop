@@ -8,6 +8,7 @@ import type { ResumeChatReference } from "@desktop/types";
 import type { AttachmentView } from "../attachments/use-conversation-attachment";
 import { attachmentStatus, fileSize } from "../attachments/attachment-formatters";
 import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
+import { desktopApi } from "../lib/desktop-api";
 import { translate } from "../i18n/locale";
 
 const props = defineProps<{
@@ -24,13 +25,13 @@ const emit = defineEmits<{
   send: [text: string, reference?: ResumeChatReference];
   cancel: [];
   selectAttachment: [];
+  selectAttachmentPath: [path: string];
   removeAttachment: [];
   clearResumeContext: [];
   requestLocalCopy: [];
 }>();
 
 const text = ref("");
-const DEFAULT_ATTACHMENT_PROMPT = "请解析并导入这份简历中的经历";
 const reference = ref<ResumeChatReference>();
 const pickerOpen = ref(false);
 const textarea = ref<HTMLTextAreaElement>();
@@ -43,22 +44,6 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => unsubscribeReference?.());
-
-watch(
-  () => props.attachment?.id,
-  (id, previous) => {
-    if (id && id !== previous && !text.value.trim()) {
-      text.value = translate(DEFAULT_ATTACHMENT_PROMPT);
-      void nextTick(() => {
-        resize();
-        textarea.value?.focus();
-      });
-    } else if (!id && previous && [DEFAULT_ATTACHMENT_PROMPT, translate(DEFAULT_ATTACHMENT_PROMPT)].includes(text.value)) {
-      text.value = "";
-      void nextTick(resize);
-    }
-  },
-);
 
 function resize(): void {
   const element = textarea.value;
@@ -91,6 +76,13 @@ function handleKeydown(event: KeyboardEvent): void {
 function handleDrop(event: DragEvent): void {
   event.preventDefault();
   dragActive.value = false;
+  const files = event.dataTransfer?.files;
+  const file = files?.[0];
+  if (file) {
+    const path = getPathForFile(file);
+    if (path) emit("selectAttachmentPath", path);
+    return;
+  }
   const encoded = event.dataTransfer?.getData(
     "application/x-coolto-resume-reference",
   );
@@ -107,6 +99,14 @@ function handleDrop(event: DragEvent): void {
     }
   } catch {
     return;
+  }
+}
+
+function getPathForFile(file: File): string | undefined {
+  try {
+    return desktopApi.getPathForFile(file);
+  } catch {
+    return undefined;
   }
 }
 

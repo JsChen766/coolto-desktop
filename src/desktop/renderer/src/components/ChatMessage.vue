@@ -1,13 +1,38 @@
 <script setup lang="ts">
-import { FileText } from "@lucide/vue";
+import { Check, Copy, FileText } from "@lucide/vue";
+import { computed, ref } from "vue";
 import type { ChatMessage } from "@desktop/types";
 
 import MarkdownContent from "./MarkdownContent.vue";
 import { attachmentStatus, fileSize } from "../attachments/attachment-formatters";
 
-defineProps<{
+const props = defineProps<{
   message: ChatMessage;
 }>();
+
+const copied = ref(false);
+let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+const completedTime = computed(() => {
+  if (!props.message.completedAt) return "";
+  return new Date(props.message.completedAt).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+});
+
+async function copyContent(): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(props.message.content);
+  } catch {
+    return;
+  }
+  copied.value = true;
+  if (copyTimer) clearTimeout(copyTimer);
+  copyTimer = setTimeout(() => {
+    copied.value = false;
+  }, 1600);
+}
 </script>
 
 <template>
@@ -35,6 +60,23 @@ defineProps<{
       </div>
       {{ message.content }}
     </div>
-    <MarkdownContent v-else :content="message.content" />
+    <template v-else>
+      <MarkdownContent :content="message.content" />
+      <div v-if="message.completedAt" class="message-meta">
+        <button
+          type="button"
+          class="copy-button"
+          :title="$t('复制回答')"
+          :aria-label="$t('复制回答')"
+          @click="copyContent"
+        >
+          <Check v-if="copied" :size="12" :stroke-width="2" aria-hidden="true" />
+          <Copy v-else :size="12" :stroke-width="1.8" aria-hidden="true" />
+        </button>
+        <span class="message-completed-at">
+          {{ $t('结束于') }} {{ completedTime }}
+        </span>
+      </div>
+    </template>
   </article>
 </template>

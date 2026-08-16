@@ -16,6 +16,7 @@
   --code-block: #262521;
   --code-block-text: #efecdf;
   --danger: #b14c4c;
+  --selection-bg: #cfe3ff;
   --shadow-soft: 0 18px 50px rgb(37 36 31 / 8%);
   --shadow-menu: 0 12px 32px rgb(30 29 26 / 12%);
   --font-ui:
@@ -46,6 +47,7 @@
   --code-block: #111110;
   --code-block-text: #efecdf;
   --danger: #e58b8b;
+  --selection-bg: #3a5a8c;
   --shadow-soft: 0 18px 60px rgb(0 0 0 / 24%);
   --shadow-menu: 0 14px 34px rgb(0 0 0 / 32%);
 }

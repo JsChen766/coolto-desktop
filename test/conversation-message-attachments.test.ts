@@ -120,3 +120,32 @@ test("attachment notice names the files and is stripped from presentation", () =
   assert.equal(presented, "请导入简历");
   assert.doesNotMatch(presented, /attachment_notice/u);
 });
+
+test("projection attaches assistant completedAt from timings", () => {
+  const messages = [
+    userMessage(1000, "第一条"),
+    {
+      role: "assistant" as const,
+      content: [{ type: "text" as const, text: "好的" }],
+      api: "openai",
+      provider: "openai",
+      model: "gpt-4o",
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: "stop" as const,
+      timestamp: 2000,
+    },
+  ];
+  const timings = { "2000": "2026-08-16T12:00:00.000Z" };
+  const visible = projectConversationMessages(messages, [], timings);
+  assert.equal(visible.length, 2);
+  assert.equal(visible[1]?.role, "assistant");
+  assert.equal(visible[1]?.completedAt, "2026-08-16T12:00:00.000Z");
+  assert.equal(visible[0]?.completedAt, undefined);
+});

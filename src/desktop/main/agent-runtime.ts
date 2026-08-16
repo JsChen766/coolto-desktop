@@ -128,9 +128,9 @@ export class DesktopAgentRuntime {
         isCancelled: () => this.#cancelRequested,
         pendingAttachments,
       });
-      return await this.#enqueuePersist(() =>
-        this.#store.saveMessages(conversationId, result.messages, pendingAttachments, result.attachTimestamp),
-      );
+      const lastAssistant = [...result.messages].reverse().find((m) => m.role === "assistant");
+      const assistantCompletedAt = lastAssistant ? { timestamp: lastAssistant.timestamp, completedAt: new Date().toISOString() } : undefined;
+      return await this.#enqueuePersist(() => this.#store.saveMessages(conversationId, result.messages, pendingAttachments, result.attachTimestamp, assistantCompletedAt));
     } catch (error) {
       failed = true;
       throw error;

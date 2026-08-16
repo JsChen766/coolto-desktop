@@ -235,4 +235,6 @@ export const commonMessages: Record<string, string> = {
   "确认恢复": "Confirm restore",
   "等待确认": "Waiting for confirmation",
   "记录下一轮面试": "Record next interview round",
+  "结束于": "Ended at",
+  "复制回答": "Copy answer",
 };

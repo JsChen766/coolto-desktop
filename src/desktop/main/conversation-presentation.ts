@@ -7,6 +7,7 @@ import type { StoredMessageAttachment } from "./conversation-record.js";
 export function projectConversationMessages(
   messages: AgentMessage[],
   messageAttachments?: StoredMessageAttachment[],
+  assistantTimings?: Record<string, string>,
 ): ChatMessage[] {
   // The Agent transcript is recovery state, not a UI transcript. The App only
   // projects user-originated input and assistant output; host continuations,
@@ -38,11 +39,16 @@ export function projectConversationMessages(
       message.role === "user"
         ? attachmentsByTimestamp.get(message.timestamp)
         : undefined;
+    const completedAt =
+      message.role === "assistant"
+        ? assistantTimings?.[String(message.timestamp)]
+        : undefined;
     visible.push({
       id: `${message.role}-${message.timestamp ?? index}-${index}`,
       role: message.role,
       content,
       createdAt: timestamp,
+      ...(completedAt ? { completedAt } : {}),
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
     });
   });

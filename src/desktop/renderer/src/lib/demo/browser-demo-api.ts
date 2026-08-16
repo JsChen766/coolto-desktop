@@ -64,6 +64,7 @@ export function createBrowserDemoApi(): DesktopApi {
     },
     conversations: chat.conversations,
     attachments: chat.attachments,
+    getPathForFile: () => "",
     resumeDrafts: createDemoResumeDraftApi(draft),
     updates: {
       getState: async () => ({

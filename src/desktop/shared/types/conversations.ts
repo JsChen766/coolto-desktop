@@ -64,6 +64,8 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: string;
+  /** assistant 消息完成时间（ISO），随聊天记录持久化。 */
+  completedAt?: string;
   /** 该消息携带的附件引用（仅用户消息），重启后随聊天记录持久化。 */
   attachments?: MessageAttachment[];
 }

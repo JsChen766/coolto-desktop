@@ -18,6 +18,7 @@ import {
   ToolActivity,
 } from "./app-components";
 import type { AppShell } from "./use-app-shell";
+import { useStreamingElapsed } from "../chat/use-streaming-elapsed";
 import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
 
@@ -76,6 +77,8 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
     },
   );
 });
+
+const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
 </script>
 
 <template>
@@ -154,7 +157,7 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
                   v-if="streamingText"
                   :content="streamingText"
                 />
-                <span v-if="running" class="stream-caret" aria-hidden="true" />
+                <span v-if="running" class="stream-status"><span class="stream-dot" aria-hidden="true" /><span class="stream-elapsed">{{ streamingElapsed }}</span></span>
               </article>
               <ResumeArtifactCard
                 v-for="artifact in current.resumeArtifacts.filter(
@@ -221,6 +224,7 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
             @send="send"
             @cancel="desktopApi.agent.cancel"
             @select-attachment="conversationAttachment.select"
+            @select-attachment-path="conversationAttachment.selectPath"
             @remove-attachment="conversationAttachment.remove"
             @clear-resume-context="clearResumeOperationContext"
             @request-local-copy="requestCloudResumeCopy"

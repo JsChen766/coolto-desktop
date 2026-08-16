@@ -64,6 +64,10 @@ export function createDemoChatApis(draft: ResumeDraftDetail, now: Date) {
       attachments.set(id, attachment);
       return structuredClone(attachment);
     },
+    selectPath: async (id) => {
+      const attachment = attachments.get(id);
+      return attachment ? [structuredClone(attachment)][0] : undefined;
+    },
     remove: async ({ conversationId, fileId }) => {
       if (attachments.get(conversationId)?.id !== fileId) throw new Error("附件不存在");
       attachments.delete(conversationId);
