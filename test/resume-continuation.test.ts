@@ -259,3 +259,20 @@ test("continueUntilTerminal stops when model output repeats identically", async 
   assert.equal(agent.prompts.length, 5, "baseline round + 4 identical rounds");
   assert.equal(store.latest()!.status, "needs_user_decision");
 });
+
+test("continueUntilTerminal stops when progress metrics stall despite content changes", async () => {
+  // The model keeps patching (digest changes) but the达标 metrics (usage
+  // zone/pct, tail violations) stay identical - meaningless progress.
+  const { store, compiler } = await createWritingWorkspace();
+  const agent = new FakeAgent();
+  const logs: string[] = [];
+  await continueUntilTerminal(
+    agent,
+    store,
+    compiler,
+    { maxMs: 60_000, maxModelCalls: 30 },
+    { log: (line) => void logs.push(line) },
+  );
+  assert.ok(logs.includes("continuation:stalled"), logs.join(","));
+  assert.equal(store.latest()!.status, "needs_user_decision");
+});

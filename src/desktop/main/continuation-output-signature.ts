@@ -1,5 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
+import { bulletTailDiagnostics } from "../../resume/workspace/diagnostics-projection.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
 
 /**
@@ -75,6 +76,42 @@ export function contentDigest(workspace: ResumeWorkspace): string {
   return `${stableStringify(workspace.structure)}\u0000${stableStringify(
     workspace.bindings,
   )}`;
+}
+
+/**
+ * 达标进度指纹：占用率百分比 + 目标区间位置 + 尾行缺口数。
+ * 内容每轮在变（patch 叠加）但达标指标不变就是停滞
+ * （"有进展但无意义"的循环），由 stalled 守卫终止。
+ */
+export function progressMetric(workspace: ResumeWorkspace): string {
+  const compile = workspace.compileResult;
+  const pct = Math.round(compile.usageRatio * 100);
+  const zone =
+    compile.usageRatio > compile.effectiveTargetBand.maximum
+      ? "over"
+      : compile.usageRatio < compile.effectiveTargetBand.minimum
+        ? "under"
+        : "in";
+  return `${zone}:${pct}:${bulletTailDiagnostics(workspace).length}`;
+}
+
+/** 连续相同计数：current 与 last 相同则递增，否则重置；达 limit 返回 true。 */
+export interface RepeatCounter {
+  last: string | undefined;
+  rounds: number;
+}
+
+export function bump(
+  counter: RepeatCounter,
+  current: string,
+  limit: number,
+): boolean {
+  if (current === counter.last) counter.rounds += 1;
+  else {
+    counter.rounds = 0;
+    counter.last = current;
+  }
+  return counter.rounds >= limit;
 }
 
 /** 键序无关的 JSON 序列化（工具参数键顺序可能不稳定）。 */

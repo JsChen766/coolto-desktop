@@ -4,9 +4,12 @@ import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import { wrapInternalPrompt } from "../../agent/internal-prompt.js";
 import {
   assistantOutputSignature,
+  bump,
   contentDigest,
+  progressMetric,
   toolOutcomeKey,
   toolResultFeedback,
+  type RepeatCounter,
 } from "./continuation-output-signature.js";
 import { instructionFor } from "../../resume/workspace/diagnostics-projection.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
@@ -50,6 +53,7 @@ export const INITIAL_TURN_MAX_MS = 600_000;
 /** Consecutive per-turn timeouts tolerated before giving up. */
 export const MAX_CONSECUTIVE_TURN_TIMEOUTS = 5;
 export const MAX_IDENTICAL_OUTPUT_ROUNDS = 4;
+export const MAX_STALLED_ROUNDS = 6;
 
 /** Consecutive rounds without a revision landing: the model is stuck
  * (repeating rejected text, empty reasoning); stop instead of burning the
@@ -97,10 +101,9 @@ export async function continueUntilTerminal(
 ): Promise<void> {
   const startedAt = budget.startedAtMs ?? performance.now();
   let consecutiveTimeouts = 0;
-  let lastContentKey: string | undefined;
-  let noProgressRounds = 0;
-  let lastOutputSignature: string | undefined;
-  let identicalOutputRounds = 0;
+  const noProgress: RepeatCounter = { last: undefined, rounds: 0 };
+  const stalled: RepeatCounter = { last: undefined, rounds: 0 };
+  const identical: RepeatCounter = { last: undefined, rounds: 0 };
   let lastOutcome: string | undefined;
   let sameOutcomeRounds = 0;
   for (let round = 0; round < 200; round += 1) {
@@ -127,20 +130,17 @@ export async function continueUntilTerminal(
       await callbacks.log?.("continuation:cancelled");
       return;
     }
-    // No-progress guard: content digest (structure + bindings) unchanged for
-    // MAX_NO_PROGRESS_ROUNDS rounds means the model is stuck; stop instead of
-    // burning the whole budget.
-    const contentKey = contentDigest(workspace);
-    if (contentKey === lastContentKey) {
-      noProgressRounds += 1;
-      if (noProgressRounds >= MAX_NO_PROGRESS_ROUNDS) {
-        await callbacks.log?.(`continuation:no-progress:${noProgressRounds}`);
-        normalizeToUserDecision(store);
-        return;
-      }
-    } else {
-      noProgressRounds = 0;
-      lastContentKey = contentKey;
+    if (bump(noProgress, contentDigest(workspace), MAX_NO_PROGRESS_ROUNDS)) {
+      await callbacks.log?.("continuation:no-progress");
+      normalizeToUserDecision(store);
+      return;
+    }
+    // Stalled: content keeps changing but the达标 metrics (usage zone/pct,
+    // tail violations) do not improve - meaningless progress.
+    if (bump(stalled, progressMetric(workspace), MAX_STALLED_ROUNDS)) {
+      await callbacks.log?.("continuation:stalled");
+      normalizeToUserDecision(store);
+      return;
     }
     await callbacks.log?.(`continuation:round:${agent.modelCallCount}`);
     // Tool-outcome feedback breaks the fixed point: identical input at
@@ -169,19 +169,14 @@ export async function continueUntilTerminal(
       }
       continue;
     }
-    // Identical-output guard: same output every round = deterministic repeat
-    // loop the content-digest guard misses (patches keep mutating the digest).
     const outputSignature = assistantOutputSignature(agent.getMessages());
-    if (outputSignature !== undefined && outputSignature === lastOutputSignature) {
-      identicalOutputRounds += 1;
-      if (identicalOutputRounds >= MAX_IDENTICAL_OUTPUT_ROUNDS) {
-        await callbacks.log?.(`continuation:identical-output:${identicalOutputRounds}`);
-        normalizeToUserDecision(store);
-        return;
-      }
-    } else {
-      identicalOutputRounds = 0;
-      lastOutputSignature = outputSignature;
+    if (
+      outputSignature !== undefined &&
+      bump(identical, outputSignature, MAX_IDENTICAL_OUTPUT_ROUNDS)
+    ) {
+      await callbacks.log?.("continuation:identical-output");
+      normalizeToUserDecision(store);
+      return;
     }
     consecutiveTimeouts = 0;
   }
