@@ -1,6 +1,10 @@
+import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 import { readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
+
+// vm（protect-main-bundle）中 dynamic import() 不可用，按需加载走 require。
+const nodeRequire = createRequire(import.meta.url);
 
 export interface ReplaceScriptInput {
   appPath: string;
@@ -151,7 +155,7 @@ export async function recoverPendingBackup(
 
 async function pathMissing(filePath: string): Promise<boolean> {
   try {
-    await import("node:fs/promises").then((fs) => fs.access(filePath));
+    nodeRequire("node:fs/promises").access(filePath);
     return false;
   } catch {
     return true;

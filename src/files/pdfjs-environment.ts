@@ -9,12 +9,20 @@
  * 2D affine polyfill 兜底——文本提取只需要矩阵构造/乘法/求逆/平移缩放
  * 旋转，数学语义与标准 DOMMatrix 一致，提取结果不受影响（仅渲染能力
  * 缺失，getTextContent 不涉及渲染）。
+ *
+ * 注意：发布构建里主进程代码在 vm 中执行（protect-main-bundle），dynamic
+ * import() 会抛 "A dynamic import callback was not specified"，因此这里
+ * 用 createRequire 按需加载（require 由加载器真实传入，且失败可捕获）。
  */
+import { createRequire } from "node:module";
+
+const nodeRequire = createRequire(import.meta.url);
+
 export async function ensurePdfEnvironment(): Promise<void> {
   const globals = globalThis as Record<string, unknown>;
   if (typeof globals.DOMMatrix === "function") return;
   try {
-    const canvas = await import("@napi-rs/canvas");
+    const canvas = nodeRequire("@napi-rs/canvas") as typeof import("@napi-rs/canvas");
     globals.DOMMatrix = canvas.DOMMatrix;
     globals.DOMPoint = canvas.DOMPoint;
     if (canvas.Path2D) globals.Path2D = canvas.Path2D;

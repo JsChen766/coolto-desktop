@@ -1,8 +1,14 @@
 import mammoth from "mammoth";
+import { createRequire } from "node:module";
 
 import { extractLayoutText } from "./pdf-layout.js";
 import { ensurePdfEnvironment } from "./pdfjs-environment.js";
 import type { SelectedFileContent } from "./types.js";
+
+// 主进程代码在发布构建里由原生保护模块经 vm 执行（protect-main-bundle），
+// vm 上下文不支持 dynamic import()（报 "A dynamic import callback was not
+// specified"）；require 由加载器真实传入，因此按需加载必须走 createRequire。
+const nodeRequire = createRequire(import.meta.url);
 
 const MAX_PARSED_CHARS = 80_000;
 
@@ -52,9 +58,9 @@ export async function parseSelectedFile(
 
 async function parsePdf(content: Buffer): Promise<string> {
   await ensurePdfEnvironment();
-  const { getDocument } = await import(
-    "pdfjs-dist/legacy/build/pdf.mjs"
-  );
+  const { getDocument } = nodeRequire(
+    "pdfjs-dist/legacy/build/pdf.mjs",
+  ) as typeof import("pdfjs-dist/legacy/build/pdf.mjs");
   const loadingTask = getDocument({
     data: new Uint8Array(content),
   });
