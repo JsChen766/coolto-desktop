@@ -190,11 +190,10 @@
   word-break: break-word;
 }
 
-/* 消息携带的附件卡片（气泡外、上方右对齐的小标签） */
-.message-attachments { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.message-attachment { width: fit-content; max-width: 240px; display: flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 8px; background: var(--surface-strong); color: var(--text-soft); font-size: 11px; }
+/* 消息携带的附件（气泡上方右对齐的纯文本标签：icon + 文件名） */
+.message-attachments { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.message-attachment { width: fit-content; max-width: 240px; display: flex; align-items: center; gap: 5px; color: var(--text-soft); font-size: 11px; }
 .message-attachment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.message-attachment small { color: var(--muted); font-size: 10px; }
 .message-attachment.attachment-status-parsing, .message-attachment.attachment-status-partial { color: var(--text-soft); }
 .message-attachment.attachment-status-parsed, .message-attachment.attachment-status-saved { color: var(--text); }
 .message-attachment.attachment-status-error { color: var(--danger); }

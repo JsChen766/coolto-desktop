@@ -4,7 +4,6 @@ import { computed, ref } from "vue";
 import type { ChatMessage } from "@desktop/types";
 
 import MarkdownContent from "./MarkdownContent.vue";
-import { fileSize } from "../attachments/attachment-formatters";
 
 const props = defineProps<{
   message: ChatMessage;
@@ -50,7 +49,6 @@ async function copyContent(): Promise<void> {
         >
           <FileText :size="12" :stroke-width="1.8" aria-hidden="true" />
           <span class="message-attachment-name">{{ attachment.filename }}</span>
-          <small>{{ fileSize(attachment.sizeBytes) }}</small>
         </div>
       </div>
       <div class="user-bubble">{{ message.content }}</div>
