@@ -2,6 +2,7 @@ import { performance } from "node:perf_hooks";
 
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import { wrapInternalPrompt } from "../../agent/internal-prompt.js";
+import { assistantOutputSignature } from "./continuation-output-signature.js";
 import { instructionFor } from "../../resume/workspace/diagnostics-projection.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
@@ -44,6 +45,9 @@ export const INITIAL_TURN_MAX_MS = 600_000;
 /** Consecutive per-turn timeouts tolerated before giving up. */
 export const MAX_CONSECUTIVE_TURN_TIMEOUTS = 5;
 
+/** Consecutive rounds with byte-identical model output before giving up. */
+export const MAX_IDENTICAL_OUTPUT_ROUNDS = 4;
+
 /** Consecutive rounds without a revision landing: the model is stuck
  * (repeating rejected text, empty reasoning); stop instead of burning the
  * whole budget. */
@@ -79,7 +83,10 @@ export function isContinuable(status: ResumeWorkspaceStatus): boolean {
  * time and total model calls, so a stuck model can never loop forever.
  */
 export async function continueUntilTerminal(
-  agent: Pick<CooltoAgent, "prompt" | "modelCallCount" | "cancel" | "isRunning">,
+  agent: Pick<
+    CooltoAgent,
+    "prompt" | "modelCallCount" | "cancel" | "isRunning" | "getMessages"
+  >,
   store: Pick<ResumeWorkspaceStore, "latest" | "replace">,
   _compiler: ResumeCompiler,
   budget: ContinuationBudget = DEFAULT_CONTINUATION_BUDGET,
@@ -89,6 +96,8 @@ export async function continueUntilTerminal(
   let consecutiveTimeouts = 0;
   let lastContentKey: string | undefined;
   let noProgressRounds = 0;
+  let lastOutputSignature: string | undefined;
+  let identicalOutputRounds = 0;
   for (let round = 0; round < 200; round += 1) {
     const workspace = store.latest();
     if (!workspace || !isContinuable(workspace.status)) {
@@ -147,6 +156,20 @@ export async function continueUntilTerminal(
         return;
       }
       continue;
+    }
+    // Identical-output guard: same output every round = deterministic repeat
+    // loop that the content-digest guard misses (patches keep mutating it).
+    const outputSignature = assistantOutputSignature(agent.getMessages());
+    if (outputSignature !== undefined && outputSignature === lastOutputSignature) {
+      identicalOutputRounds += 1;
+      if (identicalOutputRounds >= MAX_IDENTICAL_OUTPUT_ROUNDS) {
+        await callbacks.log?.(`continuation:identical-output:${identicalOutputRounds}`);
+        normalizeToUserDecision(store);
+        return;
+      }
+    } else {
+      identicalOutputRounds = 0;
+      lastOutputSignature = outputSignature;
     }
     consecutiveTimeouts = 0;
   }

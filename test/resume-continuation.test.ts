@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+
 import {
   continueUntilTerminal,
   isContinuable,
@@ -18,6 +20,7 @@ import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../src/resume/template-contra
 class FakeAgent {
   public prompts: string[] = [];
   public modelCallCount = 0;
+  public messagesOverride: AgentMessage[] = [];
   public async prompt(input: string): Promise<void> {
     this.prompts.push(input);
     this.modelCallCount += 1;
@@ -27,6 +30,9 @@ class FakeAgent {
   }
   public get isRunning(): boolean {
     return false;
+  }
+  public getMessages(): AgentMessage[] {
+    return structuredClone(this.messagesOverride);
   }
 }
 
@@ -192,6 +198,9 @@ class SwitchingAgent {
   public get isRunning(): boolean {
     return false;
   }
+  public getMessages(): AgentMessage[] {
+    return [];
+  }
 }
 
 async function createWritingWorkspace() {
@@ -209,3 +218,44 @@ async function createWritingWorkspace() {
   });
   return { builder, store, workspace: prepared, compiler, patcher, prepared };
 }
+
+test("continueUntilTerminal stops when model output repeats identically", async () => {
+  // temperature-0 repeat loop: identical reasoning + tool calls every round,
+  // workspace digest keeps changing (repeated patches) so the no-progress
+  // guard misses it; the identical-output guard must terminate instead.
+  const { store, compiler } = await createWritingWorkspace();
+  const agent = new FakeAgent();
+  agent.messagesOverride = [
+    {
+      role: "assistant",
+      content: [{ type: "text", text: "让我为尾行违规 bullet 补充细节" }],
+      api: "openai",
+      provider: "openai",
+      model: "deepseek-v4-flash",
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: "stop",
+      timestamp: 1000,
+    },
+  ];
+  const logs: string[] = [];
+  await continueUntilTerminal(
+    agent,
+    store,
+    compiler,
+    { maxMs: 60_000, maxModelCalls: 30 },
+    { log: (line) => void logs.push(line) },
+  );
+  assert.ok(
+    logs.some((line) => line.startsWith("continuation:identical-output")),
+    logs.join(","),
+  );
+  assert.equal(agent.prompts.length, 5, "baseline round + 4 identical rounds");
+  assert.equal(store.latest()!.status, "needs_user_decision");
+});
