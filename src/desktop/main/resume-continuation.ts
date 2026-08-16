@@ -2,7 +2,12 @@ import { performance } from "node:perf_hooks";
 
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import { wrapInternalPrompt } from "../../agent/internal-prompt.js";
-import { assistantOutputSignature } from "./continuation-output-signature.js";
+import {
+  assistantOutputSignature,
+  contentDigest,
+  toolOutcomeKey,
+  toolResultFeedback,
+} from "./continuation-output-signature.js";
 import { instructionFor } from "../../resume/workspace/diagnostics-projection.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
@@ -44,8 +49,6 @@ export const INITIAL_TURN_MAX_MS = 600_000;
 
 /** Consecutive per-turn timeouts tolerated before giving up. */
 export const MAX_CONSECUTIVE_TURN_TIMEOUTS = 5;
-
-/** Consecutive rounds with byte-identical model output before giving up. */
 export const MAX_IDENTICAL_OUTPUT_ROUNDS = 4;
 
 /** Consecutive rounds without a revision landing: the model is stuck
@@ -98,6 +101,8 @@ export async function continueUntilTerminal(
   let noProgressRounds = 0;
   let lastOutputSignature: string | undefined;
   let identicalOutputRounds = 0;
+  let lastOutcome: string | undefined;
+  let sameOutcomeRounds = 0;
   for (let round = 0; round < 200; round += 1) {
     const workspace = store.latest();
     if (!workspace || !isContinuable(workspace.status)) {
@@ -122,12 +127,9 @@ export async function continueUntilTerminal(
       await callbacks.log?.("continuation:cancelled");
       return;
     }
-    // No-progress guard: a stuck model (repeating the same rejected text,
-    // empty reasoning loops) never lands a content change. The content digest
-    // (structure + bindings) rather than the revision is compared because
-    // idempotent no-op patches bump the revision without changing content;
-    // those must still count as no progress. Detect it and stop instead of
-    // burning the whole budget, especially in unlimited mode.
+    // No-progress guard: content digest (structure + bindings) unchanged for
+    // MAX_NO_PROGRESS_ROUNDS rounds means the model is stuck; stop instead of
+    // burning the whole budget.
     const contentKey = contentDigest(workspace);
     if (contentKey === lastContentKey) {
       noProgressRounds += 1;
@@ -141,14 +143,24 @@ export async function continueUntilTerminal(
       lastContentKey = contentKey;
     }
     await callbacks.log?.(`continuation:round:${agent.modelCallCount}`);
+    // Tool-outcome feedback breaks the fixed point: identical input at
+    // temperature 0 reproduces identical output, so carry the previous result.
+    const outcome = toolOutcomeKey(agent.getMessages());
+    if (outcome && outcome === lastOutcome) sameOutcomeRounds += 1;
+    else {
+      sameOutcomeRounds = 0;
+      lastOutcome = outcome;
+    }
+    const feedback = outcome
+      ? toolResultFeedback(agent.getMessages(), sameOutcomeRounds)
+      : "";
     const timedOut = await promptWithTurnTimeout(
       agent,
-      wrapInternalPrompt(instructionFor(store.latest()!)),
+      wrapInternalPrompt(instructionFor(store.latest()!) + feedback),
       budget.turnTimeoutMs ?? 90_000,
     );
     if (timedOut) {
-      // A hung model request is transient (network/gateway); keep the run
-      // alive and retry, only giving up after repeated consecutive hangs.
+      // A hung request is transient; retry, give up after repeated hangs.
       consecutiveTimeouts += 1;
       await callbacks.log?.(`continuation:turn-timeout:${consecutiveTimeouts}`);
       if (consecutiveTimeouts >= MAX_CONSECUTIVE_TURN_TIMEOUTS) {
@@ -158,7 +170,7 @@ export async function continueUntilTerminal(
       continue;
     }
     // Identical-output guard: same output every round = deterministic repeat
-    // loop that the content-digest guard misses (patches keep mutating it).
+    // loop the content-digest guard misses (patches keep mutating the digest).
     const outputSignature = assistantOutputSignature(agent.getMessages());
     if (outputSignature !== undefined && outputSignature === lastOutputSignature) {
       identicalOutputRounds += 1;
@@ -210,17 +222,6 @@ async function promptWithTurnTimeout(
   } finally {
     if (timer) clearTimeout(timer);
   }
-}
-
-/**
- * Deterministic fingerprint of the resume content a revision carries. Any
- * patch that actually changes the draft (or the agent's bindings) flips the
- * key; idempotent no-ops and timeouts do not.
- */
-function contentDigest(workspace: ResumeWorkspace): string {
-  return `${JSON.stringify(workspace.structure)}\u0000${JSON.stringify(
-    workspace.bindings,
-  )}`;
 }
 
 /**
