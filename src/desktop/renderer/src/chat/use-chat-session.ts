@@ -7,6 +7,7 @@ import type {
   DesktopApprovalDecision,
   DesktopApprovalRequest,
   JdChatReference,
+  MessageAttachment,
   ResumeChatReference,
 } from "@desktop/types";
 import type { ToolRun } from "../components/ToolActivity.vue";
@@ -165,13 +166,14 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     text: string,
     resumeReference?: ResumeChatReference,
     jdReference?: JdChatReference,
+    attachments?: MessageAttachment[],
   ): Promise<void> {
     if (!current.value || running.value) return;
     const conversationId = current.value.id;
     const previousMessageIds = new Set(
       current.value.messages.map((message) => message.id),
     );
-    current.value.messages.push(optimisticUserMessage(text));
+    current.value.messages.push(optimisticUserMessage(text, attachments));
     running.value = true;
     streamingText.value = "";
     runError.value = undefined;

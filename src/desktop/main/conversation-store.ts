@@ -106,12 +106,12 @@ export class ConversationStore {
   public async saveMessages(
     conversationId: string,
     messages: AgentMessage[],
-    pendingAttachments?: MessageAttachment[],
+    pendingAttachments?: MessageAttachment[], attachTimestamp?: number,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
     record.version = 3;
     record.agentMessages = sanitizeAgentMessagesForPersistence(messages);
-    record.messageAttachments = mergeMessageAttachments(record.messageAttachments ?? [], pendingAttachments ?? [], messages);
+    record.messageAttachments = mergeMessageAttachments(record.messageAttachments ?? [], pendingAttachments ?? [], messages, attachTimestamp);
     const visibleMessages = projectConversationMessages(
       record.agentMessages,
       record.messageAttachments,

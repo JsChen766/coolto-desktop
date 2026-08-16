@@ -85,21 +85,21 @@ export function createDeepSeekDependencies(
     model,
     models,
     streamFn: (modelInput, context, options) => {
+      // 输出上限与服务端 pricing.json 的 max_completion_tokens 一致（16384）。
+      // 不设置时服务端按 8192 兜底，推理模型的 thinking 会吃光预算导致
+      // 工具调用参数被截断 → 客户端判失败 → 模型重试 → 重复死循环。
+      const streamOptions = { ...options, temperature: 0, maxTokens: 16384 };
       if (!gateway) {
-        return baseStream(modelInput, context, {
-          ...options,
-          temperature: 0,
-        });
+        return baseStream(modelInput, context, streamOptions);
       }
       const originalPayloadTransform = options?.onPayload;
       return baseStream(modelInput, context, {
-        ...options,
+        ...streamOptions,
         apiKey: "coolto-session-auth",
         headers: {
           ...options?.headers,
           Cookie: `access_token=${gateway.getSessionToken()}`,
         },
-        temperature: 0,
         onPayload: async (payload, payloadModel) => {
           const transformed =
             (await originalPayloadTransform?.(payload, payloadModel)) ?? payload;
@@ -148,8 +148,17 @@ export function createCooltoAgent(
       ? { getApiKey: () => options.apiKey }
       : {}),
     ...(options.beforeToolCall
-      ? { beforeToolCall: options.beforeToolCall }
-      : {}),
+      ? {
+          beforeToolCall: async (
+            context: BeforeToolCallContext,
+            signal?: AbortSignal,
+          ): Promise<BeforeToolCallResult | undefined> => {
+            const userDecision = await options.beforeToolCall?.(context, signal);
+            if (userDecision?.block) return userDecision;
+            return repetitionGuard(context);
+          },
+        }
+      : { beforeToolCall: repetitionGuard }),
     transformContext:
       options.transformContext ?? compactResumeGenerationContext,
     ...(options.approvalManager
@@ -159,3 +168,52 @@ export function createCooltoAgent(
 
   return new CooltoAgent(agentOptions);
 }
+
+const REPETITION_LIMIT = 3;
+
+/**
+ * 连续 N 次相同工具调用（同工具名 + 同参数）即判定为重复死循环并 block。
+ * 温度 0 下失败重试会产生逐 token 相同的输出（输出截断 → 工具判失败 →
+ * 模型重试 → 再截断），此守卫是这类确定性循环的兜底：block 后错误信息
+ * 进入上下文，输入变化足以让模型停止。
+ */
+function createRepetitionGuard(limit: number) {
+  let lastKey: string | undefined;
+  let consecutive = 0;
+  return async (
+    context: BeforeToolCallContext,
+  ): Promise<BeforeToolCallResult | undefined> => {
+    const key = `${context.toolCall.name}\u0000${stableStringify(context.args)}`;
+    if (key === lastKey) {
+      consecutive += 1;
+    } else {
+      lastKey = key;
+      consecutive = 1;
+    }
+    if (consecutive >= limit) {
+      return {
+        block: true,
+        reason:
+          "detected_repetition：检测到连续重复的工具调用（参数完全相同），" +
+          "请停止重试同一操作，基于当前结果继续或结束任务。",
+      };
+    }
+    return undefined;
+  };
+}
+
+/** 键序无关的 JSON 序列化（重试产生的参数键顺序可能不同）。 */
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(([key, nested]) => `${JSON.stringify(key)}:${stableStringify(nested)}`);
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+const repetitionGuard = createRepetitionGuard(REPETITION_LIMIT);

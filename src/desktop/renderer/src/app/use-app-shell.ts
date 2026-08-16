@@ -1,6 +1,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import type { JdChatReference, ResumeChatReference } from "@desktop/types";
+import { toMessageAttachment } from "../attachments/attachment-formatters";
 import { useConversationAttachment } from "../attachments/use-conversation-attachment";
 import { useBrowserState } from "../browser/use-browser-state";
 import { useFillProgress } from "../browser/use-fill-progress";
@@ -78,9 +79,13 @@ export function useAppShell() {
     resumeReference?: ResumeChatReference,
     jdReference?: JdChatReference,
   ): Promise<void> {
-    await session.send(text, resumeReference, jdReference);
+    const attachment = conversationAttachment.attachment.value;
+    await session.send(
+      text, resumeReference, jdReference,
+      attachment ? [toMessageAttachment(attachment)] : undefined,
+    );
+    await conversationAttachment.remove().catch(() => undefined);
   }
-
   async function openResumeDraft(artifactId: string): Promise<void> {
     resumePreview.resetResumePreview();
     closeNarrowSidebar();

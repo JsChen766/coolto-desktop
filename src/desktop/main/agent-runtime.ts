@@ -16,7 +16,7 @@ import {
 } from "./jd-continuation.js";
 import type { ResumePdfCompiler, ResumePdfExportGateway } from "../../resume/export/types.js";
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
-import type { AgentPromptInput, ConversationDetail, MessageAttachment } from "../shared/types.js";
+import type { AgentPromptInput, ConversationDetail } from "../shared/types.js";
 import { AgentContextFactory } from "./agent-context-factory.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
@@ -45,11 +45,8 @@ export class DesktopAgentRuntime {
    * before follow-up prompts. Aborting alone is not enough: the agent loop
    * settles silently after an abort and would be re-prompted immediately. */
   #cancelRequested = false;
-  /** Serializes background transcript snapshots so concurrent writes to the
-   * same conversation file never interleave. */
+  /** 串行化 transcript 快照，避免并发写同一会话文件。 */
   #persistChain: Promise<void> = Promise.resolve();
-  /** Attachment snapshot at prompt time, bound to the next user message. */
-  #pendingAttachments: MessageAttachment[] = [];
   readonly #selectedFiles: ConversationSelectedFiles;
 
   public constructor(
@@ -111,7 +108,7 @@ export class DesktopAgentRuntime {
     }).catch(() => false);
     this.#runningConversationId = conversationId;
     this.#cancelRequested = false;
-    this.#pendingAttachments = this.#selectedFiles.list(conversationId)
+    const pendingAttachments = this.#selectedFiles.list(conversationId)
       .map((f) => ({ ...f, fileId: f.id, status: "pending" as const }));
     this.#traces.start(conversationId, readConfig().modelId);
     const commandStartedAt = performance.now();
@@ -122,23 +119,24 @@ export class DesktopAgentRuntime {
       }
     });
     try {
-      return await executeAgentPrompt({
+      const result = await executeAgentPrompt({
         prompt: input,
         context,
-        store: this.#store,
         resumeDrafts: this.#resumeDrafts,
         events: this.#events,
         commandStartedAt,
         isCancelled: () => this.#cancelRequested,
-        pendingAttachments: this.#pendingAttachments,
+        pendingAttachments,
       });
+      return await this.#enqueuePersist(() =>
+        this.#store.saveMessages(conversationId, result.messages, pendingAttachments, result.attachTimestamp),
+      );
     } catch (error) {
       failed = true;
       throw error;
     } finally {
       unsubscribePersist();
       if (failed) {
-        // turns) so an interrupted or failed run keeps its history.
         await this.#persistSnapshot(conversationId, context.agent).catch(() => {});
       }
       this.#traces.finish(conversationId, {
@@ -165,15 +163,18 @@ export class DesktopAgentRuntime {
     await this.#persistSnapshot(conversationId, context.agent);
   }
 
-  /** Queued, best-effort snapshot of the agent transcript to the store. */
-  #persistSnapshot(conversationId: string, agent: CooltoAgent): Promise<void> {
-    const next = this.#persistChain.then(async () => {
-      const pending = this.#pendingAttachments;
-      this.#pendingAttachments = [];
-      await this.#store.saveMessages(conversationId, agent.getMessages(), pending);
-    });
-    this.#persistChain = next.catch(() => {});
+  /** 串行化持久化任务，避免并发写同一会话文件；单任务失败不阻塞后续。 */
+  #enqueuePersist<T>(task: () => Promise<T>): Promise<T> {
+    const next = this.#persistChain.then(task);
+    this.#persistChain = next.catch(() => undefined);
     return next;
+  }
+
+  /** 只存 transcript 的快照：附件绑定只发生在 prompt() 的最终保存。 */
+  #persistSnapshot(conversationId: string, agent: CooltoAgent): Promise<void> {
+    return this.#enqueuePersist(() =>
+      this.#store.saveMessages(conversationId, agent.getMessages()),
+    );
   }
 
   public generationTrace(conversationId: string) {
@@ -217,9 +218,8 @@ export class DesktopAgentRuntime {
           ),
         );
       }
-      return await this.#store.saveMessages(
-        conversationId,
-        context.agent.getMessages(),
+      return await this.#enqueuePersist(() =>
+        this.#store.saveMessages(conversationId, context.agent.getMessages()),
       );
     } catch (error) {
       failed = true;

@@ -1,8 +1,9 @@
 import { performance } from "node:perf_hooks";
 
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+
 import type {
   AgentPromptInput,
-  ConversationDetail,
   MessageAttachment,
 } from "../shared/types.js";
 import {
@@ -11,7 +12,6 @@ import {
 } from "./agent-prompt-reference.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
-import { ConversationStore } from "./conversation-store.js";
 import { buildAttachmentNotice } from "./conversation-attachments.js";
 import {
   continueUntilTerminal,
@@ -23,7 +23,6 @@ import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 export interface AgentPromptExecutionInput {
   prompt: AgentPromptInput;
   context: ConversationAgentContext;
-  store: ConversationStore;
   resumeDrafts: ResumeDraftService;
   events: AgentRuntimeEvents;
   commandStartedAt: number;
@@ -32,9 +31,20 @@ export interface AgentPromptExecutionInput {
   pendingAttachments: MessageAttachment[];
 }
 
+export interface AgentPromptExecutionResult {
+  /** 本次 prompt 结束后的完整 transcript，由调用方统一持久化。 */
+  messages: AgentMessage[];
+  /**
+   * 本次用户消息的 timestamp，作为附件绑定锚点。必须在
+   * agent.prompt 返回后、续写轮次追加内部 user 消息之前捕获，
+   * 否则「最后一条 user 消息」会被内部续写提示词抢占。
+   */
+  attachTimestamp: number | undefined;
+}
+
 export async function executeAgentPrompt(
   input: AgentPromptExecutionInput,
-): Promise<ConversationDetail> {
+): Promise<AgentPromptExecutionResult> {
   const { prompt, context } = input;
   if (prompt.resumeReference && prompt.jdReference) {
     throw new Error("一次消息不能同时引用 JD 和 Resume");
@@ -73,6 +83,7 @@ export async function executeAgentPrompt(
   });
   await context.agent.prompt(promptText + attachmentNotice);
   unsubscribeInitialTurn();
+  const attachTimestamp = lastUserMessageTimestamp(context.agent.getMessages());
   while (context.agent.isRunning) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
@@ -104,11 +115,19 @@ export async function executeAgentPrompt(
       summary: context.activeEdit?.summary ?? "AI 修改简历内容",
     });
   }
-  return input.store.saveMessages(
-    prompt.conversationId,
-    context.agent.getMessages(),
-    input.pendingAttachments,
-  );
+  return {
+    messages: context.agent.getMessages(),
+    attachTimestamp,
+  };
+}
+
+/** 返回 transcript 里最后一条 user 消息的 timestamp（无则 undefined）。 */
+function lastUserMessageTimestamp(
+  messages: AgentMessage[],
+): number | undefined {
+  return [...messages]
+    .reverse()
+    .find((message) => message.role === "user")?.timestamp;
 }
 
 async function activateReferencedDraft(

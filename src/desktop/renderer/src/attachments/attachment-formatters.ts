@@ -1,7 +1,20 @@
-import type { MessageAttachmentStatus } from "@desktop/types";
+import type { MessageAttachment, MessageAttachmentStatus } from "@desktop/types";
 import { translate } from "../i18n/locale";
+import type { AttachmentView } from "./attachment-event-tracker";
 
 export type AttachmentLike = { status: MessageAttachmentStatus | "selected" };
+
+/** AttachmentView → MessageAttachment（乐观消息快照）；本地
+ * "selected" 映射为运行时 "pending"。 */
+export function toMessageAttachment(view: AttachmentView): MessageAttachment {
+  return {
+    fileId: view.id,
+    filename: view.filename,
+    type: view.type,
+    sizeBytes: view.sizeBytes,
+    status: view.status === "selected" ? "pending" : view.status,
+  };
+}
 
 export function attachmentStatus(view: AttachmentLike): string {
   if (view.status === "parsing") return translate("解析中");

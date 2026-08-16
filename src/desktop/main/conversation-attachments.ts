@@ -4,29 +4,40 @@ import type { MessageAttachment } from "../shared/types.js";
 import type { StoredMessageAttachment } from "./conversation-record.js";
 
 /**
- * 把「本次发送时会话的附件快照」绑定到消息流里最后一条用户消息。
- * 同一 fileId 只绑定一次（附件没换时重复发送不重复记录），
+ * 把「本次发送时会话的附件快照」绑定到对应的用户消息。
+ * 绑定锚点是本次 prompt 开始时捕获的用户消息 timestamp（attachTimestamp，
+ * 由 executeAgentPrompt 在 agent.prompt 返回后立即捕获）；未提供锚点或锚点
+ * 消息不存在时回退到最后一条用户消息。同一 pending 批次内按 fileId 去重；
+ * 跨批次不去重——发送完成后输入框附件即被清除，用户重新挂载同一文件属于
+ * 一次新发送，应重新绑定（旧的跨批次去重会让重复发送悄悄丢卡片）。
  * 已有绑定保持不变。只存元数据快照，文件本体留在原路径。
  */
 export function mergeMessageAttachments(
   existing: StoredMessageAttachment[],
   pending: MessageAttachment[],
   messages: AgentMessage[],
+  attachTimestamp?: number,
 ): StoredMessageAttachment[] {
   if (pending.length === 0) return existing;
-  const boundFileIds = new Set(existing.map((stored) => stored.fileId));
-  const lastUserMessage = [...messages]
-    .reverse()
-    .find((message) => message.role === "user");
-  if (!lastUserMessage) return existing;
+  const anchored =
+    attachTimestamp !== undefined
+      ? messages.find((message) => message.timestamp === attachTimestamp)
+      : undefined;
+  const anchor =
+    anchored ??
+    [...messages]
+      .reverse()
+      .find((message) => message.role === "user");
+  if (!anchor) return existing;
   const merged = [...existing];
+  const seenInBatch = new Set<string>();
   for (const attachment of pending) {
-    if (boundFileIds.has(attachment.fileId)) continue;
+    if (seenInBatch.has(attachment.fileId)) continue;
+    seenInBatch.add(attachment.fileId);
     merged.push({
-      messageTimestamp: lastUserMessage.timestamp,
+      messageTimestamp: anchor.timestamp,
       ...attachment,
     });
-    boundFileIds.add(attachment.fileId);
   }
   return merged;
 }

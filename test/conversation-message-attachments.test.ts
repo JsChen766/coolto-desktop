@@ -17,34 +17,51 @@ function userMessage(timestamp: number, text = "导入这份简历") {
   return { role: "user" as const, content: text, timestamp };
 }
 
-test("pending attachment binds to the last user message once", () => {
+test("pending attachment binds to the anchored user message, not a later internal one", () => {
   const messages = [
     userMessage(1000, "第一条"),
-    userMessage(2000, "第二条"),
+    userMessage(2000, "第二条（锚点）"),
+    userMessage(3000, "内部续写提示词"),
   ];
   const pending = [
     { fileId: "attachment-a", filename: "resume.pdf", type: "pdf" as const, sizeBytes: 10, status: "pending" as const },
   ];
-  const merged = mergeMessageAttachments([], pending, messages);
+  const merged = mergeMessageAttachments([], pending, messages, 2000);
   assert.equal(merged.length, 1);
   assert.equal(merged[0]!.messageTimestamp, 2000);
   assert.equal(merged[0]!.filename, "resume.pdf");
 });
 
-test("same fileId is not bound twice; existing bindings survive", () => {
-  const existing: StoredMessageAttachment[] = [
-    { messageTimestamp: 1000, fileId: "attachment-a", filename: "resume.pdf", type: "pdf", sizeBytes: 10, status: "pending" },
-  ];
-  const messages = [userMessage(2000, "再发一次")];
+test("missing anchor falls back to the last user message", () => {
+  const messages = [userMessage(1000, "第一条"), userMessage(2000, "第二条")];
   const pending = [
+    { fileId: "attachment-a", filename: "resume.pdf", type: "pdf" as const, sizeBytes: 10, status: "pending" as const },
+  ];
+  const merged = mergeMessageAttachments([], pending, messages, 9999);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0]!.messageTimestamp, 2000);
+});
+
+test("re-attaching the same file in a new send binds again; within-batch duplicates collapse", () => {
+  const existing: StoredMessageAttachment[] = [
+    { messageTimestamp: 1000, fileId: "attachment-a", filename: "resume.pdf", type: "pdf", sizeBytes: 10, status: "parsed" },
+  ];
+  const messages = [userMessage(2000, "再发一次同一份文件")];
+  const pending = [
+    { fileId: "attachment-a", filename: "resume.pdf", type: "pdf" as const, sizeBytes: 10, status: "pending" as const },
     { fileId: "attachment-a", filename: "resume.pdf", type: "pdf" as const, sizeBytes: 10, status: "pending" as const },
     { fileId: "attachment-b", filename: "notes.md", type: "markdown" as const, sizeBytes: 20, status: "pending" as const },
   ];
-  const merged = mergeMessageAttachments(existing, pending, messages);
-  assert.equal(merged.length, 2);
+  const merged = mergeMessageAttachments(existing, pending, messages, 2000);
+  assert.equal(merged.length, 3);
+  const rebound = merged.filter((stored) => stored.fileId === "attachment-a");
+  assert.equal(rebound.length, 2);
+  assert.deepEqual(
+    rebound.map((stored) => stored.messageTimestamp).sort(),
+    [1000, 2000],
+  );
   const second = merged.find((stored) => stored.fileId === "attachment-b");
   assert.equal(second?.messageTimestamp, 2000);
-  assert.equal(merged[0]?.messageTimestamp, 1000);
 });
 
 test("no user message means nothing is bound", () => {
