@@ -20,6 +20,18 @@ test("renamed empty conversations do not block a genuinely new chat", () => {
   assert.equal(findReusableEmptyConversation(conversations), undefined);
 });
 
+test("current chat detail overrides a stale empty sidebar summary", () => {
+  const conversations = [
+    conversation("failed-current", "新对话", 0),
+    conversation("blank-older", "新对话", 0),
+  ];
+
+  assert.equal(
+    findReusableEmptyConversation(conversations, "failed-current")?.id,
+    "blank-older",
+  );
+});
+
 function conversation(
   id: string,
   title: string,

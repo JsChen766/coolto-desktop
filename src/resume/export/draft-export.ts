@@ -5,6 +5,7 @@ import { sha256, stableStringify } from "../stable-snapshot.js";
 import { ResumePdfExportError } from "./errors.js";
 import { resumePdfFilename } from "./filename.js";
 import type { ResumePdfExportApprovalPayload } from "./types.js";
+import { resumeGenerationReadiness } from "../workspace/generation-readiness.js";
 
 export interface ResumeDraftPdfExportInput {
   draft: LocalResumeDraft;
@@ -34,9 +35,10 @@ export function buildDraftPdfExportPayload(
     );
   }
   if (!isExportableWorkspace(workspace)) {
+    const blockers = resumeGenerationReadiness(workspace).blockers;
     throw new ResumePdfExportError(
       "candidate_not_exportable",
-      "只有当前合格（ready_for_approval）的简历版本可以导出。",
+      `当前简历尚不能导出：${blockers.map((item) => item.message).join("；")}`,
     );
   }
   const structure = structuredClone(workspace.structure);
@@ -56,10 +58,5 @@ export function buildDraftPdfExportPayload(
 export function isExportableWorkspace(
   workspace: LocalResumeDraft["workspace"],
 ): boolean {
-  return (
-    workspace.status === "ready_for_approval" &&
-    workspace.qualityReport?.passed === true &&
-    workspace.structure.quality_status === "passed" &&
-    workspace.compileResult.qualified === true
-  );
+  return resumeGenerationReadiness(workspace).ready;
 }

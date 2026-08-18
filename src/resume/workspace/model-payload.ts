@@ -26,6 +26,7 @@ export function buildModelPayload(workspace: ResumeWorkspace): object {
     candidateId: workspace.candidateId,
     revision: workspace.revision,
     status: workspace.status,
+    continuation: continuationState(workspace),
     sourceFingerprint: workspace.sourceSnapshot.sourceFingerprint,
     structure: idIndex(workspace.structure),
     visibleText: resumeVisibleText(workspace.structure),
@@ -37,6 +38,7 @@ export function buildModelPayload(workspace: ResumeWorkspace): object {
       workspace.sourceSnapshot,
       workspace.bindings,
     ),
+    layoutBudget: workspace.layoutBudget ?? null,
     budget: calculateResumeBudget(workspace.compileResult),
     typography: typographyDiagnostic(workspace),
     compile: compactCompile(workspace.compileResult),
@@ -50,10 +52,30 @@ export function buildModelPayload(workspace: ResumeWorkspace): object {
     repairRound: workspace.repairRound,
     repairRoundsRemaining: Math.max(0, 3 - workspace.repairRound),
     repairHistory: workspace.repairHistory,
+    operationOutcome: workspace.lastOperationReport ?? null,
     operationReport: workspace.lastOperationReport ?? null,
     bestSnapshot: compactBestSnapshot(workspace),
     instruction: instructionFor(workspace),
   };
+}
+
+function continuationState(workspace: ResumeWorkspace): object {
+  if (workspace.status === "ready_for_approval") {
+    return { continuable: false, reason: "ready_for_approval" };
+  }
+  if (workspace.status === "needs_user_decision") {
+    const evidenceRemaining = rankAvailableEvidence(
+      workspace.sourceSnapshot,
+      workspace.bindings,
+    ).length;
+    return {
+      continuable: false,
+      reason: evidenceRemaining === 0
+        ? "evidence_exhausted"
+        : "user_decision_required",
+    };
+  }
+  return { continuable: true, reason: null };
 }
 
 function compactEvidenceBindings(workspace: ResumeWorkspace): Array<{
@@ -71,10 +93,10 @@ function compactEvidenceBindings(workspace: ResumeWorkspace): Array<{
 
 /**
  * Measured typography facts (host measures, the agent decides). The bullet
- * tail gate requires the last line of every bullet to use at least 70% of
+ * tail gate requires the last line of every bullet to use more than 70% of
  * the available line width; charsPerLine lets the agent pick a tail-aware
  * target length when writing: for an n-line bullet aim at
- * (n-1)*charsPerLine + 0.7*charsPerLine characters (last line ~70% full).
+ * (n-1)*charsPerLine + 0.75*charsPerLine characters (last line ~75% full).
  */
 function typographyDiagnostic(workspace: ResumeWorkspace): object {
   const result = workspace.compileResult;

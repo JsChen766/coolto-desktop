@@ -135,6 +135,7 @@ export function createDemoDraft(now: Date): ResumeDraftDetail {
       factIntegrity: "passed",
       jdCoverage: { covered: 7, total: 8, ratio: 0.875 },
     },
+    generationReadiness: { ready: true, blockers: [] },
     checkpoints: [
       {
         id: "4514605d-b3f6-4cad-ab22-c99782aee0ad",
@@ -155,6 +156,7 @@ export function draftSummary(draft: ResumeDraftDetail) {
     compileResult: _compileResult,
     workspaceStatus: _workspaceStatus,
     quality: _quality,
+    generationReadiness: _generationReadiness,
     checkpoints: _checkpoints,
     pendingChange: _pendingChange,
     ...summary

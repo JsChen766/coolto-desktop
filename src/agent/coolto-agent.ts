@@ -2,12 +2,7 @@ import {
   Agent,
   type AgentEvent,
   type AgentMessage,
-  type AgentTool,
-  type BeforeToolCallContext,
-  type BeforeToolCallResult,
-  type StreamFn,
 } from "@earendil-works/pi-agent-core";
-import type { Api, Model, ThinkingLevel } from "@earendil-works/pi-ai";
 
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import type {
@@ -15,40 +10,33 @@ import type {
   ApprovalRequest,
 } from "../approvals/types.js";
 import {
-  type CooltoAgentEvent,
-  mapPiEvent,
-} from "./events.js";
-
-export interface CooltoAgentOptions {
-  model: Model<Api>;
-  streamFn: StreamFn;
-  systemPrompt: string;
-  tools: AgentTool[];
-  thinkingLevel?: ThinkingLevel;
-  getApiKey?: (provider: string) => string | undefined;
-  beforeToolCall?: (
-    context: BeforeToolCallContext,
-    signal?: AbortSignal,
-  ) => Promise<BeforeToolCallResult | undefined>;
-  transformContext?: (
-    messages: AgentMessage[],
-    signal?: AbortSignal,
-  ) => Promise<AgentMessage[]>;
-  approvalManager?: ApprovalManager;
-}
-
-export type CooltoAgentListener = (
-  event: CooltoAgentEvent,
-  signal: AbortSignal,
-) => void | Promise<void>;
+  isTransientModelError,
+  MODEL_TRANSIENT_ERROR,
+  OUTPUT_REPETITION_ERROR,
+  TURN_GOVERNOR_ERROR,
+} from "./agent-errors.js";
+import type { CooltoAgentListener, CooltoAgentOptions } from "./coolto-agent-types.js";
+import { mapPiEvent } from "./events.js";
+import { recoverFromOutputRepetition } from "./model-output-recovery.js";
+import { wrapResumeGenerationFollowUp } from "./internal-prompt.js";
+import { StreamingOutputRepetitionGuard } from "./output-repetition-guard.js";
+import type { TurnGovernor } from "./turn-governor.js";
 
 export class CooltoAgent {
   readonly #agent: Agent;
   readonly #approvalManager: ApprovalManager | undefined;
+  readonly #outputRepetitionGuard = new StreamingOutputRepetitionGuard();
+  readonly #turnGovernor: TurnGovernor | undefined;
   #modelCallCount = 0;
+  #stoppedForOutputRepetition = false;
+  #outputRecoveryRemaining = 0;
+  #modelErrorMessage: string | undefined;
+  #transientRecoveryRemaining = 0;
+  #promptSequence = 0;
 
   public constructor(options: CooltoAgentOptions) {
     this.#approvalManager = options.approvalManager;
+    this.#turnGovernor = options.turnGovernor;
     this.#agent = new Agent({
       initialState: {
         systemPrompt: options.systemPrompt,
@@ -57,7 +45,9 @@ export class CooltoAgent {
         thinkingLevel: options.thinkingLevel ?? "off",
       },
       streamFn: options.streamFn,
-      toolExecution: "sequential",
+      // Read-only tools may run together. Tools that mutate a workspace or
+      // prepare an approval opt back into sequential execution themselves.
+      toolExecution: "parallel",
       ...(options.getApiKey ? { getApiKey: options.getApiKey } : {}),
       ...(options.beforeToolCall
         ? { beforeToolCall: options.beforeToolCall }
@@ -65,10 +55,40 @@ export class CooltoAgent {
       ...(options.transformContext
         ? { transformContext: options.transformContext }
         : {}),
+      ...(options.shouldStopAfterTurn
+        ? { shouldStopAfterTurn: options.shouldStopAfterTurn }
+        : {}),
     });
     this.#agent.subscribe((event) => {
       if (event.type === "message_start" && event.message.role === "assistant") {
         this.#modelCallCount += 1;
+        this.#outputRepetitionGuard.reset();
+      }
+      if (
+        event.type === "message_update" &&
+        (event.assistantMessageEvent.type === "text_delta" ||
+          event.assistantMessageEvent.type === "thinking_delta") &&
+        this.#outputRepetitionGuard.append(event.assistantMessageEvent.delta)
+      ) {
+        this.#stoppedForOutputRepetition = true;
+        this.#agent.abort();
+      }
+      if (event.type === "message_end" && event.message.role === "assistant") {
+        this.#modelErrorMessage = event.message.stopReason === "error"
+          ? event.message.errorMessage ?? "模型调用失败"
+          : undefined;
+      }
+      if (
+        event.type === "turn_end" &&
+        event.message.role === "assistant" && event.toolResults.length === 0 &&
+        event.message.stopReason !== "error" &&
+        event.message.stopReason !== "aborted"
+      ) {
+        const followUp = options.automaticFollowUp?.(this.#promptSequence);
+        if (followUp) {
+          this.#agent.followUp({ role: "user",
+            content: wrapResumeGenerationFollowUp(followUp), timestamp: Date.now() });
+        }
       }
     });
   }
@@ -82,17 +102,55 @@ export class CooltoAgent {
     return this.#modelCallCount;
   }
 
+  public get stoppedForOutputRepetition(): boolean {
+    return this.#stoppedForOutputRepetition;
+  }
+
+  public get runStopError(): string | undefined {
+    const guardError = this.#guardStopError;
+    if (guardError) return guardError;
+    if (!this.#modelErrorMessage) return undefined;
+    return isTransientModelError(this.#modelErrorMessage)
+      ? MODEL_TRANSIENT_ERROR
+      : this.#modelErrorMessage;
+  }
+
   public get toolNames(): string[] {
     return this.#agent.state.tools.map((tool) => tool.name);
   }
 
-  public prompt(input: string): Promise<void> {
+  public async prompt(input: string): Promise<void> {
     const text = input.trim();
     if (text.length === 0) {
-      return Promise.resolve();
+      return;
     }
-
-    return this.#agent.prompt(text);
+    this.#stoppedForOutputRepetition = false;
+    this.#promptSequence += 1;
+    this.#outputRecoveryRemaining = 2;
+    this.#modelErrorMessage = undefined;
+    this.#transientRecoveryRemaining = 1;
+    this.#turnGovernor?.reset();
+    this.#outputRepetitionGuard.reset();
+    await this.#agent.prompt(text);
+    while (
+      this.#stoppedForOutputRepetition &&
+      this.#outputRecoveryRemaining > 0 &&
+      this.#discardAbortedAssistantMessage()
+    ) {
+      this.#outputRecoveryRemaining -= 1;
+      this.#stoppedForOutputRepetition = false;
+      this.#outputRepetitionGuard.reset();
+      await recoverFromOutputRepetition(this.#agent);
+    }
+    if (
+      isTransientModelError(this.#modelErrorMessage) &&
+      this.#transientRecoveryRemaining > 0 &&
+      this.#discardAbortedAssistantMessage()
+    ) {
+      this.#transientRecoveryRemaining -= 1;
+      this.#modelErrorMessage = undefined;
+      await this.#agent.continue();
+    }
   }
 
   public getMessages(): AgentMessage[] {
@@ -136,6 +194,30 @@ export class CooltoAgent {
       async (event: AgentEvent, signal: AbortSignal) => {
         const mapped = mapPiEvent(event);
         if (mapped) {
+          if (
+            mapped.type === "run.failed" &&
+            isTransientModelError(this.#modelErrorMessage) &&
+            this.#transientRecoveryRemaining > 0
+          ) return;
+          if (
+            mapped.type === "run.completed" &&
+            isTransientModelError(this.#modelErrorMessage) &&
+            this.#transientRecoveryRemaining > 0
+          ) return;
+          if (
+            mapped.type === "run.completed" &&
+            this.#guardStopError
+          ) {
+            if (
+              this.#stoppedForOutputRepetition &&
+              this.#outputRecoveryRemaining > 0
+            ) return;
+            await listener(
+              { type: "run.failed", message: this.#guardStopError! },
+              signal,
+            );
+            return;
+          }
           await listener(mapped, signal);
         }
       },
@@ -148,4 +230,20 @@ export class CooltoAgent {
       unsubscribeApprovals?.();
     };
   }
+
+  #discardAbortedAssistantMessage(): boolean {
+    const messages = this.#agent.state.messages;
+    const last = messages.at(-1);
+    if (last?.role !== "assistant") return false;
+    this.#agent.state.messages = messages.slice(0, -1);
+    return true;
+  }
+
+  get #guardStopError(): string | undefined {
+    if (this.#stoppedForOutputRepetition) return OUTPUT_REPETITION_ERROR;
+    return this.#turnGovernor?.stopReason ? TURN_GOVERNOR_ERROR : undefined;
+  }
 }
+
+export { OUTPUT_REPETITION_ERROR, TURN_GOVERNOR_ERROR } from "./agent-errors.js";
+export type { CooltoAgentOptions, CooltoAgentListener } from "./coolto-agent-types.js";

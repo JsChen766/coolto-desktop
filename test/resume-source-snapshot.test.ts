@@ -16,6 +16,7 @@ import {
   ResumeSourceSnapshotError,
 } from "../src/resume/source-snapshot.js";
 import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../src/resume/template-contract.js";
+import { buildResumeSkeleton } from "../src/resume/workspace/candidate-skeleton.js";
 import type {
   BulletEvidenceBinding,
   ResumeSourceSnapshot,
@@ -67,6 +68,43 @@ test("source fingerprint is independent from selected experience order", async (
   assert.deepEqual(
     first.experiences.map((experience) => experience.id),
     ["exp-1", "exp-2"],
+  );
+});
+
+test("resume source automatically includes every active education and orders it newest first", async () => {
+  const work = createExperience();
+  const olderEducation = educationExperience("edu-older", "rev-older", {
+    title: "浙江大学",
+    startDate: "2021-09",
+    endDate: "2025-06",
+  });
+  const currentEducation = educationExperience("edu-current", "rev-current", {
+    title: "香港中文大学",
+    startDate: "2025-09",
+    endDate: "present",
+  });
+  const archivedEducation = educationExperience("edu-archived", "rev-archived", {
+    title: "已归档学校",
+    startDate: "2018-09",
+    endDate: "2021-06",
+    status: "archived",
+  });
+  const snapshot = await createBuilderFromExperiences([
+    work,
+    olderEducation,
+    currentEducation,
+    archivedEducation,
+  ]).build(input);
+
+  assert.deepEqual(
+    snapshot.experiences.map((experience) => experience.id),
+    ["edu-current", "edu-older", "exp-1"],
+  );
+  const structure = buildResumeSkeleton(snapshot, ["exp-1"], "zh-CN");
+  assert.deepEqual(
+    structure.sections.find((section) => section.type === "education")
+      ?.items.map((item) => item.source_experience_id),
+    ["edu-current", "edu-older"],
   );
 });
 
@@ -384,6 +422,28 @@ function createExperience(): ExperienceDetail {
     updatedAt: "2026-07-02T00:00:00Z",
     revisions: [revision],
   };
+}
+
+function educationExperience(
+  experienceId: string,
+  revisionId: string,
+  fields: Pick<ExperienceDetail, "title" | "startDate" | "endDate"> & {
+    status?: ExperienceDetail["status"];
+  },
+): ExperienceDetail {
+  const experience = withExperienceIdentity(
+    createExperience(),
+    experienceId,
+    revisionId,
+  );
+  experience.category = "education";
+  experience.title = fields.title;
+  experience.organization = "金融学";
+  experience.role = "硕士";
+  experience.startDate = fields.startDate;
+  experience.endDate = fields.endDate;
+  experience.status = fields.status ?? "active";
+  return experience;
 }
 
 function createBinding(

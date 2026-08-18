@@ -204,6 +204,10 @@ export class ExperienceProposalService {
     return this.#registry.execute(proposalId);
   }
 
+  public discard(proposalId: string): void {
+    this.#registry.discard(proposalId);
+  }
+
   async #current(id: string): Promise<ExperienceDetail> {
     await this.initialSync();
     return toExperienceDetail(this.#requiredEntity(id));

@@ -29,15 +29,15 @@ export class ResumeLayoutInspector {
   public async inspect(input: LayoutInspectInput): Promise<LayoutContext> {
     const snapshot = await this.#buildSnapshot(input);
     const skeleton = buildResumeSkeleton(snapshot, input.experienceIds, input.language);
-    const typography = await calibrateTypography(
+    const calibration = await calibrateTypography(
       this.compiler,
       skeleton,
       input.language,
     );
     return buildLayoutContext(
       snapshot,
-      input.experienceIds,
-      typography,
+      snapshot.experiences.map((experience) => experience.id),
+      calibration.parameters,
       input.language,
       this.maxBulletLines,
     );

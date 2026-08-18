@@ -2148,6 +2148,594 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
 - 不把“后端接口存在”“能显示数据”或 Browser Demo 视为 App 阶段完成；必须具备真实调用、
   Docker 联调、失败路径、跨账号和必要的可见界面证据。
 
+#### 修复记录：简历生成两个稳定性问题（2026-08-16，用户报告后根因修复）
+
+**问题 1：经历多时出现"输入超过操作上限"报错（服务端 413 prompt_too_large）**
+
+- 根因链：经历多 → `get_resume_source_snapshot` 载荷大 → 模型请求体超过服务端
+  `max_prompt_tokens=32000`（约 192KB 字节闸，`request_policy.go`）→ 413 envelope
+  message 被 `desktopErrorMessage` 原样展示。两个放大因素：
+  1. `evidence-candidates.ts` 的 `slice(0, Math.max(48, balanced.length))` 在经历多时
+     完全不截断证据候选（本意是封顶 48，写成取最大值）；
+  2. 本地上下文压缩阈值 200k tokens 是服务端 32k 上限的 6 倍，压缩永远在 413 之后才
+     触发，且压缩后保留的最近 60k tokens 尾巴仍超预算。
+- 修复（3 处，行为修复不动 UI）：
+  1. `evidence-candidates.ts`：候选封顶固定 48（`slice(0, MAX_AVAILABLE_EVIDENCE)`，
+     balanced 优先保证每条经历至少 1 条）；
+  2. `context-compaction.ts`：`DEFAULT_COMPACTION_THRESHOLD_TOKENS` 200k→24k、
+     `KEEP_RECENT_TOKENS` 60k→16k（对齐服务端预算，压缩后摘要+尾巴+系统提示仍低于 32k）；
+  3. `resume-continuation.ts`：新增 `isPromptLimitFailure` 守卫——续接循环检测到
+     prompt 超限类错误（413/输入超过操作上限/context length 等）立即归一
+     `needs_user_decision`，不再带更大的上下文重试。
+
+**问题 2：经历少时陷入长时间 thinking 空转（用户感知"无限思考卡死"）**
+
+- 根因链：经历少 → availableEvidence 不足 → 占用率达不到 85% → workspace 停在
+  writing → 续接循环持续注入"继续写"指令 → 模型无素材可写进入 thinking 打转。现有
+  守卫被系统性绕过：
+  1. `assistantOutputSignature` 序列化整个 content，thinking 文本每轮必然不同 →
+     identical 守卫永不触发；
+  2. 生产续接预算 `UNLIMITED_CONTINUATION_BUDGET.maxMs=∞` 无墙钟兜底（300 轮 ×
+     20-60s ≈ 1.7-5 小时）；
+  3. 两处 `while (agent.isRunning)` 死等无超时（abort 后流未收尾即永久卡死）；
+  4. 初始 turn 软限 10 分钟过长且无进展守卫。
+- 修复（5 处）：
+  1. `continuation-output-signature.ts`：`assistantOutputSignature` 指纹排除 thinking
+     文本（只保留 `{type:"thinking"}` 标记）→ 纯思考复读可被 identical 守卫抓住；
+  2. `resume-continuation.ts`：`UNLIMITED_CONTINUATION_BUDGET.maxMs` ∞→900s（15
+     分钟墙钟，正常生成 ≤240s+续接远小于此；CLI `--no-timeout` 显式覆盖 maxMs 不受
+     影响）；
+  3. 新增 thinking-only 空转守卫（`isThinkingOnlyMessage` + `MAX_THINKING_ONLY_ROUNDS=3`，
+     连续 3 轮无文本无工具调用即归一终止；无 assistant 消息返回 undefined 不计数，
+     避免误伤）；
+  4. 两处 `while (isRunning)` 死等改为 `waitForAgentIdle(agent, 30s)`（带超时，超时后
+     走错误路径结束而非永久卡死）；
+  5. `INITIAL_TURN_MAX_MS` 600s→360s（初始回合软限缩短，超限转入带全套守卫的续跑，
+     不丢工作）。
+- 验证：`npm run test` 488 tests 通过（新增 4 用例：thinking-only 守卫、prompt-limit
+  立即终止、指纹排除 thinking、证据候选封顶 48）；`check:source-lines` 626 文件全过；
+  `npm run typecheck` 与 `npm run desktop:typecheck` 通过。`npm run build` /
+  `desktop:build` 未执行（用户指示先不发版）；真实 Electron 验收与发版归入后续。
+
+**追加：素材耗尽时引导用户新增经历（2026-08-16，用户要求"证据少时引导新增经历，证据多时正常生成"）**
+
+- 思路：不做"生成前预检拒绝"（理论估算会误伤 3 行 bullet 可达标的样本），而是把
+  "素材耗尽"作为宿主侧的确定性早停信号 + 明确引导：
+  1. `diagnostics-projection.ts` 新增 `unusedEvidenceTotal(workspace)`（复用
+     `rankAvailableEvidence` 计算未消费证据数）与 `EVIDENCE_EXHAUSTED_THRESHOLD=2`；
+     `instructionFor` 的 `needs_user_decision` 分支按素材是否耗尽分流：耗尽时文案
+     明确"当前所选经历的素材不足…请引导用户补充经历（在经历库新增与目标岗位相关的
+     经历：具体项目、量化成果、技术栈），然后重新生成；或放宽匹配条件重选经历"，并
+     保留"不得降低质量门槛、不得编造证据"与占位符数字说明；素材充足时维持原文案。
+  2. `resume-continuation.ts`：stalled 守卫阈值动态化——未消费证据 ≤2 时
+     `MAX_STALLED_ROUNDS` 6→`MAX_STALLED_ROUNDS_EXHAUSTED=2`（素材耗尽时 2 轮
+     无实质进展即归一，快速交还用户；素材充足时行为不变，证据多正常生成）。
+- 效果：经历少 → 模型写完可用证据 → 素材耗尽 → 2 轮内收敛到 `needs_user_decision`
+  → 最终回复明确引导用户新增经历（而不是空转 6-8 轮甚至 15 分钟墙钟）；经历多 →
+  一切照旧，由 `rankAvailableEvidence` 从充足素材中选最合适的。
+- 验证：`npm run test` 491 tests 通过（新增 3 用例：素材耗尽 stalled 提前收敛、
+  instruction 耗尽引导文案、instruction 素材充足时维持原文案；既有 budget 用例改为
+  保留未消费素材以继续验证 model-call 兜底路径）；`check:source-lines` 626 文件全过、
+  `npm run typecheck` 通过。build 系列仍按用户指示未执行。
+
+**本地打包验证（2026-08-16，用户要求"本地打个包试试"，未发版）**：
+
+- 完整命令：`npm run check` 全绿（含 build / desktop:build）→ `npm run package:win`
+  （native:build:win → desktop:build:protected → electron-builder --win nsis --x64 →
+  verify:release:win → verify:installer:win），exit 0。
+- release 审计：ASAR 19,543 文件，Main loader 1,097 bytes + 密文 872,928 bytes
+  （`CLTOENC1` 加密），原生模块 262,144 bytes，Electron Fuses verified。
+- 安装器真实验收：静默安装到隔离目录 → 哈希一致 → `COOLTO_MAIN_BOOTSTRAP_READY`
+  真实 bootstrap → Renderer 保持健康 → 精确终止进程树并静默卸载清理，通过。
+- 产物：`dist-electron/Coolto-0.1.18-x64.exe`，136,502,866 bytes，SHA-256
+  `46fc985ff7f3681b16669aafdc9840f8eb635d818ff9c54231b660c7fd4598aa`；
+  Authenticode `NotSigned`（Windows 无签名配置）；更新源仍为 localhost；
+  本机为本地测试构建，未上传、未 commit、未 push。
+
+**实测卡死与第二轮修复（2026-08-16 晚，用户装 0.1.18 实测仍卡死，服务器日志取证）**：
+
+- 实测现象：用户生成简历时"循环卡死，一直说不对"。服务器（网关 + new-api）日志取证：
+  同一会话连续 19+ 轮 `/api/llm/chat/completions`（23:08-23:17），prompt_tokens 从
+  28K 涨到 47K（每轮 append，临近 413 字节闸）；大部分轮 completion 仅 50-2400
+  （短输出 = "不对"式短文本轮）；每几轮一次 completion=16384 满额截断（stopReason=
+  length，单轮 65-69s）——**"自我否定 + 重试"循环，短文本轮与截断轮交替，绕过了
+  第一轮的全部守卫**（thinking-only 需连续 3 轮、identical 需输出相同、stalled 需
+  指标不变）。且大部分轮发生在初始回合（无续接守卫，只有 repetitionGuard + 360s
+  软限），19 轮约 5 分钟才被软限掐断，随后续接守卫同样失明。
+- 第二轮修复（3 个宿主硬守卫，不依赖模型遵守文本指令）：
+  1. `agent-runtime-prompt.ts`：初始回合新增"连续工具失败"守卫——订阅
+     `tool.completed`，连续 8 次失败（成功重置）立即 cancel 转入带守卫的续跑，
+     不再让模型空转到软限（`MAX_INITIAL_TOOL_FAILURES=8`）；
+  2. `resume-continuation.ts`：相同工具结果硬停止——既有 `sameOutcomeRounds`
+     从"仅注入文本反馈"升级为硬守卫：连续 4 次相同结果（成败+摘要一致）宿主直接
+     归一 `needs_user_decision`（`MAX_SAME_OUTCOME_ROUNDS=4`）；
+  3. 输出截断守卫——连续 2 轮 assistant `stopReason=length`（max_tokens 掐断，
+     工具参数可能不完整，重试只会再截断）直接归一（`MAX_TRUNCATED_OUTPUT_ROUNDS=2`，
+     `isTruncatedOutputMessage`）。
+- 验证：`npm run test` 491 tests 通过（新增 truncated 硬停止、same-outcome 硬停止
+  2 用例）；`check:source-lines` 626 文件、双 typecheck 通过。`package:win` 全链路
+  （release 审计：loader 1097B + 密文 873,307B；安装器真实 bootstrap + 卸载）通过。
+- 产物：`dist-electron/Coolto-0.1.18-x64.exe`，136,489,492 bytes，SHA-256
+  `82d48db6a01e2d77e301d328c73509da1be977ef4053ef23067a3d481f2e070e`；
+  Authenticode NotSigned；未上传、未 commit。
+
+**根因修复追加（2026-08-17，单一通用 Agent / 无宿主简历模式）**：
+
+- 边界：保留一个由自然语言自主选工具的 Agent；未新增简历模式、宿主固定工作流或按意图
+  路由。宿主只执行任务无关的运行时治理，领域工具只报告真实状态。
+- 内部 turn 治理：确认外层 continuation 守卫看不到一次 `agent.prompt()` 内部的工具循环；
+  通过 `pi-agent-core` 已存在的 `shouldStopAfterTurn` 底层钩子接入 `turn-governor.ts`，
+  连续 3 轮相同工具结果、连续错误结果、上下文终止错误或单 run 40 turn 安全上限均在下一次
+  模型调用前结束。0.81.1 的 `Agent` 包装层未透传该钩子，新增严格锁定版本、精确替换且幂等的
+  `scripts/patch-pi-agent-stop-hook.mjs` 安装后兼容脚本；未升级依赖、未引入额外包。
+- 可达终态：`workspace-status.ts` 在页面仅欠填、所有经历已写且未消费证据为 0 时返回
+  `needs_user_decision`；`writePlan` 按剩余证据容量计算可行 bullet 数，不再报告物理上无法
+  完成的静态缺口；terminal Workspace 拒绝后续 patch。模型载荷同时返回
+  `continuation={continuable:false,reason:evidence_exhausted}`。
+- 工具结果去歧义：每次候选 patch 明确返回 `success/partial_success`、`attempted`、
+  `applied`、`rejected` 和 `repairs`；干净 patch 会覆盖旧 report，避免模型把历史拒绝继续
+  当作当前失败，也避免把部分成功口头总结为全部成功。
+- 上下文治理：`search_experiences` 给模型的列表结果移除 `currentRevision.content`（完整正文
+  仍保留在 tool details，并由 `get_experience` 按需读取）；候选 Workspace 建立后，旧的
+  JD/Experience 搜索、详情、布局检查和 snapshot 结果统一替换为压缩占位，仅保留最新完整
+  Workspace。服务端实测的 `error: terminated + output=16384` 也归类为输出预算截断。
+- 服务端边界：本轮未擅自修改 `cv-agent-api-service` 的 `max_prompt_tokens=32000`。该值同时
+  参与 Credit 预留额度；线上上游实际接受 47K prompt，直接提高额度会增加预留并可能改变
+  `insufficient_credits` 行为，直接把字节估算改得更严格又会更早拒绝，需作为计费策略单独确认。
+- 验证：新增/更新内部 turn、搜索载荷、上下文替换、部分成功、证据耗尽终态、terminal patch
+  与 16384 terminated 截断用例；`npm run check` 全绿（627 个源文件全部 ≤250 行；Node 与
+  Desktop 双 typecheck；496 tests 中 494 pass、2 个平台条件 skip、0 fail；Node build 与
+  Electron renderer/main/preload build 均成功）。未执行真实模型性能复测、未打包、未上传、
+  未 commit、未 push。
+
+**Credit 动态输出预算追加（2026-08-17，用户确认输入 64K、输出无固定产品上限）：**
+
+- App 删除 `create-agent.ts` 的 `maxTokens: 16384` 固定覆盖；pi-ai 继续按模型声明的物理
+  ceiling 生成本次请求额度，Credit 网关再按本次 prompt 与剩余 Credit 动态收窄，不新增
+  业务模式、意图路由或宿主固定编排；
+- 通用 turn governor 将 `insufficient_credits` / `credit_exhausted` / 402 识别为不可重试
+  模型终态；简历 continuation 同样在首个 Credit 错误后归一为 `needs_user_decision`，不会
+  再自动发起消耗额度的请求；
+- `cv-agent-api-service` 同步实现 64,000 Token 输入门禁、原子范围预留与动态
+  `max_tokens` 反算，移除 per-operation 固定输出字段；PR #27 主改动、PR #28 gofmt 修复与
+  PR #29 64K usage-check fixture 修复均已合入。正式流水线 #65 的 Validate、全仓 race tests、
+  精确 SHA 部署、New API 内部 readiness 与公网 Credit readiness 全部通过；生产复核 HEAD 为
+  `90ec9c357ab674fb825c106ab656ce50ae950198`，工作树干净、API running、units 模式与 8 个
+  64K 输入限制生效，无固定 `max_completion_tokens`，近 10 分钟无 API error/fatal/panic；
+- App `npm run check` 全绿：627 个源文件全部 ≤250 行；Node/Renderer 双 typecheck；
+  497 tests 中 495 pass、2 个平台条件 skip、0 fail；Node build 与 Electron
+  main/preload/renderer production build 均成功。`npm run package:win` 亦完整通过：原生 Rust
+  3/3 测试、protected build、NSIS x64、ASAR/原生模块/Fuses 加固审计及安装器真实安装、
+  bootstrap 健康与卸载门禁全部成功。产物 `Coolto-0.1.18-x64.exe` 为 136,485,033 bytes，
+  SHA-256 `78fda8cc96919ab534ab211dd0a161a25c2ffb64fec1a77fd748296de462febf`；按用户要求仅本地
+  打包，App 未上传、未 commit、未 push、未发版。
+
+#### S4.5 简历生成稳定性统一 Roadmap（2026-08-17，本次完整对话落档）
+
+> **v8 实测后的当前实施方向（2026-08-17，覆盖下方旧阶段机记录）：**已完成 R1——
+> 删除宿主 resume continuation/phase prompt 外循环，一次用户消息只调用一次 pi-agent-core
+> `prompt()`；只读工具可并行、变更工具强制串行；上下文阈值改由 DeepSeek 1M 模型物理
+> 能力与网关能力动态推导，不再固定 24K。完整测试 500 项中 498 pass、2 skip、0 fail；
+> 后续按 `S4.5.1-phase-driven-resume-generation.md` 的新 R2–R5 基线继续；当前 R1–R5 代码与自动化质检已完成，仍未做本轮真实 Electron 自然语言验收或生产部署。
+
+> **R2 批量工作区工具完成（2026-08-17）：**Agent 简历生成工具面已收敛为
+> `create_resume_workspace / get_resume_workspace / apply_resume_content`；删除旧的 snapshot、
+> layout estimate、plan、逐 bullet writer、inspect、patch 以及 Agent save/export 工具。
+> 创建阶段不再预测素材可达性；批量 apply 对多个完整 item 只编译一次，并返回与 revision
+> 对齐的真实 px 测量。双 typecheck 与完整测试通过（479 pass、2 skip、0 fail）。
+
+> **R3–R4 补充材料、确认与宿主持久化完成（2026-08-17）：**新增
+> `add_resume_material / prepare_experience_sync`；用户补充保持原始快照不可变，AI 补写
+> 必须经程序确认，经历库同步确认前不落库。保存与导出均移出 Agent，宿主按钮共享 revision、
+> 真实版面、bullet 数量、证据、标点与补写确认门禁；本地草稿自动保存，并在未保存/保存失败
+> 退出时提供保存、保留上次草稿、取消三种选择。完整回归 487 tests 中 485 pass、2 skip、
+> 0 fail；Node/Desktop typecheck 与 636 文件行数门禁通过。
+
+> **R5 模型能力与全链路质检完成（2026-08-18，未部署）：**Credit API 以类型化
+> `contextWindow=1,000,000 / maxOutput=384,000` 替代固定 64K；prompt 与 completion 共享
+> 总窗口，输出同时受客户端请求、模型能力、剩余上下文和 Credit 预算收窄。线上服务器仅在
+> `/tmp` 隔离副本执行 gofmt/vet/build、全仓 race tests、行数与双 Compose 门禁，生产工作树、
+> 容器和数据库未修改。审计修复了简历新建 Outbox 忽略幂等键导致失败重试可重复创建，以及
+> 缺失 main/secondary tier 时 3/2 bullet 门禁默认放行两处漏洞。最终 App `npm run check`
+> 全绿：488 tests 中 486 pass、2 skip、0 fail，637 个源文件 ≤250 行，Web/Electron build
+> 成功。模型注册值实测为 1M/384K；生产主 API 未配置额外 compaction threshold。
+
+> **R6 尾行单点收敛与可见进度完成（2026-08-18，待一次真实验收）：**针对 v52 最终仍有
+> 15 条短尾的失败，把普通尾行批次收窄到 2 条，零落地后只锁定最接近可行的 1 条；Agent 可在
+> 一次工具调用提交 6 个完整 grounded 改写和 6 个 grounded 修饰语，宿主用真实 Chromium
+> 批量测量、立即落地最大可行子集，并持久化候选指纹、行数、尾行像素与机械字符增量指引，避免
+> 重复候选和盲猜循环。聊天区新增只来源于工具回执的事实进度，CDP smoke 会采集全过程文案。
+> 自动质检全绿：550 tests 中 548 pass、2 skip、0 fail，670 个源文件 ≤250 行，Node/Preload/Vue
+> typecheck、Node 与 Electron production build 全部成功；详细记录见 S4.5.1 阶段 15。
+
+> **R7 v53 单次真实回归失败后停止（2026-08-18）：**v53 unpacked 的 Rust、protected build、
+> ASAR/Fuses 加固与独立 bootstrap/CDP 验收均通过。唯一一次线上金融研究 JD 回归耗时
+> 493.756 秒，单页 usage 93.23%，尾行从 18 条修到 9 条，revision 到 14，证明新单点反馈可以
+> 连续落地，但仍慢于五分钟目标。共 29 次 apply，其中 1 次因模型把对象候选写成字符串数组而触发
+> schema error；最终仍因模型输出停滞/重复终止，`generationReady=false`。过程进度采集已生效，
+> 但存在“已实测 0 个候选”的误导文案。按用户约定不再修改或重跑；详细证据与产物哈希见
+> S4.5.1 阶段 16。
+
+> **R8 批量叠加收敛真实回归失败后停止（2026-08-18）：**用户确认简历最终门槛不降低，
+> 欠填阶段改为先批量铺满到 ≥92%，允许临时短尾；尾行阶段最多 16 条同批实测并落地最大可行子集，
+> 每次编译后再对全部剩余短尾叠加修复。欠填回执收敛为唯一 `requiredInput`，最多 8 个目标；增高与
+> 尾行候选账本均跨 revision 保留未落地实测，单个无效尾行目标不再阻塞整批。prompt/tool schema 与
+> 事实型进度同步更新。定向 49/49 通过；完整 `npm run check` 为 561 tests 中 559 pass、2 skip、
+> 0 fail，676 个源文件 ≤250 行，双 typecheck、Node/Electron build 全绿。v55 Windows 打包、加固审计、
+> 隔离安装/启动/卸载通过；唯一真实生成回归在 204.965 秒结束，前半段用 5 次 apply 从 42.05% 推到
+> 单页 93.02%，但首次 17 尾行场景超过 schema 的 16 项上限产生 1 次 tool error，后续只降到 12 个
+> 短尾并触发无进展重复保护，revision 6、`generationReady=false`。按停止规则不再修改或重跑，
+> S4.5.1 仍不得标记完成；完整产物哈希、过程证据与截图见 S4.5.1 阶段 16 第二次稳定性优化记录。
+
+> **R9 全尾行唯一清单与逐项反馈完成自动门禁、真实回归失败（2026-08-18）：**用户授权继续处理 v55
+> 剩余根因，最终质量门槛不变。尾行批次不再截断为 16，公开 schema 移除固定数组上限，
+> `nextAction.bulletIds` 成为唯一完整清单；重试账本改为每个未落地 bullet 各自保存真实测量 guidance，
+> 页面容量冲突仍保留全部失败项并追加去重供体。进度投影按刚完成的操作而非下一动作判阶段。
+> 修改前四类失败测试均复现，修改后定向 49/49；完整 `npm run check` 为 563 tests 中 561 pass、
+> 2 skip、0 fail，677 个源文件 ≤250 行，双 typecheck 与 Node/Electron build 全绿。v56 加固打包、
+> 隔离安装/启动/卸载通过；唯一真实生成回归在约 60 秒达到单页 93.09%，全程 0 schema/tool error，
+> 但 11 次 apply 后 revision 停在 4，截图仍显示 11 个短尾，240 秒超时后由停滞/重复保护终止，
+> `generationReady=false`。按停止规则不再修改或重跑，S4.5.1 不得标记完成；完整产物哈希、截图与
+> 过程证据见 S4.5.1 阶段 16 第三次稳定性优化记录。
+
+> **R10 尾行单修订迭代工作基线完成实现并首次真实达标（2026-08-18，严格 smoke 仍有一次已恢复错误）：**用户确认保持全部简历
+> 门槛与批量能力，只替换尾行收敛逻辑。每目标每轮只提交一份基于最新 `currentText` 的 `revisedText`，
+> 宿主明确要求增减字符范围；未通过但更接近的文本推进内部工作基线，更差文本回退，正式简历只接收
+> 满足真实尾行和整页约束的最大安全子集。内容/证据/数字/重复/标点校验前置，最终 item 校验拒绝也不再
+> 丢失测量账本；augmentation 确认与其他门槛不变。相关 51/51、完整 `npm run check` 565 tests 中
+> 563 pass、2 skip、0 fail，679 个源文件 ≤250 行，双 typecheck 与 Node/Electron build 全绿；v57
+> Windows 加固打包、隔离安装/启动/卸载通过。唯一真实回归在 221.328 秒完成 Assistant 回复，终态
+> revision 10、单页 93.09%、22 条 bullet、短尾失败 0、最低尾行比 71.1%、0 violations、
+> `generationReady=true`，相较此前 493.756 秒和 29 次 apply 降至约 221 秒和 14 次 apply。过程中一次
+> 完全相同参数触发 `detected_repetition`，Agent 读取工作区后恢复并完成，故严格 smoke 仍返回
+> `success=false`/exit 1；本记录只声明核心简历真实达标，不把单次样本包装成无错误稳定性证明，也不
+> 降低 smoke 判定。完整产物哈希、截图、清理和限制见 S4.5.1 阶段 16 第四次稳定性优化记录。
+
+> **R11 v57 多 JD 稳定性追加实测未通过（2026-08-18）：**用户要求继续验证两个跨岗位生成样本和
+> 一个素材明显不足样本。连同 R10 投资者关系样本，4 个差异化 JD 中机器终态达标 2/4，严格无工具
+> 错误成功 0/4：投资者关系 221.328 秒达标但有 1 次已恢复重复错误；首次安装产品实习生 228.345 秒、
+> 单页 92.58%、27 条 bullet、短尾失败 0，但同样有 1 次重复错误；数据产品经理 240 秒超时于
+> 87.64%，有 2 次重复错误；AI 应用开发实习生 240 秒超时于 77.60%，虽 0 tool error，却没有按素材
+> 不足路径调用 `pause_resume_for_material` 或追问用户。结论是尾行单修订迭代能够在达标样本中清零
+> 短尾，但跨岗位首稿篇幅与素材不足退出仍不稳定。当前物理可达性只计算把已有 bullet 补到三行后的
+> 页高，不校验 JD 关键技能的来源覆盖；正确后续应以 must-have 语义覆盖门禁 + 连续零落地业务暂停来
+> 保护用户，不降低任何简历或事实门槛。完整调用数、截图哈希与根因边界见 S4.5.1 阶段 16 多 JD
+> 稳定性追加实测记录。
+
+> **R12 教育完整性与信息层级完成自动化修复（2026-08-18）：**用户确认先处理两个教育问题。
+> 生成快照现会分页补齐经历库中全部合格的 active 教育，按当前/至今优先、结束日期倒序固定排列；
+> Agent 不传教育也不会遗漏，库中确实无教育时原硬门槛仍失败关闭。共享 preview/PDF 改为第一行
+> “学校 · 学位”、第二行“专业 · 学院”，并兼容历史反向字段和新的规范字段，不迁移旧资产、不改变
+> 工作/项目渲染。v67 prompt 明确教育 item 不得因 JD 或溢出删除；自动发现 ID 的短引用、扩源补充
+> 事实保留和导入字段语义一并补齐。完整 `npm run check` 为 570 tests（568 pass、2 skip、0 fail），
+> 681 个源文件行数门禁、模板同步、双端 typecheck 与 Node/Electron production build 全绿。本轮未
+> 打包或真实生成，不改变 R11 的稳定性结论，也未处理关键技能证据门禁和篇幅阶段连续零落地暂停；
+> 详细实现和验证见 S4.5.1 阶段 16 教育完整性与信息层级修复记录。
+
+> **R13 关键技能证据门禁与篇幅连续零落地暂停完成自动化修复（2026-08-18）：**在用户确认不降低
+> 任何简历门槛的前提下，工作区会对 must-have `technology`（兼容旧 `technical/skill`）要求执行
+> 确定性来源证据门禁；缺失时写作前立即进入 `needs_user_decision` 并追问具体项目事实，无关回答不能
+> 解锁，相关用户事实通过既有 `add_resume_material` 恢复。篇幅阶段同时支持用未消费相关事实新增
+> bullet 和基于已有证据大幅扩写 bullet，但每轮仍只提交一种可测量输入；连续两轮真实零增高后由
+> 业务状态暂停追问，真实增长或补充事实会清零，schema/证据/数字等非法输出不计轮次。v68 prompt 与
+> 工具合同同步，尾行、单页、≥92%、>70%、证据、数字、教育和确认门槛均未改变。完整
+> `npm run check` 为 577 tests（575 pass、2 skip、0 fail），683 个源文件行数门禁、模板同步、双端
+> typecheck 与 Node/Electron production build 全绿。本轮未打包或执行真实模型多 JD 回归，R11 的
+> 稳定性失败结论暂不改写；详细边界见 S4.5.1 阶段 16 对应修复记录。
+
+> **R14 v58 引导式 smoke 不能作为自然输入稳定性证据（2026-08-18，用户复核撤回原结论）：**完整
+> `package:win` 的加固、安装和启动门禁本身仍有效，但两个用户消息分别主动写入“完整检索、素材不足
+> 及时追问、不要降低门槛”和“关键技能不足及时停止、不要用弱相关经历强行补篇幅”，泄露了待验证的
+> 期望路径。数据产品 174.688 秒机器达标、AI 应用开发 24.276 秒暂停的结果只保留为引导式 smoke
+> 观察，不再声明 R11 两个自然输入失败已经解除。用户同时发现成稿普遍为 1 行 bullet；代码确认现有
+> readiness 没有 main/secondary bullet 至少 2 行的门槛，且欠填策略优先新增独立 bullet，确会形成
+> “数量多但信息密度低”的结果。下一轮须先建立普通经历 bullet 2–3 行合同、合并/删减策略，再用不
+> 含策略提示的自然短消息重跑。产物哈希、截图、调用数与撤回原因见 S4.5.1 阶段 16 对应记录。
+
+> **R15 一行 bullet 深度链路已统一为叠加改写，v64 单次真实回归仍失败（2026-08-18）：**旧的
+> `repair_bullet_depth` 完整 items 重写及其 `itemTargets/mergeEvidenceTargets` 已删除；深度阶段现在
+> 强制一次 `lineRewrites` 覆盖全部短 bullet，每目标只写一份基于最新正文和精确字符增量的完整改写。
+> 同一行内的有效增长立即递增 revision 并成为下一轮基线，跨到 2–3 行的结果同批落地；循环进度纳入
+> 正文，过程提示独立标识深度修复。完整 `npm run check` 为 593 tests（591 pass、2 skip、0 fail），
+> 687 个源文件 ≤250 行，双 typecheck 和生产构建全绿；v64 Windows 加固、安装、真实 bootstrap 与
+> 卸载门禁通过。唯一自然短消息回归中，新机制首批真实同时应用 23 条，并把 80.0% 依次推进到
+> 100.4%；溢出缩源后继续修复。但最终在 308.347 秒、revision 10、单页 85.99% 时仍剩 3 条一行
+> bullet，模型流输出触发停滞/重复保护，`generationReady=false`。因此只证明旧深度技术债已经删除且
+> 新叠加链路真实执行，不能声明稳定生成完成；按用户约定只测一次，不修改或重跑。完整产物哈希、
+> 截图和调用证据见 S4.5.1 对应记录。
+
+> **R16 溢出阶段改为单条 bullet 最小损失删减（2026-08-18，真实验证局部通过、整份生成仍失败）：**针对 v64
+> 从 100.4% 缩源后骤降至 81.6% 的新根因，`reduce_overflow` 现优先返回按真实行数筛出的最短额外
+> bullet 候选，schema 与宿主均硬限制每轮只删 1 条并立即重排；只在所有 main/secondary 已到最低
+> 条数时才允许当前非教育来源集合精确减去 1 段。提前缩源、一次删两段、新增/替换经历或改变保留
+> tier 均 recoverable 拒绝且不推进 revision；教育、main≥3、secondary≥2、普通 bullet 2–3 行、
+> 单页、≥92%、尾行、事实/数字与确认门槛不变。定向 49/49，完整 `npm run check` 为 596 tests
+> （594 pass、2 skip、0 fail），689 个源文件 ≤250 行，模板、双 typecheck 和两端生产构建全绿。
+> v65 完整 Windows 加固、安装、bootstrap 和卸载门禁通过。唯一自然短消息真实回归从 revision 2 的
+> 80.02%/23 条一行 bullet 推进到 revision 7 的 98.80%；后续溢出阶段没有再次 create 或删除整段
+> 经历，而是逐次移除 5 条额外 bullet，最终仍保持单页 98.59%，证明 v64 跌至 81.6% 的过度删除根因
+> 已真实解除。但 420 秒后仍余 3 条短尾并触发模型停滞/重复保护：35 次工具调用、0 tool error、
+> revision 17、`generationReady=false`，因此整份简历稳定性仍未通过。产物哈希、截图和清理证据见
+> S4.5.1 阶段 17；按约定没有第二次回归。
+
+> **阶段化重构实施入口：`S4.5.1-phase-driven-resume-generation.md`**（用户 2026-08-17
+> 定稿：生成规则 6 条 + 决策记录 + Phase 总览 + 代码实施方案）。本节以下历史记录为
+> 根因与决策背景；S4.5 当前推进以 S4.5.1 为准。
+
+> 本节把 2026-08-16 至 2026-08-17 围绕“经历少时循环卡死、经历多时超过操作次数”的
+> 服务器取证、架构约束、实现、真实 Electron 迭代和最终产品决策合并为一条可继续执行的
+> Roadmap。它补充并覆盖本节之前的分轮修复记录；发生冲突时，以本节较晚确认的决策为准。
+
+**用户确认且不得回退的产品/架构边界：**
+
+- 产品继续只有一个由聊天自然语言驱动的通用 Agent；不存在“简历模式”、宿主意图路由、
+  按经历类别写死 bullet 数量或固定的宿主生成工作流；
+- 宿主可以执行与内容无关的运行时治理、事实/数字校验、真实 Chromium 版面测量和“数学上
+  是否可达”的确定性门禁，但不得替 Agent 选择经历、分配 bullet、编写或补写内容；
+- DeepSeek 总上下文为 1,000,000 Token、模型输出 ceiling 为 384,000；prompt 与 completion
+  共享总窗口，Credit 按本次请求动态预留和结算，Credit 耗尽/不足后立刻停止，不再重试；
+- 页面最低占用率保持 92%，高占用率不拒绝但不得超过一页，bullet 尾行保持 >70%，真实性、
+  数字逐字可验证、字体和一页门槛均不得为了“生成成功”而降低；
+- 不改变现有总体生成 method；修复对象是不可达状态、上下文膨胀、流式复读和错误的规划/
+  校验反馈，不以更多兜底掩盖根因；
+- `cv-agent-api-service` 已允许提 PR 并部署；App 只允许本地构建、打包和真实桌面测试，当前
+  明确不得上传或发版。本轮同样未获得 App commit/push 授权。
+
+**全局根因图（按触发顺序）：**
+
+1. 经历很多时，snapshot/Search/Workspace 大结果随每轮历史累积，旧的候选封顶和本地压缩
+   阈值又与服务端 prompt 门槛不一致，导致 prompt 持续增长，最终出现 413/“输入超过操作
+   上限”；输出被 16,384 Token 固定截断时还会生成不完整工具调用并继续重试。
+2. 经历很少或所选材料虽然有多条、但物理内容不足时，92% 页面门槛与“不得编造”形成不可
+   同时满足的约束。旧链路即使已经计算出 `insufficient=true`，也只把它当提示交给模型，
+   仍允许创建草稿并进入 writing。
+3. 首稿长度反馈与真实版面预算不一致：规划结果要求 46 行、至少 16 条且中文约 94–165 字，
+   但 `write_bullet` 默认下限实际为 75 字，乘长度容差后约 60 字也能通过；Agent 即使主动
+   提高 `targetChars.min`，`clampAgentTarget` 仍会把下限压回 75。首稿因此天然偏短，把大量
+   工作推迟到证据耗尽后的补长阶段。
+4. 证据耗尽后，Agent 被同时要求继续达到 92% 并不得重复/编造，只能围绕同一 evidence
+   反复追加泛化修饰语；这些轮次可能交替出现 thinking、短文本自我否定、部分成功 patch、
+   截断和不同措辞，因此绕过单一的 identical/stalled/失败次数守卫。
+5. 外层 continuation 原先看不到一次 `agent.prompt()` 内部的多轮工具循环，且流式输出可以
+   在单轮里先发生字面复读；因此只在外层增加“操作次数”或墙钟上限只能止损，不能消除上述
+   不可达状态。
+
+**已完成实现（保留通用 Agent，不引入宿主简历模式）：**
+
+- 大上下文治理：模型可见 evidence 固定封顶 48 且按经历均衡；搜索列表不再携带完整正文；
+  Workspace 建立后压缩旧 JD/Experience/Snapshot/Layout 工具结果；本地 compaction 与服务端
+  prompt 预算对齐；prompt-limit 错误不可续接；
+- 通用运行时治理：接入 pi-agent-core 的 turn stop hook；增加同结果、连续工具错误、纯
+  thinking、无进展、输出截断、初始回合超时、续接墙钟和 Agent idle 超时等可观测终止条件；
+  这些条件只停止无效模型调用，不决定简历内容；
+- 流式复读治理：新增 `output-repetition-guard.ts`，在同一 assistant 流尚未形成工具调用前
+  检出长片段重复并中止；第一次复读允许一次带保留状态的通用恢复，恢复指令要求直接执行
+  下一个产生实质进展的工具调用；第二次复读才归一终止，避免第一次波动直接变成 UI 错误；
+- Credit/Token：App 移除 `maxTokens: 16384` 产品固定覆盖；API Service 的 64K 输入门禁、
+  原子 Credit 范围预留、动态输出额度反算和 Credit 首错终止已部署并通过正式流水线；
+- 证据正确性：英文 evidence 按普通句点分句但保留小数点；`$1.44` 与中文本地化
+  `1.44 万亿美元` 通过统一数字 canonicalization 视为同一来源数字；`GPA: 3.89/4.0`
+  这类“短标签 + 单一标量”仍可参与账本校验，但不再虚增可独立写成 bullet 的模型容量；
+- Workspace/patch 反馈：部分成功、已应用、拒绝和自动修复结果每轮覆盖旧状态；terminal
+  Workspace 拒绝后续 patch；输出 `continuation.reason`、剩余 evidence、真实 px、尾行缺口
+  和最佳快照，避免模型把历史拒绝当作当前失败；
+- 代码门禁：把 continuation 单轮超时职责拆到 `continuation-turn-timeout.ts`，相关业务文件
+  保持在 250 行硬上限内；新增/更新 Agent loop、turn governor、复读、数字、证据规划、
+  Workspace、patch、上下文和 Credit 回归测试。
+
+**真实 Electron 迭代证据（最新本地 0.1.18 包，未发版）：**
+
+- 通过 Windows 桌面真实输入同一自然语言命令：“请重新为当前战略发展部实习生岗位生成一份
+  针对性简历，使用经历仓库中合适的经历”；没有注入简历模式或测试专用宿主步骤；
+- Agent 自主定位 JD，并选择 Investment Research、OSL Business Development、Growth &
+  Community Operation、CUHK Master、ZJU Bachelor 共 5 条经历；规划器真实返回
+  `requiredBulletLinesAtMinimum=46`、`minimumDistinctBulletsAtMaxLines=16`、
+  `charsPerLine=55`；去除短 GPA 标量后可写容量为 `7+3+5+1+1=17`；
+- 最新一轮成功写入 17 条有来源 bullet，`$1.44 trillion` 本地化后的 `1.44 万亿美元`、
+  `99%`、`10+`、`50+` 等数字均通过证据校验，技能 synthetic item 不存在时也能正常跳过；
+- 首次完整写入后页面占用率为 76.0%；批量补长后仅到 80.3%，仍差约 122.9px，并剩 5 条
+  尾行违规。此时所有独立 evidence 已耗尽，模型开始重复“让我写一个真正不同的补充”等
+  自我纠正语句；流式复读守卫已使本轮安全停机，未再出现数小时卡死，但结果没有达到
+  92%，因此这次实测明确记为**未通过**，不能作为 S4.5 完成证据；
+- 本轮实测同时证明：当前最后的主阻塞不是 Credit、413、数字校验或工具调用次数，而是
+  “规划器已知素材/版面不可达，却仍允许进入草稿写作”，以及首稿长度下限与规划预算脱节。
+
+**最终产品决策（2026-08-17 用户确认，覆盖此前“不做生成前预检拒绝”的旧决定）：**
+
+- 如果当前选择的素材在真实模板、固定字体、92% 门槛和最多 3 行/bullet 条件下物理不可达，
+  就**不应该继续写成简历**；应先由 Agent 放宽相关性条件搜索其余可用经历；
+- 如果扫描全部可用且可验证的相关经历后仍然不可达，立即停止生成，返回
+  `needs_user_decision`，用自然语言追问用户补充经历、项目细节、职责范围、方法、量化成果
+  或技术栈；不得创建一个注定失败的草稿，不得靠 XX 占位符或泛化修饰语硬填页面；
+- 已经进入写作后，如果真实 compile 显示低于 92%、未消费 evidence 已耗尽且当前内容无法
+  通过事实等价的局部修复达标，也立即进入同一 `needs_user_decision` 分支；
+- 这是“可达性/真实性门禁”，不是宿主内容编排：Agent 仍自主选择搜索词、经历范围、内容
+  顺序和用户追问方式；宿主只拒绝数学上不可能满足产品门槛的写入流程；
+- UI 对用户应表现为正常的补充信息对话，不显示“超过操作次数”“循环卡死”或内部守卫错误；
+  已生成的最佳本地候选可以保留为草稿证据，但不得声称它是合格简历。
+
+**依赖修复（2026-08-17，用户要求修掉 pi-agent-core 补丁报错）：**
+
+- 此前 S4.5 采用”锁 pi-agent-core 0.81.1 + postinstall 精确改写 node_modules dist”的兼容补丁，
+  依赖一升级就会报 `Unsupported pi-agent-core version`。
+- 核实：pi-agent-core 0.84.2 **已原生透传 `shouldStopAfterTurn` 钩子**（agent.js 内完整接线，
+  与补丁脚本手加内容一致），因此直接升级根除该错误源：
+  - `package.json`：`@earendil-works/pi-agent-core` 与 `@earendil-works/pi-ai` 均 0.81.1 → 0.84.2
+    （pi-agent-core 0.84.2 依赖 pi-ai ^0.84.2，必须同步升避免双版本 skew）；删除
+    `postinstall: patch-pi-agent-stop-hook.mjs`；删除 `scripts/patch-pi-agent-stop-hook.mjs`；
+  - 升级不影响任何 App 调用面（AgentTool/AgentMessage/BeforeToolCallContext/ShouldStopAfterTurnContext/
+    StreamFn/estimateContextTokens/deepseekProvider 等导出均在）；Node ≥22.19 满足（本机 24.x）。
+- 此变更**覆盖**本节早前”未升级依赖、未引入额外包”的记录：升级是用户要求的修复方式，且升级后
+  不再依赖任何 node_modules 改写脚本。
+
+**Roadmap 表第 1–4 项实施记录（2026-08-17）:**
+
+- **第 1 项（生成前可达性门禁）已完成**：
+  - 修正 `estimatedMaxUsageRatio` 物理上限公式：由”证据原文长度 × expansion 外推”改为
+    **”可写容量 × 单条最大行数”**——模型把证据扩写成完整事实句是正常写作，按原文长度线性外推
+    会系统性低估（真实实测 17 条证据已到 80.3%，旧公式会误杀），也覆盖”3 行 bullet 可达标的
+    样本不得被理论估算误伤”的旧论断；新公式下门禁恰好等价于”可写容量 ≥
+    `minimumDistinctBulletsAtMaxLines`”（`ceil(requiredBulletLinesAtMinimum / maxBulletLines)`）；
+  - `prepare_resume_draft` 执行”写作前确定性门禁”：无工作/项目经历（`no_writable_experience`）
+    或 `layout.insufficient`（`layout_unreachable`）时**拒绝创建 workspace**，返回明确文案——
+    先用更宽条件 `search_experiences` 扩大搜索并重新 prepare，穷尽后停止生成、回复用户逐一追问
+    缺失事实；不创建注定失败的草稿，不用 XX 占位符/泛化修饰语硬填。`calibrateTypography` 改为
+    顺带返回空骨架编译结果，prepare 不增加第三次编译。
+- **第 2 项（动态首稿长度合同）已完成**：
+  - `ResumeWorkspace` 新增 `layoutBudget`（真实 cpl、`requiredBulletLinesAtMinimum`、
+    `writableBulletCapacity`、`maxBulletLines`），prepare 时写入并在 model payload 暴露；
+  - `write_bullet` 默认 targetChars 改为由 `layoutBudget` 动态给出：每 bullet 目标行数 =
+    `requiredBulletLinesAtMinimum ÷ 可写容量`，min = max(1 行, 目标行数 × cpl)，max 封顶物理
+    单条上限（cpl × maxBulletLines）；**删除把 Agent 更高下限压回 75 的反向 clamp**，显式
+    target 只做物理上限收窄；无预算的旧存档回落 75-165/130-310；
+  - `instructionFor` 的 bulletCharTarget 同步走 `layoutBudget`，指令提示与宿主校验一致。
+- **第 3 项（写作中证据耗尽立即 terminal）确认并补回归**：`workspace-status.ts` 的”仅欠填 +
+  全部经历已写 + 未消费证据为 0 → `needs_user_decision`”推导此前已实现（patcher / inspect /
+  preparer 均带 evidenceState）；本次新增工具层回归测试（prepare → 写满全部证据 → inspect 归一
+  `needs_user_decision`），证明正常素材不足路径由状态推导终止、守卫不承担业务流控制。
+- **第 4 项（三组回归）已完成**：新增 4 个回归（规划前不可达拒绝且不建 workspace、充足素材通过
+  门禁并携带真实版面预算、显式 targetChars 不再反向压下限、写作中证据耗尽工具层归一 terminal），
+  并更新 3 个旧断言（默认区间改为由预算动态断言、布局物理上限 0.2442→0.26）。`npm run check`
+  全绿（退出码 0）：629 个源文件全部 ≤250 行；Node/Renderer 双 typecheck；509 tests 中 507
+  pass、2 个平台条件 skip、0 fail；Node build 与 Electron main/preload/renderer build 均成功。
+
+**根因级修复（2026-08-17 13 时，真实 Electron 复测在证据耗尽后仍无限追加同一句，定位并修复）：**
+
+- 现象：bl-7 尾行补长时模型反复输出同一句"并据此形成对稳定币资产配置价值的独立评估结论与配置建议"，
+  自述"重复"却仍追加同一句，被 validator 拒绝后在低温下重试同一句，形成固定点死循环。
+- 根因（不是缺守卫，是两处"必须继续写"语义制造死锁 + 一处状态推导盲区）：
+  1. `system-prompt` 尾行门槛明令"**即使 availableEvidence 已为空，也必须用本条 bullet 已引用的证据改写
+     补齐尾行，不得因'证据耗尽'放弃**"——证据耗尽时"不许重复/不许编造"与"必须产出文本"同时成立，
+     合法内容集合为空，模型无解只能绕固定点；
+  2. `instructionFor` 的 writing 分支在"no unused evidence remains"时仍指示 lengthen，tail 分支无
+     证据耗尽出口，且 continuation 强制"never stop at needs_revision"；
+  3. `workspace-status` 的耗尽→terminal 判定要求"非写作违规为空"——尾行违规（正是要补长的场景）属于
+     非写作违规被排除，状态永远停在 needs_revision，永不 terminal。
+- 修复（改语义与推导，**不新增任何守卫**）：
+  1. `workspace-status.ts`：耗尽 + 未达标（欠填**或尾行违规**，排除 page_overflow——溢出靠 trim 修复
+     不需要新素材）→ 立即 `needs_user_decision`；
+  2. `diagnostics-projection.ts`：`instructionFor` 在 writing/needs_revision 分支最前面插入
+     "素材已耗尽 → 立即停止一切 write_bullet/patch_resume_candidate，先调 inspect 完成最终校验收尾，
+     如实说明缺口并引导用户补充素材"出口——耗尽状态下不再出现任何"继续补长"指令；
+  3. `system-prompt.ts`：删除"证据为空也必须补齐尾行/不得因证据耗尽放弃"强制措辞，改为
+     "耗尽且无法在不重复、不编造前提下补齐时立即停止补长，不得字面重复或强行追加同一内容"。
+- 新增回归 2 个（尾行+耗尽→terminal；耗尽时指令必须先给停止出口而非补长指令）；更新既有
+  "underfilled + 耗尽→terminal"仍通过。
+- 验证：`npm run typecheck` 通过；511 tests 中 509 pass、2 平台 skip、0 fail；
+  `desktop:build:protected` + `electron-builder --win --dir` 重建 `dist-electron/win-unpacked`
+  （13:25）供真实 Electron 复测；未 commit/push/发版。
+
+**真实复测仍失败 → 质检定位两个实现缺陷（2026-08-17 13-14 时，修复并跑通真实模型端到端）：**
+
+- 现象：13:25 包复测仍循环且更差——bullets 写不进预览、一开始报 "This operation was aborted"。
+- 质检定位（两个都是我此前的实现缺陷，非守卫问题）：
+  1. `write_bullet` 动态默认下限把"预算行数 ÷ 容量 × cpl"当**写时拒绝线**（真实场景下限达
+     149，容差后需 ≥119 字）——而模型自然产出是 60–90 字（此前真实实测早已证明），导致
+     **每一轮写入都被打回**：预览永远空、模型重试 → 初始回合连续 8 次工具失败 → 取消；
+  2. `agent-runtime-prompt` 初始回合被守卫取消后，0.84.2 的 `prompt()` 以 AbortError 退出，
+     未按预期转入续跑而是把 "This operation was aborted" 直接抛给 UI。
+- 修复（改语义，不新增守卫）：
+  1. `write_bullet` 默认区间改为：下限 = 每行字符数（物理底线，≥1 行的 bullet 都接收），
+     上限 = 单条物理上限；趋向 92% 的目标只由指令层（bulletCharTarget/system-prompt
+     "宁长勿短"）引导，写时不再强拒短但合法的 bullet；
+  2. `agent-runtime-prompt` 捕获初始回合的 AbortError（属预期路径），吞掉后继续
+     waitForAgentIdle + 带全套守卫的续跑，不再抛给用户。
+- 真实模型端到端质检（deepseek-v4-flash，`run-resume-agent-eval`）3/3 通过：
+  - `semantic-zh`：6 条 bullet 全部写入、`ready_for_approval`、22s、0 报错；
+  - `semantic-en`：4 条写入、`ready_for_approval`、14.5s；
+  - `semantic-missing`：门禁拒绝建 workspace（容量 4 < 所需 5）、模型 8.6s 内主动追问补充
+    素材（更多经历/项目细节/量化成果/技术栈）、无循环无编造无运行时报错；
+  - 单测仍 509 pass / 2 skip；typecheck 通过。
+- 产物：`dist-electron-v2/win-unpacked`（13:45，含全部修复；原 win-unpacked 被运行中的
+  App 锁定无法覆盖）；未 commit/push/发版。
+
+**第三轮根因修复：上下文压缩压瞎了"重新搜索"退出路径（2026-08-17 14 时，真实复测仍循环）**
+
+- 现象：v2 包复测，模型已正确识别"素材不足、应扩大搜索"，但日志反复出现
+  "由于所有工具结果都被压缩，我无法看到具体 ID"——`search_experiences` / `get_experience`
+  的结果全部被上下文压缩成占位符，模型拿不到 Violin II 等经历 ID，陷入
+  "搜索→被压缩→再搜索"的盲循环；循环文本复读触发复读守卫 abort，而续跑循环里的
+  AbortError 未被接住，再次把 "This operation was aborted" 抛给用户。
+- 根因：`context-policy.ts` 的压缩把**所有**发现类工具结果（含最新一次 search_experiences）
+  替换为占位符。压缩本意是省 token，但"素材耗尽→用更宽条件重新搜索"是产品决策明确的
+  退出路径，模型在该路径上必须看到最新搜索结果里的经历 ID。
+- 修复（改语义，不新增守卫）：
+  1. `context-policy.ts`：候选类工具仍只保留整体最新一次结果；**发现类工具（search_jds /
+     get_jd / search_experiences / get_experience / inspect_resume_layout）每个保留最新
+     一次结果**，只压更旧的——重新搜索路径恢复可见；
+  2. `continuation-turn-timeout.ts`：续跑循环里守卫 abort 引发的 AbortError 属预期终止
+     信号，吞掉后按"本轮结束"继续（下一轮读取 stoppedForOutputRepetition 做恢复/归一），
+     不再抛给 UI。
+- 回归测试：更新压缩测试为"旧结果压掉、每个发现工具的最新结果保留"；511 tests 中
+  509 pass、2 skip、0 fail；typecheck 通过。
+- 产物：`dist-electron-v3/win-unpacked`（13:55，含全部修复）；未 commit/push/发版。
+- 质检边界说明：真实模型 eval（3/3 通过）覆盖门禁/写入/素材不足追问；本次压缩修复以
+  单元回归 + 用户真实复测为准（eval 用例上下文短，不触发压缩）。
+
+**第四轮根因修复：跨 bullet 重复校验误报锁死尾行修复（2026-08-17 14 时，经历充足场景仍循环）**
+
+- 现象（真实日志取证）：页面 93.2%（在 [92,98] 内）、无溢出，唯一问题是 bl-0 尾行差
+  20 字。模型每次补长都被拒，拒绝理由引用 bl-4 里"，完整呈现从行业背景到估值结论的
+  研究闭环"——与本次操作内容无关；模型自己判断"这是持久误报"。修复 bl-3 重复结尾的
+  操作同样被拒 → 任何 patch 都无法通过 → 永久锁死 → 输出退化成 "X → X - NO" 的
+  自我否定重复。
+- 根因：`evidence-single-operation.ts`（patch 路径）与 `bullet-validator.ts`（write
+  路径）的跨 bullet 重复校验把**所有其他 bullet 拼接后整体查重**（
+  `findRepeatedFragment([...strippedOthers, strippedMerged].join("\n"), 20)`）——
+  只要任意两个"其他 bullet"之间存在 ≥20 字重复片段（经历多时非常常见：同经历素材写
+  出的相近措辞、证据引用剥离失败残留），`findRepeatedFragment` 就会命中它并拒绝**本次
+  操作**，哪怕本次操作与那个重复毫无关系。模型从此无法用任何后续操作修复既有重复
+  （修哪条都被同一无关理由拒绝）→ 死锁。
+- 修复（改校验语义，不新增守卫）：新增 `findNewCrossBulletRepeat(changedText, others,
+  min)`——**只查"本次修改的文本"与其他文本的碰撞**（changedText 中的片段出现在任一
+  other 里才拒绝）；其他文本之间既有的重复不阻塞本操作。patch 与 write 两条路径统一
+  使用；真正由本次操作引入的碰撞仍被拒绝。
+- 回归测试 2 个（patch：既有重复不阻塞无关 append、新碰撞仍拒绝；write：同语义）。
+  513 tests 中 511 pass、2 skip、0 fail；typecheck 通过。
+- 产物：`dist-electron-v4/win-unpacked`（14:30，含全部修复）；未 commit/push/发版。
+
+**第五、六轮根因修复：技能区跨经历误拒 + 证据耗尽终态拍死补长阶段（2026-08-17 15 时）**
+
+- 现象（真实日志）：b9（item-skills-synthetic）append 反复被拒（"引用了多个经历的证据"），
+  模型改 replace_substring 后陷入"修订账目混乱"的大段重复推理。
+- 根因 1（第五轮）：`resolveExcerpts` 的"证据必须单一经历"校验忽略 sharedEvidence——技能区
+  bullet 创建时可跨经历（write 路径不走该校验），但之后任何 append/replace 走
+  `resolveBindingWithAutoRepair` 就被拒，技能 bullet 变成不可修复 → 模型绕圈。
+  修复：`resolveExcerpts(sharedEvidence)` 允许跨经历、`evidence-single-operation` 的
+  sourceExperienceId 比对对 sharedEvidence bullet 豁免。
+- 根因 2（第六轮，headless 真实模型质检定位）：证据耗尽 → 立即 `needs_user_decision` 的
+  终态判定**拍死了补长阶段**——模型写完 17 条证据、页面 50%，补长（只用已引用证据、事实
+  等价的局部修复）本来能把页面推到 92%，却被终态直接掐断。产品决策原文要求"当前内容
+  **无法通过事实等价的局部修复达标**才终态"，该条件此前未实现。
+  修复：新增 `maxReachableUsageRatio`（把所有 bullet 补长到单条最大行数后的页面占用率
+  天花板）；证据耗尽 + 未达标时，**补长天花板 ≥ 最低占用率 → 继续写作循环并给"用已引用
+  证据补长"指令**；天花板 < 最低占用率（数学上无路可走）→ 才立即 `needs_user_decision`。
+  `instructionFor` 同步双分支。
+- 质检（headless 真实模型 deepseek-v4-flash，用户形态 fixture：5 经历/17 证据，420s 墙钟）：
+  修复前：写完 17 条即被终态掐断（50%），模型从未进入补长；修复后：**17 条写完 → 补长
+  阶段正常执行 → usage 到达 92.0%**，全程无守卫触发、无重复、无停滞，仅在墙钟截断时做
+  尾行收尾——证明"经历充足 → 写完 → 补长 → 达标"的完整链路可运行（非守卫终止）。
+- 回归：新增技能区跨经历 append 测试；更新 4 个终态测试为补长天花板语义（无补长空间才
+  terminal）；514 tests 中 512 pass、2 skip、0 fail；typecheck 通过。
+- 产物：`dist-electron-v6/win-unpacked`（15:18，含全部修复）；未 commit/push/发版。
+
+**后续固定实施顺序与完成门槛（2026-08-17 更新）：**
+
+| 顺序 | 状态 | 工作 | 完成门槛 |
+| --- | --- | --- | --- |
+| 1 | 已完成 | 把 `inspect_resume_layout.insufficient` 和可写容量升级为进入写作前的确定性门禁；不足时由 Agent 先扩大搜索，穷尽后返回 `needs_user_decision` | 不创建不可达 workspace；最终回复明确追问缺失事实；没有额外模型自循环 |
+| 2 | 已完成 | 修正 `write_bullet` 的默认/显式 `targetChars` 语义，使首稿长度由本次真实 `requiredBulletLinesAtMinimum ÷ 可写 bullet 容量` 和尾行门槛动态给出；删除把 Agent 更高下限压回 75 的反向 clamp | 宿主只校验动态物理预算；不按类别分配内容；素材充足样本首稿接近 92%，不依赖大规模事后补长 |
+| 3 | 已完成 | 把写作中”证据耗尽且仍不可达”设为立即 terminal；保留流式复读、turn governor、墙钟和次数守卫作为异常保险 | 正常素材不足路径为 `needs_user_decision`，守卫不再承担正常业务流控制 |
+| 4 | 已完成 | 增加三组回归：规划前不可达、写作后实测不可达、充足材料可达；覆盖中文/英文、短标量、货币本地化和 terminal patch | 全部单测通过，业务源文件 ≤250 行，Node/Renderer typecheck、build 全绿 |
+| 5 | 待验证 | 重新执行 `npm run check`（已绿）、`npm run package:win`，再用本地安装包进行真实 Electron 自然语言测试 | 素材不足样本在写作前追问；素材充足样本在 240 秒内达到 92%–98%、尾行/事实/数字/质量审查全通过并正常停机 |
+| 6 | 待执行 | 将最终实测、失败和安装器 SHA-256 写回本节；清理测试临时诊断文件 | 不上传、不发版、不 commit/push；只有真实通过后才更新 S4.5 状态 |
+
+**当前阶段结论：**写作前可达性门禁、动态首稿长度合同、写作中素材耗尽终态及三组回归均已有自动化
+证据，`npm run check` 全绿；依赖补丁问题已通过升级 pi-agent-core/pi-ai 到 0.84.2 根除。S4.5
+仍不得标记完成——唯一剩余主线是第 5 项：本地 `package:win` 后用真实 Electron 自然语言复测
+（素材不足样本应写作前追问；素材充足样本首稿应接近 92% 且 240 秒内达标停机），通过后才更新
+S4.5 状态与安装器 SHA-256；不得 commit/push/发版。
+
 ## 明确不进入本路线
 
 - ResumeDraft/checkpoint 和原始文件云端同步；

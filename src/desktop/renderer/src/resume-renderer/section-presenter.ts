@@ -1,5 +1,6 @@
 import type { ResumeContact, ResumeSection, ResumeSectionItem } from "../../../../resume/types.js";
 import { safeContactLink } from "./contact-link.js";
+import { educationFields } from "./education-fields.js";
 
 const SECTION_ORDER: Readonly<Record<string, number>> = {
   education: 0, experience: 1, project: 2, other: 3, skill: 4, skills: 4,
@@ -69,13 +70,14 @@ export function orderResumeSections(
 }
 
 function presentEducation(item: ResumeSectionItem): ResumeItemPresentation {
+  const fields = educationFields(item);
   const secondary = optionalLine(
-    join(item.organization, item.role),
+    join(fields.major, fields.college),
     (item.location ?? "").trim(),
     "resume-document-entry-secondary",
   );
   return {
-    primary: line(item.title ?? "", dateRange(item), "resume-document-entry-primary"),
+    primary: line(join(fields.school, fields.degree), dateRange(item), "resume-document-entry-primary"),
     ...(secondary ? { secondary } : {}),
   };
 }

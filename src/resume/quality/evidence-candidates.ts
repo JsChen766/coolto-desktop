@@ -1,8 +1,10 @@
 import type { BulletEvidenceBinding, ResumeSourceSnapshot } from "../source-types.js";
+import { splitEvidenceRanges } from "../evidence-ranges.js";
 import { matchedRequirementIdsForText } from "./requirement-coverage.js";
 import type { AvailableEvidenceCandidate } from "./types.js";
 
 const MAX_AVAILABLE_EVIDENCE = 48;
+const MIN_BALANCED_EVIDENCE_PER_EXPERIENCE = 3;
 
 /**
  * Model-facing evidence candidates. Every candidate carries a stable
@@ -12,29 +14,44 @@ const MAX_AVAILABLE_EVIDENCE = 48;
 export function allEvidenceCandidates(
   snapshot: ResumeSourceSnapshot,
 ): AvailableEvidenceCandidate[] {
+  return structuralEvidenceCandidates(snapshot)
+    .map((candidate) => {
+      const matchedRequirementIds = matchedRequirementIdsForText(
+        snapshot,
+        candidate.sourceQuote,
+      );
+      const reasons: string[] = [];
+      let valueScore = matchedRequirementIds.length * 5;
+      if (/\d/u.test(candidate.sourceQuote)) {
+        valueScore += 2;
+        reasons.push("contains_grounded_number");
+      }
+      if (candidate.sourceQuote.length >= 24) {
+        valueScore += 1;
+        reasons.push("specific_source_detail");
+      }
+      if (matchedRequirementIds.length) reasons.push("jd_relevant");
+      return {
+        ...candidate,
+        matchedRequirementIds,
+        valueScore,
+        valueReasons: reasons,
+      };
+    })
+    .sort(
+      (left, right) => right.valueScore - left.valueScore ||
+        left.experienceId.localeCompare(right.experienceId) ||
+        left.sourceStart - right.sourceStart,
+    );
+}
+
+/** Exact source ranges in source order; the Agent owns all relevance ranking. */
+export function structuralEvidenceCandidates(
+  snapshot: ResumeSourceSnapshot,
+): AvailableEvidenceCandidate[] {
   return snapshot.experiences
     .flatMap((experience) =>
-      splitEvidence(experience.content).map((range) => {
-        const matchedRequirementIds = matchedRequirementIdsForText(
-          snapshot,
-          range.text,
-        );
-        const reasons: string[] = [];
-        let valueScore = matchedRequirementIds.length * 5;
-        if (/\d/u.test(range.text)) {
-          valueScore += 2;
-          reasons.push("contains_grounded_number");
-        }
-        if (/[A-Za-z][A-Za-z0-9+#.-]{1,}/u.test(range.text)) {
-          valueScore += 1;
-          reasons.push("contains_technical_term");
-        }
-        if (range.text.length >= 24) {
-          valueScore += 1;
-          reasons.push("specific_source_detail");
-        }
-        if (matchedRequirementIds.length) reasons.push("jd_relevant");
-        return {
+      splitEvidenceRanges(experience.content).map((range) => ({
           evidenceId: evidenceId(experience.id, range.start, range.end),
           experienceId: experience.id,
           revisionId: experience.revisionId,
@@ -42,18 +59,27 @@ export function allEvidenceCandidates(
           sourceStart: range.start,
           sourceEnd: range.end,
           sourceQuote: range.text,
-          matchedRequirementIds,
-          valueScore,
-          valueReasons: reasons,
-        };
-      }),
-    )
-    .sort(
-      (left, right) =>
-        right.valueScore - left.valueScore ||
-        left.experienceId.localeCompare(right.experienceId) ||
-        left.sourceStart - right.sourceStart,
+          matchedRequirementIds: [],
+          valueScore: 0,
+          valueReasons: [],
+        })),
     );
+}
+
+/** Candidates that can support a standalone writer bullet without padding. */
+export function writableEvidenceCandidates(
+  snapshot: ResumeSourceSnapshot,
+): AvailableEvidenceCandidate[] {
+  return structuralEvidenceCandidates(snapshot).filter(
+    (candidate) => !isStandaloneScalarEvidence(candidate.sourceQuote),
+  );
+}
+
+/** A label plus one scalar is a useful fact, but not a standalone bullet. */
+function isStandaloneScalarEvidence(value: string): boolean {
+  return /^[\p{L}\p{Script=Han}_ -]{1,24}[:：]\s*(?:\p{Sc}\s*)?[\d.,/+\-]+(?:\s*(?:%|[KMB]|万|亿))?\s*$/iu.test(
+    value,
+  );
 }
 
 export interface SlimEvidenceCandidate {
@@ -80,6 +106,7 @@ export function slimEvidenceCandidates(
 export function rankAvailableEvidence(
   snapshot: ResumeSourceSnapshot,
   bindings: readonly BulletEvidenceBinding[],
+  maximumEvidence = MAX_AVAILABLE_EVIDENCE,
 ): AvailableEvidenceCandidate[] {
   const consumed = bindings.flatMap((binding) =>
     binding.excerpts.map((excerpt) => ({
@@ -88,7 +115,7 @@ export function rankAvailableEvidence(
       end: excerpt.sourceEnd,
     })),
   );
-  const candidates = allEvidenceCandidates(snapshot).filter(
+  const candidates = writableEvidenceCandidates(snapshot).filter(
     (candidate) =>
       !consumed.some(
         (used) =>
@@ -96,14 +123,24 @@ export function rankAvailableEvidence(
           overlaps(used.start, used.end, candidate.sourceStart, candidate.sourceEnd),
       ),
   );
-  const balanced = snapshot.experiences.flatMap((experience) =>
-    candidates.find((candidate) => candidate.experienceId === experience.id) ?? [],
-  );
+  const byExperience = new Map(snapshot.experiences.map((experience) => [
+    experience.id,
+    candidates.filter((candidate) => candidate.experienceId === experience.id),
+  ]));
+  const balanced = Array.from(
+    { length: MIN_BALANCED_EVIDENCE_PER_EXPERIENCE },
+    (_, rank) => snapshot.experiences.flatMap((experience) =>
+      byExperience.get(experience.id)?.[rank] ?? [],
+    ),
+  ).flat();
   const selected = new Set(balanced.map((candidate) => candidate.evidenceId));
-  return [
+  const ranked = [
     ...balanced,
     ...candidates.filter((candidate) => !selected.has(candidate.evidenceId)),
-  ].slice(0, Math.max(MAX_AVAILABLE_EVIDENCE, balanced.length));
+  ];
+  return Number.isFinite(maximumEvidence)
+    ? ranked.slice(0, Math.max(0, maximumEvidence))
+    : ranked;
 }
 
 export function evidenceId(experienceId: string, start: number, end: number): string {
@@ -128,22 +165,6 @@ export function parseEvidenceId(
     return undefined;
   }
   return { experienceId, start, end };
-}
-
-function splitEvidence(content: string): Array<{ start: number; end: number; text: string }> {
-  const ranges: Array<{ start: number; end: number; text: string }> = [];
-  // A period only terminates a sentence when it is not a decimal point
-  // (e.g. "GPA 3.3/4.0" stays one candidate; "done. Next" splits).
-  const matcher = /[^。！？!?\n]+(?:[。！？!?\n]|(?<!\d)\.(?!\d))?/gu;
-  for (const match of content.matchAll(matcher)) {
-    const raw = match[0];
-    const leading = raw.length - raw.trimStart().length;
-    const text = raw.trim();
-    if (text.length < 4 || match.index === undefined) continue;
-    const start = match.index + leading;
-    ranges.push({ start, end: start + text.length, text });
-  }
-  return ranges;
 }
 
 function overlaps(

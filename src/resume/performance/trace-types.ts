@@ -1,4 +1,4 @@
-export const RESUME_TRACE_SCHEMA_VERSION = "resume-generation-trace-v1" as const;
+export const RESUME_TRACE_SCHEMA_VERSION = "resume-generation-trace-v2" as const;
 
 export type ResumeTraceStage =
   | "generation_started"
@@ -32,6 +32,48 @@ export interface ResumeTraceEvent {
   toolName?: string;
   workspaceStatus?: string;
   usage?: ResumeTraceModelUsage;
+  revision?: number;
+  actionMode?: string;
+  requestedTargetCount?: number;
+  submittedCandidateCount?: number;
+  cachedCandidateCount?: number;
+  selectedCandidateCount?: number;
+  measuredRewriteCount?: number;
+  appliedRewriteCount?: number;
+  stackedProgressCount?: number;
+  heightGrowthCount?: number;
+  remainingTailCount?: number;
+  errorCategory?: ResumeTraceErrorCategory;
+  stopReason?: ResumeTraceStopReason;
+}
+
+export type ResumeTraceErrorCategory =
+  | "schema"
+  | "stale_revision"
+  | "validation"
+  | "runtime";
+
+export type ResumeTraceStopReason =
+  | "completed"
+  | "repetition_guard"
+  | "turn_limit"
+  | "insufficient_credits"
+  | "cancelled"
+  | "runtime_error";
+
+export interface ResumeTraceToolMetadata {
+  revision?: number;
+  actionMode?: string;
+  requestedTargetCount?: number;
+  submittedCandidateCount?: number;
+  cachedCandidateCount?: number;
+  selectedCandidateCount?: number;
+  measuredRewriteCount?: number;
+  appliedRewriteCount?: number;
+  stackedProgressCount?: number;
+  heightGrowthCount?: number;
+  remainingTailCount?: number;
+  errorCategory?: ResumeTraceErrorCategory;
 }
 
 export interface ResumeGenerationTrace {
@@ -42,6 +84,7 @@ export interface ResumeGenerationTrace {
   completedAt: string | null;
   outcome: ResumeTraceOutcome | null;
   workspaceStatus: string | null;
+  stopReason: ResumeTraceStopReason | null;
   events: readonly ResumeTraceEvent[];
 }
 
@@ -54,6 +97,7 @@ export interface ResumeGenerationRunSummary {
   qualifiedPreviewDelivered: boolean;
   outcome: ResumeTraceOutcome;
   workspaceStatus: string | null;
+  stopReason: ResumeTraceStopReason | null;
   stageDurationsMs: Readonly<Record<string, number>>;
   modelUsage: {
     inputTokens: number;

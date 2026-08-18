@@ -89,7 +89,7 @@ test("hidden renderer uses real DOM geometry and an isolated Chromium host", asy
   assert.match(bulletMeasurement, /range\.getClientRects\(\)/);
   assert.match(
     bulletMeasurement,
-    /lastLineRatio \+ Number\.EPSILON >= gateRatio/,
+    /lastLineRatio - Number\.EPSILON > gateRatio/,
   );
   assert.match(markdown, /marked\.parseInline/);
   assert.match(markdown, /element\.removeAttribute/);

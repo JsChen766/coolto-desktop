@@ -54,6 +54,28 @@
   font-size: 11.5px;
 }
 
+.tool-progress {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.tool-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tool-error {
+  max-width: min(620px, 70vw);
+  color: var(--danger);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 /* Composer */
 .composer-dock {
   padding: 0 20px 11px;

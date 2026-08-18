@@ -13,9 +13,9 @@ import { useJobFlowNavigation } from "./use-job-flow-navigation";
 import { useExperienceImportNavigation } from "./use-experience-import-navigation";
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
 import { useResumeInstructionActions } from "./use-resume-instruction-actions";
+import { useWindowCloseSave } from "./use-window-close-save";
 
 export type AppView = "chat" | "experiences" | "library" | "tracker";
-
 export function useAppShell() {
   const sidebarOpen = ref(true);
   const artifactOpen = ref(false);
@@ -32,6 +32,7 @@ export function useAppShell() {
   const scroller = ref<HTMLElement>();
   const dark = ref(localStorage.getItem("coolto-theme") === "dark");
   const narrowScreen = window.matchMedia("(max-width: 820px)");
+  useWindowCloseSave(resumeWorkspace);
 
   onMounted(() => {
     applyTheme();
@@ -202,7 +203,6 @@ export function useAppShell() {
   });
   const resumeInstructions = useResumeInstructionActions({
     workspace: resumeWorkspace,
-    send,
   });
 
   return {

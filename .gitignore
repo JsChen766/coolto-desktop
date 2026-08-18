@@ -17,3 +17,4 @@ coverage/
 /experiments
 /native/coolto-core/artifacts/
 /native/coolto-core/target/
+local-builds/

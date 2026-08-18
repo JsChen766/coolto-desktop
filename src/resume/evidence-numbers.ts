@@ -14,9 +14,10 @@ export function extractEvidenceNumbers(value: string): string[] {
   const withoutCompounds = value.replace(ENGLISH_COMPOUND_REGEX, " ");
   const tokens = [
     ...value.matchAll(
-      /(?:\p{Sc}\s*)?\d[\d,]*(?:\.\d+)?(?:万|亿|千|百)?(?:\+)?(?:\s*%)?/gu,
+      /(?<![\p{L}\d])(?:\p{Sc}\s*)?\d[\d,]*(?:\.\d+)?(?:万|亿|千|百|[KMB])?(?:\+)?(?:\s*%)?(?![\p{L}\d])/giu,
     ),
-    ...value.matchAll(/[零一二两三四五六七八九十百千万亿]+/gu),
+    ...[...value.matchAll(/[零一二两三四五六七八九十百千万亿]+/gu)]
+      .filter((match) => isUnambiguousChineseNumber(value, match)),
     ...compoundEnglish,
     ...[...withoutCompounds.matchAll(ENGLISH_WORD_REGEX)].map(
       (match) => match[0],
@@ -43,7 +44,11 @@ export function extractEvidenceNumbers(value: string): string[] {
 }
 
 function canonicalNumber(token: string): string {
-  const clean = token.replace(/[,\s]/g, "").toLowerCase();
+  // The extractor intentionally keeps a leading currency symbol in the
+  // matched token so "$1.44" is captured as one number. Currency is a unit,
+  // not part of the numeric value: source "$1.44 trillion" must verify a
+  // localized bullet such as "1.44 万亿美元".
+  const clean = token.replace(/[\p{Sc},\s]/gu, "").toLowerCase();
   if (/^[a-z-]+$/.test(clean)) {
     // English number words: "two" -> "2", "twenty-one" -> "21". Mapping them
     // to Arabic lets a Chinese resume ("两大国企") verify against English
@@ -60,7 +65,7 @@ function canonicalNumber(token: string): string {
     }
     return clean;
   }
-  const arabic = /^(\d+(?:\.\d+)?)(万|亿|千|百)?\+?%?$/.exec(clean);
+  const arabic = /^(\d+(?:\.\d+)?)(万|亿|千|百|k|m|b)?\+?%?$/.exec(clean);
   if (arabic) {
     let value = Number.parseFloat(arabic[1]!);
     const unit = arabic[2];
@@ -68,6 +73,9 @@ function canonicalNumber(token: string): string {
     else if (unit === "亿") value *= 100_000_000;
     else if (unit === "千") value *= 1_000;
     else if (unit === "百") value *= 100;
+    else if (unit === "k") value *= 1_000;
+    else if (unit === "m") value *= 1_000_000;
+    else if (unit === "b") value *= 1_000_000_000;
     return String(value);
   }
   if (/[零一二两三四五六七八九十]/.test(clean)) {
@@ -75,6 +83,21 @@ function canonicalNumber(token: string): string {
     if (chinese !== undefined) return String(chinese);
   }
   return clean;
+}
+
+function isUnambiguousChineseNumber(
+  source: string,
+  match: RegExpMatchArray,
+): boolean {
+  const token = match[0];
+  if (token.length > 1) return true;
+  if (token === "一" || /^[百千万亿]$/u.test(token)) return false;
+  const next = source[(match.index ?? 0) + token.length] ?? "";
+  return new Set([
+    "个", "家", "份", "次", "项", "届", "年", "月", "天", "周", "人",
+    "名", "所", "场", "篇", "页", "条", "轮", "种", "类", "倍", "成",
+    "余", "大",
+  ]).has(next);
 }
 
 const ENGLISH_NUMBER_WORDS: Record<string, string> = {

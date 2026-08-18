@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createToolRegistry } from "../src/tools/registry.js";
+import { ExperienceReferenceRegistry } from "../src/tools/experience-reference-registry.js";
 
 test("tool registry has unique, explicitly scoped tools", async () => {
   const tools = createToolRegistry();
@@ -18,6 +19,31 @@ test("tool registry has unique, explicitly scoped tools", async () => {
   assert.equal(result.details.architecture, "single-agent");
   assert.equal(result.details.cloudLangGraphUsed, false);
   assert.equal(result.details.persistentAssetCacheEnabled, false);
+});
+
+test("workspace projection shortens education IDs discovered inside snapshot creation", async () => {
+  const canonicalId = "8d7f6e5a-education-id";
+  const details = {
+    source: { experiences: [{ id: canonicalId, category: "education" }] },
+    resume: { items: [{ sourceExperienceId: canonicalId }] },
+  };
+  const wrapped = new ExperienceReferenceRegistry().wrap({
+    name: "create_resume_workspace",
+    label: "test",
+    description: "test",
+    parameters: {} as never,
+    execute: async () => ({
+      content: [{ type: "text" as const, text: JSON.stringify(details) }],
+      details,
+    }),
+  });
+
+  const result = await wrapped.execute("workspace", {});
+  const content = result.content[0];
+  const projected = JSON.parse(content?.type === "text" ? content.text : "{}");
+  assert.equal(projected.source.experiences[0].id, "exp_1");
+  assert.equal(projected.resume.items[0].sourceExperienceId, "exp_1");
+  assert.equal((result.details as typeof details).source.experiences[0]?.id, canonicalId);
 });
 
 test("authenticated registry exposes the current user tool", async () => {
@@ -45,39 +71,45 @@ test("authenticated registry exposes the current user tool", async () => {
 });
 
 test("experience registry exposes list and detail tools", async () => {
+  const canonicalId = "01a00a4f-f312-7132-8036-984b133ae3ea";
+  const requestedIds: string[] = [];
+  const experience = (experienceId: string) => ({
+    id: experienceId,
+    category: "work" as const,
+    title: "Example",
+    organization: null,
+    role: null,
+    location: null,
+    startDate: null,
+    endDate: null,
+    tags: [],
+    status: "active" as const,
+    currentRevisionId: null,
+    entityVersion: 1,
+    deletedAt: null,
+    createdAt: "2026-07-01T00:00:00Z",
+    updatedAt: "2026-07-01T00:00:00Z",
+    revisions: [
+      {
+        id: "rev-old",
+        experienceId,
+        content: "historical content",
+        source: "manual",
+        revisionHash: "hash",
+        factBankStatus: "completed" as const,
+        createdAt: "2026-06-01T00:00:00Z",
+      },
+    ],
+  });
   const reader = {
     searchExperiences: async () => ({
-      items: [],
+      items: [experience(canonicalId)],
       nextCursor: null,
     }),
-    getExperience: async (experienceId: string) => ({
-      id: experienceId,
-      category: "work" as const,
-      title: "Example",
-      organization: null,
-      role: null,
-      location: null,
-      startDate: null,
-      endDate: null,
-      tags: [],
-      status: "active" as const,
-      currentRevisionId: null,
-      entityVersion: 1,
-      deletedAt: null,
-      createdAt: "2026-07-01T00:00:00Z",
-      updatedAt: "2026-07-01T00:00:00Z",
-      revisions: [
-        {
-          id: "rev-old",
-          experienceId,
-          content: "historical content",
-          source: "manual",
-          revisionHash: "hash",
-          factBankStatus: "completed",
-          createdAt: "2026-06-01T00:00:00Z",
-        },
-      ],
-    }),
+    getExperience: async (experienceId: string) => {
+      requestedIds.push(experienceId);
+      return experience(experienceId);
+    },
   };
   const tools = createToolRegistry({ experienceReader: reader });
 
@@ -92,10 +124,25 @@ test("experience registry exposes list and detail tools", async () => {
     "get_experience",
   ]);
 
+  const searchResult = await tools[1]!.execute("search", {});
+  const searchContent = searchResult.content[0];
+  assert.equal(searchContent?.type, "text");
+  const modelSearch = JSON.parse(
+    searchContent?.type === "text" ? searchContent.text : "{}",
+  );
+  assert.equal(modelSearch.items[0].id, "exp_1");
+  assert.equal(searchResult.details.items[0]?.id, canonicalId);
+
   const detailResult = await tools[2]!.execute("detail", {
-    experienceId: "exp-1",
+    experienceId: "exp_1",
   });
-  assert.equal(detailResult.details.id, "exp-1");
+  assert.equal(requestedIds[0], canonicalId);
+  assert.equal(detailResult.details.id, canonicalId);
+  const detailContent = detailResult.content[0];
+  assert.equal(detailContent?.type, "text");
+  assert.equal(JSON.parse(
+    detailContent?.type === "text" ? detailContent.text : "{}",
+  ).id, "exp_1");
   assert.equal(
     JSON.stringify(detailResult).includes("historical content"),
     false,

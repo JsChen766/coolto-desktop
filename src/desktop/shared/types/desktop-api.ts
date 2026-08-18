@@ -85,6 +85,7 @@ import type {
   ResumeDraftExportPdfInput,
   ResumeDraftExportPdfResult,
   ResumeDraftRestoreInput,
+  ResumeDraftSaveInput,
 } from "./resume-library.js";
 import type { AppUpdateState, UpdateTrigger } from "./updates.js";
 
@@ -129,6 +130,7 @@ export interface DesktopApi {
     accept(artifactId: string): Promise<ResumeDraftDetail>;
     reject(artifactId: string): Promise<ResumeDraftDetail>;
     exportPdf(input: ResumeDraftExportPdfInput): Promise<ResumeDraftExportPdfResult>;
+    save(input: ResumeDraftSaveInput): Promise<ResumeDraftDetail>;
   };
   updates: {
     getState(): Promise<AppUpdateState>;
@@ -210,6 +212,9 @@ export interface DesktopApi {
     minimize(): Promise<void>;
     toggleMaximize(): Promise<void>;
     close(): Promise<void>;
+    reportDraftSaveState(state: WindowDraftSaveState): Promise<void>;
+    completeSaveBeforeClose(success: boolean): Promise<void>;
+    onSaveBeforeClose(listener: () => void): () => void;
   };
   data: {
     clearLocal(): Promise<void>;
@@ -231,6 +236,12 @@ export interface DesktopApi {
   };
 }
 
+export type WindowDraftSaveState =
+  | "idle"
+  | "dirty"
+  | "saving"
+  | "saved"
+  | "error";
 export interface TrackerChildDesktopApi<T, I> {
   prepareCreate(input: { applicationId: string; value: I }): Promise<TrackerChildProposal>;
   prepareUpdate(input: { id: string; value: I }): Promise<TrackerChildProposal>;

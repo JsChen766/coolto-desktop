@@ -85,4 +85,8 @@ export class ExperienceProposalRegistry {
     this.#proposals.delete(proposalId);
     return result;
   }
+
+  public discard(proposalId: string): void {
+    this.#proposals.delete(proposalId);
+  }
 }

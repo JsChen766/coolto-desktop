@@ -4,6 +4,9 @@ import type { ResumePdfExportResult } from "../../../resume/export/types.js";
 import type { ResumeStructure } from "../../../resume/types.js";
 import type { ResumeWorkspaceStatus } from "../../../resume/workspace/types.js";
 import type {
+  ResumeGenerationBlocker,
+} from "../../../resume/workspace/generation-readiness.js";
+import type {
   ApplicationCreateInput,
   ApplicationTransitionInput,
   ApplicationUpdateInput,
@@ -30,6 +33,10 @@ export interface ResumeDraftDetail extends ResumeDraftSummary {
   compileResult: ResumeCompileResult;
   workspaceStatus: ResumeWorkspaceStatus;
   quality: ResumeDraftQualityView;
+  generationReadiness: {
+    ready: boolean;
+    blockers: ResumeGenerationBlocker[];
+  };
   checkpoints: ResumeDraftCheckpointView[];
   pendingChange: {
     id: string;
@@ -40,6 +47,11 @@ export interface ResumeDraftDetail extends ResumeDraftSummary {
 }
 
 export interface ResumeDraftExportPdfInput {
+  artifactId: string;
+  expectedRevision: number;
+}
+
+export interface ResumeDraftSaveInput {
   artifactId: string;
   expectedRevision: number;
 }

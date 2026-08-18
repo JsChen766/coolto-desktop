@@ -127,6 +127,9 @@ export function createBrowserDemoApi(): DesktopApi {
       minimize: async () => undefined,
       toggleMaximize: async () => undefined,
       close: async () => undefined,
+      reportDraftSaveState: async () => undefined,
+      completeSaveBeforeClose: async () => undefined,
+      onSaveBeforeClose: () => () => undefined,
     },
     data: {
       clearLocal: async () => undefined,

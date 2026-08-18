@@ -84,7 +84,7 @@ npx esbuild src/cli/electron-main.ts --bundle --platform=node --format=cjs \
 | # | 门槛 | 标准 | 验证方式 |
 |---|---|---|---|
 | 1 | 页面占用率 | **≥92%**（目标 95%，上限 98%） | `cli-resume.json` 的 `usageRatio`，或导出编译 |
-| 2 | bullet 尾行 | 最后一行 **≥70%** 行宽 | PDF 导出零 `bullet_tail_too_short` 警告 |
+| 2 | bullet 尾行 | 最后一行 **>70%** 行宽 | PDF 导出零 `bullet_tail_too_short` 警告 |
 | 3 | 时长 | 目标 **≤5 分钟**（测试模式强制；生产不限时） | `real` 时间 |
 | 4 | 尾部句号 | 每个 bullet 末尾**禁止**句号（。．.！!？?；;） | 检查 dump 中 bullet 文本结尾 |
 | 5 | 重复片段 | 无 ≥10 字重复片段（句内）/ ≥20 字（跨 bullet） | `findRepeatedFragment` 扫描 |

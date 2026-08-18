@@ -1,4 +1,7 @@
-import type { ResumeSourceSnapshot } from "./source-types.js";
+import type {
+  BulletEvidenceBinding,
+  ResumeSourceSnapshot,
+} from "./source-types.js";
 import {
   rankAvailableEvidence,
   slimEvidenceCandidates,
@@ -7,12 +10,33 @@ import { collectSkillHints } from "./workspace/section-registry.js";
 
 const MAX_JD_RAW_TEXT_CHARS = 800;
 
+export interface ResumeSourceProjection {
+  schemaVersion: ResumeSourceSnapshot["schemaVersion"];
+  sourceFingerprint: string;
+  profile: ResumeSourceSnapshot["profile"];
+  jd: unknown;
+  experiences: unknown[];
+  skillHints: string[];
+  availableEvidence: unknown[];
+  template: ResumeSourceSnapshot["template"];
+  evidenceInstructions: unknown;
+}
+
 /**
  * Model-facing projection of an immutable snapshot. The immutable snapshot and
  * EvidenceLedger keep full source text; the model receives a compact, balanced
  * set of exact excerpts for every selected source item.
  */
-export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): object {
+export function projectResumeSourceSnapshot(
+  snapshot: ResumeSourceSnapshot,
+  bindings: readonly BulletEvidenceBinding[] = [],
+  options: { maximumEvidence?: number } = {},
+): ResumeSourceProjection {
+  const availableEvidence = rankAvailableEvidence(
+    snapshot,
+    bindings,
+    options.maximumEvidence,
+  );
   return {
     schemaVersion: snapshot.schemaVersion,
     sourceFingerprint: snapshot.sourceFingerprint,
@@ -26,24 +50,29 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
       contentHash: snapshot.jd.contentHash,
       requirements: snapshot.jd.requirements,
     },
-    experiences: snapshot.experiences.map((experience) => ({
-      id: experience.id,
-      category: experience.category,
-      title: experience.title,
-      organization: experience.organization,
-      role: experience.role,
-      location: experience.location,
-      startDate: experience.startDate,
-      endDate: experience.endDate,
-      tags: experience.tags,
-      resumeSectionKey: experience.resumeSectionKey,
-      resumeSectionLabel: experience.resumeSectionLabel,
-      revisionId: experience.revisionId,
-      revisionContentHash: experience.contentHash,
-      plannedBullets: plannedBulletsFor(experience.category),
-    })),
+    experiences: snapshot.experiences.map((experience) => {
+      const exposedEvidenceCount = availableEvidence.filter(
+        (candidate) => candidate.experienceId === experience.id,
+      ).length;
+      return {
+        id: experience.id,
+        category: experience.category,
+        title: experience.title,
+        organization: experience.organization,
+        role: experience.role,
+        location: experience.location,
+        startDate: experience.startDate,
+        endDate: experience.endDate,
+        tags: experience.tags,
+        resumeSectionKey: experience.resumeSectionKey,
+        resumeSectionLabel: experience.resumeSectionLabel,
+        revisionId: experience.revisionId,
+        revisionContentHash: experience.contentHash,
+        availableEvidenceCount: exposedEvidenceCount,
+      };
+    }),
     skillHints: collectSkillHints(snapshot.experiences),
-    availableEvidence: slimEvidenceCandidates(rankAvailableEvidence(snapshot, [])),
+    availableEvidence: slimEvidenceCandidates(availableEvidence),
     template: snapshot.template,
     evidenceInstructions: {
       offsetEncoding: "UTF-16",
@@ -52,15 +81,9 @@ export function projectResumeSourceSnapshot(snapshot: ResumeSourceSnapshot): obj
       truthRule:
         "Do not add numbers, technologies, scope, ownership, or results absent from the cited source text.",
       draftPlanRule:
-        "Round 1 initialBindings must follow plannedBullets per experience (education 2, work 4, project 3) and write each bullet about 1.7–3 lines so the first draft already approaches the 92% page target; the workspace instruction gives the precise character target after the first compile.",
+        "You decide allocation from JD relevance, each experience's availableEvidenceCount, and the real layout returned by create_resume_workspace. Main items require at least three bullets and secondary items at least two. Prefer one unused evidenceId per grounded bullet, batch the first complete draft, then use get_resume_workspace measurements to decide whether to add, enrich, or trim content. No host-fixed category count exists.",
     },
   };
-}
-
-export function plannedBulletsFor(category: string): number {
-  if (category === "work") return 4;
-  if (category === "project") return 3;
-  return 2;
 }
 
 function capJdRawText(rawText: string): string {

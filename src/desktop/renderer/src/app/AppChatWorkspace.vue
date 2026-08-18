@@ -90,6 +90,8 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
         :resume-draft="resumeWorkspace.activeDraft.value"
         :exporting="resumeWorkspace.exporting.value"
         :export-message="resumeWorkspace.exportMessage.value"
+        :saving-to-library="resumeWorkspace.savingToLibrary.value"
+        :save-message="resumeWorkspace.saveMessage.value"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
         @toggle-artifact="toggleArtifact"
         @toggle-browser="toggleBrowser"
@@ -151,6 +153,7 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
               <article
                 v-if="toolRuns.length || streamingText"
                 class="chat-message role-assistant live-response"
+                data-testid="chat-live-response"
               >
                 <ToolActivity :runs="toolRuns" />
                 <MarkdownContent
@@ -192,7 +195,7 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
                 :artifact="artifact"
                 @open="openExperienceImportResult(current.id, $event)"
               />
-              <p v-if="runError" class="run-error">{{ runError }}</p>
+              <p v-if="runError" class="run-error" data-testid="chat-run-error">{{ runError }}</p>
               <ApprovalCard
                 v-if="pendingApproval"
                 :request="pendingApproval"
@@ -244,5 +247,4 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
           :data="activeMatchReport"
         />
       </div>
-
 </template>

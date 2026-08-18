@@ -4,6 +4,11 @@ import type {
   ResumeSectionItem,
   ResumeStructure,
 } from "../types.js";
+import {
+  RESUME_DEFAULT_TARGET_USAGE_RATIO,
+  RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
+} from "../compiler-types.js";
+import { compareEducation } from "../education-order.js";
 import { ResumeWorkspaceError } from "./errors.js";
 import type { ResumeCandidateLanguage } from "./types.js";
 import {
@@ -55,7 +60,13 @@ export function buildResumeSkeleton(
       item_gap_scale: 1,
       bullet_gap_scale: 1,
     },
-    layout_target_band: { minimum: 0.85, target: 0.92, maximum: 0.98 },
+    layout_target_band: {
+      minimum: RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
+      target: RESUME_DEFAULT_TARGET_USAGE_RATIO,
+      // A dense one-page resume is valid. Overflow/page count, rather than
+      // an arbitrary 98% comfort band, is the upper gate.
+      maximum: 1,
+    },
   };
 }
 
@@ -66,17 +77,37 @@ function resolveOrderedExperiences(
   const ids = order.map((value) => value.trim());
   const snapshotIds = new Set(snapshot.experiences.map((experience) => experience.id));
   if (
-    ids.length !== snapshotIds.size ||
     new Set(ids).size !== ids.length ||
     ids.some((id) => !snapshotIds.has(id))
   ) {
     throw new ResumeWorkspaceError(
       "invalid_experience_order",
-      "Experience display order must contain every snapshot experience exactly once.",
+      "Experience display order contains a duplicate or unknown experience.",
     );
   }
   const byId = new Map(snapshot.experiences.map((experience) => [experience.id, experience]));
-  return ids.map((id) => byId.get(id)!);
+  const education = snapshot.experiences
+    .filter((experience) => experience.category === "education")
+    .sort(compareEducation);
+  const nonEducation = snapshot.experiences.filter(
+    (experience) => experience.category !== "education",
+  );
+  const orderedNonEducationIds = ids.filter(
+    (id) => byId.get(id)?.category !== "education",
+  );
+  if (
+    orderedNonEducationIds.length !== nonEducation.length ||
+    nonEducation.some((experience) => !orderedNonEducationIds.includes(experience.id))
+  ) {
+    throw new ResumeWorkspaceError(
+      "invalid_experience_order",
+      "Experience display order must contain every non-education source exactly once.",
+    );
+  }
+  return [
+    ...education,
+    ...orderedNonEducationIds.map((id) => byId.get(id)!),
+  ];
 }
 
 function createSection(

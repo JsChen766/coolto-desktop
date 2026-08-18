@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { EvidenceValidationError } from "../src/resume/evidence-ledger.js";
+import { allEvidenceCandidates } from "../src/resume/quality/evidence-candidates.js";
 import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../src/resume/template-contract.js";
 import { ResumeCandidatePatcher } from "../src/resume/workspace/candidate-patcher.js";
 import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-preparer.js";
@@ -53,6 +54,134 @@ test("needs_user_decision instruction explains the evidence gap and the relaxed 
   assert.match(projection.instruction, /修饰语改写补齐/);
   assert.match(projection.instruction, /search_experiences/);
   assert.match(projection.instruction, /不得降低任何质量门槛/);
+});
+
+test("underfilled workspace becomes terminal when all source evidence is consumed", async () => {
+  const builder = createWorkspaceSnapshotBuilder();
+  const snapshot = await buildSnapshot(builder);
+  const baseCompiler = new FixtureResumeCompiler();
+  const compiler = {
+    compile: async (structure: Parameters<typeof baseCompiler.compile>[0]) => {
+      const result = await baseCompiler.compile(structure);
+      return {
+        ...result,
+        qualified: false,
+        usageRatio: 0.82,
+        usedHeightPx: 820,
+        violations: [
+          { code: "page_underfilled" as const, message: "Page is underfilled." },
+        ],
+      };
+    },
+  };
+  const store = new ResumeWorkspaceStore();
+  const preparer = new ResumeCandidatePreparer(builder, compiler, store, {
+    createCandidateId: () => "exhausted-candidate",
+  });
+  const initialBindings = allEvidenceCandidates(snapshot).map((candidate) => ({
+    bulletText: candidate.sourceQuote,
+    evidenceIds: [candidate.evidenceId],
+  }));
+
+  const workspace = await preparer.prepare({
+    ...prepareInput,
+    initialBindings,
+  });
+  const payload = projectResumeWorkspace(workspace) as Record<string, any>;
+
+  assert.equal(workspace.status, "needs_user_decision");
+  assert.equal(payload.writePlan.every((item: any) => item.missing === 0), true);
+  assert.match(payload.instruction, /素材不足/);
+  const patcher = new ResumeCandidatePatcher(compiler, store);
+  await assert.rejects(
+    patcher.patch({
+      candidateId: workspace.candidateId,
+      expectedRevision: workspace.revision,
+      operations: [{ op: "remove_bullet", bulletId: "bl-0" }],
+    }),
+    (error: unknown) =>
+      error instanceof ResumeWorkspaceError && error.code === "workspace_terminal",
+  );
+});
+
+test("tail-violation workspace with exhausted evidence is also terminal", async () => {
+  const builder = createWorkspaceSnapshotBuilder();
+  const snapshot = await buildSnapshot(builder);
+  const baseCompiler = new FixtureResumeCompiler();
+  const compiler = {
+    compile: async (structure: Parameters<typeof baseCompiler.compile>[0]) => {
+      const result = await baseCompiler.compile(structure);
+      return {
+        ...result,
+        qualified: false,
+        usageRatio: 0.85,
+        usedHeightPx: 850,
+        // 所有 bullet 都已顶到单条最大行数：补长天花板 = 85% < 92% → 终态
+        bullets: result.bullets.map((bullet) => ({
+          ...bullet,
+          lineCount: 3,
+          lastLineRatio: 1,
+          passed: true,
+        })),
+        violations: [
+          {
+            code: "bullet_tail_too_short" as const,
+            message: "Bullet tail is too short.",
+            bulletId: "bl-0",
+          },
+        ],
+      };
+    },
+  };
+  const store = new ResumeWorkspaceStore();
+  const preparer = new ResumeCandidatePreparer(builder, compiler, store, {
+    createCandidateId: () => "tail-exhausted",
+  });
+  const initialBindings = allEvidenceCandidates(snapshot).map((candidate) => ({
+    bulletText: candidate.sourceQuote,
+    evidenceIds: [candidate.evidenceId],
+  }));
+
+  const workspace = await preparer.prepare({
+    ...prepareInput,
+    initialBindings,
+  });
+  const payload = projectResumeWorkspace(workspace) as Record<string, any>;
+
+  assert.equal(
+    workspace.status,
+    "needs_user_decision",
+    "尾行违规 + 证据耗尽 + 补长天花板不足必须立即 terminal",
+  );
+  assert.match(payload.instruction, /素材不足/);
+});
+
+test("instruction stops mid-writing as soon as evidence runs out", async () => {
+  const { builder, preparer, patcher } = createServices();
+  const snapshot = await buildSnapshot(builder);
+  const workspace = await preparer.prepare(prepareInput);
+  const candidates = allEvidenceCandidates(snapshot);
+  const applied = candidates.slice(0, candidates.length - 1);
+  const afterPatch = await patcher.patch({
+    candidateId: workspace.candidateId,
+    expectedRevision: 0,
+    operations: applied.map((candidate, index) => ({
+      op: "add_bullet",
+      itemId: "item-work-1",
+      binding: {
+        bulletText: candidate.sourceQuote,
+        evidenceIds: [candidate.evidenceId],
+      },
+      ...(index > 0 ? { afterBulletId: `bl-${index - 1}` } : {}),
+    })),
+  });
+  // 未消费证据 ≤ 阈值但补长天花板仍可达标：指令必须先停"写新 bullet"，
+  // 转而引导用已引用证据补长，而不是继续消耗不存在的素材
+  const forced = { ...afterPatch, status: "needs_revision" as const };
+  const payload = projectResumeWorkspace(forced) as Record<string, any>;
+  assert.match(payload.instruction, /未消费证据已耗尽/);
+  assert.match(payload.instruction, /立即停止写新 bullet/);
+  assert.match(payload.instruction, /补长/);
 });
 
 test("patcher reaches qualification with grounded local patches and rejects stale writes", async () => {
@@ -236,8 +365,27 @@ test("move and remove patches preserve stable IDs and evidence coverage", async 
   assert.equal(removed.bestSnapshot.revision, 0);
 });
 
-test("prepare fails closed without required education", async () => {
+test("prepare automatically includes education omitted from the requested order", async () => {
   const { preparer } = createServices();
+  const workspace = await preparer.prepare({
+    jdId: "jd-1",
+    experienceIds: ["work-1"],
+    language: "zh-CN",
+  });
+  assert.deepEqual(
+    workspace.structure.sections.find((section) => section.type === "education")
+      ?.items.map((item) => item.source_experience_id),
+    ["edu-1"],
+  );
+});
+
+test("prepare still fails closed when the active library has no education", async () => {
+  const builder = createWorkspaceSnapshotBuilder({ includeEducation: false });
+  const preparer = new ResumeCandidatePreparer(
+    builder,
+    new FixtureResumeCompiler(),
+    new ResumeWorkspaceStore(),
+  );
   await assert.rejects(
     preparer.prepare({
       jdId: "jd-1",

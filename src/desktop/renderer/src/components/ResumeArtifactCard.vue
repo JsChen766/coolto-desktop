@@ -14,9 +14,9 @@ defineEmits<{
 }>();
 
 function stateLabel(value?: "local_only" | "synced" | "local_changes") {
-  if (value === "synced") return translate("已同步云端");
-  if (value === "local_changes") return translate("有未同步修改");
-  return translate("仅保存在本机");
+  if (value === "synced") return translate("已加入简历库");
+  if (value === "local_changes") return translate("本地草稿有新修改");
+  return translate("本地草稿已自动保存");
 }
 </script>
 
@@ -24,6 +24,14 @@ function stateLabel(value?: "local_only" | "synced" | "local_changes") {
   <button
     class="resume-artifact-card"
     type="button"
+    data-testid="resume-draft-status"
+    :data-artifact-id="artifact.artifactId"
+    :data-revision="artifact.revision ?? ''"
+    :data-workspace-status="artifact.workspaceStatus ?? ''"
+    :data-page-count="artifact.pageCount ?? ''"
+    :data-page-usage-ratio="artifact.usageRatio ?? ''"
+    :data-generation-ready="artifact.generationReady === undefined ? '' : String(artifact.generationReady)"
+    :data-blocker-codes="artifact.blockerCodes?.join(',') ?? ''"
     @click="$emit('open', artifact.artifactId)"
   >
     <span class="resume-artifact-page" aria-hidden="true">

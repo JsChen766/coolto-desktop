@@ -133,7 +133,7 @@ export function measureResumeBullets(
     if (!lastLine) continue;
     const lastLineWidthPx = lastLine.right - lastLine.left;
     const lastLineRatio = lastLineWidthPx / availableLineWidthPx;
-    const passed = lastLineRatio + Number.EPSILON >= gateRatio;
+    const passed = lastLineRatio - Number.EPSILON > gateRatio;
     bullets.push({
       bulletId,
       lineCount: lines.length,

@@ -5,8 +5,12 @@ import type {
   DesktopAgentEvent,
   DesktopApprovalRequest,
 } from "@desktop/types";
-import type { ToolRun } from "../components/ToolActivity.vue";
+import { completeToolRun, type ToolRun } from "./tool-run-state";
 import { desktopErrorMessage } from "./desktop-error-message";
+import {
+  completedToolProgressLabel,
+  startedToolProgressLabel,
+} from "./resume-progress-label";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import type { useJdArtifacts } from "./use-jd-artifacts";
 import type { useMatchReports } from "./use-match-reports";
@@ -26,6 +30,7 @@ interface AgentEventState {
 }
 
 export function createAgentEventHandler(state: AgentEventState) {
+  let suppressIntermediateText = false;
   return (conversationId: string, event: DesktopAgentEvent): void => {
     if (event.type === "approval.required") {
       state.approvalByConversation.set(conversationId, event.request);
@@ -86,20 +91,29 @@ export function createAgentEventHandler(state: AgentEventState) {
       return;
     }
     if (conversationId !== state.current.value?.id) return;
-    handleCurrentConversationEvent(state, event);
+    if (event.type === "run.started") {
+      suppressIntermediateText = state.toolRuns.value.length > 0;
+    }
+    if (event.type === "tool.started") {
+      suppressIntermediateText = true;
+      state.streamingText.value = "";
+    }
+    handleCurrentConversationEvent(state, event, suppressIntermediateText);
   };
 }
 
 function handleCurrentConversationEvent(
   state: AgentEventState,
   event: DesktopAgentEvent,
+  suppressIntermediateText: boolean,
 ): void {
   switch (event.type) {
     case "run.started":
       state.running.value = true;
+      state.runError.value = undefined;
       return;
     case "message.delta":
-      state.streamingText.value += event.text;
+      if (!suppressIntermediateText) state.streamingText.value += event.text;
       return;
     case "tool.started": {
       const argumentsValue = event.arguments as { label?: string } | undefined;
@@ -108,22 +122,30 @@ function handleCurrentConversationEvent(
         name: event.name,
         ...(argumentsValue?.label ? { label: argumentsValue.label } : {}),
         status: "running",
+        ...progressLabel(startedToolProgressLabel(event.name, event.arguments)),
       });
       return;
     }
     case "tool.completed": {
-      const run = state.toolRuns.value.find(
-        (candidate) => candidate.callId === event.callId,
-      );
-      if (run) run.status = event.isError ? "error" : "completed";
+      completeToolRun(state.toolRuns.value, {
+        ...event,
+        ...progressLabel(completedToolProgressLabel(event.progress)),
+      });
       return;
     }
     case "resume.draft.updated":
       void state.resumeWorkspace.openDraft(event.artifactId);
       return;
+    case "resume.draft.saving":
+      state.resumeWorkspace.markLocalSaving();
+      return;
+    case "resume.draft.save-failed":
+      state.resumeWorkspace.markLocalSaveFailed(event.message);
+      return;
     case "approval.failed":
     case "run.failed":
       state.approvalBusy.value = false;
+      if (event.type === "run.failed") state.streamingText.value = "";
       state.runError.value = desktopErrorMessage(event.message);
       if (event.type === "run.failed") state.running.value = false;
       return;
@@ -133,4 +155,8 @@ function handleCurrentConversationEvent(
     default:
       return;
   }
+}
+
+function progressLabel(value: string | undefined) {
+  return value ? { progressLabel: value } : {};
 }

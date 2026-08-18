@@ -55,7 +55,7 @@ export function resolveBindingWithAutoRepair(
   const candidates = candidateMap(snapshot);
   const repairs: EvidenceRepairAction[] = [];
   const repairedInput = repairUnknownEvidenceIds(input, candidates, work, bulletId, repairs);
-  const resolved = resolveExcerpts(repairedInput, candidates);
+  const resolved = resolveExcerpts(repairedInput, candidates, sharedEvidence);
   const workWithoutSelf = new Map(work);
   workWithoutSelf.delete(bulletId.trim());
 

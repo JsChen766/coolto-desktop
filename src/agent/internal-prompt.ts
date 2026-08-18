@@ -1,5 +1,6 @@
 const START = "<coolto_internal_continuation>";
 const END = "</coolto_internal_continuation>";
+const RESUME_GENERATION = "<coolto_resume_generation_follow_up />";
 
 export function wrapInternalPrompt(instruction: string): string {
   return [
@@ -14,4 +15,12 @@ export function wrapInternalPrompt(instruction: string): string {
 export function isWrappedInternalPrompt(value: string): boolean {
   const trimmed = value.trim();
   return trimmed.startsWith(START) && trimmed.endsWith(END);
+}
+
+export function wrapResumeGenerationFollowUp(instruction: string): string {
+  return wrapInternalPrompt(`${RESUME_GENERATION}\n${instruction}`);
+}
+
+export function isWrappedResumeGenerationFollowUp(value: string): boolean {
+  return isWrappedInternalPrompt(value) && value.includes(RESUME_GENERATION);
 }

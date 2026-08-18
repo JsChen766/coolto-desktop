@@ -41,11 +41,20 @@ export function sourceSupportsRequirement(
   snapshot: ResumeSourceSnapshot,
   requirement: ResumeSourceRequirementSnapshot,
 ): boolean {
-  const terms = requirementTerms(requirement);
   return snapshot.experiences.some((experience) => {
-    const haystack = `${experience.content} ${experience.tags.join(" ")}`.toLocaleLowerCase();
-    return terms.some((term) => haystack.includes(term));
+    return textSupportsRequirement(
+      requirement,
+      `${experience.content} ${experience.tags.join(" ")}`,
+    );
   });
+}
+
+export function textSupportsRequirement(
+  requirement: ResumeSourceRequirementSnapshot,
+  text: string,
+): boolean {
+  const haystack = text.toLocaleLowerCase();
+  return requirementTerms(requirement).some((term) => haystack.includes(term));
 }
 
 export function matchedRequirementIdsForText(

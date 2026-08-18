@@ -21,7 +21,7 @@ const props = defineProps<{
   draft?: ResumeDraftDetail | undefined;
   busy?: boolean;
   error?: string | undefined;
-  localSaveState: "idle" | "saving" | "saved" | "error";
+  localSaveState: "idle" | "dirty" | "saving" | "saved" | "error";
   repositoryPreview?: boolean;
 }>();
 
@@ -38,18 +38,29 @@ const historyOpen = ref(false);
 
 const localState = computed(() => {
   if (props.localSaveState === "saving") return translate("正在保存到本地…");
+  if (props.localSaveState === "dirty") return translate("有尚未自动保存的修改");
   if (props.localSaveState === "error") return translate("本地保存失败");
   if (!props.draft) return "";
   if (props.draft.cloudState === "local_changes") {
-    return translate("已保存到本地 · 有未同步修改");
+    return translate("已自动保存到本地 · 尚未保存到简历库");
   }
-  if (props.draft.cloudState === "synced") return translate("已保存到本地和云端");
+  if (props.draft.cloudState === "synced") return translate("已自动保存到本地 · 已加入简历库");
   return translate("已自动保存到本地");
 });
 </script>
 
 <template>
-  <aside class="artifact-panel">
+  <aside
+    class="artifact-panel"
+    data-testid="resume-draft-status"
+    :data-artifact-id="draft?.artifactId ?? ''"
+    :data-revision="draft?.revision ?? ''"
+    :data-workspace-status="draft?.workspaceStatus ?? ''"
+    :data-page-count="draft?.compileResult.pageCount ?? ''"
+    :data-page-usage-ratio="draft?.compileResult.usageRatio ?? ''"
+    :data-generation-ready="draft ? String(draft.generationReadiness.ready) : ''"
+    :data-blocker-codes="draft?.generationReadiness.blockers.map((item) => item.code).join(',') ?? ''"
+  >
     <header class="artifact-header">
       <div class="artifact-title-wrap">
         <button

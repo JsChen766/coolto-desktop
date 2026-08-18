@@ -12,6 +12,7 @@ import type {
   ResumeDraftCheckpointReason,
   ResumeDraftSummary,
 } from "../../../resume/draft/types.js";
+import { resumeGenerationReadiness } from "../../../resume/workspace/generation-readiness.js";
 import { ResumeDraftFileRepository } from "./draft-file-repository.js";
 
 export class ResumeDraftService {
@@ -148,11 +149,18 @@ export class ResumeDraftService {
 
   public artifactReference(draft: LocalResumeDraft): ResumeDraftArtifactReference {
     const checkpoint = draft.checkpoints.at(-1);
+    const readiness = resumeGenerationReadiness(draft.workspace);
     return {
       artifactId: draft.artifactId,
       checkpointId: checkpoint?.id ?? null,
       title: draft.title,
       createdAt: draft.createdAt,
+      revision: draft.workspace.revision,
+      workspaceStatus: draft.workspace.status,
+      generationReady: readiness.ready,
+      pageCount: draft.workspace.compileResult.pageCount,
+      usageRatio: draft.workspace.compileResult.usageRatio,
+      blockerCodes: readiness.blockers.map((blocker) => blocker.code),
     };
   }
 

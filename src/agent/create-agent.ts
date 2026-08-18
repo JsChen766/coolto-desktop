@@ -3,6 +3,7 @@ import type {
   AgentTool,
   BeforeToolCallContext,
   BeforeToolCallResult,
+  ShouldStopAfterTurnContext,
   StreamFn,
 } from "@earendil-works/pi-agent-core";
 import { randomUUID } from "node:crypto";
@@ -18,8 +19,9 @@ import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek";
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import { createToolRegistry } from "../tools/registry.js";
 import { CooltoAgent } from "./coolto-agent.js";
-import { compactResumeGenerationContext } from "./context-policy.js";
+import { compactResumeGenerationContext, stripThinkingParts } from "./context-policy.js";
 import { COOLTO_SYSTEM_PROMPT } from "./system-prompt.js";
+import { createTurnGovernor } from "./turn-governor.js";
 
 export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
 export const DEFAULT_PROVIDER_ID = "deepseek";
@@ -38,9 +40,13 @@ export interface CreateAgentOptions {
     messages: AgentMessage[],
     signal?: AbortSignal,
   ) => Promise<AgentMessage[]>;
+  shouldStopAfterTurn?: (
+    context: ShouldStopAfterTurnContext,
+    signal?: AbortSignal,
+  ) => boolean | Promise<boolean>;
+  automaticFollowUp?: (promptSequence: number) => string | undefined;
   approvalManager?: ApprovalManager;
 }
-
 export interface AgentDependencies {
   model: Model<Api>;
   streamFn: StreamFn;
@@ -85,10 +91,9 @@ export function createDeepSeekDependencies(
     model,
     models,
     streamFn: (modelInput, context, options) => {
-      // 输出上限与服务端 pricing.json 的 max_completion_tokens 一致（16384）。
-      // 不设置时服务端按 8192 兜底，推理模型的 thinking 会吃光预算导致
-      // 工具调用参数被截断 → 客户端判失败 → 模型重试 → 重复死循环。
-      const streamOptions = { ...options, temperature: 0, maxTokens: 16384 };
+      // 不设置产品固定输出上限：pi-ai 按模型声明的物理容量生成请求额度，
+      // Credit 网关再按本次剩余余额动态收窄 max_tokens。
+      const streamOptions = { ...options, temperature: 0 };
       if (!gateway) {
         return baseStream(modelInput, context, streamOptions);
       }
@@ -135,6 +140,8 @@ export function createCooltoAgent(
 ): CooltoAgent {
   const runtime =
     dependencies ?? createDeepSeekDependencies(options.modelId);
+  const defaultTurnGovernor = createTurnGovernor();
+  const repetitionGuard = createRepetitionGuard(REPETITION_LIMIT);
 
   const agentOptions = {
     model: runtime.model,
@@ -160,7 +167,19 @@ export function createCooltoAgent(
         }
       : { beforeToolCall: repetitionGuard }),
     transformContext:
-      options.transformContext ?? compactResumeGenerationContext,
+      options.transformContext ??
+      (async (messages: AgentMessage[]) =>
+        stripThinkingParts(await compactResumeGenerationContext(messages))),
+    shouldStopAfterTurn: async (
+      context: ShouldStopAfterTurnContext,
+      signal?: AbortSignal,
+    ) =>
+      defaultTurnGovernor.evaluate(context) ||
+      Boolean(await options.shouldStopAfterTurn?.(context, signal)),
+    turnGovernor: defaultTurnGovernor,
+    ...(options.automaticFollowUp
+      ? { automaticFollowUp: options.automaticFollowUp }
+      : {}),
     ...(options.approvalManager
       ? { approvalManager: options.approvalManager }
       : {}),
@@ -215,5 +234,3 @@ function stableStringify(value: unknown): string {
   }
   return JSON.stringify(value);
 }
-
-const repetitionGuard = createRepetitionGuard(REPETITION_LIMIT);

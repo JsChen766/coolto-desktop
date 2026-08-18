@@ -49,6 +49,21 @@ export class ApprovalManager {
     return this.store.list();
   }
 
+  /** Clears obsolete previews without executing or rejecting their payload. */
+  public async dismissByActionType(actionType: string): Promise<void> {
+    const requests = this.store
+      .list()
+      .filter((request) => request.actionType === actionType);
+    for (const request of requests) {
+      this.store.take(request.id);
+      await this.emit({
+        type: "approval.resolved",
+        requestId: request.id,
+        decision: "replaced",
+      });
+    }
+  }
+
   public async resolve(
     requestId: string,
     decision: ApprovalDecision,

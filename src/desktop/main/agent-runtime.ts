@@ -1,29 +1,19 @@
 import type { WebContents } from "electron";
-import { performance } from "node:perf_hooks";
 
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter, UserProfileReader } from "../../api/types.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
-import {
-  buildBrowserWriteAccessContinuationPrompt,
-  prepareBrowserWriteAccessContinuation,
-} from "./browser-write-access-continuation.js";
-import {
-  buildJdContinuationPrompt,
-  prepareJdContinuation,
-} from "./jd-continuation.js";
-import type { ResumePdfCompiler, ResumePdfExportGateway } from "../../resume/export/types.js";
+import { buildBrowserWriteAccessContinuationPrompt, prepareBrowserWriteAccessContinuation } from "./browser-write-access-continuation.js";
+import { buildJdContinuationPrompt, prepareJdContinuation } from "./jd-continuation.js";
+import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import type { AgentPromptInput, ConversationDetail } from "../shared/types.js";
 import { AgentContextFactory } from "./agent-context-factory.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
-import {
-  executeAgentPrompt,
-  runContinuationPrompt,
-} from "./agent-runtime-prompt.js";
+import { executeAgentPrompt, runContinuationPrompt } from "./agent-runtime-prompt.js";
 import { maybeCompactAgentContext } from "./context-compaction.js";
 import type { SyncNowResult } from "../../tools/sync-now.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
@@ -32,7 +22,8 @@ import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { readConfig } from "../../config.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
-
+import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
+import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore;
   readonly #resumeDrafts: ResumeDraftService;
@@ -55,7 +46,6 @@ export class DesktopAgentRuntime {
     resumeDrafts: ResumeDraftService,
     target: WebContents,
     resumeCompiler: ResumePdfCompiler,
-    resumePdfExports: ResumePdfExportGateway,
     selectedFiles: ConversationSelectedFiles,
     browserPageReader: BrowserPageReader,
     browserPageOperator: BrowserPageOperator,
@@ -64,6 +54,7 @@ export class DesktopAgentRuntime {
     jds: JdReader & JdWriter,
     profiles: UserProfileReader,
     profileProposals: ProfileProposalExecutor,
+    experienceSyncProposals: ResumeExperienceSyncProposalPort,
     /** Reads the compaction threshold (tokens) from server app-config. */
     private readonly compactionThreshold: () => Promise<number | undefined>,
     /** Immediately runs one sync round (agent sync_now tool). */
@@ -76,7 +67,6 @@ export class DesktopAgentRuntime {
     this.#contextFactory = new AgentContextFactory({
       apiClient,
       resumeCompiler,
-      resumePdfExports,
       selectedFiles,
       browserPageReader,
       browserPageOperator,
@@ -85,6 +75,7 @@ export class DesktopAgentRuntime {
       jds,
       profiles,
       profileProposals,
+      experienceSyncProposals,
       events: this.#events,
       traces: this.#traces,
       syncNow: this.syncNow,
@@ -111,7 +102,6 @@ export class DesktopAgentRuntime {
     const pendingAttachments = this.#selectedFiles.list(conversationId)
       .map((f) => ({ ...f, fileId: f.id, status: "pending" as const }));
     this.#traces.start(conversationId, readConfig().modelId);
-    const commandStartedAt = performance.now();
     let failed = false;
     const unsubscribePersist = context.agent.subscribe((event) => {
       if (event.type === "turn.completed") {
@@ -123,9 +113,6 @@ export class DesktopAgentRuntime {
         prompt: input,
         context,
         resumeDrafts: this.#resumeDrafts,
-        events: this.#events,
-        commandStartedAt,
-        isCancelled: () => this.#cancelRequested,
         pendingAttachments,
       });
       const lastAssistant = [...result.messages].reverse().find((m) => m.role === "assistant");
@@ -151,7 +138,7 @@ export class DesktopAgentRuntime {
   public cancel(): void {
     this.#cancelRequested = true;
     const id = this.#runningConversationId;
-    if (id) this.#contexts.get(id)?.agent.cancel();
+    if (id) { this.#traces.recordStopReason(id, "cancelled"); this.#contexts.get(id)?.agent.cancel(); }
   }
 
   /** Persists the in-flight transcript snapshot before the app quits. */
@@ -192,6 +179,9 @@ export class DesktopAgentRuntime {
     this.#cancelRequested = false;
     let failed = false;
     try {
+      const approval = context.agent
+        .getPendingApprovals()
+        .find((request) => request.id === requestId);
       const jdContinuation = prepareJdContinuation(
         context.agent,
         requestId,
@@ -202,7 +192,18 @@ export class DesktopAgentRuntime {
         requestId,
         decision,
       );
+      if (decision.type === "custom") {
+        context.currentUserMessage.timestamp = Date.now();
+      }
       await context.agent.resolveApproval(requestId, decision);
+      await continueAfterResumeAugmentation({
+        actionType: approval?.actionType,
+        decision,
+        cancelled: this.#cancelRequested,
+        candidateId: context.workspaceStore.latest()?.candidateId,
+        agent: context.agent,
+        syncWorkspace: () => this.#events.syncLatestWorkspace(conversationId, context),
+      });
       const savedJd = jdContinuation?.getSavedJd();
       if (savedJd && !this.#cancelRequested) {
         this.#events.emitJdSaved(conversationId, requestId, savedJd.jdId);
@@ -231,7 +232,6 @@ export class DesktopAgentRuntime {
       this.#runningConversationId = undefined;
     }
   }
-
   async #contextFor(conversationId: string): Promise<ConversationAgentContext> {
     const existing = this.#contexts.get(conversationId);
     if (existing) return existing;

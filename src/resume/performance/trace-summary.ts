@@ -23,6 +23,7 @@ export function summarizeTrace(trace: ResumeGenerationTrace): ResumeGenerationRu
     qualifiedPreviewDelivered: count(trace, "qualified_preview_delivered") > 0,
     outcome: trace.outcome ?? "error",
     workspaceStatus: trace.workspaceStatus,
+    stopReason: trace.stopReason,
     stageDurationsMs,
     modelUsage: totalModelUsage(trace),
   };

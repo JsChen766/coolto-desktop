@@ -67,6 +67,7 @@ const api: DesktopApi = {
       ipcRenderer.invoke("resume-drafts:reject", artifactId),
     exportPdf: (input) =>
       ipcRenderer.invoke("resume-drafts:export-pdf", input),
+    save: (input) => ipcRenderer.invoke("resume-drafts:save", input),
   },
   updates: {
     getState: () => ipcRenderer.invoke("updates:state"),
@@ -162,6 +163,12 @@ const api: DesktopApi = {
     minimize: () => ipcRenderer.invoke("window:minimize"),
     toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),
     close: () => ipcRenderer.invoke("window:close"),
+    reportDraftSaveState: (state) =>
+      ipcRenderer.invoke("window:draft-save-state", state),
+    completeSaveBeforeClose: (success) =>
+      ipcRenderer.invoke("window:save-before-close-complete", success),
+    onSaveBeforeClose: (listener) =>
+      subscribeIpc("window:save-before-close", listener),
   },
   data: {
     clearLocal: () => ipcRenderer.invoke("data:clear-local"),

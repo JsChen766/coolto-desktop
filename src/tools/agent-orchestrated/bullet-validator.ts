@@ -6,6 +6,7 @@ import type {
 import { allEvidenceCandidates } from "../../resume/quality/evidence-candidates.js";
 import type { ResumeSectionItem } from "../../resume/types.js";
 import {
+  findNewCrossBulletRepeat,
   findRepeatedFragment,
   stripEvidenceQuotes,
 } from "../../resume/planning/text-repetition.js";
@@ -161,13 +162,11 @@ export function validateAndBuildBullet(
   );
   // Skills bullets list keywords by design (Python、SQL、Spark…) and may
   // share wording with other bullets, so the cross-bullet repetition gate is
-  // skipped for the skills section.
+  // skipped for the skills section. 只查本条新 bullet 与已有内容的碰撞；已有
+  // bullet 之间既有的重复不阻塞本条（否则模型永远无法在后续操作里修复它们）。
   const crossRepeat = isSkillItem
     ? null
-    : findRepeatedFragment(
-        [...strippedExisting, strippedNew].join("\n"),
-        20,
-      );
+    : findNewCrossBulletRepeat(strippedNew, strippedExisting, 20);
   if (crossRepeat) {
     return {
       ok: false,

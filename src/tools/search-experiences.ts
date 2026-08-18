@@ -3,7 +3,9 @@ import { Type } from "@earendil-works/pi-ai";
 
 import type {
   ExperienceCategory,
+  ExperienceRevision,
   ExperienceReader,
+  ExperienceSummary,
 } from "../api/types.js";
 
 const EXPERIENCE_CATEGORIES = [
@@ -59,19 +61,47 @@ export function createSearchExperiencesTool(
     name: "search_experiences",
     label: "搜索经历",
     description:
-      "列出或筛选当前登录用户的经历库。用户询问“我有哪些经历”时可以不带筛选条件。结果主要是列表元数据和同步状态；需要正文、完整版本或准确引用时，再使用 get_experience。",
+      "列出或筛选当前登录用户的经历库，并返回语义判断所需的当前正文。模型看到的 id 是本轮稳定的短引用（如 exp_1），后续工具必须原样使用，不要抄写或猜测底层 UUID。需要历史版本或单条完整详情时，再使用 get_experience。",
     parameters,
     execute: async (_toolCallId, params, signal) => {
       const result = await experienceReader.searchExperiences(params, signal);
+      const modelResult = {
+        nextCursor: result.nextCursor,
+        items: result.items.map(projectExperienceForModel),
+      };
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(result),
+            text: JSON.stringify(modelResult),
           },
         ],
         details: result,
       };
     },
+  };
+}
+
+function projectExperienceForModel(item: ExperienceSummary) {
+  const runtimeRevisions = (item as ExperienceSummary & {
+    revisions?: ExperienceRevision[];
+  }).revisions;
+  const currentContent = item.currentRevision?.content ??
+    runtimeRevisions?.find((revision) => revision.id === item.currentRevisionId)
+      ?.content ??
+    runtimeRevisions?.at(-1)?.content ?? null;
+  return {
+    id: item.id,
+    category: item.category,
+    title: item.title,
+    organization: item.organization,
+    role: item.role,
+    location: item.location,
+    startDate: item.startDate,
+    endDate: item.endDate,
+    tags: item.tags,
+    resumeSectionKey: item.resumeSectionKey ?? null,
+    resumeSectionLabel: item.resumeSectionLabel ?? null,
+    currentContent,
   };
 }

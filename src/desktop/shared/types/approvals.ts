@@ -1,6 +1,9 @@
 import type { JdArtifactData, MatchReportArtifactData } from "./artifacts.js";
 import type { BrowserFillRecordView } from "./browser.js";
 import type { CreditBalanceDetail } from "./conversations.js";
+import type { ResumeToolProgress } from "../../../agent/tool-progress.js";
+
+export type { ResumeToolProgress } from "../../../agent/tool-progress.js";
 
 export interface ApprovalPreviewField {
   label: string;
@@ -51,12 +54,21 @@ export type DesktopAgentEvent =
   | { type: "run.started" }
   | { type: "message.delta"; text: string }
   | { type: "tool.started"; callId: string; name: string; arguments: unknown }
-  | { type: "tool.completed"; callId: string; name: string; isError: boolean }
+  | {
+      type: "tool.completed";
+      callId: string;
+      name: string;
+      isError: boolean;
+      error?: string;
+      progress?: ResumeToolProgress;
+    }
   | { type: "run.failed"; message: string }
   | { type: "agent.insufficient-credits"; detail: CreditBalanceDetail }
   | { type: "run.completed" }
   | { type: "turn.completed" }
   | { type: "resume.draft.updated"; artifactId: string }
+  | { type: "resume.draft.saving" }
+  | { type: "resume.draft.save-failed"; message: string }
   | { type: "approval.required"; request: DesktopApprovalRequest }
   | {
       type: "approval.resolved";

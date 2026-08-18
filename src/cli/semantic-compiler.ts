@@ -63,7 +63,7 @@ export class CliSemanticCompiler implements ResumeCompiler {
           const lastLineRatio =
             lineCount === 1 ? 1 : lastLineWidthPx / this.availableLineWidthPx;
           usedLines += lineCount;
-          if (lastLineRatio < 0.7) {
+          if (lastLineRatio <= 0.7) {
             violations.push({
               code: "bullet_tail_too_short",
               message: `Bullet ${bullet.id} last line covers ${(lastLineRatio * 100).toFixed(1)}% of the line width.`,
@@ -76,7 +76,7 @@ export class CliSemanticCompiler implements ResumeCompiler {
             lastLineWidthPx: Math.round(lastLineWidthPx),
             availableLineWidthPx: this.availableLineWidthPx,
             lastLineRatio: Number(lastLineRatio.toFixed(4)),
-            passed: lastLineRatio >= 0.7,
+            passed: lastLineRatio > 0.7,
           });
         }
       }

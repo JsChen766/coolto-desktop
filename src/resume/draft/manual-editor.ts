@@ -1,7 +1,7 @@
 import type { ResumeCompiler } from "../workspace/compiler-port.js";
 import { applyCandidatePatch } from "../workspace/candidate-patch.js";
 import { ResumeWorkspaceError } from "../workspace/errors.js";
-import { deriveWorkspaceStatus } from "../workspace/workspace-status.js";
+import { generationWorkspaceStatus } from "../workspace/generation-readiness.js";
 import type { ResumeWorkspace } from "../workspace/types.js";
 
 export type ResumeManualEditTarget =
@@ -26,14 +26,15 @@ export class ResumeManualEditor {
     const compileResult = await this.compiler.compile(structure);
     const revision = source.revision + 1;
     const { qualityReport: _qualityReport, ...withoutQuality } = source;
-    return {
+    const updated: ResumeWorkspace = {
       ...withoutQuality,
       revision,
       patchCount: source.patchCount + 1,
-      status: deriveWorkspaceStatus(compileResult, structure),
+      status: "writing",
       structure,
       bindings: edited.bindings,
       compileResult,
+      compileObservedRevision: revision,
       bestSnapshot: {
         revision,
         structure: structuredClone(structure),
@@ -44,6 +45,8 @@ export class ResumeManualEditor {
       repairRound: 0,
       repairHistory: [],
     };
+    updated.status = generationWorkspaceStatus(updated);
+    return updated;
   }
 }
 

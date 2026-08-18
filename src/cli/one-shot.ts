@@ -3,17 +3,11 @@ import { performance } from "node:perf_hooks";
 import { stdout } from "node:process";
 
 import type { CooltoAgent } from "../agent/coolto-agent.js";
-import {
-  continueUntilTerminal,
-  INITIAL_TURN_MAX_MS,
-  UNLIMITED_CONTINUATION_BUDGET,
-} from "../desktop/main/resume-continuation.js";
 import type { ResumeCompiler } from "../resume/workspace/compiler-port.js";
 import { ResumeWorkspaceStore } from "../resume/workspace/workspace-store.js";
 
 const AUTO_APPROVE_LOG = "local-output/approvals.log";
 const INITIAL_PROMPT_MAX_MS = 210_000;
-const MAX_CONTINUATION_MODEL_CALLS = 40;
 const DEFAULT_MAX_MINUTES = 5;
 
 export interface CliOneShotInput {
@@ -33,11 +27,8 @@ export async function runCliOneShot(input: CliOneShotInput): Promise<void> {
     ? Number.POSITIVE_INFINITY
     : (input.maxMinutes ?? DEFAULT_MAX_MINUTES) * 60_000;
   const startedAtMs = performance.now();
-  const continuationMaxMs = unlimited
-    ? Number.POSITIVE_INFINITY
-    : Math.max(60_000, maxMs - 30_000);
   const initialPromptMaxMs = unlimited
-    ? INITIAL_TURN_MAX_MS
+    ? Number.POSITIVE_INFINITY
     : INITIAL_PROMPT_MAX_MS;
   const unsubscribeBudget = input.agent.subscribe((event) => {
     if (
@@ -51,40 +42,19 @@ export async function runCliOneShot(input: CliOneShotInput): Promise<void> {
   unsubscribeBudget();
   if (performance.now() - startedAtMs >= initialPromptMaxMs) {
     stdout.write(
-      `\n[预算] 初始回合超过 ${initialPromptMaxMs / 1000}s，已截断并转入续跑。\n`,
+      `\n[预算] 本次 Agent 运行超过 ${initialPromptMaxMs / 1000}s，已停止。\n`,
     );
   }
   while (input.agent.isRunning) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  const budget = {
-    ...(unlimited ? UNLIMITED_CONTINUATION_BUDGET : {}),
-    maxMs: continuationMaxMs,
-    startedAtMs,
-    maxModelCalls: unlimited
-      ? UNLIMITED_CONTINUATION_BUDGET.maxModelCalls
-      : MAX_CONTINUATION_MODEL_CALLS,
-  };
   if (input.autoApprove) {
-    await autoApproveUntilTerminal(input.agent, input.store, input.compiler, budget);
-  } else {
-    await continueUntilTerminal(
-      input.agent,
-      input.store,
-      input.compiler,
-      budget,
-      { log: (line) => void stdout.write(`[续跑] ${line}\n`) },
-    );
+    await autoApproveUntilSettled(input.agent);
   }
   await dumpResumeIfRequested(input.dumpResume, input.store);
 }
 
-async function autoApproveUntilTerminal(
-  agent: CooltoAgent,
-  store: ResumeWorkspaceStore,
-  compiler: ResumeCompiler,
-  budget: { maxMs: number; startedAtMs: number; maxModelCalls: number },
-): Promise<void> {
+async function autoApproveUntilSettled(agent: CooltoAgent): Promise<void> {
   for (let round = 0; round < 10; round += 1) {
     const request = agent.getPendingApprovals()[0];
     if (request) {
@@ -111,10 +81,7 @@ async function autoApproveUntilTerminal(
       await agent.prompt("请继续完成你的任务，无需等待确认。");
       continue;
     }
-    await continueUntilTerminal(agent, store, compiler, budget, {
-      log: (line) => void stdout.write(`[续跑] ${line}\n`),
-    });
-    if (agent.getPendingApprovals().length === 0) return;
+    return;
   }
   stdout.write("\n[auto-approve] 达到轮次上限，已停止。\n");
 }

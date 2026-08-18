@@ -51,6 +51,15 @@ test("model payload keeps only what the model writes from", async () => {
   assert.equal(payload.candidateId, "candidate-test");
   assert.equal(payload.revision, 1);
   assert.equal(payload.status, "layout_qualified");
+  assert.deepEqual(payload.continuation, { continuable: true, reason: null });
+  assert.deepEqual(
+    {
+      status: payload.operationOutcome.status,
+      attempted: payload.operationOutcome.attempted,
+      applied: payload.operationOutcome.applied,
+    },
+    { status: "success", attempted: 2, applied: 2 },
+  );
   assert.match(payload.visibleText, /教育经历[\s\S]*工作经历/);
   assert.ok(payload.structure.sections, "structure id index present");
   assert.ok(Array.isArray(payload.writePlan));

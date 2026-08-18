@@ -25,6 +25,7 @@
     "desktop:typecheck": "tsc -p tsconfig.preload.json --noEmit && vue-tsc -p tsconfig.web.json --noEmit",
     "qa:resume-renderer": "npm run desktop:build && node scripts/run-resume-renderer-qa.mjs",
     "smoke:resume-source": "node --import tsx scripts/run-resume-source-smoke.ts",
+    "smoke:desktop-chat": "node scripts/run-desktop-chat-smoke.mjs",
     "pdf:export": "npm run desktop:build && esbuild src/cli/pdf-export-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/pdf-export-entry.cjs && electron out/cli/pdf-export-entry.cjs",
     "cli:electron": "npm run desktop:build && esbuild src/cli/electron-main.ts --bundle --platform=node --format=cjs --external:electron --external:@napi-rs/keyring --external:pdfjs-dist --outfile=out/cli/electron-main.cjs && electron out/cli/electron-main.cjs",
     "eval:resume-agent": "node --import tsx scripts/run-resume-agent-eval.ts",
@@ -40,8 +41,8 @@
     "package:mac:dmg": "npm run native:build:mac && npm run desktop:build:protected && electron-builder --mac --universal && npm run verify:release:mac"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "0.81.1",
-    "@earendil-works/pi-ai": "0.81.1",
+    "@earendil-works/pi-agent-core": "0.84.2",
+    "@earendil-works/pi-ai": "0.84.2",
     "@lucide/vue": "^1.26.0",
     "@napi-rs/canvas": "^1.0.6",
     "@napi-rs/keyring": "^1.3.0",

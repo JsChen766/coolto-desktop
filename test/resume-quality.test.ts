@@ -243,22 +243,29 @@ test("available evidence preserves offsets and excludes consumed ranges", async 
   }
 });
 
-test("LLM context keeps only the latest full resume Workspace result", async () => {
+test("LLM context keeps the latest result per resume tool and compacts older ones", async () => {
   const messages = [
-    toolResult("get_resume_source_snapshot", "very large source ".repeat(100)),
-    toolResult("prepare_resume_draft", "old workspace ".repeat(100)),
-    toolResult("patch_resume_candidate", "latest-workspace"),
+    toolResult("search_experiences", "old-search-body ".repeat(100), "search-old"),
+    userMessage("generate a new resume"),
+    toolResult("create_resume_workspace", "very large source ".repeat(100), "source"),
+    toolResult("get_resume_workspace", "old workspace ".repeat(100), "workspace-old"),
+    toolResult("search_experiences", "latest-search-with-ids", "search-latest"),
+    toolResult("apply_resume_content", "latest-workspace", "workspace-latest"),
   ];
   const compacted = await compactResumeGenerationContext(messages);
   const serialized = JSON.stringify(compacted);
 
-  assert.doesNotMatch(serialized, /very large source very large source/);
+  // 旧结果被压缩
+  assert.doesNotMatch(serialized, /old-search-body/);
+  // One source snapshot, one latest workspace and latest discovery result
+  // remain authoritative; superseded workspace payloads become receipts.
+  assert.match(serialized, /latest-search-with-ids/);
+  assert.match(serialized, /very large source very large source/);
   assert.doesNotMatch(serialized, /old workspace old workspace/);
   assert.match(serialized, /latest-workspace/);
-  assert.ok(serialized.length < JSON.stringify(messages).length / 2);
 
   const newerSnapshot = toolResult(
-    "get_resume_source_snapshot",
+    "create_resume_workspace",
     "new-source-must-remain",
   );
   const withNewGeneration = await compactResumeGenerationContext([
@@ -266,6 +273,84 @@ test("LLM context keeps only the latest full resume Workspace result", async () 
     newerSnapshot,
   ]);
   assert.match(JSON.stringify(withNewGeneration), /new-source-must-remain/);
+
+  const afterBulkExpansion = JSON.stringify(
+    await compactResumeGenerationContext([
+      ...messages,
+      toolResult("create_resume_workspace", "expanded-source", "source-2"),
+    ]),
+  );
+  assert.doesNotMatch(afterBulkExpansion, /latest-search-with-ids/);
+  assert.match(afterBulkExpansion, /expanded-source/);
+});
+
+test("LLM context keeps every parallel detail read until the source snapshot exists", async () => {
+  const discovery = [
+    userMessage("generate a resume"),
+    toolResult("get_experience", "experience-one", "experience-1"),
+    toolResult("get_experience", "experience-two", "experience-2"),
+    toolResult("get_experience", "experience-three", "experience-3"),
+  ];
+  const beforeSnapshot = JSON.stringify(
+    await compactResumeGenerationContext(discovery),
+  );
+  assert.match(beforeSnapshot, /experience-one/u);
+  assert.match(beforeSnapshot, /experience-two/u);
+  assert.match(beforeSnapshot, /experience-three/u);
+
+  const afterSnapshot = JSON.stringify(await compactResumeGenerationContext([
+    ...discovery,
+    toolResult("create_resume_workspace", "locked-source", "source-1"),
+  ]));
+  assert.doesNotMatch(afterSnapshot, /experience-one|experience-two|experience-three/u);
+  assert.match(afterSnapshot, /locked-source/u);
+});
+
+test("LLM context drops superseded resume calls and keeps the latest valid arguments", async () => {
+  const messages: AgentMessage[] = [
+    assistantToolCall("old-call", "apply_resume_content", {
+      items: [{ text: "old-large-draft ".repeat(100) }],
+    }, "old-candidate-planning ".repeat(100)),
+    toolResultWithId("old-call", "apply_resume_content", "old-workspace"),
+    assistantToolCall("latest-call", "apply_resume_content", {
+      lineRewrites: [{ revisedText: "latest-large-arguments ".repeat(100) }],
+    }),
+    toolResultWithId("latest-call", "apply_resume_content", "latest-workspace"),
+  ];
+
+  const compacted = await compactResumeGenerationContext(messages);
+  const serialized = JSON.stringify(compacted);
+
+  assert.doesNotMatch(
+    serialized,
+    /old-large-draft|old-workspace|old-candidate-planning/u,
+  );
+  assert.match(serialized, /latest-large-arguments/u);
+  assert.match(serialized, /latest-workspace/u);
+  assert.doesNotMatch(serialized, /"arguments":\{"compacted":true\}/u);
+});
+
+test("LLM context drops an old tool error after a newer authoritative success", async () => {
+  const failed = {
+    ...toolResultWithId(
+      "failed-call",
+      "apply_resume_content",
+      "schema-error-must-not-survive",
+    ),
+    isError: true,
+  } as AgentMessage;
+  const compacted = await compactResumeGenerationContext([
+    failed,
+    toolResultWithId(
+      "successful-call",
+      "apply_resume_content",
+      "latest-successful-workspace",
+    ),
+  ]);
+  const serialized = JSON.stringify(compacted);
+
+  assert.doesNotMatch(serialized, /schema-error-must-not-survive/u);
+  assert.match(serialized, /latest-successful-workspace/u);
 });
 
 async function createDuplicateCandidate() {
@@ -316,10 +401,14 @@ function buildSnapshot(builder: ReturnType<typeof createWorkspaceSnapshotBuilder
   });
 }
 
-function toolResult(toolName: string, text: string): AgentMessage {
+function toolResult(
+  toolName: string,
+  text: string,
+  toolCallId = `call-${toolName}`,
+): AgentMessage {
   return {
     role: "toolResult",
-    toolCallId: `call-${toolName}`,
+    toolCallId,
     toolName,
     content: [{ type: "text", text }],
     details: { text },
@@ -327,3 +416,68 @@ function toolResult(toolName: string, text: string): AgentMessage {
     timestamp: 1,
   };
 }
+
+function toolResultWithId(
+  toolCallId: string,
+  toolName: string,
+  text: string,
+): AgentMessage {
+  return {
+    role: "toolResult",
+    toolCallId,
+    toolName,
+    content: [{ type: "text", text }],
+    details: { text },
+    isError: false,
+    timestamp: 1,
+  };
+}
+
+function assistantToolCall(
+  id: string,
+  name: string,
+  args: Record<string, unknown>,
+  narration?: string,
+): AgentMessage {
+  return {
+    role: "assistant",
+    content: [
+      ...(narration ? [{ type: "text" as const, text: narration }] : []),
+      { type: "toolCall", id, name, arguments: args },
+    ],
+    api: "openai-completions",
+    provider: "faux",
+    model: "faux-model",
+    usage: {
+      input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+    stopReason: "toolUse",
+    timestamp: 1,
+  };
+}
+
+function userMessage(content: string): AgentMessage {
+  return { role: "user", content, timestamp: 1 };
+}
+
+test("legacy evidence projection stays bounded while the 1M Agent path can request all", async () => {
+  const builder = createWorkspaceSnapshotBuilder();
+  const base = await buildSnapshot(builder);
+  const manyExperiences = Array.from({ length: 60 }, (_, index) => ({
+    ...(base.experiences[0] as NonNullable<(typeof base.experiences)[number]>),
+    id: `many-${index}`,
+  }));
+  const snapshot = { ...base, experiences: manyExperiences };
+  const available = rankAvailableEvidence(snapshot, []);
+  assert.ok(
+    available.length <= 48,
+    `expected at most 48 candidates, got ${available.length}`,
+  );
+  const complete = rankAvailableEvidence(
+    snapshot,
+    [],
+    Number.POSITIVE_INFINITY,
+  );
+  assert.ok(complete.length > 48, `expected full evidence, got ${complete.length}`);
+});

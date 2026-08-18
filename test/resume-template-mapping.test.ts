@@ -9,17 +9,40 @@ import {
   presentResumeItem,
 } from "../src/desktop/renderer/src/resume-renderer/section-presenter.js";
 
-test("Section E presents education as degree/date then institution/location", () => {
+test("Section E presents school and degree before major and college", () => {
   assert.deepEqual(
     presentResumeItem(educationItem(), "education"),
     {
       primary: {
-        primary: "Master of Science in Computer Science",
+        primary: "Example University · Master of Science",
         side: "Sep 2023 – Jun 2025",
         primaryClass: "resume-document-entry-primary",
       },
       secondary: {
-        primary: "Example University · School of Engineering",
+        primary: "Computer Science · School of Engineering",
+        side: "Hong Kong",
+        primaryClass: "resume-document-entry-secondary",
+      },
+    },
+  );
+});
+
+test("Section E supports canonical school-major-degree education fields", () => {
+  assert.deepEqual(
+    presentResumeItem({
+      ...educationItem(),
+      title: "香港中文大学",
+      organization: "金融学",
+      role: "硕士",
+    }, "education"),
+    {
+      primary: {
+        primary: "香港中文大学 · 硕士",
+        side: "Sep 2023 – Jun 2025",
+        primaryClass: "resume-document-entry-primary",
+      },
+      secondary: {
+        primary: "金融学",
         side: "Hong Kong",
         primaryClass: "resume-document-entry-secondary",
       },

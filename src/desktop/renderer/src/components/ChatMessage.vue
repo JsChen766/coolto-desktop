@@ -35,7 +35,13 @@ async function copyContent(): Promise<void> {
 </script>
 
 <template>
-  <article class="chat-message" :class="`role-${message.role}`">
+  <article
+    class="chat-message"
+    :class="`role-${message.role}`"
+    data-testid="chat-message"
+    :data-message-id="message.id"
+    :data-message-role="message.role"
+  >
     <div v-if="message.role === 'user'" class="user-message">
       <div
         v-if="message.attachments && message.attachments.length > 0"

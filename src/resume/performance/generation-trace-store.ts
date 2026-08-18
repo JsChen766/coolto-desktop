@@ -9,16 +9,17 @@ import {
   type ResumeTraceModelUsage,
   type ResumeTraceOutcome,
   type ResumeTraceStage,
+  type ResumeTraceStopReason,
+  type ResumeTraceToolMetadata,
 } from "./trace-types.js";
 import { summarizeTrace } from "./trace-summary.js";
 
 const RESUME_TOOLS = new Set([
-  "get_resume_source_snapshot",
-  "prepare_resume_draft",
-  "write_bullet",
-  "inspect_resume_draft",
-  "patch_resume_candidate",
-  "prepare_resume_save",
+  "create_resume_workspace",
+  "get_resume_workspace",
+  "apply_resume_content",
+  "add_resume_material",
+  "prepare_experience_sync",
 ]);
 
 export interface ResumeTraceClock {
@@ -32,6 +33,7 @@ interface ActiveTrace {
   usesResumeFlow: boolean;
   readonly modelStartedAtMs: number[];
   readonly toolStartedAtMs: Map<string, { name: string; offsetMs: number }>;
+  stopReason: ResumeTraceStopReason | null;
 }
 
 export class ResumeGenerationTraceStore {
@@ -54,6 +56,7 @@ export class ResumeGenerationTraceStore {
       completedAt: null,
       outcome: null,
       workspaceStatus: null,
+      stopReason: null,
       events: [],
     };
     const active: ActiveTrace = {
@@ -62,6 +65,7 @@ export class ResumeGenerationTraceStore {
       usesResumeFlow: false,
       modelStartedAtMs: [],
       toolStartedAtMs: new Map(),
+      stopReason: null,
     };
     this.#active.set(conversationId, active);
     this.#record(active, "generation_started");
@@ -102,6 +106,7 @@ export class ResumeGenerationTraceStore {
     callId: string,
     name: string,
     outcome: ResumeTraceOutcome,
+    metadata: ResumeTraceToolMetadata = {},
   ): void {
     if (!RESUME_TOOLS.has(name)) return;
     const active = this.#active.get(conversationId);
@@ -113,6 +118,7 @@ export class ResumeGenerationTraceStore {
     this.#record(active, stageForTool(name), {
       outcome,
       toolName: name,
+      ...metadata,
       ...(started ? { durationMs: endedAtMs - started.offsetMs } : {}),
     }, started?.offsetMs ?? endedAtMs);
   }
@@ -138,6 +144,14 @@ export class ResumeGenerationTraceStore {
     this.#record(active, "qualified_preview_delivered", { outcome: "success" });
   }
 
+  public recordStopReason(
+    conversationId: string,
+    stopReason: ResumeTraceStopReason,
+  ): void {
+    const active = this.#active.get(conversationId);
+    if (active && !active.stopReason) active.stopReason = stopReason;
+  }
+
   public finish(
     conversationId: string,
     input: { workspaceStatus: string | null; failed: boolean },
@@ -146,17 +160,21 @@ export class ResumeGenerationTraceStore {
     this.#active.delete(conversationId);
     if (!active || !active.usesResumeFlow) return undefined;
     const outcome: ResumeTraceOutcome = input.failed ? "error" : "success";
+    const stopReason = active.stopReason ??
+      (input.failed ? "runtime_error" : "completed");
     active.trace = {
       ...active.trace,
       completedAt: this.#clock.now().toISOString(),
       outcome,
       workspaceStatus: input.workspaceStatus,
+      stopReason,
     };
     this.#record(active, "generation_finished", {
       outcome,
       ...(input.workspaceStatus
         ? { workspaceStatus: input.workspaceStatus }
         : {}),
+      stopReason,
     });
     const completed = structuredClone(active.trace);
     this.#completed.push(completed);
@@ -198,12 +216,10 @@ export class ResumeGenerationTraceStore {
 export { summarizeTrace } from "./trace-summary.js";
 
 function stageForTool(name: string): ResumeTraceStage {
-  if (name === "get_resume_source_snapshot") return "source_snapshot";
-  if (name === "prepare_resume_draft") return "source_snapshot";
-  if (name === "write_bullet") return "patch";
-  if (name === "inspect_resume_draft") return "chromium_compile";
-  if (name === "patch_resume_candidate") return "patch";
-  if (name === "prepare_resume_save") return "save_prepared";
+  if (name === "create_resume_workspace" || name === "add_resume_material") {
+    return "source_snapshot";
+  }
+  if (name === "apply_resume_content") return "patch";
   return "tool";
 }
 
