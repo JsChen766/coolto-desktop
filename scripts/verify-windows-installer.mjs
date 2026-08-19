@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { access, readFile, rm } from "node:fs/promises";
+import { createServer } from "node:net";
 import { join, resolve } from "node:path";
 
 if (process.platform !== "win32") {
@@ -18,6 +19,7 @@ const installedAsar = join(installDirectory, "resources", "app.asar");
 const unpackedAsar = join(releaseDirectory, "win-unpacked", "resources", "app.asar");
 const uninstaller = join(installDirectory, "Uninstall Coolto.exe");
 const readyMarker = "COOLTO_MAIN_BOOTSTRAP_READY";
+const bootstrapTimeoutMs = 30_000;
 let application;
 
 await access(installer);
@@ -29,8 +31,10 @@ try {
   await assertSameFile(installedAsar, unpackedAsar);
   await delay(2_000);
 
+  const port = await availablePort();
   application = spawn(installedExe, [
     `--user-data-dir=${join(installDirectory, "smoke-user-data")}`,
+    `--remote-debugging-port=${port}`,
   ], {
     env: {
       ...process.env,
@@ -43,34 +47,34 @@ try {
   });
   let stdout = "";
   let stderr = "";
-  let markReady;
-  const ready = new Promise((resolveReady) => {
-    markReady = resolveReady;
-  });
+  let spawnError;
   application.stdout.on("data", (chunk) => {
     stdout += chunk.toString();
-    if (stdout.includes(readyMarker)) markReady();
   });
   application.stderr.on("data", (chunk) => {
     stderr += chunk.toString();
   });
-  const earlyExit = new Promise((_, reject) => {
-    application.once("exit", (code, signal) => {
-      reject(
-        new Error(
-          `Installed app exited early (${code ?? signal})\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`,
-        ),
-      );
-    });
-    application.once("error", reject);
-  });
-  const timeout = delay(10_000).then(() => {
+  application.once("error", (error) => { spawnError = error; });
+  const deadline = Date.now() + bootstrapTimeoutMs;
+  let cdpReady = false;
+  while (Date.now() < deadline && application.exitCode === null) {
+    if (spawnError) throw spawnError;
+    cdpReady ||= await hasPageTarget(port);
+    if (stdout.includes(readyMarker) && cdpReady) break;
+    await delay(250);
+  }
+  const bootstrapReady = stdout.includes(readyMarker);
+  if (!bootstrapReady || !cdpReady || application.exitCode !== null) {
     throw new Error(
-      `Installed app did not finish bootstrap\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`,
+      `Installed app did not become healthy ` +
+      `(bootstrap=${bootstrapReady}, cdp=${cdpReady}, exit=${application.exitCode})` +
+      `\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`,
     );
-  });
-  await Promise.race([ready, earlyExit, timeout]);
-  await Promise.race([delay(3_000), earlyExit]);
+  }
+  await delay(3_000);
+  if (application.exitCode !== null) {
+    throw new Error(`Installed app exited after bootstrap (${application.exitCode})`);
+  }
   process.stdout.write("Installed Windows package completed bootstrap and remained healthy.\n");
 } finally {
   if (application?.pid && application.exitCode === null) {
@@ -110,4 +114,30 @@ function run(command, args, allowFailure = false) {
 
 function delay(milliseconds) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
+}
+
+async function hasPageTarget(port) {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/json`);
+    const targets = await response.json();
+    return targets.some((target) => target.type === "page" && target.webSocketDebuggerUrl);
+  } catch {
+    return false;
+  }
+}
+
+function availablePort() {
+  return new Promise((resolvePort, rejectPort) => {
+    const server = createServer();
+    server.once("error", rejectPort);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close();
+        rejectPort(new Error("Could not allocate a local CDP port"));
+        return;
+      }
+      server.close(() => resolvePort(address.port));
+    });
+  });
 }
