@@ -1,58 +1,29 @@
-export type TailRepairGuidanceMode =
-  | "same_line_short"
-  | "new_line_short"
-  | "too_many_lines"
-  | "compacted_too_far"
-  | "page_capacity";
+export const TAIL_REPAIR_STALL_ROUND = 3;
 
-export interface TailRepairAttemptRecord {
+export interface TailRepairBulletProgress {
+  zeroProgressRounds: number;
+  appliedRounds?: number;
+  attemptedRounds?: number;
+  rejectedTextFingerprints?: string[];
+  /** Legacy persisted field; read during migration and stop writing it. */
+  lastRejectedTextFingerprint?: string;
+}
+
+export interface TailRepairProgressState {
+  byBulletId: Record<string, TailRepairBulletProgress>;
+  /** Unresolved bullets already tried in the current zero-progress sweep. */
+  attemptedBulletIdsSinceProgress?: string[];
+  zeroProgressRounds: number;
+  stalled: boolean;
+}
+
+export interface TailRepairProgressOutcome {
   bulletId: string;
-  sourceTextFingerprint?: string;
-  baseTextFingerprint?: string;
-  layoutFingerprint?: string;
-  optionFingerprint: string;
-  kind: string;
-  text?: string;
-  optionIndex?: number;
-  baseText?: string;
-  fragmentText?: string;
-  requirementIds?: string[];
-  characterCount: number;
-  lineCount: number;
-  lineDelta: number;
-  lastLineWidthPx: number;
-  availableLineWidthPx: number;
-  lastLineRatio: number;
-  tailPassed: boolean;
-  withinLineLimit: boolean;
-  eligible: boolean;
-  minimumLineCount?: number;
+  applied: boolean;
+  textFingerprint: string;
 }
 
-export interface TailRepairRetryGuidance {
-  round: number;
-  mode: TailRepairGuidanceMode;
-  attemptedCount: number;
-  bestObserved: {
-    characterCount: number;
-    lineCount: number;
-    lineDelta: number;
-    lastLineRatio: number;
-  };
-  additionalCharacterTargets?: { minimum: number; maximum: number };
-  allowedNetLineDelta: { minimum: number; maximum: number };
-}
-
-export interface TailRepairRetryState {
-  bulletIds: string[];
-  round: number;
-  attempts: TailRepairAttemptRecord[];
-  guidanceByBulletId: Record<string, TailRepairRetryGuidance>;
-  /** Compatibility alias for drafts persisted before per-bullet guidance. */
-  guidance: TailRepairRetryGuidance;
-}
-
-export function tailRepairOptionFingerprint(text: string): string {
+export function tailRepairTextFingerprint(text: string): string {
   const normalized = text.normalize("NFKC").trim();
   let left = 0x811c9dc5;
   let right = 0x9e3779b9;
@@ -66,168 +37,118 @@ export function tailRepairOptionFingerprint(text: string): string {
   }`;
 }
 
-export function tailRepairLayoutFingerprint(input: {
-  templateId: string;
-  profileHash: string;
-  viewportWidthPx: number;
-  devicePixelRatio: number;
-  bodyFontSizePx: number;
-  availableLineWidthPx: number;
-  maxBulletLines: number;
-  minimumBulletLines?: number;
-}): string {
-  return [
-    input.templateId,
-    input.profileHash,
-    input.viewportWidthPx,
-    input.devicePixelRatio,
-    input.bodyFontSizePx,
-    input.availableLineWidthPx,
-    input.maxBulletLines,
-    input.minimumBulletLines ?? 1,
-  ].join(":");
-}
-
-export function buildTailRepairRetryState(
-  previous: TailRepairRetryState | undefined,
-  current: readonly TailRepairAttemptRecord[],
-  allowedNetLineDelta: { minimum: number; maximum: number },
-  focusBulletIds?: ReadonlySet<string>,
-): TailRepairRetryState {
-  const attempts = dedupeAttempts([
-    ...(previous?.attempts ?? []),
-    ...current,
-  ]).slice(-256);
-  const candidateIds = focusBulletIds?.size
-    ? [...focusBulletIds]
-    : [...new Set((current.length ? current : attempts).map(
-        (attempt) => attempt.bulletId,
-      ))];
-  const bulletIds = candidateIds.filter((bulletId) =>
-    attempts.some((attempt) => attempt.bulletId === bulletId)
-  ).sort((left, right) =>
-    attemptScore(bestForBullet(attempts, left)) -
-      attemptScore(bestForBullet(attempts, right)) || left.localeCompare(right)
-  );
-  const guidanceByBulletId = Object.fromEntries(bulletIds.map((bulletId) => [
-    bulletId,
-    guidanceForBullet(
-      previous,
-      attempts,
-      bulletId,
-      allowedNetLineDelta,
-    ),
+export function updateTailRepairProgress(
+  previous: TailRepairProgressState | undefined,
+  outcomes: readonly TailRepairProgressOutcome[],
+  failedBulletIds: ReadonlySet<string>,
+): TailRepairProgressState {
+  const outcomeById = new Map(outcomes.map((outcome) => [
+    outcome.bulletId,
+    outcome,
   ]));
-  const guidance = guidanceByBulletId[bulletIds[0]!];
-  if (!guidance) throw new Error("尾行修复缺少候选实测记录");
-  return {
-    bulletIds,
-    round: Math.max(...Object.values(guidanceByBulletId).map(
-      (item) => item.round,
-    )),
-    attempts,
-    guidanceByBulletId,
-    guidance,
-  };
-}
-
-function guidanceForBullet(
-  previous: TailRepairRetryState | undefined,
-  attempts: readonly TailRepairAttemptRecord[],
-  bulletId: string,
-  allowedNetLineDelta: { minimum: number; maximum: number },
-): TailRepairRetryGuidance {
-  const bulletAttempts = attempts.filter(
-    (attempt) => attempt.bulletId === bulletId,
-  );
-  const best = bestFocus(bulletAttempts);
-  const prior = previous?.guidanceByBulletId?.[bulletId] ??
-    (previous?.bulletIds.includes(bulletId) ? previous.guidance : undefined);
-  const round = (prior?.round ?? 0) + 1;
-  return {
-    round,
-    mode: guidanceMode(best, allowedNetLineDelta),
-    attemptedCount: bulletAttempts.length,
-    bestObserved: {
-      characterCount: best.characterCount,
-      lineCount: best.lineCount,
-      lineDelta: best.lineDelta,
-      lastLineRatio: best.lastLineRatio,
-    },
-    ...additionalCharacterTargets(best),
-    allowedNetLineDelta,
-  };
-}
-
-function bestForBullet(
-  attempts: readonly TailRepairAttemptRecord[],
-  bulletId: string,
-) {
-  return bestFocus(attempts.filter((attempt) => attempt.bulletId === bulletId));
-}
-
-function bestFocus(attempts: readonly TailRepairAttemptRecord[]) {
-  const focus = [...attempts].sort((left, right) =>
-    attemptScore(left) - attemptScore(right) ||
-    left.bulletId.localeCompare(right.bulletId)
-  )[0];
-  if (!focus) throw new Error("尾行修复缺少候选实测记录");
-  return focus;
-}
-
-function attemptScore(attempt: TailRepairAttemptRecord): number {
-  if (attempt.eligible) return 0;
-  return (attempt.withinLineLimit ? 0 : 10) +
-    Math.abs(0.7 - attempt.lastLineRatio) +
-    Math.abs(attempt.lineDelta) * 0.05;
-}
-
-function guidanceMode(
-  attempt: TailRepairAttemptRecord,
-  allowed: { minimum: number; maximum: number },
-): TailRepairGuidanceMode {
-  if (attempt.eligible &&
-    (attempt.lineDelta < allowed.minimum || attempt.lineDelta > allowed.maximum)) {
-    return "page_capacity";
+  const byBulletId: Record<string, TailRepairBulletProgress> = {};
+  for (const bulletId of failedBulletIds) {
+    const prior = previous?.byBulletId[bulletId];
+    const outcome = outcomeById.get(bulletId);
+    if (!outcome) {
+      if (prior) byBulletId[bulletId] = prior;
+      continue;
+    }
+    if (outcome.applied) {
+      byBulletId[bulletId] = {
+        zeroProgressRounds: 0,
+        appliedRounds: (prior?.appliedRounds ?? 0) + 1,
+        attemptedRounds: (prior?.attemptedRounds ?? 0) + 1,
+      };
+      continue;
+    }
+    const zeroProgressRounds = Math.min(
+      TAIL_REPAIR_STALL_ROUND,
+      (prior?.zeroProgressRounds ?? 0) + 1,
+    );
+    const rejectedTextFingerprints = appendRejectedFingerprint(
+      prior,
+      outcome.textFingerprint,
+    );
+    byBulletId[bulletId] = {
+      zeroProgressRounds,
+      ...(prior?.appliedRounds
+        ? { appliedRounds: prior.appliedRounds }
+        : {}),
+      attemptedRounds: (prior?.attemptedRounds ?? 0) + 1,
+      rejectedTextFingerprints,
+    };
   }
-  if (attempt.lineCount < (attempt.minimumLineCount ?? 1)) {
-    return "compacted_too_far";
+  const madeFormalProgress = outcomes.some((outcome) => outcome.applied);
+  const attempted = new Set(
+    madeFormalProgress
+      ? []
+      : previous?.attemptedBulletIdsSinceProgress ?? [],
+  );
+  if (!madeFormalProgress) {
+    outcomes.forEach((outcome) => attempted.add(outcome.bulletId));
   }
-  if (!attempt.withinLineLimit) return "too_many_lines";
-  if (attempt.lineDelta > 0) return "new_line_short";
-  if (attempt.lineDelta < 0) return "compacted_too_far";
-  return "same_line_short";
-}
-
-function additionalCharacterTargets(attempt: TailRepairAttemptRecord) {
-  if (!attempt.withinLineLimit || attempt.tailPassed) return {};
-  const width = attempt.availableLineWidthPx;
-  const measured = Math.max(
-    1,
-    (Math.max(0, attempt.lineCount - 1) * width + attempt.lastLineWidthPx) /
-      Math.max(1, attempt.characterCount),
-  );
-  const minimum = Math.max(
-    1,
-    Math.ceil((width * 0.73 - attempt.lastLineWidthPx) / measured),
-  );
+  const completedSweep = !madeFormalProgress &&
+    [...failedBulletIds].every((bulletId) => attempted.has(bulletId));
+  const zeroProgressRounds = madeFormalProgress
+    ? 0
+    : completedSweep
+      ? Math.min(
+          TAIL_REPAIR_STALL_ROUND,
+          (previous?.zeroProgressRounds ?? 0) + 1,
+        )
+      : previous?.zeroProgressRounds ?? 0;
+  if (completedSweep) attempted.clear();
   return {
-    additionalCharacterTargets: {
-      minimum,
-      maximum: Math.max(
-        minimum,
-        Math.floor((width * 0.88 - attempt.lastLineWidthPx) / measured),
-      ),
-    },
+    byBulletId,
+    attemptedBulletIdsSinceProgress: [...attempted].filter((bulletId) =>
+      failedBulletIds.has(bulletId)
+    ).sort(),
+    zeroProgressRounds,
+    stalled: zeroProgressRounds >= TAIL_REPAIR_STALL_ROUND,
   };
 }
 
-function dedupeAttempts(
-  attempts: readonly TailRepairAttemptRecord[],
-): TailRepairAttemptRecord[] {
-  return [...new Map(attempts.map((attempt) => [
-    `${attempt.bulletId}:${attempt.sourceTextFingerprint ?? "legacy"}:` +
-      attempt.optionFingerprint,
-    attempt,
-  ])).values()];
+export function wasLastRejectedTailText(
+  state: TailRepairProgressState | undefined,
+  bulletId: string,
+  text: string,
+): boolean {
+  const progress = state?.byBulletId[bulletId];
+  const fingerprint = tailRepairTextFingerprint(text);
+  return progress?.lastRejectedTextFingerprint === fingerprint ||
+    progress?.rejectedTextFingerprints?.includes(fingerprint) === true;
+}
+
+export function retainFailedTailProgress(
+  state: TailRepairProgressState | undefined,
+  failedBulletIds: ReadonlySet<string>,
+): TailRepairProgressState | undefined {
+  if (!state) return undefined;
+  const byBulletId = Object.fromEntries(Object.entries(state.byBulletId).filter(
+    ([bulletId]) => failedBulletIds.has(bulletId),
+  ));
+  if (!Object.keys(byBulletId).length) return undefined;
+  return {
+    byBulletId,
+    attemptedBulletIdsSinceProgress: (
+      state.attemptedBulletIdsSinceProgress ?? []
+    ).filter((bulletId) => failedBulletIds.has(bulletId)),
+    zeroProgressRounds: state.zeroProgressRounds ?? 0,
+    stalled: (state.zeroProgressRounds ?? 0) >= TAIL_REPAIR_STALL_ROUND,
+  };
+}
+
+function appendRejectedFingerprint(
+  prior: TailRepairBulletProgress | undefined,
+  fingerprint: string,
+): string[] {
+  const previous = [
+    ...(prior?.rejectedTextFingerprints ?? []),
+    ...(prior?.lastRejectedTextFingerprint
+      ? [prior.lastRejectedTextFingerprint]
+      : []),
+  ].filter((value, index, values) => values.indexOf(value) === index);
+  return [...previous.filter((value) => value !== fingerprint), fingerprint]
+    .slice(-6);
 }

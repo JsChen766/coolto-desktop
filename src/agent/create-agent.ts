@@ -22,6 +22,8 @@ import { CooltoAgent } from "./coolto-agent.js";
 import { compactResumeGenerationContext, stripThinkingParts } from "./context-policy.js";
 import { COOLTO_SYSTEM_PROMPT } from "./system-prompt.js";
 import { createTurnGovernor } from "./turn-governor.js";
+import { createRepetitionGuard } from "./repetition-guard.js";
+import { hasAuthoritativeResumeCompletion } from "./terminal-resume-result.js";
 
 export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
 export const DEFAULT_PROVIDER_ID = "deepseek";
@@ -141,7 +143,7 @@ export function createCooltoAgent(
   const runtime =
     dependencies ?? createDeepSeekDependencies(options.modelId);
   const defaultTurnGovernor = createTurnGovernor();
-  const repetitionGuard = createRepetitionGuard(REPETITION_LIMIT);
+  const repetitionGuard = createRepetitionGuard();
 
   const agentOptions = {
     model: runtime.model,
@@ -174,6 +176,7 @@ export function createCooltoAgent(
       context: ShouldStopAfterTurnContext,
       signal?: AbortSignal,
     ) =>
+      hasAuthoritativeResumeCompletion(context) ||
       defaultTurnGovernor.evaluate(context) ||
       Boolean(await options.shouldStopAfterTurn?.(context, signal)),
     turnGovernor: defaultTurnGovernor,
@@ -186,51 +189,4 @@ export function createCooltoAgent(
   };
 
   return new CooltoAgent(agentOptions);
-}
-
-const REPETITION_LIMIT = 3;
-
-/**
- * 连续 N 次相同工具调用（同工具名 + 同参数）即判定为重复死循环并 block。
- * 温度 0 下失败重试会产生逐 token 相同的输出（输出截断 → 工具判失败 →
- * 模型重试 → 再截断），此守卫是这类确定性循环的兜底：block 后错误信息
- * 进入上下文，输入变化足以让模型停止。
- */
-function createRepetitionGuard(limit: number) {
-  let lastKey: string | undefined;
-  let consecutive = 0;
-  return async (
-    context: BeforeToolCallContext,
-  ): Promise<BeforeToolCallResult | undefined> => {
-    const key = `${context.toolCall.name}\u0000${stableStringify(context.args)}`;
-    if (key === lastKey) {
-      consecutive += 1;
-    } else {
-      lastKey = key;
-      consecutive = 1;
-    }
-    if (consecutive >= limit) {
-      return {
-        block: true,
-        reason:
-          "detected_repetition：检测到连续重复的工具调用（参数完全相同），" +
-          "请停止重试同一操作，基于当前结果继续或结束任务。",
-      };
-    }
-    return undefined;
-  };
-}
-
-/** 键序无关的 JSON 序列化（重试产生的参数键顺序可能不同）。 */
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([key, nested]) => `${JSON.stringify(key)}:${stableStringify(nested)}`);
-    return `{${entries.join(",")}}`;
-  }
-  return JSON.stringify(value);
 }

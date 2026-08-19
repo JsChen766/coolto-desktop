@@ -82,6 +82,7 @@ test("resume source automatically includes every active education and orders it 
     title: "香港中文大学",
     startDate: "2025-09",
     endDate: "present",
+    content: "GPA 3.8/4.0，专业前 10%。主修课程：统计学、公司金融。",
   });
   const archivedEducation = educationExperience("edu-archived", "rev-archived", {
     title: "已归档学校",
@@ -105,6 +106,11 @@ test("resume source automatically includes every active education and orders it 
     structure.sections.find((section) => section.type === "education")
       ?.items.map((item) => item.source_experience_id),
     ["edu-current", "edu-older"],
+  );
+  assert.equal(
+    structure.sections.find((section) => section.type === "education")
+      ?.items[0]?.raw_text,
+    "GPA 3.8/4.0（专业前 10%）",
   );
 });
 
@@ -429,6 +435,7 @@ function educationExperience(
   revisionId: string,
   fields: Pick<ExperienceDetail, "title" | "startDate" | "endDate"> & {
     status?: ExperienceDetail["status"];
+    content?: string;
   },
 ): ExperienceDetail {
   const experience = withExperienceIdentity(
@@ -443,6 +450,10 @@ function educationExperience(
   experience.startDate = fields.startDate;
   experience.endDate = fields.endDate;
   experience.status = fields.status ?? "active";
+  if (fields.content && experience.currentRevision) {
+    experience.currentRevision.content = fields.content;
+    experience.revisions[0]!.content = fields.content;
+  }
   return experience;
 }
 

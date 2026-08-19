@@ -25,21 +25,21 @@ import {
   overflowReductionPlan,
   type OverflowReductionPlan,
 } from "./overflow-reduction-plan.js";
-
+import {
+  bulletCountRepairPlan,
+  type BulletCountRepairTarget,
+} from "./bullet-count-repair.js";
 const MIN_GROUNDED_ADDITION_OPTIONS = 12;
+const MAX_MODEL_TAIL_REPAIR_TARGETS = 8;
 
 interface AgentTailRepairTarget {
+  requiredEdit: string;
   bulletId: string;
-  role: "repair" | "page_balance";
   currentText: string;
-  editInstruction: {
-    direction: "expand" | "compact" | "hold";
-    currentCharacters: number;
-    characterDelta: number;
-    targetCharacters: number;
-  };
-  balanceForBulletId?: string;
-  requestedLineDelta?: -1 | 1;
+  currentLineCount: number;
+  expansionGoal: string;
+  concreteExpansionHints: string[];
+  sourceQuotes: string[];
 }
 
 export type ResumeAgentNextAction =
@@ -51,7 +51,12 @@ export type ResumeAgentNextAction =
   }
   | { mode: "await_augmented_confirmation" }
   | ({ mode: "reduce_overflow" } & OverflowReductionPlan)
-  | { mode: "repair_bullet_counts"; itemIds: string[] }
+  | {
+    mode: "repair_bullet_counts";
+    requiredInput: "items";
+    itemIds: string[];
+    itemTargets: BulletCountRepairTarget[];
+  }
   | {
     mode: "repair_bullet_depth";
     requiredInput: "lineRewrites";
@@ -78,10 +83,6 @@ export type ResumeAgentNextAction =
     tailRepairTargets: AgentTailRepairTarget[];
     remainingTailCount: number;
     requiredInput: "tailRepairs";
-    optionLimits: {
-      revisedTextsPerTarget: 1;
-      augmentedModifiersPerTarget: 1;
-    };
   }
   | { mode: "inspect_blockers" };
 
@@ -114,14 +115,22 @@ export function resumeAgentNextAction(
     compile.overflowPx > RESUME_LAYOUT_TOLERANCE_PX
   ) return { mode: "reduce_overflow", ...overflowReductionPlan(workspace) };
 
-  const itemIds = workspace.structure.sections.flatMap((section) =>
-    section.items.flatMap((item) => {
-      const tier = workspace.itemTiers?.[item.id];
-      const minimum = tier === "main" ? 3 : tier === "secondary" ? 2 : 0;
-      return item.bullets.length < minimum ? [item.id] : [];
-    }),
-  );
-  if (itemIds.length) return { mode: "repair_bullet_counts", itemIds };
+  const countPlan = bulletCountRepairPlan(workspace);
+  if (countPlan.mode === "request_more_material") {
+    return {
+      mode: "request_more_material",
+      question: countPlan.question,
+      targetExperienceId: countPlan.targetExperienceId,
+    };
+  }
+  if (countPlan.targets.length) {
+    return {
+      mode: "repair_bullet_counts",
+      requiredInput: "items",
+      itemIds: countPlan.targets.map((target) => target.itemId),
+      itemTargets: countPlan.targets,
+    };
+  }
 
   const depthTargets = bulletDepthRewriteTargets(workspace);
   if (depthTargets.length) {
@@ -165,28 +174,26 @@ export function resumeAgentNextAction(
 
   const tailBatch = tailRepairBatch(workspace);
   if (tailBatch.remainingTailCount) {
+    const activeTargets = tailBatch.targets.slice(0, MAX_MODEL_TAIL_REPAIR_TARGETS);
     return {
-        mode: "batch_tail_repair",
-        bulletIds: tailBatch.targets.map((target) => target.bulletId),
-        tailRepairTargets: tailBatch.targets.map((target) => ({
-          bulletId: target.bulletId,
-          role: target.role,
-          currentText: target.currentText,
-          editInstruction: modelFacingEditInstruction(target),
-          ...(target.balanceForBulletId
-            ? { balanceForBulletId: target.balanceForBulletId }
-            : {}),
-          ...(target.requestedLineDelta
-            ? { requestedLineDelta: target.requestedLineDelta }
-            : {}),
-        })),
-        remainingTailCount: tailBatch.remainingTailCount,
-        requiredInput: "tailRepairs",
-        optionLimits: {
-          revisedTextsPerTarget: 1,
-          augmentedModifiersPerTarget: 1,
-        },
-      };
+      mode: "batch_tail_repair",
+      bulletIds: activeTargets.map((target) => target.bulletId),
+      tailRepairTargets: activeTargets.map((target) => ({
+        requiredEdit: tailRepairInstruction(
+          target.zeroProgressRounds,
+          target.expansionGoal,
+          target.currentLineCount,
+        ),
+        bulletId: target.bulletId,
+        currentText: target.currentText,
+        currentLineCount: target.currentLineCount,
+        expansionGoal: target.expansionGoal,
+        concreteExpansionHints: target.concreteExpansionHints,
+        sourceQuotes: target.sourceQuotes,
+      })),
+      remainingTailCount: tailBatch.remainingTailCount,
+      requiredInput: "tailRepairs",
+    };
   }
   if (hasPendingAugmentedContent(workspace)) {
     return { mode: "await_augmented_confirmation" };
@@ -194,23 +201,13 @@ export function resumeAgentNextAction(
   return { mode: "inspect_blockers" };
 }
 
-function modelFacingEditInstruction(
-  target: ReturnType<typeof tailRepairBatch>["targets"][number],
-): AgentTailRepairTarget["editInstruction"] {
-  const currentCharacters = [...target.currentText].length;
-  const instruction = target.editInstruction;
-  const magnitude = instruction.direction === "hold"
-    ? 0
-    : Math.ceil(
-        (instruction.minimumCharacters + instruction.maximumCharacters) / 2,
-      );
-  const characterDelta = instruction.direction === "compact"
-    ? -magnitude
-    : magnitude;
-  return {
-    direction: instruction.direction,
-    currentCharacters,
-    characterDelta,
-    targetCharacters: Math.max(1, currentCharacters + characterDelta),
-  };
+export function tailRepairInstruction(
+  zeroProgressRounds: number,
+  expansionGoal = "补充一个具体方法、行动细节或证据支持的结果",
+  currentLineCount = 2,
+): string {
+  const retry = zeroProgressRounds > 0
+    ? "上一版未通过实测；请重组整句，把具体事实自然融入动作链，不要只在句尾追加抽象总结。"
+    : "";
+  return `${retry}基于 currentText 自然重写为唯一完整 bullet，本轮语义目标：${expansionGoal}。保持 currentText 当前实测的 ${currentLineCount} 行，不要增加或减少行数；无需计算字符或像素，宿主会用 Chromium 实测。先判断“必要背景、专业方法、具体行动、可验证结果”中哪个有来源但尚未表达，再把该环节自然融入成果链；来源缺少的环节可以省略。优先使用 concreteExpansionHints 或 sourceQuotes 支持的方法、对象、范围或交付物，保留原有事实、数字、对象和结果；不得编造或添加抽象结论。只提交一个 revisedText，禁止候选和多版本。`;
 }

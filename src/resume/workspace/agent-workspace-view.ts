@@ -7,11 +7,23 @@ import { resumeAgentNextAction } from "./agent-next-action.js";
 import { bulletCharacterTargets } from "./character-targets.js";
 import type { ResumeWorkspace } from "./types.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
+import { minimumResumeBulletCount } from "./bullet-count-rules.js";
 
 export interface WorkspaceOperationReceipt {
   status: "success" | "partial_success" | "rejected";
   appliedItemIds: string[];
-  rejectedItems: Array<{ itemId: string; reason: string }>;
+  rejectedItems: Array<{
+    itemId: string;
+    reason: string;
+    errors?: WorkspaceBulletValidationError[];
+  }>;
+}
+
+export interface WorkspaceBulletValidationError {
+  bulletIndex: number;
+  bulletId: string;
+  code: string;
+  message: string;
 }
 
 export function buildAgentWorkspaceView(
@@ -27,11 +39,13 @@ export function buildAgentWorkspaceView(
   const items = workspace.structure.sections.flatMap((section) =>
     section.items.map((item) => ({
       itemId: item.id,
+      sectionType: section.type,
       sourceExperienceId: item.source_experience_id,
       tier: workspace.itemTiers?.[item.id] ?? null,
       title: item.title,
       organization: item.organization,
       role: item.role,
+      rawText: item.raw_text,
       bullets: item.bullets.map((bullet) => {
         const source = provenance.get(bullet.id);
         return {
@@ -45,20 +59,19 @@ export function buildAgentWorkspaceView(
       }),
     })),
   );
-  const itemDiagnostics = items
-    .filter((item) => item.tier !== null)
-    .map((item) => {
-      const minimumRequired = item.tier === "main"
-        ? 3
-        : item.tier === "secondary" ? 2 : 0;
-      return {
+  const itemDiagnostics = items.flatMap((item) => {
+    const minimumRequired = minimumResumeBulletCount({
+      sectionType: item.sectionType, itemId: item.itemId,
+      ...(item.tier ? { tier: item.tier } : {}),
+    });
+    return minimumRequired ? [{
         itemId: item.itemId,
-        tier: item.tier,
+        tier: item.tier ?? "skills",
         bulletCount: item.bullets.length,
         minimumRequired,
         passed: item.bullets.length >= minimumRequired,
-      };
-    });
+    }] : [];
+  });
   const bulletDiagnostics = items.flatMap((item) =>
     item.bullets.map((bullet) => {
       const observed = measurement.get(bullet.bulletId);
@@ -177,12 +190,7 @@ export function buildAgentWorkspaceView(
   };
 }
 
-/**
- * Small authoritative receipt for iterative writes. The full source payload
- * remains in the create-workspace result and the full draft can be recovered
- * with get_resume_workspace; repeating both after every compile can exceed a
- * gateway prompt budget during an otherwise productive repair loop.
- */
+/** Compact receipt; full current content is recoverable through get_resume_workspace. */
 export function buildAgentWorkspaceReceipt(
   workspace: ResumeWorkspace,
   operation?: WorkspaceOperationReceipt,

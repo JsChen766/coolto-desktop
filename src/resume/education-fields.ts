@@ -1,10 +1,9 @@
-import type { ResumeSectionItem } from "../../../../resume/types.js";
+import type { ResumeSectionItem } from "./types.js";
 
 export interface PresentedEducationFields {
   school: string;
   degree: string;
   major: string;
-  college: string;
 }
 
 /** Adapts both historical degree-first records and canonical school-first records. */
@@ -20,7 +19,6 @@ export function educationFields(item: ResumeSectionItem): PresentedEducationFiel
       school: title,
       degree: roleParts.degree || (looksLikeDegree(role) ? role : ""),
       major: organization || roleParts.major,
-      college: role && !roleParts.degree ? role : "",
     };
   }
 
@@ -29,7 +27,6 @@ export function educationFields(item: ResumeSectionItem): PresentedEducationFiel
       school: organization,
       degree: titleParts.degree || roleParts.degree,
       major: titleParts.major || (roleParts.degree ? roleParts.major : title),
-      college: role && !roleParts.degree ? role : "",
     };
   }
 
@@ -37,11 +34,19 @@ export function educationFields(item: ResumeSectionItem): PresentedEducationFiel
     school: organization || title,
     degree: roleParts.degree,
     major: organization ? title : roleParts.major,
-    college: role && !roleParts.degree ? role : "",
   };
 }
 
 function splitDegreeAndMajor(value: string): { degree: string; major: string } {
+  const qualifiedChinese = value.match(
+    /^(.*?)(理学|工学|文学|法学|经济学|管理学|教育学|医学|农学|艺术学|哲学)(博士|硕士|学士)([（(].+[）)])?$/u,
+  );
+  if (qualifiedChinese) {
+    return {
+      degree: `${qualifiedChinese[2] ?? ""}${qualifiedChinese[3] ?? ""}`,
+      major: `${qualifiedChinese[1] ?? ""}${qualifiedChinese[4] ?? ""}`.trim(),
+    };
+  }
   const chinese = value.match(/^(.*?)(博士|硕士|学士|本科|专科)([（(].+[）)])?$/u);
   if (chinese) {
     return {

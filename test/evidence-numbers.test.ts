@@ -18,6 +18,10 @@ test("extractEvidenceNumbers: arabic numbers and units canonicalize", () => {
     "100000",
     "100000",
   ]);
+  assert.deepEqual(extractEvidenceNumbers("累计阅读 10 万+ / 100 K+"), [
+    "100000",
+    "100000",
+  ]);
   assert.deepEqual(extractEvidenceNumbers("$1.44 trillion"), ["1.44"]);
   assert.deepEqual(extractEvidenceNumbers("1.44 万亿美元"), ["1.44"]);
 });

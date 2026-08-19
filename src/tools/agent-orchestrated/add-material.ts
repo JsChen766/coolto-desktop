@@ -12,6 +12,7 @@ import type {
 } from "../../resume/workspace/types.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { applyCriticalSkillGate } from "../../resume/workspace/critical-skill-gate.js";
+import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
 
 const parameters = Type.Object({
   candidateId: Type.String({ minLength: 1 }),
@@ -75,6 +76,7 @@ export function createAddResumeMaterialTool(
       };
       delete resumedWorkspace.materialRequest;
       delete resumedWorkspace.pageFillProgress;
+      delete resumedWorkspace.tailRepairProgress;
       const updated = store.replace(
         applyCriticalSkillGate(resumedWorkspace),
         workspace.revision,
@@ -90,7 +92,10 @@ export function createAddResumeMaterialTool(
       };
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
-        details: payload,
+        details: {
+          ...payload,
+          loopGuardKey: resumeContentProgressKey(updated),
+        },
       };
     },
   };

@@ -65,10 +65,15 @@ function appendItem(
   section: HTMLElement,
   sourceItem: ResumeSectionItem,
   sectionType: ResumeSection["type"],
+  language: string,
 ): void {
   const article = element("article", "resume-document-item");
   article.dataset.itemId = sourceItem.id;
-  const presentation = presentResumeItem(sourceItem, sectionType);
+  const presentation = presentResumeItem(
+    sourceItem,
+    sectionType,
+    language,
+  );
   const primaryLine = element("div", "resume-document-entry-line");
   primaryLine.append(
     element("span", presentation.primary.primaryClass, presentation.primary.primary),
@@ -98,7 +103,21 @@ function appendItem(
     }
     article.append(secondaryLine);
   }
-  if (sourceItem.raw_text) {
+  if (presentation.tertiary) {
+    const tertiaryLine = element(
+      "div",
+      "resume-document-entry-line resume-document-entry-subline",
+    );
+    tertiaryLine.append(
+      element(
+        "span",
+        presentation.tertiary.primaryClass,
+        presentation.tertiary.primary,
+      ),
+    );
+    article.append(tertiaryLine);
+  }
+  if (sourceItem.raw_text && sectionType !== "education") {
     if (sectionType === "other" || sectionType === "skills") {
       throw new Error("Additional resume content requires evidence-bound bullets.");
     }
@@ -161,7 +180,7 @@ export function renderResume(
       ),
     );
     for (const sourceItem of sourceSection.items) {
-      appendItem(section, sourceItem, sourceSection.type);
+      appendItem(section, sourceItem, sourceSection.type, structure.language);
     }
     content.append(section);
   }

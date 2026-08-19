@@ -16,17 +16,25 @@ test("tool progress projects only bounded resume receipt facts", () => {
       nextAction: { mode: "batch_tail_repair", remainingTailCount: 12 },
       layout: { usageRatio: 0.934, pageCount: 1 },
       tailRepairFeedback: [
-        { bulletId: "a", selectedOptionIndex: 2, attempts: [{}, {}, {}] },
-        { bulletId: "b", attempts: [{}, {}] },
+        { bulletId: "a", status: "applied" },
+        { bulletId: "b", status: "rejected" },
       ],
       tailRepairDiagnostics: {
         requestedTargetCount: 2,
-        submittedCandidateCount: 5,
-        cachedCandidateCount: 3,
-        selectedCandidateCount: 1,
-        repairedTailCount: 1,
-        selectedFromCacheCount: 0,
-        retainedCandidateCount: 4,
+        measuredTargetCount: 2,
+        appliedTargetCount: 1,
+        passedTargetCount: 1,
+        progressedTargetCount: 0,
+        rejectedTargetCount: 1,
+        validationRejectedTargetCount: 1,
+        lineCountRejectedTargetCount: 0,
+        insufficientGainRejectedTargetCount: 0,
+        validationReasonCounts: {
+          unchangedOrRepeated: 1,
+          contentQuality: 0,
+          unsupportedEvidence: 0,
+          other: 0,
+        },
       },
       resume: { privateText: "must not enter the renderer event" },
     },
@@ -39,15 +47,46 @@ test("tool progress projects only bounded resume receipt facts", () => {
     pageCount: 1,
     remainingTailCount: 12,
     repairedTailCount: 1,
-    measuredCandidateCount: 5,
+    progressedTailCount: 0,
+    measuredTailCount: 2,
+    appliedTailCount: 1,
+    rejectedTailCount: 1,
+    validationRejectedTailCount: 1,
+    lineCountRejectedTailCount: 0,
+    insufficientGainRejectedTailCount: 0,
+    validationReasonCounts: {
+      unchangedOrRepeated: 1,
+      contentQuality: 0,
+      unsupportedEvidence: 0,
+      other: 0,
+    },
     requestedTargetCount: 2,
-    submittedCandidateCount: 5,
-    cachedCandidateCount: 3,
-    selectedCandidateCount: 1,
-    selectedFromCacheCount: 0,
-    retainedCandidateCount: 4,
   });
   assert.doesNotMatch(JSON.stringify(progress), /privateText/u);
+});
+
+test("tail progress exposes semantic expansion goals", () => {
+  const progress = projectToolProgress("apply_resume_content", {
+    details: {
+      readiness: { ready: false },
+      nextAction: {
+        mode: "batch_tail_repair",
+        remainingTailCount: 1,
+        tailRepairTargets: [{
+          requiredEdit: "必须把 currentText 写长",
+          bulletId: "bullet-1",
+          currentText: "一".repeat(70),
+          expansionGoal: "补充有来源支持的具体方法或结果",
+          sourceQuotes: [],
+        }],
+      },
+    },
+  });
+
+  assert.deepEqual(progress?.nextTailTargets, [{
+    bulletId: "bullet-1",
+    expansionGoal: "补充有来源支持的具体方法或结果",
+  }]);
 });
 
 test("tool progress labels describe factual generation milestones", () => {
@@ -57,7 +96,7 @@ test("tool progress labels describe factual generation milestones", () => {
   );
   assert.equal(
     startedToolProgressLabel("apply_resume_content", { tailRepairs: [{}] }),
-    "正在批量实测尾行改写候选",
+    "正在批量实测尾行改写",
   );
   assert.equal(
     startedToolProgressLabel("apply_resume_content", { lineRewrites: [{}] }),
@@ -73,7 +112,7 @@ test("tool progress labels describe factual generation milestones", () => {
       usageRatio: 0.934,
       remainingTailCount: 12,
       repairedTailCount: 1,
-      measuredCandidateCount: 5,
+      measuredTailCount: 2,
     }),
     "已修复 1 条尾行，页面占用率 93.4%，剩余 12 条",
   );
@@ -176,16 +215,16 @@ test("rewrite diagnostics keep the completed operation phase during transition",
   );
 });
 
-test("tail progress never claims that zero candidates were measured", () => {
+test("tail progress does not report a zero-measurement batch", () => {
   assert.equal(
     completedToolProgressLabel({
       phase: "tail_repair",
       usageRatio: 0.932,
       remainingTailCount: 9,
       repairedTailCount: 0,
-      measuredCandidateCount: 0,
+      measuredTailCount: 0,
     }),
-    "页面占用率 93.2%，正在准备下一批尾行候选，剩余 9 条",
+    "页面占用率 93.2%，正在准备下一批尾行改写，剩余 9 条",
   );
 });
 
@@ -196,10 +235,42 @@ test("tail progress reports formally applied intermediate improvements", () => {
       usageRatio: 0.986,
       remainingTailCount: 14,
       repairedTailCount: 0,
-      advancedCandidateCount: 9,
-      measuredCandidateCount: 14,
+      progressedTailCount: 9,
+      measuredTailCount: 14,
     }),
     "已推进 9 条尾行修订，页面占用率 98.6%，剩余 14 条",
+  );
+});
+
+test("tail progress counts remaining violations after the next action changes", () => {
+  const progress = projectToolProgress("apply_resume_content", {
+    details: {
+      revision: 15,
+      readiness: { ready: false },
+      nextAction: { mode: "request_more_material" },
+      layout: {
+        usageRatio: 0.9941,
+        pageCount: 1,
+        violations: Array.from({ length: 13 }, (_, index) => ({
+          code: "bullet_tail_too_short",
+          bulletId: `tail-${index + 1}`,
+        })),
+      },
+      tailRepairDiagnostics: {
+        requestedTargetCount: 17,
+        measuredTargetCount: 17,
+        appliedTargetCount: 4,
+        passedTargetCount: 4,
+        progressedTargetCount: 0,
+        rejectedTargetCount: 13,
+      },
+    },
+  });
+
+  assert.equal(progress?.remainingTailCount, 13);
+  assert.equal(
+    completedToolProgressLabel(progress),
+    "已修复 4 条尾行，页面占用率 99.4%，剩余 13 条",
   );
 });
 

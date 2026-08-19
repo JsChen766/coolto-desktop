@@ -2,6 +2,7 @@ import type { CurrentResumeStructure } from "./types.js";
 import { qualifiedEnglish } from "./fixtures/en-qualified.js";
 import {
   additionalContentQualified,
+  educationDetailsQualified,
   longContactQualified,
   markdownQualified,
   mixed,
@@ -18,6 +19,7 @@ export const RESUME_FIXTURES = {
   "markdown-qualified": markdownQualified(),
   "long-contact-qualified": longContactQualified(),
   "additional-content-qualified": additionalContentQualified(),
+  "education-details-qualified": educationDetailsQualified(),
   underfilled: underfilled(),
   "tail-failure": tailFailure(),
   overflow: overflow(),

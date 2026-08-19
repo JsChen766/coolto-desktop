@@ -8,6 +8,7 @@ import {
   MAX_TIERED_BULLET_LINES,
   MIN_TIERED_BULLET_LINES,
 } from "./bullet-depth-targets.js";
+import { minimumResumeBulletCount } from "./bullet-count-rules.js";
 
 /** Real-layout capacity for the Agent's next whole-page writing batch. */
 export function wholePageWritingBudget(workspace: ResumeWorkspace): object {
@@ -30,11 +31,13 @@ export function wholePageWritingBudget(workspace: ResumeWorkspace): object {
   const itemMinimums = workspace.structure.sections.flatMap((section) =>
     section.items.flatMap((item) => {
       const tier = workspace.itemTiers?.[item.id];
-      if (!tier) return [];
-      const minimumBulletCount = tier === "main" ? 3 : tier === "secondary" ? 2 : 0;
+      const minimumBulletCount = minimumResumeBulletCount({
+        sectionType: section.type, itemId: item.id, ...(tier ? { tier } : {}),
+      });
+      if (!minimumBulletCount) return [];
       return [{
         itemId: item.id,
-        tier,
+        tier: tier ?? "skills",
         currentBulletCount: item.bullets.length,
         minimumBulletCount,
         remainingMinimumBullets: Math.max(

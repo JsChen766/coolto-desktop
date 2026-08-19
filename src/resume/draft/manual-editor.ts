@@ -84,14 +84,18 @@ function editRawText(
   text: string,
 ) {
   const structure = structuredClone(source.structure);
-  const item = structure.sections
-    .flatMap((section) => section.items)
-    .find((candidate) => candidate.id === itemId);
-  if (!item) {
+  const section = structure.sections.find((candidate) =>
+    candidate.items.some((item) => item.id === itemId),
+  );
+  const item = section?.items.find((candidate) => candidate.id === itemId);
+  if (!section || !item) {
     throw new ResumeWorkspaceError(
       "item_not_found",
       `Item ${itemId} was not found.`,
     );
+  }
+  if (section.type === "education") {
+    throw new Error("教育信息来自经历库，不能在单份简历中修改");
   }
   item.raw_text = text;
   return { structure, bindings: structuredClone(source.bindings) };

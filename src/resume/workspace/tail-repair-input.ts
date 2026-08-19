@@ -1,172 +1,115 @@
-import { extractEvidenceNumbers } from "../evidence-numbers.js";
 import { buildValidatedBullet } from "./agent-content-validation.js";
-import type { TailRepairOptionKind } from "./tail-repair-plan.js";
-import { tailRepairOptionFingerprint } from "./tail-repair-state.js";
-import { tailRepairWorkingState } from "./tail-repair-working-state.js";
+import { extractEvidenceNumbers } from "../evidence-numbers.js";
+import {
+  tailRepairTextFingerprint,
+  wasLastRejectedTailText,
+} from "./tail-repair-state.js";
+import { tailRepairBatch } from "./tail-repair-targets.js";
 import type { ResumeWorkspace } from "./types.js";
-
-export interface TailModifierInput {
-  text: string;
-  requirementIds?: readonly string[];
-}
 
 export interface TailRepairInput {
   bulletId: string;
-  revisedText?: string;
-  augmentedModifier?: TailModifierInput;
+  revisedText: string;
 }
 
-export interface RepairOption {
+export interface TailRepairSubmission {
   bulletId: string;
-  text: string;
-  kind: TailRepairOptionKind;
-  baseText?: string;
-  fragmentText?: string;
-  requirementIds?: string[];
-}
-
-export interface RepairTarget {
-  bulletId: string;
-  sourceText: string;
-  sourceLineCount: number;
   currentText: string;
   currentLineCount: number;
   currentLastLineRatio: number;
-  role: "repair" | "page_balance";
-  options: RepairOption[];
+  revisedText: string;
+  textFingerprint: string;
 }
 
-export interface RejectedRepairTarget {
+export interface RejectedTailRepairSubmission {
   bulletId: string;
-  role: "repair" | "page_balance";
   reason: string;
+  textFingerprint: string;
 }
 
-export interface NormalizedTailRepairTargets {
-  targets: RepairTarget[];
-  rejected: RejectedRepairTarget[];
-}
-
-export function normalizeTailRepairTargets(
+export function normalizeTailRepairInputs(
   workspace: ResumeWorkspace,
   inputs: readonly TailRepairInput[],
-): NormalizedTailRepairTargets {
+): {
+  submissions: TailRepairSubmission[];
+  rejected: RejectedTailRepairSubmission[];
+} {
   const texts = currentBulletTexts(workspace);
   const measurements = new Map(
     workspace.compileResult.bullets.map((entry) => [entry.bulletId, entry]),
   );
-  const requirements = new Set(
-    workspace.sourceSnapshot.jd.requirements.map((entry) => entry.id),
-  );
   const seenIds = new Set<string>();
   const seenTexts = new Set<string>();
-  const rejected: RejectedRepairTarget[] = [];
-  const targets = inputs.flatMap((input) => {
-    const observed = measurements.get(input.bulletId);
-    const role = observed?.passed ? "page_balance" as const : "repair" as const;
+  const targets = new Map(tailRepairBatch(workspace).targets.map((target) => [
+    target.bulletId,
+    target,
+  ]));
+  const rejected: RejectedTailRepairSubmission[] = [];
+  const submissions = inputs.flatMap((input) => {
+    const revisedText = input.revisedText.trim();
+    const textFingerprint = tailRepairTextFingerprint(revisedText);
     try {
-      if (seenIds.has(input.bulletId)) throw new Error(`bullet ${input.bulletId} 重复`);
+      if (seenIds.has(input.bulletId)) {
+        throw new Error(`bullet ${input.bulletId} 在本批次中重复`);
+      }
       seenIds.add(input.bulletId);
-      const sourceText = texts.get(input.bulletId);
-      if (!sourceText || !observed) {
-        throw new Error(`bullet ${input.bulletId} 缺少当前文本或测量`);
+      const currentText = texts.get(input.bulletId);
+      const observed = measurements.get(input.bulletId);
+      if (!currentText || !observed) {
+        throw new Error(`bullet ${input.bulletId} 缺少当前正式文本或测量`);
       }
-      const working = tailRepairWorkingState(
-        workspace,
+      if (!revisedText) {
+        throw new Error(`bullet ${input.bulletId} revisedText 不能为空`);
+      }
+      if (normalized(revisedText) === normalized(currentText)) {
+        throw new Error(
+          `bullet ${input.bulletId} revisedText 必须修改当前正式文本；当前与提交均为 ${[
+            ...currentText,
+          ].length} 字`,
+        );
+      }
+      if ([...revisedText].length < [...currentText].length) {
+        throw new Error(
+          `bullet ${input.bulletId} 不能删减当前内容；请保留事实后自然重组或扩写`,
+        );
+      }
+      const target = targets.get(input.bulletId);
+      if (!target) {
+        throw new Error(`bullet ${input.bulletId} 不在当前尾行修复目标中`);
+      }
+      assertPreservedNumbers(input.bulletId, currentText, revisedText);
+      if (seenTexts.has(textFingerprint)) {
+        throw new Error(`bullet ${input.bulletId} 与本批其他改写文本重复`);
+      }
+      seenTexts.add(textFingerprint);
+      if (wasLastRejectedTailText(
+        workspace.tailRepairProgress,
         input.bulletId,
-        sourceText,
-        observed,
-      );
-      const hasRevision = Boolean(input.revisedText?.trim());
-      const hasAugmentation = Boolean(input.augmentedModifier?.text.trim());
-      if (hasRevision === hasAugmentation) {
+        revisedText,
+      )) {
         throw new Error(
-          `bullet ${input.bulletId} 必须且只能提供 revisedText 或 augmentedModifier`,
+          `bullet ${input.bulletId} 的 revisedText 已经提交过且没有进展，请基于当前正式文本重新修改`,
         );
       }
-      const option = hasRevision
-        ? revisedOption(input.bulletId, working.text, input.revisedText!)
-        : augmentedOption(
-            input.bulletId,
-            working.text,
-            input.augmentedModifier!,
-            requirements,
-          );
-      if (normalized(option.text) === normalized(working.text)) return [];
-      const fingerprint = tailRepairOptionFingerprint(option.text);
-      if (seenTexts.has(fingerprint)) {
-        throw new Error(`bullet ${input.bulletId} 与本批其他修订文本重复`);
-      }
-      seenTexts.add(fingerprint);
-      const attempted = new Set((workspace.tailRepairRetry?.attempts ?? [])
-        .filter((attempt) => attempt.bulletId === input.bulletId)
-        .map((attempt) => attempt.optionFingerprint));
-      if (attempted.has(fingerprint)) {
-        throw new Error(
-          `bullet ${input.bulletId} 的修订文本已经实测，请基于当前文本继续修改`,
-        );
-      }
-      validateBeforeMeasurement(workspace, input.bulletId, option.text);
+      validateBeforeMeasurement(workspace, input.bulletId, revisedText);
       return [{
         bulletId: input.bulletId,
-        sourceText,
-        sourceLineCount: observed.lineCount,
-        currentText: working.text,
-        currentLineCount: working.lineCount,
-        currentLastLineRatio: working.lastLineRatio,
-        role,
-        options: [option],
+        currentText,
+        currentLineCount: observed.lineCount,
+        currentLastLineRatio: observed.lastLineRatio,
+        revisedText,
+        textFingerprint,
       }];
     } catch (error: unknown) {
       rejected.push({
         bulletId: input.bulletId,
-        role,
         reason: error instanceof Error ? error.message : String(error),
+        textFingerprint,
       });
       return [];
     }
   });
-  return { targets, rejected };
-}
-
-function revisedOption(
-  bulletId: string,
-  currentText: string,
-  rawText: string,
-): RepairOption {
-  const text = rawText.trim();
-  return {
-    bulletId,
-    text,
-    kind: [...text].length < [...currentText].length
-      ? "compact"
-      : "grounded_rewrite",
-  };
-}
-
-function augmentedOption(
-  bulletId: string,
-  currentText: string,
-  modifier: TailModifierInput,
-  requirements: ReadonlySet<string>,
-): RepairOption {
-  const fragmentText = modifier.text.trim();
-  const ids = [...new Set(modifier.requirementIds ?? [])];
-  if (!ids.length || ids.some((id) => !requirements.has(id))) {
-    throw new Error(`bullet ${bulletId} augmentedModifier 必须引用当前 JD requirementIds`);
-  }
-  if (extractEvidenceNumbers(fragmentText).length ||
-    fragmentText.toLocaleLowerCase().includes("xx")) {
-    throw new Error(`bullet ${bulletId} augmentedModifier 不得新增数字或 XX`);
-  }
-  return {
-    bulletId,
-    text: `${currentText}${fragmentText}`,
-    kind: "augmented_modifier",
-    baseText: currentText,
-    fragmentText,
-    requirementIds: ids,
-  };
+  return { submissions, rejected };
 }
 
 function validateBeforeMeasurement(
@@ -203,7 +146,25 @@ function validateBeforeMeasurement(
       return;
     }
   }
-  throw new Error(`bullet ${bulletId} 缺少来源记录，不能修订`);
+  throw new Error(`bullet ${bulletId} 缺少来源记录，不能修改`);
+}
+
+function assertPreservedNumbers(
+  bulletId: string,
+  currentText: string,
+  revisedText: string,
+): void {
+  const revisedNumbers = new Set(extractEvidenceNumbers(revisedText));
+  const missing = extractEvidenceNumbers(currentText).filter(
+    (value) => !revisedNumbers.has(value),
+  );
+  if (missing.length) {
+    throw new Error(
+      `bullet ${bulletId} 的语义扩写必须保留原有数字：${[
+        ...new Set(missing),
+      ].join("、")}`,
+    );
+  }
 }
 
 function currentBulletTexts(workspace: ResumeWorkspace): Map<string, string> {

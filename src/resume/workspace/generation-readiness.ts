@@ -4,6 +4,7 @@ import { pendingAugmentedContent } from "./augmentation-state.js";
 import { missingCriticalSkillEvidence } from "./critical-skill-gate.js";
 import { bulletDepthRewriteTargets } from "./bullet-depth-targets.js";
 import { findResumePaddingIssue } from "../planning/text-padding.js";
+import { minimumResumeBulletCount } from "./bullet-count-rules.js";
 
 export type ResumeGenerationBlockerCode =
   | "layout_not_current"
@@ -102,11 +103,15 @@ export function resumeGenerationReadiness(
           itemId: item.id,
         });
       }
-      const minimum = tier === "main" ? 3 : tier === "secondary" ? 2 : 0;
+      const minimum = minimumResumeBulletCount({
+        sectionType: section.type,
+        itemId: item.id,
+        ...(tier ? { tier } : {}),
+      });
       if (item.bullets.length < minimum) {
         blockers.push({
           code: "bullet_count_too_low",
-          message: `${tier} 经历至少需要 ${minimum} 条 bullet`,
+          message: `${tier ?? section.type} 内容至少需要 ${minimum} 条 bullet`,
           itemId: item.id,
         });
       }

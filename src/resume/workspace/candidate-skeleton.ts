@@ -8,6 +8,7 @@ import {
   RESUME_DEFAULT_TARGET_USAGE_RATIO,
   RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
 } from "../compiler-types.js";
+import { projectEducationRawText } from "../education-details.js";
 import { compareEducation } from "../education-order.js";
 import { ResumeWorkspaceError } from "./errors.js";
 import type { ResumeCandidateLanguage } from "./types.js";
@@ -15,6 +16,7 @@ import {
   collectSkillEvidence,
   resumeSectionRegistry,
 } from "./section-registry.js";
+import { compareResumeExperienceRecency } from "./experience-recency.js";
 
 export function buildResumeSkeleton(
   snapshot: ResumeSourceSnapshot,
@@ -36,6 +38,7 @@ export function buildResumeSkeleton(
       definition.heading,
       definition.experiences,
       ordered,
+      language,
     ),
   );
   return {
@@ -116,11 +119,27 @@ function createSection(
   heading: string,
   experiences: readonly ResumeSourceExperienceSnapshot[],
   allOrdered: readonly ResumeSourceExperienceSnapshot[],
+  language: ResumeCandidateLanguage,
 ): ResumeSection {
   if (type === "skills" && !experiences.length) {
     return { id, type, heading, items: synthesizeSkillItems(allOrdered) };
   }
-  return { id, type, heading, items: experiences.map(createItem) };
+  return {
+    id,
+    type,
+    heading,
+    items: orderSectionExperiences(type, experiences)
+      .map((experience) => createItem(experience, language)),
+  };
+}
+
+function orderSectionExperiences(
+  type: ResumeSection["type"],
+  experiences: readonly ResumeSourceExperienceSnapshot[],
+): ResumeSourceExperienceSnapshot[] {
+  return type === "experience" || type === "project"
+    ? [...experiences].sort(compareResumeExperienceRecency)
+    : [...experiences];
 }
 
 /**
@@ -159,7 +178,10 @@ function synthesizeSkillItems(
   ];
 }
 
-function createItem(experience: ResumeSourceExperienceSnapshot): ResumeSectionItem {
+function createItem(
+  experience: ResumeSourceExperienceSnapshot,
+  language: ResumeCandidateLanguage,
+): ResumeSectionItem {
   return {
     id: `item-${experience.id}`,
     title: experience.title,
@@ -170,6 +192,8 @@ function createItem(experience: ResumeSourceExperienceSnapshot): ResumeSectionIt
     end_date: experience.endDate,
     source_experience_id: experience.id,
     bullets: [],
-    raw_text: null,
+    raw_text: experience.category === "education"
+      ? projectEducationRawText(experience.content, language)
+      : null,
   };
 }

@@ -7,26 +7,27 @@ import {
   RESUME_AUGMENTED_CONFIRM_ACTION_TYPE,
 } from "../../resume/confirmation/augmented-approval.js";
 import { applyAgentResumeContent } from "../../resume/workspace/agent-content-applier.js";
-import type { AgentAugmentedFragmentInput } from "../../resume/workspace/agent-content-types.js";
 import { hasPendingAugmentedContent } from "../../resume/workspace/augmentation-state.js";
 import { buildAgentWorkspaceReceipt } from "../../resume/workspace/agent-workspace-view.js";
-import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
 import { resumeAgentNextAction } from "../../resume/workspace/agent-next-action.js";
 import { resumeWriteRejection } from "../../resume/workspace/agent-write-rejection.js";
 import { selectLineRewrites } from "../../resume/workspace/line-rewrite-selector.js";
-import { narrowTailRepairBatch } from "../../resume/workspace/tail-repair-targets.js";
-import type { TailRepairAttemptRecord } from "../../resume/workspace/tail-repair-state.js";
 import {
-  selectTailRepairPlan,
-  type TailRepairSelectionDiagnostics,
-  type TailRepairTargetFeedback,
-} from "../../resume/workspace/tail-repair-selector.js";
+  processTailRepairBatch,
+  type TailRepairDiagnostics,
+  type TailRepairFeedback,
+} from "../../resume/workspace/tail-repair-processor.js";
+import type { TailRepairProgressState } from "../../resume/workspace/tail-repair-state.js";
+import { workspaceWithTailRepairProgress } from "../../resume/workspace/tail-repair-workspace.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { resolveResumeContentChanges } from "./content-change-resolver.js";
 import { resumeWriteRejectedResult } from "./resume-write-rejected-result.js";
 import { applyContentParameters as parameters } from "./apply-content-parameters.js";
 import { recordPageFillOutcome } from "../../resume/workspace/page-fill-progress.js";
+import { resumeWriteResultForModel } from "./resume-write-result-for-model.js";
+import { resumeWriteLoopGuardKey } from
+  "../../resume/workspace/resume-write-loop-key.js";
 
 export function createApplyResumeContentTool(
   compiler: ResumeCompiler,
@@ -66,16 +67,15 @@ export function createApplyResumeContentTool(
       }
       let resolved: Parameters<typeof resolveResumeContentChanges>[1] = params;
       let rewriteWarning: string | undefined;
-      let tailRepairFeedback: TailRepairTargetFeedback[] | undefined;
-      let selectedTailDiagnostics: TailRepairSelectionDiagnostics | undefined;
-      let augmentations: AgentAugmentedFragmentInput[] = [];
-      let tailRepairAttempts: TailRepairAttemptRecord[] | undefined;
+      let tailRepairFeedback: TailRepairFeedback[] | undefined;
+      let tailRepairDiagnostics: TailRepairDiagnostics | undefined;
+      let tailRepairProgress: TailRepairProgressState | undefined;
       let lineRewriteDiagnostics;
       let pageFillProgressMade: boolean | undefined;
       if (params.tailRepairs) {
-        let selected;
+        let processed;
         try {
-          selected = await selectTailRepairPlan(
+          processed = await processTailRepairBatch(
             workspace,
             params.tailRepairs,
             compiler,
@@ -86,30 +86,25 @@ export function createApplyResumeContentTool(
             error instanceof Error ? error.message : String(error),
           );
         }
-        tailRepairFeedback = selected.feedback;
-        selectedTailDiagnostics = selected.diagnostics;
-        if (!selected.updates.length) {
+        tailRepairFeedback = processed.feedback;
+        tailRepairDiagnostics = processed.diagnostics;
+        tailRepairProgress = processed.progress;
+        if (!processed.updates.length) {
           const retryWorkspace = store.replace(
-            narrowTailRepairBatch(
-              workspace,
-              selected.attemptRecords,
-              selected.allowedNetLineDelta,
-            ),
+            workspaceWithTailRepairProgress(workspace, processed.progress),
             workspace.revision,
           );
           return resumeWriteRejectedResult(
             retryWorkspace,
-            selected.writeRejectedReason ?? "tailRepairs 未命中真实排版",
+            processed.writeRejectedReason ?? "tailRepairs 没有产生真实尾行进展",
             {
               tailRepairFeedback,
-              tailRepairDiagnostics: selected.diagnostics,
+              tailRepairDiagnostics: processed.diagnostics,
             },
           );
         }
-        rewriteWarning = selected.writeRejectedReason;
-        augmentations = selected.augmentations;
-        tailRepairAttempts = selected.attemptRecords;
-        resolved = { bulletUpdates: selected.updates };
+        rewriteWarning = processed.writeRejectedReason;
+        resolved = { bulletUpdates: processed.updates };
       }
       if (params.lineRewrites) {
         const selected = await selectLineRewrites(
@@ -152,11 +147,23 @@ export function createApplyResumeContentTool(
           error instanceof Error ? error.message : String(error),
         );
       }
+      if (action.mode === "repair_bullet_counts") {
+        const supplied = new Set(items.map((item) => item.itemId));
+        const missing = action.itemIds.filter((itemId) => !supplied.has(itemId));
+        const attemptsCountRepair = action.itemIds.some((itemId) =>
+          supplied.has(itemId)
+        );
+        if (attemptsCountRepair && missing.length) {
+          return resumeWriteRejectedResult(
+            workspace,
+            `repair_bullet_counts 必须在一次 items 调用中覆盖全部 itemTargets；missing=${missing.join(",")}`,
+          );
+        }
+      }
       const applied = await applyAgentResumeContent({
         workspace,
         items,
-        augmentations,
-        ...(tailRepairAttempts ? { tailRepairAttempts } : {}),
+        ...(tailRepairProgress ? { tailRepairProgress } : {}),
         compiler,
         store,
         pageFillAttempt,
@@ -185,8 +192,8 @@ export function createApplyResumeContentTool(
           : {}),
         ...(rewriteWarning ? { rewriteWarning } : {}),
         ...(tailRepairFeedback ? { tailRepairFeedback } : {}),
-        ...(params.tailRepairs && selectedTailDiagnostics
-          ? { tailRepairDiagnostics: selectedTailDiagnostics }
+        ...(params.tailRepairs && tailRepairDiagnostics
+          ? { tailRepairDiagnostics }
           : {}),
         ...(params.lineRewrites && lineRewriteDiagnostics
           ? { lineRewriteDiagnostics }
@@ -194,10 +201,16 @@ export function createApplyResumeContentTool(
         ...(approvalRequestId ? { approvalRequestId } : {}),
       };
       return {
-        content: [{ type: "text", text: JSON.stringify(result) }],
+        content: [{
+          type: "text",
+          text: JSON.stringify(resumeWriteResultForModel(result)),
+        }],
         details: {
           ...result,
-          loopGuardKey: resumeContentProgressKey(applied.workspace),
+          loopGuardKey: resumeWriteLoopGuardKey(
+            applied.workspace,
+            applied.operation,
+          ),
         },
       };
     },

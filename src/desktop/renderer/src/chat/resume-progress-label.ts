@@ -31,16 +31,16 @@ export function completedToolProgressLabel(
           `${usage ? `，页面占用率 ${usage}` : ""}` +
           `，剩余 ${progress.remainingTailCount ?? 0} 条`;
       }
-      if ((progress.advancedCandidateCount ?? 0) > 0) {
-        return `已推进 ${progress.advancedCandidateCount} 条尾行修订` +
+      if ((progress.progressedTailCount ?? 0) > 0) {
+        return `已推进 ${progress.progressedTailCount} 条尾行修订` +
           `${usage ? `，页面占用率 ${usage}` : ""}` +
           `，剩余 ${progress.remainingTailCount ?? 0} 条`;
       }
-      if (!(progress.measuredCandidateCount ?? 0)) {
+      if (!(progress.measuredTailCount ?? 0)) {
         return `${usage ? `页面占用率 ${usage}，` : ""}` +
-          `正在准备下一批尾行候选，剩余 ${progress.remainingTailCount ?? 0} 条`;
+          `正在准备下一批尾行改写，剩余 ${progress.remainingTailCount ?? 0} 条`;
       }
-      return `已实测 ${progress.measuredCandidateCount ?? 0} 个尾行候选` +
+      return `已实测 ${progress.measuredTailCount ?? 0} 条尾行改写` +
         `${usage ? `，页面占用率 ${usage}` : ""}` +
         `，正在按反馈调整剩余 ${progress.remainingTailCount ?? 0} 条`;
     case "depth_repair": {
@@ -83,7 +83,7 @@ function applyStartedLabel(args: unknown): string {
   const value = args && typeof args === "object"
     ? args as Record<string, unknown>
     : {};
-  if (Array.isArray(value.tailRepairs)) return "正在批量实测尾行改写候选";
+  if (Array.isArray(value.tailRepairs)) return "正在批量实测尾行改写";
   if (Array.isArray(value.bulletRemovals)) return "正在移除一条低价值 bullet 并重新排版";
   if (Array.isArray(value.lineRewrites)) return "正在批量扩写 bullet 并重新排版";
   if (Array.isArray(value.bulletAdditions)) {

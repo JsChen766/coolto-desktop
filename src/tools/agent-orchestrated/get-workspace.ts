@@ -2,6 +2,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import { buildAgentSourceView } from "../../resume/workspace/agent-source-view.js";
+import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
 import { buildAgentWorkspaceView } from "../../resume/workspace/agent-workspace-view.js";
 import { ResumeWorkspaceError } from "../../resume/workspace/errors.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
@@ -31,7 +32,10 @@ export function createGetResumeWorkspaceTool(
       };
       return {
         content: [{ type: "text", text: JSON.stringify(payload) }],
-        details: payload,
+        details: {
+          ...payload,
+          loopGuardKey: resumeContentProgressKey(workspace),
+        },
       };
     },
   };

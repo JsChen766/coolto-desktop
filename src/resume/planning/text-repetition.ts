@@ -15,11 +15,27 @@ export function findRepeatedFragment(
     const seen = new Set<string>();
     for (let index = 0; index + window <= chars.length; index += 1) {
       const fragment = chars.slice(index, index + window).join("");
+      if (!isCompleteAsciiFragment(chars, index, window, fragment)) continue;
       if (seen.has(fragment)) return fragment;
       seen.add(fragment);
     }
   }
   return null;
+}
+
+function isCompleteAsciiFragment(
+  chars: string[],
+  index: number,
+  window: number,
+  fragment: string,
+): boolean {
+  if (!/^[\x00-\x7F]+$/u.test(fragment)) return true;
+  const startsInsideWord = index > 0 && /[A-Za-z0-9]/u.test(chars[index - 1]!) &&
+    /[A-Za-z0-9]/u.test(chars[index]!);
+  const end = index + window;
+  const endsInsideWord = end < chars.length && /[A-Za-z0-9]/u.test(chars[end - 1]!) &&
+    /[A-Za-z0-9]/u.test(chars[end]!);
+  return !startsInsideWord && !endsInsideWord;
 }
 
 /**

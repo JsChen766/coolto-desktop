@@ -1,6 +1,10 @@
 import type { ResumeContact, ResumeSection, ResumeSectionItem } from "../../../../resume/types.js";
+import {
+  extractEducationDetails,
+  presentEducationSupplement,
+} from "../../../../resume/education-details.js";
+import { educationFields } from "../../../../resume/education-fields.js";
 import { safeContactLink } from "./contact-link.js";
-import { educationFields } from "./education-fields.js";
 
 const SECTION_ORDER: Readonly<Record<string, number>> = {
   education: 0, experience: 1, project: 2, other: 3, skill: 4, skills: 4,
@@ -20,14 +24,17 @@ export interface ResumePresentedLine {
 export interface ResumeItemPresentation {
   primary: ResumePresentedLine;
   secondary?: ResumePresentedLine;
+  tertiary?: ResumePresentedLine;
 }
 
 /** Keeps template field meanings outside the shared DOM renderer. */
 export function presentResumeItem(
   item: ResumeSectionItem,
   sectionType: ResumeSection["type"],
+  language = "en-US",
 ): ResumeItemPresentation {
-  if (sectionType === "education") return presentEducation(item);
+  if (sectionType === "education") return presentEducation(item, language);
+  if (sectionType === "experience") return presentWork(item);
   const secondary = optionalLine(
     item.role ?? "",
     splitOrganizationLocation(item).location,
@@ -69,15 +76,43 @@ export function orderResumeSections(
     .filter((section) => section.type !== "summary");
 }
 
-function presentEducation(item: ResumeSectionItem): ResumeItemPresentation {
+function presentEducation(
+  item: ResumeSectionItem,
+  language: string,
+): ResumeItemPresentation {
   const fields = educationFields(item);
+  const supplemental = presentEducationSupplement(
+    extractEducationDetails(item.raw_text),
+    language,
+  );
   const secondary = optionalLine(
-    join(fields.major, fields.college),
+    join(fields.major, supplemental.performance),
     (item.location ?? "").trim(),
+    "resume-document-entry-secondary",
+  );
+  const tertiary = optionalLine(
+    supplemental.coursework,
+    "",
     "resume-document-entry-secondary",
   );
   return {
     primary: line(join(fields.school, fields.degree), dateRange(item), "resume-document-entry-primary"),
+    ...(secondary ? { secondary } : {}),
+    ...(tertiary ? { tertiary } : {}),
+  };
+}
+
+function presentWork(item: ResumeSectionItem): ResumeItemPresentation {
+  const { organization, location } = splitOrganizationLocation(item);
+  const position = (item.title ?? item.role ?? "").trim();
+  const company = organization || position;
+  const secondary = optionalLine(
+    organization ? position : "",
+    location,
+    "resume-document-entry-secondary",
+  );
+  return {
+    primary: line(company, dateRange(item), "resume-document-entry-primary"),
     ...(secondary ? { secondary } : {}),
   };
 }

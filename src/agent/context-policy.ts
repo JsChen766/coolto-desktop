@@ -91,7 +91,12 @@ export async function compactResumeGenerationContext(
           managedResultIds.has(part.id) &&
           !retainedResultIds.has(part.id)
         ) continue;
-        content.push(structuredClone(part));
+        const cloned = structuredClone(part);
+        if (cloned.type === "toolCall" &&
+          cloned.name === "apply_resume_content") {
+          cloned.arguments = compactTailRepairArguments(cloned.arguments);
+        }
+        content.push(cloned);
       }
       if (content.length) compacted.push({ ...structuredClone(message), content });
     }
@@ -99,6 +104,31 @@ export async function compactResumeGenerationContext(
   } catch {
     return messages;
   }
+}
+
+function compactTailRepairArguments(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!Array.isArray(value.tailRepairs)) return value;
+  return {
+    ...(typeof value.candidateId === "string"
+      ? { candidateId: value.candidateId }
+      : {}),
+    ...(typeof value.expectedRevision === "number"
+      ? { expectedRevision: value.expectedRevision }
+      : {}),
+    historicalTailSubmission: {
+      bulletIds: value.tailRepairs.flatMap((entry) => {
+        const candidate = entry && typeof entry === "object"
+          ? entry as Record<string, unknown>
+          : undefined;
+        return typeof candidate?.bulletId === "string"
+          ? [candidate.bulletId]
+          : [];
+      }),
+      supersededByFollowingToolResult: true,
+    },
+  };
 }
 
 function isManagedTool(toolName: string): boolean {

@@ -16,8 +16,8 @@ const pdfPageImageBase = join(artifactDirectory, "qualified-pdf-page");
 const pdfPageScreenshotPath = `${pdfPageImageBase}.png`;
 const g6PdfPath = join(artifactDirectory, "g6-export.pdf");
 const fixtureIds = [
-  "zh-qualified",
-  "zh-qualified",
+  "education-details-qualified",
+  "education-details-qualified",
   "en-qualified",
   "mixed-qualified",
   "markdown-qualified",
@@ -29,18 +29,20 @@ const fixtureIds = [
 ];
 
 await new Promise((resolve, reject) => {
+  const childEnv = { ...process.env };
+  delete childEnv.ELECTRON_RUN_AS_NODE;
   const child = spawn(electron, ["."], {
     cwd: process.cwd(),
     stdio: ["ignore", "inherit", "inherit"],
     env: {
-      ...process.env,
+      ...childEnv,
       COOLTO_RESUME_QA: "1",
       COOLTO_RESUME_QA_QUIET: "1",
       COOLTO_RESUME_QA_FIXTURES: fixtureIds.join(","),
       COOLTO_RESUME_QA_RESULT_PATH: resultPath,
       COOLTO_RESUME_QA_PDF_PATH: pdfPath,
       COOLTO_RESUME_QA_SCREENSHOT_PATH: screenshotPath,
-      COOLTO_RESUME_QA_PDF_FIXTURE: "markdown-qualified",
+      COOLTO_RESUME_QA_PDF_FIXTURE: "education-details-qualified",
       COOLTO_RESUME_G6_EXPORT_PATH: g6PdfPath,
     },
   });
@@ -59,7 +61,7 @@ assert.equal(results.length, fixtureIds.length);
 
 const firstQualified = results[0];
 const repeatedQualified = results[1];
-assert.equal(firstQualified.fixtureId, "zh-qualified");
+assert.equal(firstQualified.fixtureId, "education-details-qualified");
 assert.equal(firstQualified.qualified, true);
 assert.equal(firstQualified.pageCount, 1);
 assert.equal(firstQualified.overflowPx, 0);
@@ -121,6 +123,9 @@ assert.equal(report.postflight.hasTextLayer, true);
 assert.equal(report.postflight.hasSimSun, true);
 assert.equal(report.postflight.hasTimesNewRoman, true);
 assert.doesNotMatch(report.postflight.extractedText, /\*\*|__/);
+assert.match(report.postflight.extractedText, /GPA\s*3\.8\s*\/\s*4\.0/u);
+assert.match(report.postflight.extractedText, /专业前\s*10\s*%/u);
+assert.match(report.postflight.extractedText, /主修课程[：:]\s*数据结构/u);
 
 assert.equal(report.workspaceResult.preparedStatus, "writing");
 assert.equal(report.workspaceResult.g3Status, "layout_qualified");

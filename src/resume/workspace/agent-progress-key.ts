@@ -39,8 +39,12 @@ export function resumeContentProgressKey(workspace: ResumeWorkspace): string {
       code: violation.code,
       bulletId: violation.bulletId ?? null,
     })),
-    tailRepairRetry: workspace.tailRepairRetry ?? null,
-    pageFillProgress: workspace.pageFillProgress ?? null,
+    supplementalEvidence: (workspace.supplementalEvidence ?? []).map(
+      (entry) => ({
+        evidenceId: entry.evidenceId,
+        experienceId: entry.experienceId,
+      }),
+    ),
     pendingConfirmation: pendingAugmentedContent(workspace).map((entry) => ({
       bulletId: entry.bulletId,
       kind: entry.kind,

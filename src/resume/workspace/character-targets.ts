@@ -13,6 +13,7 @@ export function bulletCharacterTargets(
   lineCount: number,
   lastLineWidthPx: number,
   lineWidthPx: number,
+  expectedAddedCharacterWidthPx?: number,
 ): BulletCharacterTargets | null {
   const characters = [...text].length;
   if (!characters || !lineCount || !lineWidthPx) return null;
@@ -22,10 +23,14 @@ export function bulletCharacterTargets(
   if (!Number.isFinite(averageCharacterWidthPx) || averageCharacterWidthPx <= 0) {
     return null;
   }
+  const planningCharacterWidthPx = Math.max(
+    averageCharacterWidthPx,
+    expectedAddedCharacterWidthPx ?? 0,
+  );
   const addExactlyOneLine = targetCharacterRange(
     lineCount + 1,
     lineWidthPx,
-    averageCharacterWidthPx,
+    planningCharacterWidthPx,
   );
   return {
     currentCharacters: characters,
@@ -33,12 +38,12 @@ export function bulletCharacterTargets(
     passCurrentLineCount: targetCharacterRange(
       lineCount,
       lineWidthPx,
-      averageCharacterWidthPx,
+      planningCharacterWidthPx,
     ),
     addOneLineAnyTail: {
       minimum: Math.ceil(
         ((lineCount + NEW_LINE_SAFETY_RATIO) * lineWidthPx) /
-          averageCharacterWidthPx,
+          planningCharacterWidthPx,
       ),
       maximum: addExactlyOneLine.minimum,
     },

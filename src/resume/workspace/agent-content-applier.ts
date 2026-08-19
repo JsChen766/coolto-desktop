@@ -6,23 +6,26 @@ import type {
 } from "./agent-content-types.js";
 import {
   assertMinimumBulletCount,
-  buildValidatedBullet,
 } from "./agent-content-validation.js";
 import type { ResumeWorkspace } from "./types.js";
 import { ResumeWorkspaceStore } from "./workspace-store.js";
 import type { WorkspaceOperationReceipt } from "./agent-workspace-view.js";
 import { generationWorkspaceStatus } from "./generation-readiness.js";
 import { reconcileAugmentedFragments } from "./augmentation-state.js";
-import { tailRepairRetryForWorkspace } from "./tail-repair-ledger.js";
-import type { TailRepairAttemptRecord } from "./tail-repair-state.js";
+import {
+  retainFailedTailProgress,
+  type TailRepairProgressState,
+} from "./tail-repair-state.js";
+import { workspaceWithTailRepairProgress } from "./tail-repair-workspace.js";
 import { RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
 import { recordPageFillOutcome } from "./page-fill-progress.js";
+import { validateAgentItemBullets } from "./agent-item-validation.js";
 
 export async function applyAgentResumeContent(input: {
   workspace: ResumeWorkspace;
   items: readonly AgentItemContentInput[];
   augmentations?: readonly AgentAugmentedFragmentInput[];
-  tailRepairAttempts?: readonly TailRepairAttemptRecord[];
+  tailRepairProgress?: TailRepairProgressState;
   pageFillAttempt?: boolean;
   pageFillProgressMade?: boolean;
   compiler: ResumeCompiler;
@@ -34,7 +37,7 @@ export async function applyAgentResumeContent(input: {
   let bindings = structuredClone(source.bindings);
   let provenance = structuredClone(source.bulletProvenance ?? []);
   const appliedItemIds: string[] = [];
-  const rejectedItems: Array<{ itemId: string; reason: string }> = [];
+  const rejectedItems: WorkspaceOperationReceipt["rejectedItems"] = [];
   const seenItems = new Set<string>();
 
   for (const rawItem of input.items) {
@@ -50,6 +53,10 @@ export async function applyAgentResumeContent(input: {
       continue;
     }
     try {
+      if (located.section.type === "education") {
+        throw new Error("教育信息由经历库固定展示，不能在简历生成中改写或删除");
+      }
+      assertMinimumBulletCount(source, itemId, rawItem.bullets.length);
       if (rawItem.bullets.length === 0) {
         located.section.items.splice(located.index, 1);
         bindings = bindings.filter((binding) =>
@@ -60,7 +67,6 @@ export async function applyAgentResumeContent(input: {
         appliedItemIds.push(itemId);
         continue;
       }
-      assertMinimumBulletCount(source, itemId, rawItem.bullets.length);
       const retainedIds = new Set(
         structure.sections.flatMap((section) =>
           section.items.flatMap((item) =>
@@ -73,16 +79,26 @@ export async function applyAgentResumeContent(input: {
           item.id === itemId ? [] : item.bullets.map((bullet) => normalized(bullet.text)),
         ),
       );
-      const built = rawItem.bullets.map((bullet, index) =>
-        buildValidatedBullet({
-          source,
-          item: located.item,
-          bullet,
-          index,
-          retainedIds,
-          retainedTexts,
-        }),
-      );
+      const validation = validateAgentItemBullets({
+        source,
+        item: located.item,
+        bullets: rawItem.bullets,
+        bindings,
+        provenance,
+        retainedIds,
+        retainedTexts,
+      });
+      if (validation.errors.length) {
+        rejectedItems.push({
+          itemId,
+          reason: validation.errors.map((error) =>
+            `bullet[${error.bulletIndex}] ${error.message}`
+          ).join("；"),
+          errors: validation.errors,
+        });
+        continue;
+      }
+      const built = validation.built;
       const oldIds = new Set(located.item.bullets.map((bullet) => bullet.id));
       const candidateBindings = [
         ...bindings.filter((binding) => !oldIds.has(binding.bulletId)),
@@ -108,11 +124,11 @@ export async function applyAgentResumeContent(input: {
   }
   const operation = receipt(appliedItemIds, rejectedItems);
   if (!appliedItemIds.length) {
-    const retry = input.tailRepairAttempts?.length
-      ? tailRepairRetryForWorkspace(source, input.tailRepairAttempts)
-      : undefined;
-    const workspace = retry
-      ? input.store.replace({ ...source, tailRepairRetry: retry }, source.revision)
+    const workspace = input.tailRepairProgress
+      ? input.store.replace(
+          workspaceWithTailRepairProgress(source, input.tailRepairProgress),
+          source.revision,
+        )
       : source;
     return { workspace, operation };
   }
@@ -124,8 +140,8 @@ export async function applyAgentResumeContent(input: {
     input.augmentations ?? [],
   );
   const revision = source.revision + 1;
-  const { tailRepairRetry: _discardedTailRetry, ...stableSource } = source;
-  void _discardedTailRetry;
+  const { tailRepairProgress: _discardedTailProgress, ...stableSource } = source;
+  void _discardedTailProgress;
   let updated: ResumeWorkspace = {
     ...stableSource,
     revision,
@@ -156,14 +172,17 @@ export async function applyAgentResumeContent(input: {
       compileResult: structuredClone(compileResult),
     },
   };
-  if (input.tailRepairAttempts?.length) {
-    const retry = tailRepairRetryForWorkspace(
-      updated,
-      input.tailRepairAttempts,
-    );
-    if (retry) updated.tailRepairRetry = retry;
-  }
   updated.status = generationWorkspaceStatus(updated);
+  if (input.tailRepairProgress) {
+    const failedIds = new Set(compileResult.bullets
+      .filter((bullet) => !bullet.passed)
+      .map((bullet) => bullet.bulletId));
+    const progress = retainFailedTailProgress(
+      input.tailRepairProgress,
+      failedIds,
+    );
+    if (progress) updated = workspaceWithTailRepairProgress(updated, progress);
+  }
   if (input.pageFillAttempt) {
     updated = recordPageFillOutcome(
       updated,
@@ -215,7 +234,7 @@ function normalized(value: string): string {
 
 function receipt(
   appliedItemIds: string[],
-  rejectedItems: Array<{ itemId: string; reason: string }>,
+  rejectedItems: WorkspaceOperationReceipt["rejectedItems"],
 ): WorkspaceOperationReceipt {
   return {
     status: appliedItemIds.length

@@ -287,6 +287,123 @@ test("agent stops an in-run loop after repeated identical tool outcomes", async 
   assert.equal(faux.state.callCount, 3);
 });
 
+test("agent blocks the second consecutive tool call with identical arguments", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall("exact_probe", { value: 1 }), {
+      stopReason: "toolUse",
+    }),
+    fauxAssistantMessage(fauxToolCall("exact_probe", { value: 1 }), {
+      stopReason: "toolUse",
+    }),
+    fauxAssistantMessage("已停止重复提交"),
+  ]);
+  const parameters = Type.Object({ value: Type.Integer() });
+  let executionCount = 0;
+  const probe: AgentTool<typeof parameters> = {
+    name: "exact_probe",
+    label: "Exact probe",
+    description: "Counts exact calls.",
+    parameters,
+    execute: async () => {
+      executionCount += 1;
+      return { content: [{ type: "text", text: "ok" }], details: null };
+    },
+  };
+  const agent = createCooltoAgent(
+    { tools: [probe] },
+    {
+      model: faux.getModel(),
+      streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("不要重复执行");
+
+  assert.equal(executionCount, 1);
+  assert.match(JSON.stringify(agent.getMessages()), /detected_repetition/u);
+});
+
+test("agent stops immediately after an authoritative ready resume result", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  const call = fauxToolCall("apply_resume_content", { value: 1 });
+  faux.setResponses([
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+  ]);
+  const parameters = Type.Object({ value: Type.Integer() });
+  let executionCount = 0;
+  const apply: AgentTool<typeof parameters> = {
+    name: "apply_resume_content",
+    label: "Apply resume",
+    description: "Returns an authoritative terminal resume result.",
+    parameters,
+    execute: async () => {
+      executionCount += 1;
+      const payload = {
+        status: "ready_for_approval",
+        readiness: { ready: true },
+        nextAction: { mode: "stop" },
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        details: payload,
+      };
+    },
+  };
+  const agent = createCooltoAgent(
+    { tools: [apply] },
+    {
+      model: faux.getModel(),
+      streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("完成简历");
+
+  assert.equal(executionCount, 1);
+  assert.equal(faux.state.callCount, 1);
+  assert.equal(agent.runStopError, undefined);
+});
+
+test("agent permits one exact retry after a transient tool failure", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  faux.setResponses([
+    fauxAssistantMessage(fauxToolCall("transient_probe", { value: 1 }), {
+      stopReason: "toolUse",
+    }),
+    fauxAssistantMessage(fauxToolCall("transient_probe", { value: 1 }), {
+      stopReason: "toolUse",
+    }),
+    fauxAssistantMessage("重试成功"),
+  ]);
+  const parameters = Type.Object({ value: Type.Integer() });
+  let executionCount = 0;
+  const probe: AgentTool<typeof parameters> = {
+    name: "transient_probe",
+    label: "Transient probe",
+    description: "Fails transiently once.",
+    parameters,
+    execute: async () => {
+      executionCount += 1;
+      if (executionCount === 1) throw new Error("network timeout");
+      return { content: [{ type: "text", text: "ok" }], details: null };
+    },
+  };
+  const agent = createCooltoAgent(
+    { tools: [probe] },
+    {
+      model: faux.getModel(),
+      streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("允许一次网络重试");
+
+  assert.equal(executionCount, 2);
+  assert.doesNotMatch(JSON.stringify(agent.getMessages()), /detected_repetition/u);
+});
+
 test("agent reports a failed run after four calls without measured progress", async () => {
   const faux = fauxProvider({ tokensPerSecond: 0 });
   faux.setResponses([

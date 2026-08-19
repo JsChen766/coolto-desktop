@@ -20,7 +20,7 @@ export const applyContentParameters = Type.Object({
     bullets: Type.Array(bullet),
   }), {
     minItems: 1,
-    description: "首稿或补齐 bullet 数量时使用；repair_bullet_depth 和 reduce_overflow 禁止使用 items",
+    description: "仅在 repair_bullet_counts 时使用；一次覆盖全部 itemTargets，并为每个 item 提交完整 bullet 列表，不得提交候选版本；教育信息固定展示，禁止传入",
   })),
   bulletUpdates: Type.Optional(Type.Array(Type.Object({
     bulletId: Type.String({ minLength: 1 }),
@@ -48,20 +48,13 @@ export const applyContentParameters = Type.Object({
   })),
   tailRepairs: Type.Optional(Type.Array(Type.Object({
     bulletId: Type.String({ minLength: 1 }),
-    revisedText: Type.Optional(Type.String({
+    revisedText: Type.String({
       minLength: 1,
-      description: "按 editInstruction.characterDelta 将 currentText 自然重写到 targetCharacters 左右的唯一完整 bullet；保留事实与数字并自动沿用 evidenceIds，禁止在句末堆抽象效果词",
-    })),
-    augmentedModifier: Type.Optional(Type.Object({
-      text: Type.String({ minLength: 1 }),
-      requirementIds: Type.Array(
-        Type.String({ minLength: 1 }),
-        { minItems: 1 },
-      ),
-    })),
+      description: "执行目标 requiredEdit，参考建议新增字数与具体事实提示，基于 currentText 返回唯一完整扩写 bullet；允许重组语序，但必须保留事实和数字；原样或更短返回失败",
+    }),
   }), {
     minItems: 1,
-    description: "完整覆盖 nextAction.bulletIds；每目标只交 revisedText 或 augmentedModifier 之一，未达标但更接近的 revisedText 会成为下一轮 currentText",
+    description: "一次覆盖 nextAction.bulletIds 的全部目标；每条基于 currentText 批量语义扩写并新增一个来源支持的具体事实短语，只提交唯一完整 revisedText；不接受原文、备选、片段或多版本",
   })),
   lineRewrites: Type.Optional(Type.Array(Type.Object({
     bulletId: Type.String({ minLength: 1 }),
@@ -71,6 +64,6 @@ export const applyContentParameters = Type.Object({
     }),
   }), {
     minItems: 1,
-    description: "在 nextAction 允许 lineRewrites 时使用；repair_bullet_depth 必须一次覆盖全部 lineRewriteTargets，increase_usage 覆盖本轮 lineExpansionTargets；每目标只提交一份 revisedText，未跨行但有效变长的文本会立即应用并成为下一轮基线",
+    description: "在 nextAction 允许 lineRewrites 时使用；repair_bullet_depth 必须一次覆盖全部目标；每个目标只提交一份 revisedText",
   })),
 });

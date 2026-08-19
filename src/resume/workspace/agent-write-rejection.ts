@@ -8,8 +8,7 @@ interface ResumeWriteParams {
   bulletAdditions?: readonly { itemId: string }[];
   tailRepairs?: readonly {
     bulletId: string;
-    revisedText?: string;
-    augmentedModifier?: unknown;
+    revisedText: string;
   }[];
   lineRewrites?: readonly { bulletId: string }[];
 }
@@ -27,6 +26,16 @@ export function resumeWriteRejection(
   }
   if (action.mode === "reduce_overflow") {
     return overflowReductionRejection(action, params);
+  }
+  if (action.mode === "repair_bullet_counts") {
+    const hasOtherMode = Boolean(
+      params.bulletUpdates?.length || params.bulletRemovals?.length ||
+        params.bulletAdditions?.length || params.tailRepairs?.length ||
+        params.lineRewrites?.length,
+    );
+    return params.items?.length && !hasOtherMode
+      ? undefined
+      : "nextAction 是 repair_bullet_counts；必须用一次 items 批量提交全部 itemTargets 的完整 bullet 列表";
   }
   if (action.mode === "repair_bullet_depth") {
     return completeLineRewriteBatchRejection(
@@ -81,11 +90,13 @@ export function resumeWriteRejection(
   if (!params.items?.length && !params.bulletUpdates?.length &&
     !params.bulletRemovals?.length && !params.bulletAdditions?.length &&
     !params.lineRewrites?.length &&
-    missing.length === 0 && extra.length === 0) {
+    params.tailRepairs?.length === action.bulletIds.length &&
+    supplied.size === action.bulletIds.length && !missing.length &&
+    !extra.length) {
     return undefined;
   }
   return [
-    "nextAction 是 batch_tail_repair；必须用一次 tailRepairs 且只提交全部指定目标（可能包含页面配平目标）",
+    "nextAction 是 batch_tail_repair；必须用一次 tailRepairs 覆盖本批全部目标，每条只提交一个完整 revisedText",
     `required=${action.bulletIds.join(",")}`,
     `missing=${missing.join(",") || "none"}`,
     `extra=${extra.join(",") || "none"}`,

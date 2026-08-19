@@ -4,6 +4,7 @@ import {
   type ResumeCompileResult,
   type ResumeCompileViolation,
 } from "../resume/compiler-types.js";
+import { passesBulletTailGate } from "../resume/bullet-tail-gate.js";
 import type { ResumeStructure } from "../resume/types.js";
 import type { ResumeCompiler } from "../resume/workspace/compiler-port.js";
 
@@ -62,8 +63,14 @@ export class CliSemanticCompiler implements ResumeCompiler {
           const lastLineWidthPx = widthPx % this.availableLineWidthPx;
           const lastLineRatio =
             lineCount === 1 ? 1 : lastLineWidthPx / this.availableLineWidthPx;
+          const passed = passesBulletTailGate({
+            lastLineWidthPx,
+            availableLineWidthPx: this.availableLineWidthPx,
+            gateRatio: 0.7,
+            glyphTolerancePx: this.cjkGlyphWidthPx,
+          });
           usedLines += lineCount;
-          if (lastLineRatio <= 0.7) {
+          if (!passed) {
             violations.push({
               code: "bullet_tail_too_short",
               message: `Bullet ${bullet.id} last line covers ${(lastLineRatio * 100).toFixed(1)}% of the line width.`,
@@ -76,7 +83,7 @@ export class CliSemanticCompiler implements ResumeCompiler {
             lastLineWidthPx: Math.round(lastLineWidthPx),
             availableLineWidthPx: this.availableLineWidthPx,
             lastLineRatio: Number(lastLineRatio.toFixed(4)),
-            passed: lastLineRatio > 0.7,
+            passed,
           });
         }
       }

@@ -92,7 +92,7 @@ p0-product-completion-roadmap/
 | S2 | JD 同步接入 | 建立 `JdSyncStore`；让 JD 审批入库、查询、聚合更新和删除统一经过本地 projection 与 Outbox；保持 requirement ID 稳定 | 离线写入和重放通过；requirements 全量更新不漂移 ID；另一设备修改可 Pull；冲突不静默覆盖；既有匹配与简历生成仍能读取稳定 JD |
 | S3 | Tracker 基础接入 | 增加 Application、status event、Interview、Note、Reminder 的 App 类型、Normalizer、Store 和 Adapter；先完成 Application 看板、详情与合法状态迁移 | Application 离线创建/编辑/删除、跨设备同步和墓碑通过；非法状态迁移显示服务端错误；JD/Resume 引用与标题快照正确 |
 | S4 | Tracker 业务闭环 | 接入 Interview、Note、Reminder UI 与本地通知调度；补齐同步状态、失败恢复和冲突处理界面 | 状态事件与当前状态一致；终态不可继续迁移；提醒可跨设备同步并由本机执行通知；父 Application 删除能传播子实体墓碑 |
-| S4.5 | 简历生成与交付修复 | 补齐个人资料、可扩展经历/技能、教育排版、三分钟生成目标与预览直接导出；保持既有工作/项目渲染和生成界面形态 | 信息有事实来源；门槛不降；每次真实用户命令的完整生成耗时不超过 240 秒（2026-08-05 由 180 秒放宽，见 Section F 门槛更新记录）；预览按钮直接导出当前合格版本；真实 Electron/PDF 质检通过 |
+| S4.5 | 简历生成与交付修复 | 补齐个人资料、可扩展经历/技能、教育排版、十分钟生成目标与预览直接导出；保持既有工作/项目渲染和生成界面形态 | 信息有事实来源；门槛不降；每次真实用户命令的完整生成耗时不超过 600 秒（2026-08-18 由用户更新，见 Section F 门槛更新记录）；预览按钮直接导出当前合格版本；真实 Electron/PDF 质检通过 |
 | S5 | 整体联调与性能验收 | 使用 Docker 后端完成真实 App 主路径、离线恢复、双设备冲突、分页与重启重放；清理迁移后不再使用的 Direct 写路径 | App 全量检查通过；500 条同步分页和 Tracker 看板达到约定指标；无重复创建、静默覆盖、跨账号泄漏或绕过 Outbox 的业务写入 |
 
 ### 完成记录
@@ -186,7 +186,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | E5 | 版本记录 | 在线分页历史、pending 本地版本说明和恢复为新 revision | ✅ 已完成 |
 | E6 | 经历仓库验收 | Electron + Docker、离线、冲突、日期、可访问性、跨账号与性能回归 | ✅ 已完成 |
 | S4 | Tracker 业务闭环 | 独立接入 Interview、Note、Reminder、状态历史与本地通知 | ✅ 已完成 |
-| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、三分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；H 未开始（用户决定由专职测试人员按 Section H 标准验收，见 Section G/G-1 完成记录） |
+| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；H 未开始（用户决定由专职测试人员按 Section H 标准验收，见 Section G/G-1 完成记录） |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
 | R1 | 生产上线准备 | 邮件、限流、域名、备份、监控、密钥、发布与回滚 | 功能路线完成后执行 |
 
@@ -1217,7 +1217,9 @@ Vue/CSS。实现后完成视觉截图、键盘/ARIA、主题/语言、窄宽屏�
 
 - 简历顶部必须展示姓名、电话和简历联系邮箱；生成入口在三项任一缺失时明确阻止并引导补充。所在地、
   LinkedIn、GitHub、个人网站仅在有已确认值时展示，不渲染空占位，不回退为未经确认的猜测。
-  教育条目固定为第一行“学位/专业（左）—日期（右）”，第二行“学校/学院（左）—地点（右）”。
+  教育条目固定为第一行“学校 · 学历（左）—日期（右）”，第二行“专业 · GPA（专业排名）（左）—
+  地点（右）”，第三行“主修课程”。GPA、专业排名和主修课程只展示经历来源中确实存在的值，缺失时
+  省略对应片段，不补占位、不推断或编造。
 - 预览和隐藏 Chromium 必须继续调用同一 renderer；只增加 section-specific presenter/field mapping，
   不复制第二套 HTML 模板。工作/实习和项目使用现有路径，新增 section 复用既有排版 token。
 - 使用用户提供的两张截图作为问题证据，并建立结构快照、A4 截图和 PDF 页面渲染对比；视觉差异审查
@@ -1226,7 +1228,7 @@ Vue/CSS。实现后完成视觉截图、键盘/ARIA、主题/语言、窄宽屏�
 **完成门槛**：个人资料和教育映射正确；技能位于最后；附加 section 顺序稳定；中英文、缺失字段、
 极长值、一页边界均通过同源预览/PDF 回归，既有工作/项目视觉基线无非预期变化。
 
-#### S4.5 Section F：三分钟生成性能闭环
+#### S4.5 Section F：十分钟生成性能闭环
 
 - 优先减少物理模型往返：首轮用 `initialBindings` 生成完整有序草稿，后续用有上限的批量 patch 修复，
   不再按单条经历/单个 bullet 逐轮编写；为每个选中 source item 提供紧凑且均衡的证据摘要，减少反复
@@ -1236,11 +1238,12 @@ Vue/CSS。实现后完成视觉截图、键盘/ARIA、主题/语言、窄宽屏�
 - App 登录/空闲时预热隐藏 renderer 与字体；仅对完全相同的 structure、Profile、字体和 Chromium
   版本复用 compile 结果。若数据证明备选修复的 Chromium 编译是主要瓶颈，再实现上限为 2 的隔离
   BrowserWindow 池，并用串行/并行结果一致性测试证明无竞态、跨账号或字体差异。
-- 性能硬门槛：每次真实用户生成命令都必须在 `≤ 240s`（2026-08-05 由 180s 放宽）内按 Section A
-  的完整端到端口径交付合格预览。
+- 性能硬门槛：每次真实用户生成命令都必须在 `≤ 600s`（2026-08-18 用户确认十分钟内可接受，覆盖
+  2026-08-05 的 240s 旧门槛）内按 Section A 的完整端到端口径交付合格预览。正式打包应用不设置
+  分钟级墙钟终止；600s 是验收观察门槛，应用仍保留复读、停滞、无进展和最大回合等异常保护。
   不建立合成样本、优化前基线、p95/median 或模型调用次数的独立验收指标；失败重试仍须计入，不得剔除。
 
-**完成门槛**：获授权的真实用户生成命令均在 `≤ 240s`（2026-08-05 由 180s 放宽）内完成；一页/占用率/尾部、字体、证据、
+**完成门槛**：获授权的真实用户生成命令均在 `≤ 600s`（2026-08-18 用户更新）内完成；一页/占用率/尾部、字体、证据、
 must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流程和交互截图无改变。
 
 **S4.5 Section F 实施决策（2026-08-04，用户确认）**：
@@ -1817,8 +1820,8 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   布局，其余侧栏、聊天与生成界面不变。
 - 直接导出保留系统“另存为”对话框，只导出当前达到 `ready_for_approval` 的合格 revision；生成中的
   中间预览不可导出，点击不创建聊天消息、不调用 LLM。
-- 性能目标只以每次真实用户命令从下发到合格预览交付的完整耗时 `≤ 240s`（2026-08-05 由 180s
-  放宽）判定；不要求合成样本、
+- 性能目标只以每次真实用户命令从下发到合格预览交付的完整耗时 `≤ 600s`（2026-08-18 用户确认
+  十分钟内可接受，覆盖 2026-08-05 的 240s 旧门槛）判定；不要求合成样本、
   优化前基线或性能模拟。测试账号和测试资产只能精确创建、记录并在验收后清理，不得操作用户已有业务数据。
 - 开始 S4.5 前将 App API 环境覆盖从线上服务器切换为本地 Docker `http://127.0.0.1:8080`；代码默认值
   与 `.env.example` 原本已是该地址，本次只修改被 `.gitignore` 排除的本机 `.env` 覆盖项。API 基址
@@ -2458,6 +2461,172 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
 > revision 17、`generationReady=false`，因此整份简历稳定性仍未通过。产物哈希、截图和清理证据见
 > S4.5.1 阶段 17；按约定没有第二次回归。
 
+> **R17 教育固定三行展示与运行时间口径更新（2026-08-18 至 2026-08-19）：**用户先要求把此前
+> 累积修复本地提交，已创建 commit `59daa33`（`feat(resume): stabilize phase-driven generation
+> workflow`），未 push、上传或发版；本节教育改动发生在该提交之后，当前仍未提交。用户随后确认教育
+> 固定为第一行“学校 · 学历（左）—时间（右）”、第二行“专业 · GPA（专业排名）（左）—地点（右）”、
+> 第三行“主修课程”，其中标准示例为“计算机科学 · GPA 3.8/4.0（专业前 10%）”。宿主现从锁定的
+> education Experience 正文确定性提取 GPA、排名和课程，缺失选填直接省略且不补造；全部 active 教育
+> 仍自动纳入。Agent 的 `apply_resume_content` 与手动编辑器均不能改写或删除固定教育内容，prompt/schema
+> 同步禁止把教育作为生成或溢出删减目标；预览、隐藏 Chromium 与 PDF 完整性检查继续共用同一字段
+> presenter。标准 Electron Chromium/PDF QA 通过：单页使用率 96.23%、最低尾行比 76.79%，工作区
+> 基准使用率 97.79%、22 条证据绑定，导出文本包含 GPA、专业排名和主修课程。完整 `npm run check`
+> 通过：601 tests（599 pass、2 平台条件 skip、0 fail）、690 个源文件 ≤250 行、模板同步、Node/
+> Preload/Vue typecheck、Node build 与 Electron production build 全绿。用户同时把当前端到端验收窗口
+> 更新为十分钟：正式包本来就没有按分钟停止的墙钟超时，自动化的 `--timeout` 只负责观察并判定测试；
+> 应用内复读、停滞、无进展和最大回合保护仍保留。600 秒内必须交付合格预览，所有简历质量门槛不变。
+> 用户随后要求本地打包 v66。按 hardening runbook 重新执行 `npm run check`，601 tests（599 pass、
+> 2 skip、0 fail）及全部门禁通过，`npm audit --omit=dev --audit-level=high` 为 0 vulnerabilities；首次
+> `package:win` 在 Node 启动 `rustup.exe` 时遇到瞬时 `EPERM`，确认 rustup/Node spawn 恢复后从完整
+> `package:win` 起点重跑，没有复用半成品密钥。最终 Rust 3/3、protected build、NSIS、14,889 个 ASAR
+> 文件、1,097-byte loader、984,496-byte encrypted payload、262,144-byte native module、Fuses、
+> 隔离安装、真实 bootstrap、Renderer 健康及卸载清理均通过。v66 本地安装器
+> `local-builds/v66/Coolto-0.1.18-x64.exe` 为 135,035,729 bytes，SHA-256
+> `3FE5CAE7B11F136649A3AAEA4A1E78FBC8B57A1D060F38042C8167017B5AC254`；unpacked EXE 为
+> 225,686,528 bytes，SHA-256 `DC372684F5F1E7E11EFD4CC4871D7735F7AA0C763F5EA54C703A1503A7D0CB3D`，
+> Authenticode 均为 `NotSigned`。生产更新源仍为 `https://home.coolto.com.cn/downloads/`；归档后精确
+> 关闭 v66 的 5 个进程，最终 Coolto/Electron 均为 0。没有真实模型生成、commit、push、上传或发版，
+> 因此不改写 v65 的稳定性失败结论，S4.5.1 仍不得标记完成。
+
+> **R18 尾行单稿叠加与重复调用收敛（2026-08-19）：**用户确认尾行修复不得再采用任何候选、备选、
+> 多版本、片段修饰语、隐藏工作稿或全页组合形式。当前协议对每个短尾只暴露当前正式文本和目标字符
+> 增量，Agent 只返回一份完整 `revisedText`；整批一次 Chromium 测量，同一行数下通过或尾行比例真实
+> 提升至少 1.5% 就立即正式落地，下一轮在该正式文本上继续叠加。旧九个尾行候选/缓存/组合模块和
+> 三组旧测试已删除。无进展第一轮调整、第二轮整句重组、第三轮追问具体新事实；所有简历门槛不变。
+> 相同工具与参数第二次即拦截，仅一次基础设施瞬时错误可原样重试；create/get/apply/add material 共用
+> 内容进展指纹，revision 和计数器不再伪装进展，自动 follow-up 不因计数空转。定向 87/87、完整
+> `npm run check` 590 tests（588 pass、2 skip、0 fail）以及模板、685 文件行数门禁、双 typecheck、
+> 两端 build 全绿。真实 Electron Chromium/PDF QA 通过：单页 96.23%、最低尾行 76.79%、工作区
+> 97.79%、22 条证据绑定；QA 启动脚本同时隔离了环境中的 `ELECTRON_RUN_AS_NODE`。本轮未跑真实模型、
+> 未 package/commit/push/上传/发版，因此仍不覆盖 v65 的真实稳定性失败，S4.5.1 保持未完成。
+
+> **R19 v67 本地包与真实自然输入回归（2026-08-19，失败后停止）：**重新执行完整 `npm run check`
+> 590 tests（588 pass、2 skip、0 fail）与 0 production vulnerabilities 后，完整 Windows 加固链路通过
+> Rust 3/3、protected build、NSIS、Fuses/ASAR、隔离安装、真实 bootstrap、Renderer 健康和卸载清理。
+> v67 安装器为 135,020,650 bytes，SHA-256
+> `E684CD9EAB08D6F37F45E506371B408F005F430279EFAB4EFCEB2CD4C2D3E91D`；unpacked EXE 为
+> 225,686,528 bytes，SHA-256 `329E328B82D83F1F9426CF89C7DCA03EEEC4367B0ECA7A7B837FFAC1AF6DAB70`，
+> Authenticode 均为 `NotSigned`。唯一真实请求为新对话自然消息“帮我生成一份数据产品经理简历”，
+> 222.8 秒自行结束；25 次工具全部 completed、0 error、无 schema error、无重复 create 或复读保护。
+> 首稿单页 83.83%/23 条一行 bullet，深度扩写后按最小删减保留 17 条普通 2 行 bullet，最终单页
+> 99.41%。三次无候选尾行批次真实推进 2 条、15 条并通过 4 条，但仍有 13 条短尾、最低 9.14%；
+> 模型错误地把“页面无空间”解释为不能继续填充同一 2 行，主动暂停追问，终态 revision 15、
+> `needs_user_decision`、`generationReady=false`。过程提示还误报“剩余 0 条”，实际为 13 条。截图
+> `local-builds/v67/data-product-natural-run-1.png` 的 SHA-256 为
+> `6CD878AB4E3A7D02C6B3C6B178F769D70554CA146C9331BF5118A66A59F04138`。按一次回归边界没有修改或
+> 重跑；5 个 v67 进程和 CDP 9222 已清理。没有 commit/push/上传/发版，S4.5.1 仍未完成。
+
+> **R20 尾行局部进展继续叠加（2026-08-19）：**v67 的提前暂停根因已按真实证据修正：每个 bullet
+> 仍在两轮无进展后切换并保持整句重组，但不再由任一 bullet 的失败次数暂停整份简历。只要当前批次有
+> 任一正式文本落地或通过，整批零进展计数就归零，并继续返回全部剩余短尾；只有整批连续三轮完全
+> 零落地才追问素材。v79 prompt 同步明确同一 2 行内填充尾行不增加页面高度，99% 页面使用率不是停止
+> 理由。进度 UI 现从真实 `bullet_tail_too_short` violations 回算切换阶段后的剩余数量，v67 的“剩余
+> 0 条”将正确显示为 13 条。协议仍为每目标唯一完整 `revisedText`，没有候选或隐藏工作稿，所有质量
+> 门槛不变。定向 61/61、完整 `npm run check` 592 tests（590 pass、2 skip、0 fail）以及模板、685
+> 文件行数门禁、双 typecheck 和两端 build 全绿。本轮未跑真实模型、未 package/commit/push/上传/
+> 发版，S4.5.1 仍未完成。
+
+> **R21 v68 尾行整批叠加真实回归（2026-08-19，仍未通过）：**重新执行完整 `npm run check`，592
+> tests（590 pass、2 skip、0 fail）及全部构建门禁通过；完整 Windows 加固包同步通过 Rust 3/3、
+> protected build、NSIS、Fuses/ASAR、隔离安装、真实 bootstrap、Renderer 健康和卸载清理。v68 安装器
+> 为 135,020,693 bytes，SHA-256 `389BD32A0A4023CD66AEB1DE72437262154C4360FF8C87A2CEA6C782124C2C6F`；
+> unpacked EXE 为 225,686,528 bytes，SHA-256
+> `1F0063E917776B7CFEC2381C9D6413E224717F0CF3D88ACE7B954FF3902A581A`，Authenticode 均为 `NotSigned`。
+> 唯一真实输入仍为无策略提示的“帮我生成一份数据产品经理简历”，413.8 秒自行结束且没有墙钟、运行、
+> 工具或 schema 错误。首稿单页 79.25%/20 条一行 bullet；深度扩写和最小删减后保留 17 条普通两行
+> bullet，单页 99.41%。尾行从 17 条全未通过开始正式叠加，revision 16 在通过 4 条、剩余 13 条时没有
+> 再误暂停，并继续到 revision 17 通过 8 条、剩余 9 条，证明 R20 的整批进展语义和剩余数量投影已在
+> 真实链路生效。随后连续三整批没有任何版本同时保持两行且真实提升 ≥1.5%，宿主按新规则进入
+> `needs_user_decision`；终态 17 条普通 bullet 全部两行，但 9 条尾行仍处于 21.94%–69.48%，
+> `generationReady=false`。正式文本已明显变长并产生重复补语，当前根因收敛为两行容量上限附近的低命中
+> 改写与冗余，而非候选、拒绝叠加或局部成功误暂停。截图
+> `local-builds/v68/data-product-natural-run-1.png` 的 SHA-256 为
+> `25F55E532D99A0D0DC4EC2BB07AD7BAB71162C4FE91930179BC32A5CE2983CDC`；右侧预览正文仍未在截图中绘出，
+> 虽然 DOM 文本和高度存在，故视觉验收同样不通过。5 个 v68 进程和 CDP 9222 已清理；没有 commit、
+> push、上传或发版，S4.5.1 仍未完成。
+
+> **R22 尾行批量语义扩写协议（2026-08-19，自动化完成）：**根据后续 v92 真实失败，已删除要求模型
+> 逐字保留原文并完成单点连续插入的尾行协议，改为每批最多 8 条、一次完整覆盖本批 `bulletIds` 的自然
+> 语义扩写。每条只返回唯一完整 `revisedText`；模型看到当前总字数及最低/优选/最高成稿总字数，优选值
+> 位于真实像素可行区间内偏长的 70% 位置，并明确“无法精确计数时宁长勿短”。旧 edit-plan、single-
+> insertion、insertion-validation、tail padding 和 batch insertion-template 模块及专用测试已直接删除，
+> 不保留兼容分支。来源/数字、原有数字保留、重复与空泛文本、2–3 行、保持当前行数、单页、≥92%、
+> 尾行 >70%、真实改善叠加和整批三轮零落地暂停门槛均未降低。定向 79/79、完整 `npm run check`
+> 607 tests（605 pass、2 skip、0 fail）、687 文件行数门禁、双 typecheck/双 build 全绿；真实 Electron/
+> Chromium/PDF QA 同步通过（固定样例 96.23%、最低尾行 76.79%，工作区样例 97.79%、22 条证据绑定）。
+> 本轮未跑新的真实模型生成，未 package/commit/push/上传/发版，S4.5.1 仍未完成。
+
+> **R23 尾行批次隔离真实模型评测（2026-08-19）：**新增独立 harness，跳过整份简历，仅使用当前生产
+> prompt/schema 对 8 条真实风格短尾独立运行 3 批。`deepseek-v4-flash` 在 33.902 秒内产出 24 条唯一
+> 完整 `revisedText`：24/24 严格变长、达到最低和优选总长度、保留原数字，增量 `+17～+32` 字、平均
+> `+24.5` 字，确认批量语义扩写和不再原样返回已经稳定生效。但只有 6/24 未超过最高总长度，18/24
+> 偏长；模型倾向直接采用完整 source quote，下一隔离优化点是明确“source quote 仅为素材池、只选 1–2 个
+> 足够细节”，并把“宁长勿短”限定在最高值以内。第 1 批有效提交后出现一次受保护的重复调用，第 2、3
+> 批干净结束。报告位于 `local-builds/tail-repair-eval/report-1787104011143.json`；未跑整份简历、未打包、
+> 未 commit/push/上传/发版，S4.5.1 仍未完成。
+
+> **R24 v93 整简历真实回归（2026-08-19，最终产物达标、运行仍有 1 个工具错误）：**保持阶段 24 的
+> 当前 prompt 不变，完整 `npm run check` 607 tests（605 pass、2 skip、0 fail）及 Windows x64 加固打包、
+> NSIS、release audit、隔离安装、真实 bootstrap、Renderer 健康与卸载清理全部通过。新对话仅发送自然消息
+> “帮我生成一份数据产品经理简历”，观察约 473.159 秒后达到 revision 27、`ready_for_approval`、
+> `generationReady=true`、单页 99.33%；18 条普通 bullet 全部两行，24 次批量尾行扩写把 18 个短尾清零，
+> 最低尾行 70.24%，质量门槛未降低。32 次 apply 中 31 成功、1 次完全相同参数的重复调用被保护拒绝，后续
+> 仍自行恢复并完成，因此产物真实达标，但严格 smoke 仍为 `success=false`，且尾行 24 次往返仍偏慢。
+> 截图 `local-builds/v93/data-product-natural-run-1.png` 的 SHA-256 为
+> `C1761560784BFEFCF2EED66CC360BAA7B326AD77F9ACDAF27D9551F78F3E4598`；右侧正文仍未视觉绘出，尽管 DOM
+> 有 2,553 字和 6 个 section，视觉验收未通过。安装器 SHA-256 为
+> `3C9300BE3CC0E2A6B1B9B1F1B8E21C83B0FBE699E1F359158786AB4BDFB24D32`；未 commit/push/上传/发版，
+> S4.5.1 仍未完成。
+
+> **R25 v93 第二 JD 真实回归（2026-08-19，首稿阶段失败）：**复用同一 v93 包，新对话仅发送自然消息
+> “帮我生成一份小米集团投资者关系实习生简历”，Agent 正确读取 JD 库中的对应岗位。运行 149.613 秒后
+> 在 revision 3、单页 78.04% 终止：前三个 item 批次真实推进到 55.50%/67.57%/78.04%，此后连续 6 次
+> item 批次均 completed 但零落地、零 revision 变化，三次重新读取工作区仍未改变策略，最终触发通用无进展
+> 保护。终态 15 条 bullet 中 6 条仍为一行，另有一段经历 bullet 数不足；尚未进入 depth/tail repair，
+> 9 次 apply、0 tool/schema error。截图 `local-builds/v93/investor-relations-natural-run-2.png` 的 SHA-256 为
+> `0123E720B505AB0B86E580115AC01A900D2EDBC31709B51EADC4F60D9EC01956`，预览正文视觉缺失问题仍复现。
+> 本次失败证明 v93 还不具备跨 JD 稳定性；未重跑、修改、commit、push、上传或发版，S4.5.1 仍未完成。
+
+> **R26 bullet 数量补齐无效重试隔离诊断（2026-08-19）：**失败草稿唯一缺条数的是 36Kr
+> `secondary` 经历（0/2），原文实际有两条独立成果链，所以宿主继续返回 `repair_bullet_counts/items` 正确，
+> 并非错过 depth/tail 阶段。新增独立生产 prompt/schema/校验 harness；相同原文 3/3 次均先把来源
+> `100K+` 写成“10 万”而 rejected，改回 `100K+` 后 success。确定性根因是数字解析只接受 `10万`，把带
+> 中文排版空格的 `10 万` 解析为 `10`；第二个根因是填充词检测仅统计末尾 64 字里的“与”，把“与 VC
+> 合作、半导体与泛 AI、尽调与访谈、备忘录与商业模型”这类真实并列误报为抽象堆词。真实 revision 3
+> workspace 干净重放 3 次均可在 2–3 次内成功，证明草稿、evidence、schema 和 LLM 能力本身可解；原链路
+> 的多轮零 revision 是两个 fail-fast 误判串行暴露后，又被只看 workspace progress key 的通用保护累计。
+> 一块 evidence/两条最低要求的对照组则连续 3 次变更文本但始终复用同一 evidence，未调用素材不足暂停，
+> 证明 `repair_bullet_counts` 还缺独占证据不足的确定性出口。报告为
+> `local-builds/bullet-count-retry-eval/report-1787106834129.json`；本轮未改生产逻辑或任何门槛，typecheck 与
+> 687 文件行数门禁通过，临时解密脚本已删除，未 package/commit/push/上传/发版，S4.5.1 仍未完成。
+
+> **R27 bullet 数量链路收敛修复与分部真实模型验收（2026-08-19）：**保持一页、≥92%、main/secondary
+> 3/2 条、普通 bullet 2–3 行、尾行 >70%、事实/数字/教育/确认门槛不变，修复四类根因：数字与
+> `万/K` 等单位之间的空格现在等价规范化；真实“与”并列不再被抽象词规则误杀；英文词内公共片段不再被
+> 复读规则误判；同一 item 的所有 bullet 错误一次聚合返回。`repair_bullet_counts` 现明确给出当前 bullet、
+> 缺口、精确 evidence 和完整批次目标，并强制一次 items 覆盖全部目标；可独占事实不足最低条数时直接
+> `request_more_material`，用户回答前禁止继续写。循环 key 按剩余结构化错误集合计数：错误缩小视为进展，
+> 同类失败换措辞仍算无进展，完全相同参数继续由 repetition guard 拦截；prompt 升至 v100，未引入任何
+> 候选/备选协议。36Kr 双 evidence 真实模型隔离 3/3 均一次 apply 成功（5.032–8.250 秒），单 evidence
+> 对照为 apply=0 直接停止，报告 `local-builds/bullet-count-retry-eval/report-1787108186894.json`；人为同时
+> 注入标点/缺 evidence/虚构数字三错的聚合收敛测试 3/3 也均一次 apply 全部修正（4.939–7.532 秒），报告
+> `local-builds/resume-retry-convergence-eval/report-1787108289196.json`。完整 `npm run check` 为 612 tests
+>（610 pass、2 skip、0 fail）、690 文件行数门禁、全 typecheck/build 通过。本轮未跑整份简历、未打包、
+> 未 commit/push/上传/发版，S4.5.1 仍未完成。
+
+> **R28 v94 Windows 测试包与投资者关系整简历回归（2026-08-19）：**完整 `package:win` 通过 Rust 3/3、
+> protected build、NSIS、release/Fuses audit、隔离安装、真实 bootstrap、Renderer 健康和卸载清理。安装器
+> 135,033,136 bytes，SHA-256 `F2DC706BB81DCA2E16EA0818DCD85C4B589A5BF26AF456968C21D6FDD2881B23`；
+> unpacked EXE 225,686,528 bytes，SHA-256 `6D88BF983A36E5D469294D4809AC07125C938882456AFAEA6597F606A56D9BCA`，
+> 均 `NotSigned`。v94 新对话只发送“帮我生成一份小米集团投资者关系实习生简历”，308.814 秒后达到
+> revision 19、`ready_for_approval`、单页 92.52%、尾行与 blocker 清零；36Kr 0/2 的历史失败点在首个完整
+> items 批次中一次补齐。22 次 apply 全部 completed、toolErrors/schema/repetition guard 均为 0、无连续相同
+> 尾行批次；仍有篇幅/尾行各 1 次整批零 revision，之后正常收敛。生成链路本 case 已通过，但像素预览仍
+> 失败：DOM 含完整正文，右侧截图却只显示联系方式和分隔线。截图 SHA-256
+> `A61A8ABC8C4A2B44E03C86A2ECAEF7D5B225CB12866915F84EE162B9064F1B43`，摘要位于
+> `local-builds/v94/investor-relations-natural-run-1-summary.json`。测试后关闭 5 个 v94 进程；未 commit/push/
+> 上传/发版，视觉问题未通过前 S4.5.1 仍未完成。
+
 > **阶段化重构实施入口：`S4.5.1-phase-driven-resume-generation.md`**（用户 2026-08-17
 > 定稿：生成规则 6 条 + 决策记录 + Phase 总览 + 代码实施方案）。本节以下历史记录为
 > 根因与决策背景；S4.5 当前推进以 S4.5.1 为准。
@@ -2720,6 +2889,32 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
 - 产物：`dist-electron-v6/win-unpacked`（15:18，含全部修复）；未 commit/push/发版。
 
 **后续固定实施顺序与完成门槛（2026-08-17 更新）：**
+
+**S4.5.1 最新回归（2026-08-19，v100，未通过）：**课程已改为 Agent 提交原文引用、宿主逐项校验的
+结构化识别；尾行改为每轮最多 8 条的单结果语义扩写，独立真实模型测试连续 3/3 通过。完整
+`npm run check` 为 624 pass、2 skip、0 fail，696 个源文件满足行数门禁；Windows 加固包、安装与启动
+门禁通过。但唯一一次自然语言整简历实测在 271.829 秒后仍剩 15 条短尾，终态为单页 92.59%、revision 11、
+`needs_user_decision`，因此不构成稳定生成证据，S4.5.1 状态不变。完整数据、v97–v100 失败演进、哈希与
+截图见 `S4.5.1-phase-driven-resume-generation.md` 阶段 30。本轮按要求已停，不再修改或重跑；未
+commit/push/上传/发版。
+
+**S4.5.1 最新独测（2026-08-19，system prompt v104，未通过）：**尾行模型合同已删除字符区间、固定
+行数和候选，只保留 `currentText + expansionGoal + sourceQuotes` 的批量语义改写；合法 2→3 行增长可在
+单页容量内先落地，全批次完整轮转三次零落地才暂停。真实 Chromium 独测从单页 94.73%、17 条短尾开始，
+79.722 秒后降至 2 条，单页 97.64%、revision 6，全部经历 bullet 仍为 2–3 行；但最后两条在吸收全部来源
+事实后跨到 3 行，尾行仅 23.8%/3.7%，继续扩写无事实可用，而当前绝对禁止缩短又拦住了压回 2 行的语义
+重组，最终正确请求素材。完整 `npm run check` 为 626 pass、2 skip、0 fail，698 个源文件满足行数门禁。
+报告见 `local-builds/tail-repair-eval/report-1787125237557.json` 与 S4.5.1 阶段 31。因独测未清零，本轮按约定
+未打包、未跑整简历、未 commit/push/上传/发版，S4.5.1 状态不变。
+
+**S4.5.1 最新独测（2026-08-19，system prompt v105，未通过）：**尾行修复已锁定当前实测行数，2 行
+只能保持 2 行、3 行只能保持 3 行；统一 Renderer/CLI 测量把距离 70% 不超过一个中文全角字宽视为排版
+容差内通过，其他质量门槛不变。完整 `npm run check` 为 628 pass、2 skip、0 fail，699 个源文件满足
+行数门禁，真实 Renderer/PDF QA 通过。唯一一次真实 Chromium + LLM 独测耗时 105.093 秒，17 条短尾
+降至 5 条，revision 1→6，单页使用率保持 94.73%，全部普通 bullet 始终为 2 行；但最终仍有
+67.6%/67.6%/65.8%/64.0%/36.6% 五条未通过，并出现 1 次 malformed 参数与 2 次完全重复调用，终态为
+`needs_user_decision`。报告见 `local-builds/tail-repair-eval/report-1787126655918.json` 与 S4.5.1 阶段 32。
+因独测未清零，按用户确认的顺序未打包、未跑整简历、未 commit/push/上传/发版，S4.5.1 状态不变。
 
 | 顺序 | 状态 | 工作 | 完成门槛 |
 | --- | --- | --- | --- |

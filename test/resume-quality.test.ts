@@ -330,6 +330,25 @@ test("LLM context drops superseded resume calls and keeps the latest valid argum
   assert.doesNotMatch(serialized, /"arguments":\{"compacted":true\}/u);
 });
 
+test("LLM context removes stale tail text from the retained tool call", async () => {
+  const compacted = await compactResumeGenerationContext([
+    assistantToolCall("tail-call", "apply_resume_content", {
+      candidateId: "candidate-1",
+      expectedRevision: 7,
+      tailRepairs: [{
+        bulletId: "bullet-1",
+        revisedText: "stale-tail-text-must-disappear",
+      }],
+    }),
+    toolResultWithId("tail-call", "apply_resume_content", "latest-currentText"),
+  ]);
+  const serialized = JSON.stringify(compacted);
+
+  assert.doesNotMatch(serialized, /stale-tail-text-must-disappear/u);
+  assert.match(serialized, /supersededByFollowingToolResult/u);
+  assert.match(serialized, /latest-currentText/u);
+});
+
 test("LLM context drops an old tool error after a newer authoritative success", async () => {
   const failed = {
     ...toolResultWithId(

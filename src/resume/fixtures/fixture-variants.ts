@@ -2,6 +2,7 @@ import type {
   CurrentResumeStructure,
   ResumeSection,
 } from "../types.js";
+import { projectEducationRawText } from "../education-details.js";
 import {
   baseStructure,
   bullet,
@@ -54,6 +55,7 @@ export function mixed(): CurrentResumeStructure {
 
 export function markdownQualified(): CurrentResumeStructure {
   const structure = qualifiedChinese();
+  removeLastExperienceBullet(structure);
   const experience = structure.sections.find(
     (candidate) => candidate.type === "experience",
   );
@@ -70,6 +72,7 @@ export function markdownQualified(): CurrentResumeStructure {
 
 export function longContactQualified(): CurrentResumeStructure {
   const structure = qualifiedChinese();
+  removeLastExperienceBullet(structure);
   if (structure.contact) {
     structure.contact.linkedin = null;
     structure.contact.website =
@@ -83,6 +86,11 @@ export function additionalContentQualified(): CurrentResumeStructure {
   const skills = structure.sections.find((candidate) => candidate.type === "skills");
   assertSection(skills);
   skills.items[0]?.bullets.pop();
+  const work = structure.sections.find((candidate) => candidate.type === "experience");
+  assertSection(work);
+  work.items[0]?.bullets.pop();
+  work.items[0]?.bullets.pop();
+  removeLastExperienceBullet(structure);
   structure.sections.push(section("section-certifications", "other", "证书", [
     item("certificate-1", {
       title: "数据产品与分析专业认证",
@@ -99,6 +107,29 @@ export function additionalContentQualified(): CurrentResumeStructure {
     }),
   ]));
   return structure;
+}
+
+export function educationDetailsQualified(): CurrentResumeStructure {
+  const structure = qualifiedChinese();
+  removeLastExperienceBullet(structure);
+  const education = structure.sections.find(
+    (candidate) => candidate.type === "education",
+  );
+  assertSection(education);
+  education.items[0]!.raw_text = projectEducationRawText(
+    "GPA 3.8/4.0，专业前 10%。主修课程：数据结构、数据库系统、统计学。",
+    "zh-CN",
+    ["数据结构", "数据库系统", "统计学"],
+  );
+  return structure;
+}
+
+function removeLastExperienceBullet(structure: CurrentResumeStructure): void {
+  const work = structure.sections.find(
+    (candidate) => candidate.type === "experience",
+  );
+  assertSection(work);
+  work.items[work.items.length - 1]?.bullets.pop();
 }
 
 function assertSection(

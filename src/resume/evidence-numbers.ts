@@ -14,7 +14,7 @@ export function extractEvidenceNumbers(value: string): string[] {
   const withoutCompounds = value.replace(ENGLISH_COMPOUND_REGEX, " ");
   const tokens = [
     ...value.matchAll(
-      /(?<![\p{L}\d])(?:\p{Sc}\s*)?\d[\d,]*(?:\.\d+)?(?:万|亿|千|百|[KMB])?(?:\+)?(?:\s*%)?(?![\p{L}\d])/giu,
+      /(?<![\p{L}\d])(?:\p{Sc}\s*)?\d[\d,]*(?:\.\d+)?(?:\s*(?:万|亿|千|百|[KMB]))?(?:\s*\+)?(?:\s*%)?(?![\p{L}\d])/giu,
     ),
     ...[...value.matchAll(/[零一二两三四五六七八九十百千万亿]+/gu)]
       .filter((match) => isUnambiguousChineseNumber(value, match)),

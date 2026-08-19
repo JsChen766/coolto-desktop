@@ -76,7 +76,7 @@ export function writableEvidenceCandidates(
 }
 
 /** A label plus one scalar is a useful fact, but not a standalone bullet. */
-function isStandaloneScalarEvidence(value: string): boolean {
+export function isStandaloneScalarEvidence(value: string): boolean {
   return /^[\p{L}\p{Script=Han}_ -]{1,24}[:：]\s*(?:\p{Sc}\s*)?[\d.,/+\-]+(?:\s*(?:%|[KMB]|万|亿))?\s*$/iu.test(
     value,
   );

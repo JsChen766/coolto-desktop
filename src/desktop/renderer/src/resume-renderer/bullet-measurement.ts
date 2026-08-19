@@ -3,6 +3,8 @@ import {
   type ResumeBulletMeasurement,
   type ResumeCompileViolation,
 } from "../../../../resume/compiler-types";
+import { passesBulletTailGate } from
+  "../../../../resume/bullet-tail-gate";
 
 interface VisualLine {
   top: number;
@@ -133,7 +135,12 @@ export function measureResumeBullets(
     if (!lastLine) continue;
     const lastLineWidthPx = lastLine.right - lastLine.left;
     const lastLineRatio = lastLineWidthPx / availableLineWidthPx;
-    const passed = lastLineRatio - Number.EPSILON > gateRatio;
+    const passed = passesBulletTailGate({
+      lastLineWidthPx,
+      availableLineWidthPx,
+      gateRatio,
+      glyphTolerancePx: Number.parseFloat(style.fontSize || "0"),
+    });
     bullets.push({
       bulletId,
       lineCount: lines.length,

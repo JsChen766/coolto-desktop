@@ -78,7 +78,8 @@ test("one Agent prompt creates and batch-writes a resume workspace", async () =>
 
   await agent.prompt("生成一页针对性简历");
 
-  assert.equal(faux.state.callCount, 3);
+  assert.equal(faux.state.callCount, 2);
+  assert.equal(agent.runStopError, undefined);
   assert.equal(store.latest()?.revision, 1);
   assert.equal(compiler.structures.length, 2);
   assert.deepEqual(

@@ -1,4 +1,4 @@
-export const RESUME_TRACE_SCHEMA_VERSION = "resume-generation-trace-v2" as const;
+export const RESUME_TRACE_SCHEMA_VERSION = "resume-generation-trace-v3" as const;
 
 export type ResumeTraceStage =
   | "generation_started"
@@ -35,9 +35,9 @@ export interface ResumeTraceEvent {
   revision?: number;
   actionMode?: string;
   requestedTargetCount?: number;
-  submittedCandidateCount?: number;
-  cachedCandidateCount?: number;
-  selectedCandidateCount?: number;
+  measuredTailCount?: number;
+  appliedTailCount?: number;
+  rejectedTailCount?: number;
   measuredRewriteCount?: number;
   appliedRewriteCount?: number;
   stackedProgressCount?: number;
@@ -65,9 +65,9 @@ export interface ResumeTraceToolMetadata {
   revision?: number;
   actionMode?: string;
   requestedTargetCount?: number;
-  submittedCandidateCount?: number;
-  cachedCandidateCount?: number;
-  selectedCandidateCount?: number;
+  measuredTailCount?: number;
+  appliedTailCount?: number;
+  rejectedTailCount?: number;
   measuredRewriteCount?: number;
   appliedRewriteCount?: number;
   stackedProgressCount?: number;

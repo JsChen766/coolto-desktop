@@ -15,14 +15,24 @@ export interface ResumeToolProgress {
   pageCount?: number;
   remainingTailCount?: number;
   repairedTailCount?: number;
-  advancedCandidateCount?: number;
-  measuredCandidateCount?: number;
+  progressedTailCount?: number;
+  measuredTailCount?: number;
+  appliedTailCount?: number;
+  rejectedTailCount?: number;
+  validationRejectedTailCount?: number;
+  lineCountRejectedTailCount?: number;
+  insufficientGainRejectedTailCount?: number;
+  validationReasonCounts?: {
+    unchangedOrRepeated: number;
+    contentQuality: number;
+    unsupportedEvidence: number;
+    other: number;
+  };
+  nextTailTargets?: Array<{
+    bulletId: string;
+    expansionGoal: string;
+  }>;
   requestedTargetCount?: number;
-  submittedCandidateCount?: number;
-  cachedCandidateCount?: number;
-  selectedCandidateCount?: number;
-  selectedFromCacheCount?: number;
-  retainedCandidateCount?: number;
   measuredRewriteCount?: number;
   appliedRewriteCount?: number;
   stackedProgressCount?: number;
@@ -50,25 +60,12 @@ export function projectToolProgress(
   const layout = objectValue(details.layout);
   const nextAction = objectValue(details.nextAction);
   const readiness = objectValue(details.readiness);
-  const feedback = Array.isArray(details.tailRepairFeedback)
-    ? details.tailRepairFeedback
-    : [];
   const operation = objectValue(details.operation);
   const tailDiagnostics = objectValue(details.tailRepairDiagnostics);
   const lineDiagnostics = objectValue(details.lineRewriteDiagnostics);
   const overflowDiagnostics = objectValue(
     details.overflowReductionDiagnostics,
   );
-  const measuredCandidateCount = typeof tailDiagnostics?.submittedCandidateCount === "number"
-    ? tailDiagnostics.submittedCandidateCount
-    : feedback.reduce(
-        (total, entry) => total + (
-          Array.isArray(objectValue(entry)?.attempts)
-            ? (objectValue(entry)!.attempts as unknown[]).length
-            : 0
-        ),
-        0,
-      );
   const progress: ResumeToolProgress = {
     phase: progressPhase(
       nextAction,
@@ -82,27 +79,37 @@ export function projectToolProgress(
     ...numberField("revision", details.revision),
     ...numberField("usageRatio", layout?.usageRatio),
     ...numberField("pageCount", layout?.pageCount),
-    ...numberField("remainingTailCount", nextAction?.remainingTailCount),
+    ...numberField(
+      "remainingTailCount",
+      remainingTailCount(nextAction, layout, Boolean(tailDiagnostics)),
+    ),
     ...(tailDiagnostics
-      ? { repairedTailCount: typeof tailDiagnostics.repairedTailCount === "number"
-          ? tailDiagnostics.repairedTailCount
-          : feedback.filter((entry) => {
-              const value = objectValue(entry);
-              return value?.selectedOptionIndex !== undefined ||
-                value?.selectedFromCache === true;
-            }).length }
+      ? { repairedTailCount: typeof tailDiagnostics.passedTargetCount === "number"
+          ? tailDiagnostics.passedTargetCount
+          : 0 }
       : {}),
-    ...numberField("advancedCandidateCount", tailDiagnostics?.advancedCandidateCount),
-    measuredCandidateCount,
+    ...numberField("progressedTailCount", tailDiagnostics?.progressedTargetCount),
+    ...numberField("measuredTailCount", tailDiagnostics?.measuredTargetCount),
+    ...numberField("appliedTailCount", tailDiagnostics?.appliedTargetCount),
+    ...numberField("rejectedTailCount", tailDiagnostics?.rejectedTargetCount),
+    ...numberField(
+      "validationRejectedTailCount",
+      tailDiagnostics?.validationRejectedTargetCount,
+    ),
+    ...numberField(
+      "lineCountRejectedTailCount",
+      tailDiagnostics?.lineCountRejectedTargetCount,
+    ),
+    ...numberField(
+      "insufficientGainRejectedTailCount",
+      tailDiagnostics?.insufficientGainRejectedTargetCount,
+    ),
+    ...validationReasonCounts(tailDiagnostics?.validationReasonCounts),
+    ...nextTailTargets(nextAction),
     ...numberField(
       "requestedTargetCount",
       (tailDiagnostics ?? lineDiagnostics)?.requestedTargetCount,
     ),
-    ...numberField("submittedCandidateCount", tailDiagnostics?.submittedCandidateCount),
-    ...numberField("cachedCandidateCount", tailDiagnostics?.cachedCandidateCount),
-    ...numberField("selectedCandidateCount", tailDiagnostics?.selectedCandidateCount),
-    ...numberField("selectedFromCacheCount", tailDiagnostics?.selectedFromCacheCount),
-    ...numberField("retainedCandidateCount", tailDiagnostics?.retainedCandidateCount),
     ...numberField("measuredRewriteCount", lineDiagnostics?.measuredRewriteCount),
     ...numberField("appliedRewriteCount", lineDiagnostics?.appliedRewriteCount),
     ...numberField("stackedProgressCount", lineDiagnostics?.stackedProgressCount),
@@ -114,6 +121,53 @@ export function projectToolProgress(
       : {}),
   };
   return progress;
+}
+
+function validationReasonCounts(value: unknown) {
+  const counts = objectValue(value);
+  const keys = [
+    "unchangedOrRepeated",
+    "contentQuality",
+    "unsupportedEvidence",
+    "other",
+  ] as const;
+  return counts && keys.every((key) => typeof counts[key] === "number")
+    ? { validationReasonCounts: Object.fromEntries(
+        keys.map((key) => [key, counts[key]]),
+      ) as NonNullable<ResumeToolProgress["validationReasonCounts"]> }
+    : {};
+}
+
+function nextTailTargets(action: Record<string, unknown> | undefined) {
+  if (action?.mode !== "batch_tail_repair" ||
+    !Array.isArray(action.tailRepairTargets)) return {};
+  const targets = action.tailRepairTargets.flatMap((value) => {
+    const target = objectValue(value);
+    if (typeof target?.bulletId !== "string" ||
+      typeof target.currentText !== "string" ||
+      typeof target.expansionGoal !== "string") return [];
+    return [{
+      bulletId: target.bulletId,
+      expansionGoal: target.expansionGoal,
+    }];
+  });
+  return targets.length ? { nextTailTargets: targets } : {};
+}
+
+function remainingTailCount(
+  nextAction: Record<string, unknown> | undefined,
+  layout: Record<string, unknown> | undefined,
+  completedTailRepair: boolean,
+): unknown {
+  if (typeof nextAction?.remainingTailCount === "number") {
+    return nextAction.remainingTailCount;
+  }
+  if (!completedTailRepair || !Array.isArray(layout?.violations)) {
+    return undefined;
+  }
+  return layout.violations.filter((entry) =>
+    objectValue(entry)?.code === "bullet_tail_too_short"
+  ).length;
 }
 
 function progressPhase(

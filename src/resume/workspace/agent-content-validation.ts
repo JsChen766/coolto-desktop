@@ -4,6 +4,7 @@ import { findResumePaddingIssue } from "../planning/text-padding.js";
 import { resolveGroundedEvidence } from "./agent-workspace-evidence.js";
 import type { AgentBulletContentInput } from "./agent-content-types.js";
 import type { ResumeBulletProvenance, ResumeWorkspace } from "./types.js";
+import { minimumResumeBulletCount } from "./bullet-count-rules.js";
 
 export function buildValidatedBullet(input: {
   source: ResumeWorkspace;
@@ -109,9 +110,19 @@ export function assertMinimumBulletCount(
   itemId: string,
   count: number,
 ): void {
+  const section = workspace.structure.sections.find((entry) =>
+    entry.items.some((item) => item.id === itemId)
+  );
+  if (!section) throw new Error(`item ${itemId} 不在当前工作区`);
   const tier = workspace.itemTiers?.[itemId];
-  const minimum = tier === "main" ? 3 : tier === "secondary" ? 2 : 0;
-  if (count < minimum) throw new Error(`${tier} 经历至少需要 ${minimum} 条 bullet`);
+  const minimum = minimumResumeBulletCount({
+    sectionType: section.type,
+    itemId,
+    ...(tier ? { tier } : {}),
+  });
+  if (count < minimum) {
+    throw new Error(`${tier ?? section.type} 内容至少需要 ${minimum} 条 bullet`);
+  }
 }
 
 function assertRequirementIds(workspace: ResumeWorkspace, ids: string[]): void {

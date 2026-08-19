@@ -44,6 +44,7 @@ try {
   }
 
   const baseline = await readState(session);
+  await installAgentObservation(session);
   const startedAt = Date.now();
   await submitMessage(session, options.message);
   const result = await waitForResult(
@@ -54,6 +55,7 @@ try {
     Boolean(options.acceptResumeAugmentation),
   );
   result.durationMs = Date.now() - startedAt;
+  result.agentEvents = await readAgentObservation(session);
   if (options.openResumePreview && result.resume.artifactId) {
     result.preview = await openResumePreview(
       session,
@@ -229,6 +231,61 @@ async function submitMessage(session, message) {
     return true;
   })()`);
   if (!submitted) fail("Chat message could not be submitted");
+}
+
+async function installAgentObservation(session) {
+  const installed = await evaluate(session, `(() => {
+    window.__cooltoSmokeAgentUnsubscribe?.();
+    window.__cooltoSmokeAgentEvents = [];
+    window.__cooltoSmokeResumeCallIds = [];
+    const agent = window.coolto?.agent;
+    if (!agent?.onEvent) return false;
+    window.__cooltoSmokeAgentUnsubscribe = agent.onEvent((_conversationId, event) => {
+      if (event.type === "tool.started" && event.name === "apply_resume_content") {
+        const args = event.arguments && typeof event.arguments === "object"
+          ? event.arguments
+          : {};
+        const repairs = Array.isArray(args.tailRepairs) ? args.tailRepairs : [];
+        window.__cooltoSmokeResumeCallIds.push(event.callId);
+        window.__cooltoSmokeAgentEvents.push({
+          type: event.type,
+          callId: event.callId,
+          expectedRevision: args.expectedRevision,
+          inputMode: ["items", "bulletUpdates", "bulletRemovals",
+            "bulletAdditions", "tailRepairs", "lineRewrites"]
+            .find((key) => Array.isArray(args[key]) && args[key].length),
+          targetCount: repairs.length,
+          tailRepairs: repairs.map((entry) => ({
+            bulletId: entry?.bulletId ?? "",
+            revisedText: entry?.revisedText ?? "",
+            revisedCharacters: [...(entry?.revisedText ?? "")].length,
+          })),
+        });
+      }
+      if (
+        event.type === "tool.completed" &&
+        event.name === "apply_resume_content" &&
+        window.__cooltoSmokeResumeCallIds.includes(event.callId)
+      ) {
+        window.__cooltoSmokeAgentEvents.push({
+          type: event.type,
+          callId: event.callId,
+          isError: event.isError,
+          error: event.error ?? "",
+          progress: event.progress,
+        });
+      }
+    });
+    return true;
+  })()`);
+  if (!installed) fail("Agent event observation could not be installed");
+}
+
+async function readAgentObservation(session) {
+  return evaluate(
+    session,
+    `window.__cooltoSmokeAgentEvents ?? []`,
+  );
 }
 
 async function waitForResult(

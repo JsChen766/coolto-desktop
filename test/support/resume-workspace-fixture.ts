@@ -23,11 +23,14 @@ export function createWorkspaceSnapshotBuilder(
   options: {
     includeEducation?: boolean;
     jdRequirements?: JdRecord["requirements"];
+    educationContent?: string;
     workContent?: string;
+    tinyWorkContent?: string;
   } = {},
 ): ResumeSourceSnapshotBuilder {
   const experiences = [
-    createEducation(), createWork(options.workContent), createTinyWork(), createSkills(),
+    createEducation(options.educationContent), createWork(options.workContent),
+    createTinyWork(options.tinyWorkContent), createSkills(),
     createLegacySkills(),
   ].filter((experience) => options.includeEducation !== false || experience.category !== "education");
   const jd = createJd(options.jdRequirements);
@@ -181,7 +184,7 @@ function createJd(requirements?: JdRecord["requirements"]): JdRecord {
   };
 }
 
-function createEducation(): ExperienceDetail {
+function createEducation(content = "主修信息系统与数据分析。"): ExperienceDetail {
   return createExperience({
     id: "edu-1",
     revisionId: "rev-edu-1",
@@ -189,7 +192,7 @@ function createEducation(): ExperienceDetail {
     title: "香港示例大学",
     organization: "信息系统专业",
     role: "学士",
-    content: "主修信息系统与数据分析。",
+    content,
     tags: ["数据分析"],
   });
 }
@@ -208,7 +211,7 @@ function createWork(content = WORK_CONTENT): ExperienceDetail {
 }
 
 /** 单句短素材：用于写作前门禁的"物理不可达"回归样本。 */
-function createTinyWork(): ExperienceDetail {
+function createTinyWork(content = "负责日常数据整理。"): ExperienceDetail {
   return createExperience({
     id: "tiny-work-1",
     revisionId: "rev-tiny-work-1",
@@ -216,7 +219,7 @@ function createTinyWork(): ExperienceDetail {
     title: "数据助理",
     organization: "Tiny Corp",
     role: "成员",
-    content: "负责日常数据整理。",
+    content,
     tags: ["数据分析"],
   });
 }

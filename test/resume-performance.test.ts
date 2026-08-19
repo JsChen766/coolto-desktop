@@ -120,9 +120,9 @@ test("trace records only metadata and captures complete generation timing", () =
     revision: 14,
     actionMode: "tail_repair",
     requestedTargetCount: 2,
-    submittedCandidateCount: 6,
-    cachedCandidateCount: 4,
-    selectedCandidateCount: 2,
+    measuredTailCount: 6,
+    appliedTailCount: 2,
+    rejectedTailCount: 4,
     remainingTailCount: 7,
   });
   monotonic = 35;
@@ -152,7 +152,7 @@ test("trace records only metadata and captures complete generation timing", () =
   assert.deepEqual(traces.latestForConversation("run-1"), trace);
   const patch = trace.events.find((event) => event.stage === "patch");
   assert.equal(patch?.revision, 14);
-  assert.equal(patch?.cachedCandidateCount, 4);
+  assert.equal(patch?.rejectedTailCount, 4);
 });
 
 test("Pi model lifecycle maps to timing events without forwarding message content", () => {

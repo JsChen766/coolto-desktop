@@ -72,48 +72,6 @@ function mixedBullets() {
   ];
 }
 
-async function applyGroundedShortTail(
-  value: Awaited<ReturnType<typeof workspaceHarness>>,
-  approvals: ApprovalManager,
-) {
-  const apply = createApplyResumeContentTool(value.compiler, value.store, approvals);
-  const evidence = evidenceForModel(value.store.latest()!.sourceSnapshot)
-    .filter((entry) => entry.experienceId === "work-1");
-  const firstText = `${evidence[0]!.text.replace(/。$/, "")}短尾`;
-  const initial = resultText(await apply.execute("apply-grounded-tail", {
-    candidateId: value.created.candidateId,
-    expectedRevision: 0,
-    items: [{
-      itemId: "item-work-1",
-      bullets: [{
-        text: firstText,
-        origin: "grounded",
-        evidenceIds: [evidence[0]!.evidenceId],
-        requirementIds: ["req-1"],
-      }, {
-        text: evidence[1]!.text.replace(/。$/, ""),
-        origin: "grounded",
-        evidenceIds: [evidence[1]!.evidenceId],
-        requirementIds: ["req-1"],
-      }],
-    }],
-  }));
-  const bulletId = initial.nextAction.bulletIds[0] as string;
-  const fragmentText = "，体现面向目标岗位的主动协作意识";
-  const repaired = resultText(await apply.execute("repair-with-fragment", {
-    candidateId: value.created.candidateId,
-    expectedRevision: initial.revision,
-    tailRepairs: [{
-      bulletId,
-      augmentedModifier: {
-        text: fragmentText,
-        requirementIds: ["req-1"],
-      },
-    }],
-  }));
-  return { apply, bulletId, firstText, fragmentText, repaired };
-}
-
 test("agent_augmented content creates a program approval and accept confirms it", async () => {
   const value = await workspaceHarness();
   const approvals = augmentedApproval(value.store, value.compiler);
@@ -194,77 +152,38 @@ test("agent augmentation waits for tail repair before requesting approval", asyn
   assert.equal(initial.approvalRequestId, undefined);
   assert.equal(approvals.listPending().length, 0);
 
-  const repaired = resultText(await apply.execute("repair-before-confirm", {
-    candidateId: value.created.candidateId,
-    expectedRevision: initial.revision,
-    tailRepairs: [{
-      bulletId: initial.nextAction.bulletIds[0],
-      augmentedModifier: {
-        text: "，明确复盘产出与协作责任",
-        requirementIds: ["req-1"],
-      },
-    }],
-  }));
+  assert.equal(initial.nextAction.bulletIds.length, 1);
+  const semanticDetails =
+    "明确会前资料准备范围参与角色议题边界会议结论责任人完成时限验收方式复盘产出";
+  let repaired = initial;
+  for (let round = 0;
+    round < 12 && repaired.nextAction.mode === "batch_tail_repair";
+    round += 1) {
+    const target = repaired.nextAction.tailRepairTargets[0];
+    const additionCharacters = 12;
+    const addition = [...semanticDetails].slice(
+      round,
+      round + additionCharacters,
+    ).join("");
+    // The fixture models a short tail with the literal suffix “短尾”. Insert
+    // inside that marker so its synthetic measurement observes real progress.
+    const anchorIndex = target.currentText.lastIndexOf("尾");
+    const concreteRewrite = target.currentText.slice(0, anchorIndex) + addition +
+      target.currentText.slice(anchorIndex);
+    repaired = resultText(await apply.execute(`repair-before-confirm-${round}`, {
+      candidateId: value.created.candidateId,
+      expectedRevision: repaired.revision,
+      tailRepairs: [{
+        bulletId: repaired.nextAction.bulletIds[0],
+        revisedText: concreteRewrite,
+      }],
+    }));
+  }
   assert.equal(repaired.nextAction.mode, "await_augmented_confirmation");
   assert.equal(repaired.pendingConfirmation.length, 1);
   assert.equal(repaired.pendingConfirmation[0]?.kind, "bullet");
   assert.ok(repaired.approvalRequestId);
   assert.equal(approvals.listPending().length, 1);
-});
-
-test("accepting an augmented tail fragment confirms only the fragment", async () => {
-  const value = await workspaceHarness();
-  const approvals = augmentedApproval(value.store, value.compiler);
-  const result = await applyGroundedShortTail(value, approvals);
-
-  assert.deepEqual(result.repaired.pendingConfirmation, [{
-    itemId: "item-work-1",
-    bulletId: result.bulletId,
-    text: result.fragmentText,
-    kind: "fragment",
-  }]);
-  const request = approvals.listPending()[0]!;
-  assert.equal(request.preview.items?.[0]?.title, result.fragmentText);
-  const compileCount = value.compiler.structures.length;
-  await approvals.resolve(result.repaired.approvalRequestId, { type: "accept" });
-
-  const workspace = value.store.latest()!;
-  const provenance = workspace.bulletProvenance?.find(
-    (entry) => entry.bulletId === result.bulletId,
-  );
-  assert.equal(provenance?.origin, "grounded");
-  assert.equal(provenance?.confirmation, "not_required");
-  assert.equal(workspace.augmentedFragments?.[0]?.confirmation, "confirmed");
-  assert.equal(workspace.awaitingUserConfirmation, null);
-  assert.equal(value.compiler.structures.length, compileCount);
-});
-
-test("rejecting an augmented tail fragment restores the grounded bullet", async () => {
-  const value = await workspaceHarness();
-  const approvals = augmentedApproval(value.store, value.compiler);
-  const result = await applyGroundedShortTail(value, approvals);
-  const before = value.store.latest()!;
-  const binding = structuredClone(
-    before.bindings.find((entry) => entry.bulletId === result.bulletId),
-  );
-  const compileCount = value.compiler.structures.length;
-  await approvals.resolve(result.repaired.approvalRequestId, { type: "reject" });
-
-  const workspace = value.store.latest()!;
-  const bullet = workspace.structure.sections.flatMap((section) => section.items)
-    .flatMap((item) => item.bullets)
-    .find((entry) => entry.id === result.bulletId)!;
-  const provenance = workspace.bulletProvenance?.find(
-    (entry) => entry.bulletId === result.bulletId,
-  );
-  assert.equal(bullet.text, result.firstText);
-  assert.equal(provenance?.origin, "grounded");
-  assert.deepEqual(
-    workspace.bindings.find((entry) => entry.bulletId === result.bulletId),
-    binding,
-  );
-  assert.equal(workspace.augmentedFragments?.length, 0);
-  assert.equal(value.compiler.structures.length, compileCount + 1);
 });
 
 test("rejecting agent_augmented content removes it and recompiles", async () => {

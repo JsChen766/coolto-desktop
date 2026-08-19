@@ -10,7 +10,7 @@ import type {
   ResumeQualityReport,
 } from "../quality/types.js";
 import type { EvidenceRepairAction } from "./evidence-auto-repair.js";
-import type { TailRepairRetryState } from "./tail-repair-state.js";
+import type { TailRepairProgressState } from "./tail-repair-state.js";
 
 export type ResumeCandidateLanguage = "zh-CN" | "en-US";
 export type ResumeWorkspaceStatus =
@@ -91,14 +91,19 @@ export interface ResumeWorkspace {
   supplementalEvidence?: ResumeSupplementalEvidence[];
   /** Material pause declared by the Agent or a deterministic host gate. */
   materialRequest?: {
-    kind?: "agent_declared" | "critical_skill" | "page_fill_stalled";
+    kind?:
+      | "agent_declared"
+      | "critical_skill"
+      | "bullet_count_insufficient"
+      | "page_fill_stalled"
+      | "tail_repair_stalled";
     reason: string;
     question: string;
     targetExperienceId?: string;
     requestedAt: string;
   };
-  /** Mechanical attempt ledger after a zero-progress tail-repair measurement. */
-  tailRepairRetry?: TailRepairRetryState;
+  /** Bounded no-progress state for each unresolved formal bullet. */
+  tailRepairProgress?: TailRepairProgressState;
   /** Consecutive measured page-fill rounds that landed no real height growth. */
   pageFillProgress?: {
     consecutiveZeroGrowthRounds: number;
