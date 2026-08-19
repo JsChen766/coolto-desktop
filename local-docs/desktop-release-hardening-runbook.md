@@ -328,6 +328,12 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 
 ### 10.6 运维注意事项（坑）
 
+- **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过
+  NSIS 与 release hardening，但安装后主进程仍存活、无 stdout/stderr 时，在 10 秒窗口内未输出
+  `COOLTO_MAIN_BOOTSTRAP_READY`，门禁正确阻止上传；同一版本本地完整安装验证通过。验证器现允许最多
+  30 秒冷启动，同时新增随机本地 CDP 端口并强制要求 bootstrap marker、真实 page target 与随后 3 秒
+  持续存活，不能把延长等待退化为仅看进程不退出。
+
 - **macOS 0.1.12：`coolto-core.node` 必须跳过签名（signIgnore）。**
   osx-sign 会签名 app 内所有 Mach-O（含 extraResources 的 `.node`），
   签名改写字节后与 protect 阶段嵌入 loader 的 SHA-256 不一致，运行时抛

@@ -2990,6 +2990,13 @@ ASAR/Fuses 加固审计、隔离安装真实 bootstrap、Renderer 存活和卸�
 Actions 分别构建上传，不能在 Windows 上伪造 macOS 产物。完整本地证据见 S4.5.1 阶段 39；阶段 38 的
 真实生成失败结论不变，打包通过不等于 S4.5.1 完成。
 
+**0.1.19 跨平台发布进度（2026-08-19）：**PR #42 已合入 `app`。macOS workflow `32255120066` 在
+5m46s 成功完成双架构 native、x64/arm64 ZIP+DMG、全架构 hardening 和服务器上传。首次 Windows
+workflow `32255116143` 的 NSIS/hardening 通过，但安装进程在旧 10 秒窗口内未输出 bootstrap marker，
+门禁正确阻止上传，Windows 公网 feed 暂留 0.1.18。验证器已改为 30 秒冷启动容差，并额外强制 CDP page、
+marker、未退出和 3 秒持续健康；本地增强验证及完整 `npm run check` 均通过。修复 PR 与 Windows CI
+重跑完成前，不得称 Win/mac 跨平台发布完成。完整记录见 S4.5.1 阶段 39。
+
 | 顺序 | 状态 | 工作 | 完成门槛 |
 | --- | --- | --- | --- |
 | 1 | 已完成 | 把 `inspect_resume_layout.insufficient` 和可写容量升级为进入写作前的确定性门禁；不足时由 Agent 先扩大搜索，穷尽后返回 `needs_user_decision` | 不创建不可达 workspace；最终回复明确追问缺失事实；没有额外模型自循环 |
