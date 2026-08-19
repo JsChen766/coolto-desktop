@@ -1,40 +1,51 @@
-export const TAIL_REPAIR_STALL_ROUND = 3;
+import { tailGrowthFingerprint } from "./tail-repair-fingerprint.js";
+
+export { tailGrowthFingerprint } from "./tail-repair-fingerprint.js";
+
+export const MAX_TAIL_GROWTH_REJECTIONS = 4;
+export const MAX_TAIL_REFLOW_ATTEMPTS = 2;
+
+export type TailRepairMode = "growth" | "reflow";
+
+export type TailGrowthFailureType =
+  | "too_long"
+  | "insufficient_growth"
+  | "invalid_content"
+  | "duplicate";
 
 export interface TailRepairBulletProgress {
-  zeroProgressRounds: number;
-  appliedRounds?: number;
-  attemptedRounds?: number;
+  mode?: TailRepairMode;
+  consecutiveRejects: number;
+  rejectedGrowthFingerprints?: string[];
+  rejectedGrowths?: string[];
+  lastFailureType?: TailGrowthFailureType;
+  reflowAttempts?: number;
+  rejectedReflowFingerprints?: string[];
+  rejectedReflows?: string[];
+  /** Legacy fields are read from persisted drafts and are no longer written. */
+  zeroProgressRounds?: number;
   rejectedTextFingerprints?: string[];
-  /** Legacy persisted field; read during migration and stop writing it. */
-  lastRejectedTextFingerprint?: string;
+  rejectedAttempts?: string[];
 }
 
 export interface TailRepairProgressState {
   byBulletId: Record<string, TailRepairBulletProgress>;
-  /** Unresolved bullets already tried in the current zero-progress sweep. */
-  attemptedBulletIdsSinceProgress?: string[];
-  zeroProgressRounds: number;
   stalled: boolean;
 }
 
 export interface TailRepairProgressOutcome {
   bulletId: string;
   applied: boolean;
-  textFingerprint: string;
+  growthFingerprint: string;
+  rejectedGrowth?: string;
+  failureType?: TailGrowthFailureType;
 }
 
-export function tailRepairTextFingerprint(text: string): string {
-  const normalized = text.normalize("NFKC").trim();
-  let left = 0x811c9dc5;
-  let right = 0x9e3779b9;
-  for (const character of normalized) {
-    const value = character.codePointAt(0) ?? 0;
-    left = Math.imul(left ^ value, 0x01000193);
-    right = Math.imul(right ^ value, 0x85ebca6b);
-  }
-  return `${normalized.length}:${(left >>> 0).toString(16)}:${
-    (right >>> 0).toString(16)
-  }`;
+export interface TailReflowProgressOutcome {
+  bulletId: string;
+  applied: boolean;
+  rewriteFingerprint: string;
+  rejectedRewrite?: string;
 }
 
 export function updateTailRepairProgress(
@@ -51,72 +62,107 @@ export function updateTailRepairProgress(
     const prior = previous?.byBulletId[bulletId];
     const outcome = outcomeById.get(bulletId);
     if (!outcome) {
-      if (prior) byBulletId[bulletId] = prior;
+      if (prior) byBulletId[bulletId] = migrateProgress(prior);
       continue;
     }
     if (outcome.applied) {
       byBulletId[bulletId] = {
-        zeroProgressRounds: 0,
-        appliedRounds: (prior?.appliedRounds ?? 0) + 1,
-        attemptedRounds: (prior?.attemptedRounds ?? 0) + 1,
+        mode: "reflow",
+        consecutiveRejects: 0,
+        reflowAttempts: 0,
       };
       continue;
     }
-    const zeroProgressRounds = Math.min(
-      TAIL_REPAIR_STALL_ROUND,
-      (prior?.zeroProgressRounds ?? 0) + 1,
-    );
-    const rejectedTextFingerprints = appendRejectedFingerprint(
-      prior,
-      outcome.textFingerprint,
-    );
     byBulletId[bulletId] = {
-      zeroProgressRounds,
-      ...(prior?.appliedRounds
-        ? { appliedRounds: prior.appliedRounds }
+      mode: "growth",
+      consecutiveRejects: Math.min(
+        MAX_TAIL_GROWTH_REJECTIONS,
+        rejectionCount(prior) + 1,
+      ),
+      rejectedGrowthFingerprints: appendBounded(
+        prior?.rejectedGrowthFingerprints ?? prior?.rejectedTextFingerprints,
+        outcome.growthFingerprint,
+        6,
+      ),
+      ...(outcome.rejectedGrowth
+        ? {
+          rejectedGrowths: appendBounded(
+            prior?.rejectedGrowths ?? prior?.rejectedAttempts,
+            outcome.rejectedGrowth,
+            2,
+          ),
+        }
         : {}),
-      attemptedRounds: (prior?.attemptedRounds ?? 0) + 1,
-      rejectedTextFingerprints,
+      ...(outcome.failureType ? { lastFailureType: outcome.failureType } : {}),
     };
   }
-  const madeFormalProgress = outcomes.some((outcome) => outcome.applied);
-  const attempted = new Set(
-    madeFormalProgress
-      ? []
-      : previous?.attemptedBulletIdsSinceProgress ?? [],
-  );
-  if (!madeFormalProgress) {
-    outcomes.forEach((outcome) => attempted.add(outcome.bulletId));
-  }
-  const completedSweep = !madeFormalProgress &&
-    [...failedBulletIds].every((bulletId) => attempted.has(bulletId));
-  const zeroProgressRounds = madeFormalProgress
-    ? 0
-    : completedSweep
-      ? Math.min(
-          TAIL_REPAIR_STALL_ROUND,
-          (previous?.zeroProgressRounds ?? 0) + 1,
-        )
-      : previous?.zeroProgressRounds ?? 0;
-  if (completedSweep) attempted.clear();
   return {
     byBulletId,
-    attemptedBulletIdsSinceProgress: [...attempted].filter((bulletId) =>
-      failedBulletIds.has(bulletId)
-    ).sort(),
-    zeroProgressRounds,
-    stalled: zeroProgressRounds >= TAIL_REPAIR_STALL_ROUND,
+    stalled: failedBulletIds.size > 0 && [...failedBulletIds].every(
+      (bulletId) => isTailRepairExhausted(byBulletId[bulletId]),
+    ),
   };
 }
 
-export function wasLastRejectedTailText(
+export function updateTailReflowProgress(
+  previous: TailRepairProgressState | undefined,
+  outcomes: readonly TailReflowProgressOutcome[],
+  failedBulletIds: ReadonlySet<string>,
+): TailRepairProgressState {
+  const outcomeById = new Map(outcomes.map((outcome) => [
+    outcome.bulletId,
+    outcome,
+  ]));
+  const byBulletId: Record<string, TailRepairBulletProgress> = {};
+  for (const bulletId of failedBulletIds) {
+    const prior = previous?.byBulletId[bulletId];
+    const outcome = outcomeById.get(bulletId);
+    if (!outcome) {
+      if (prior) byBulletId[bulletId] = migrateProgress(prior);
+      continue;
+    }
+    const migrated = migrateProgress(prior ?? { consecutiveRejects: 0 });
+    byBulletId[bulletId] = {
+      ...migrated,
+      mode: "reflow",
+      reflowAttempts: outcome.applied
+        ? migrated.reflowAttempts ?? 0
+        : Math.min(
+            MAX_TAIL_REFLOW_ATTEMPTS,
+            (migrated.reflowAttempts ?? 0) + 1,
+          ),
+      ...(outcome.rejectedRewrite
+        ? {
+          rejectedReflowFingerprints: appendBounded(
+            migrated.rejectedReflowFingerprints,
+            outcome.rewriteFingerprint,
+            MAX_TAIL_REFLOW_ATTEMPTS,
+          ),
+          rejectedReflows: appendBounded(
+            migrated.rejectedReflows,
+            outcome.rejectedRewrite,
+            MAX_TAIL_REFLOW_ATTEMPTS,
+          ),
+        }
+        : {}),
+    };
+  }
+  return {
+    byBulletId,
+    stalled: failedBulletIds.size > 0 && [...failedBulletIds].every(
+      (bulletId) => isTailRepairExhausted(byBulletId[bulletId]),
+    ),
+  };
+}
+
+export function wasRejectedTailGrowth(
   state: TailRepairProgressState | undefined,
   bulletId: string,
-  text: string,
+  growthText: string,
 ): boolean {
   const progress = state?.byBulletId[bulletId];
-  const fingerprint = tailRepairTextFingerprint(text);
-  return progress?.lastRejectedTextFingerprint === fingerprint ||
+  const fingerprint = tailGrowthFingerprint(growthText);
+  return progress?.rejectedGrowthFingerprints?.includes(fingerprint) === true ||
     progress?.rejectedTextFingerprints?.includes(fingerprint) === true;
 }
 
@@ -125,30 +171,75 @@ export function retainFailedTailProgress(
   failedBulletIds: ReadonlySet<string>,
 ): TailRepairProgressState | undefined {
   if (!state) return undefined;
-  const byBulletId = Object.fromEntries(Object.entries(state.byBulletId).filter(
-    ([bulletId]) => failedBulletIds.has(bulletId),
-  ));
+  const byBulletId = Object.fromEntries(Object.entries(state.byBulletId)
+    .filter(([bulletId]) => failedBulletIds.has(bulletId))
+    .map(([bulletId, progress]) => [bulletId, migrateProgress(progress)]));
   if (!Object.keys(byBulletId).length) return undefined;
   return {
     byBulletId,
-    attemptedBulletIdsSinceProgress: (
-      state.attemptedBulletIdsSinceProgress ?? []
-    ).filter((bulletId) => failedBulletIds.has(bulletId)),
-    zeroProgressRounds: state.zeroProgressRounds ?? 0,
-    stalled: (state.zeroProgressRounds ?? 0) >= TAIL_REPAIR_STALL_ROUND,
+    stalled: [...failedBulletIds].every((bulletId) =>
+      isTailRepairExhausted(byBulletId[bulletId])
+    ),
   };
 }
 
-function appendRejectedFingerprint(
-  prior: TailRepairBulletProgress | undefined,
-  fingerprint: string,
+export function tailRepairMode(
+  progress: TailRepairBulletProgress | undefined,
+): TailRepairMode {
+  return progress?.mode ?? "growth";
+}
+
+export function isTailRepairExhausted(
+  progress: TailRepairBulletProgress | undefined,
+): boolean {
+  return tailRepairMode(progress) === "reflow"
+    ? (progress?.reflowAttempts ?? 0) >= MAX_TAIL_REFLOW_ATTEMPTS
+    : isTailGrowthExhausted(progress);
+}
+
+export function isTailGrowthExhausted(
+  progress: TailRepairBulletProgress | undefined,
+): boolean {
+  return tailRepairMode(progress) === "growth" &&
+    rejectionCount(progress) >= MAX_TAIL_GROWTH_REJECTIONS;
+}
+
+function rejectionCount(progress: TailRepairBulletProgress | undefined): number {
+  return progress?.consecutiveRejects ?? progress?.zeroProgressRounds ?? 0;
+}
+
+function migrateProgress(progress: TailRepairBulletProgress): TailRepairBulletProgress {
+  return {
+    mode: progress.mode ?? "growth",
+    consecutiveRejects: rejectionCount(progress),
+    ...(progress.rejectedGrowthFingerprints?.length ||
+        progress.rejectedTextFingerprints?.length
+      ? {
+        rejectedGrowthFingerprints:
+          progress.rejectedGrowthFingerprints ?? progress.rejectedTextFingerprints,
+      }
+      : {}),
+    ...(progress.rejectedGrowths?.length || progress.rejectedAttempts?.length
+      ? { rejectedGrowths: progress.rejectedGrowths ?? progress.rejectedAttempts }
+      : {}),
+    ...(progress.lastFailureType ? { lastFailureType: progress.lastFailureType } : {}),
+    ...(progress.reflowAttempts !== undefined
+      ? { reflowAttempts: progress.reflowAttempts }
+      : {}),
+    ...(progress.rejectedReflowFingerprints?.length
+      ? { rejectedReflowFingerprints: progress.rejectedReflowFingerprints }
+      : {}),
+    ...(progress.rejectedReflows?.length
+      ? { rejectedReflows: progress.rejectedReflows }
+      : {}),
+  };
+}
+
+function appendBounded(
+  previous: readonly string[] | undefined,
+  value: string,
+  limit: number,
 ): string[] {
-  const previous = [
-    ...(prior?.rejectedTextFingerprints ?? []),
-    ...(prior?.lastRejectedTextFingerprint
-      ? [prior.lastRejectedTextFingerprint]
-      : []),
-  ].filter((value, index, values) => values.indexOf(value) === index);
-  return [...previous.filter((value) => value !== fingerprint), fingerprint]
-    .slice(-6);
+  return [...(previous ?? []).filter((entry) => entry !== value), value]
+    .slice(-limit);
 }

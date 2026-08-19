@@ -4,7 +4,6 @@ import {
 } from "../compiler-types.js";
 import { resumeGenerationReadiness } from "./generation-readiness.js";
 import { resumeAgentNextAction } from "./agent-next-action.js";
-import { bulletCharacterTargets } from "./character-targets.js";
 import type { ResumeWorkspace } from "./types.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
 import { minimumResumeBulletCount } from "./bullet-count-rules.js";
@@ -91,12 +90,6 @@ export function buildAgentWorkspaceView(
               (observed?.lastLineWidthPx ?? 0) +
               (passed ? 0 : 0.01),
           ),
-        ),
-        characterTargets: bulletCharacterTargets(
-          bullet.text,
-          observed?.lineCount ?? 0,
-          observed?.lastLineWidthPx ?? 0,
-          availableLineWidthPx,
         ),
         passed,
       };

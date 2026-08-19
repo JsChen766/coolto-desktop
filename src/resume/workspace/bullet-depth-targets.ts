@@ -1,17 +1,19 @@
 import { workspaceEvidenceRecords } from "./agent-workspace-evidence.js";
-import {
-  lineExpansionInstruction,
-} from "./line-expansion-instruction.js";
-import type { LineExpansionTarget } from "./line-expansion-targets.js";
+import { SEMANTIC_LINE_EXPANSION_REQUIRED_EDIT } from "./semantic-line-expansion-instruction.js";
 import type { ResumeItemTier, ResumeWorkspace } from "./types.js";
 
 export const MIN_TIERED_BULLET_LINES = 2;
 export const MAX_TIERED_BULLET_LINES = 3;
 
-export interface BulletDepthRewriteTarget extends LineExpansionTarget {
+export interface BulletDepthRewriteTarget {
+  requiredEdit: string;
+  bulletId: string;
   itemId: string;
   tier: Extract<ResumeItemTier, "main" | "secondary">;
+  currentText: string;
   currentLines: number;
+  evidenceIds: string[];
+  sourceQuotes: string[];
 }
 
 /** Every measured tiered bullet that still needs to reach the 2–3 line gate. */
@@ -38,9 +40,8 @@ export function bulletDepthRewriteTargets(
         const observed = measurements.get(bullet.id);
         if (!observed || observed.lineCount >= MIN_TIERED_BULLET_LINES) return [];
         const evidenceIds = provenance.get(bullet.id)?.evidenceIds ?? [];
-        const instruction = lineExpansionInstruction(bullet.text, observed);
-        if (!instruction) return [];
         return [{
+          requiredEdit: SEMANTIC_LINE_EXPANSION_REQUIRED_EDIT,
           bulletId: bullet.id,
           itemId: item.id,
           tier,
@@ -51,7 +52,6 @@ export function bulletDepthRewriteTargets(
             const quote = evidence.get(id);
             return quote ? [quote] : [];
           }),
-          ...instruction,
         }];
       });
     }),

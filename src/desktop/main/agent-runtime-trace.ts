@@ -1,4 +1,5 @@
 import type { ResumeToolProgress } from "../../agent/tool-progress.js";
+import type { TurnGovernorStopReason } from "../../agent/turn-governor.js";
 import type {
   ResumeTraceErrorCategory,
   ResumeTraceStopReason,
@@ -25,7 +26,11 @@ export function traceToolMetadata(
   };
 }
 
-export function traceStopReason(message: string): ResumeTraceStopReason {
+export function traceStopReason(
+  message: string,
+  governorReason?: TurnGovernorStopReason,
+): ResumeTraceStopReason {
+  if (governorReason) return governorTraceReason(governorReason);
   if (/insufficient[_ -]?credits|余额不足/iu.test(message)) {
     return "insufficient_credits";
   }
@@ -35,6 +40,20 @@ export function traceStopReason(message: string): ResumeTraceStopReason {
   }
   if (/abort|cancel|取消/iu.test(message)) return "cancelled";
   return "runtime_error";
+}
+
+function governorTraceReason(
+  reason: TurnGovernorStopReason,
+): ResumeTraceStopReason {
+  switch (reason) {
+    case "maximum_turns": return "turn_governor_maximum_turns";
+    case "maximum_phase_turns": return "turn_governor_maximum_phase_turns";
+    case "maximum_total_turns": return "turn_governor_maximum_total_turns";
+    case "terminal_model_failure": return "turn_governor_terminal_model_failure";
+    case "same_tool_outcome": return "turn_governor_same_tool_outcome";
+    case "repeated_tool_errors": return "turn_governor_repeated_tool_errors";
+    case "same_tool_sequence": return "turn_governor_same_tool_sequence";
+  }
 }
 
 function metric<K extends keyof ResumeTraceToolMetadata>(

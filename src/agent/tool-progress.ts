@@ -30,7 +30,7 @@ export interface ResumeToolProgress {
   };
   nextTailTargets?: Array<{
     bulletId: string;
-    expansionGoal: string;
+    growthHint: string;
   }>;
   requestedTargetCount?: number;
   measuredRewriteCount?: number;
@@ -139,16 +139,19 @@ function validationReasonCounts(value: unknown) {
 }
 
 function nextTailTargets(action: Record<string, unknown> | undefined) {
-  if (action?.mode !== "batch_tail_repair" ||
-    !Array.isArray(action.tailRepairTargets)) return {};
-  const targets = action.tailRepairTargets.flatMap((value) => {
+  const source = action?.mode === "batch_tail_repair"
+    ? action.tailRepairTargets
+    : action?.mode === "batch_tail_reflow" ? action.tailReflowTargets : undefined;
+  if (!Array.isArray(source)) return {};
+  const targets = source.flatMap((value) => {
     const target = objectValue(value);
     if (typeof target?.bulletId !== "string" ||
-      typeof target.currentText !== "string" ||
-      typeof target.expansionGoal !== "string") return [];
+      typeof target.currentText !== "string") return [];
     return [{
       bulletId: target.bulletId,
-      expansionGoal: target.expansionGoal,
+      growthHint: typeof target.growthHint === "string"
+        ? target.growthHint
+        : "事实等价展开",
     }];
   });
   return targets.length ? { nextTailTargets: targets } : {};
@@ -186,6 +189,7 @@ function progressPhase(
     case "repair_bullet_depth": return "depth_repair";
     case "increase_usage": return "filling";
     case "batch_tail_repair": return "tail_repair";
+    case "batch_tail_reflow": return "tail_repair";
     case "reduce_overflow": return "trimming";
     case "request_more_material": return "awaiting_material";
     case "await_augmented_confirmation": return "awaiting_confirmation";

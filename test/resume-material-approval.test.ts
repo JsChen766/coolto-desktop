@@ -159,23 +159,17 @@ test("agent augmentation waits for tail repair before requesting approval", asyn
   for (let round = 0;
     round < 12 && repaired.nextAction.mode === "batch_tail_repair";
     round += 1) {
-    const target = repaired.nextAction.tailRepairTargets[0];
     const additionCharacters = 12;
     const addition = [...semanticDetails].slice(
       round,
       round + additionCharacters,
     ).join("");
-    // The fixture models a short tail with the literal suffix “短尾”. Insert
-    // inside that marker so its synthetic measurement observes real progress.
-    const anchorIndex = target.currentText.lastIndexOf("尾");
-    const concreteRewrite = target.currentText.slice(0, anchorIndex) + addition +
-      target.currentText.slice(anchorIndex);
     repaired = resultText(await apply.execute(`repair-before-confirm-${round}`, {
       candidateId: value.created.candidateId,
       expectedRevision: repaired.revision,
-      tailRepairs: [{
+      tailGrowths: [{
         bulletId: repaired.nextAction.bulletIds[0],
-        revisedText: concreteRewrite,
+        growthText: addition,
       }],
     }));
   }

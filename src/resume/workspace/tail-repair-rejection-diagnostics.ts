@@ -15,7 +15,7 @@ export function tailRepairValidationReasonCounts(
     other: 0,
   };
   for (const reason of reasons) {
-    if (/必须修改当前正式文本|必须在当前.*增加|已经提交过|重复|完全重复/u.test(reason)) {
+    if (/已经被拒绝|重复|重交完整/u.test(reason)) {
       counts.unchangedOrRepeated += 1;
     } else if (/空泛|抽象|句末标点/u.test(reason)) {
       counts.contentQuality += 1;

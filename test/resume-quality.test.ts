@@ -335,9 +335,9 @@ test("LLM context removes stale tail text from the retained tool call", async ()
     assistantToolCall("tail-call", "apply_resume_content", {
       candidateId: "candidate-1",
       expectedRevision: 7,
-      tailRepairs: [{
+      tailGrowths: [{
         bulletId: "bullet-1",
-        revisedText: "stale-tail-text-must-disappear",
+        growthText: "stale-tail-text-must-disappear",
       }],
     }),
     toolResultWithId("tail-call", "apply_resume_content", "latest-currentText"),
@@ -347,6 +347,61 @@ test("LLM context removes stale tail text from the retained tool call", async ()
   assert.doesNotMatch(serialized, /stale-tail-text-must-disappear/u);
   assert.match(serialized, /supersededByFollowingToolResult/u);
   assert.match(serialized, /latest-currentText/u);
+});
+
+test("LLM context compacts line rewrites only in tail reflow phase", async () => {
+  const reflowResult = {
+    ...toolResultWithId(
+      "tail-reflow-call",
+      "apply_resume_content",
+      "latest-reflow-currentText",
+    ),
+    details: { nextAction: { mode: "batch_tail_reflow" } },
+  } as AgentMessage;
+  const compacted = await compactResumeGenerationContext([
+    assistantToolCall("tail-reflow-call", "apply_resume_content", {
+      candidateId: "candidate-1",
+      expectedRevision: 8,
+      lineRewrites: [{
+        bulletId: "bullet-1",
+        revisedText: "stale-reflow-text-must-disappear",
+      }],
+    }),
+    reflowResult,
+  ]);
+  const serialized = JSON.stringify(compacted);
+
+  assert.doesNotMatch(serialized, /stale-reflow-text-must-disappear/u);
+  assert.match(serialized, /supersededByFollowingToolResult/u);
+  assert.match(serialized, /latest-reflow-currentText/u);
+});
+
+test("LLM context keeps only the latest authority in tail repair phase", async () => {
+  const tailAuthority = {
+    ...toolResultWithId(
+      "tail-authority-call",
+      "apply_resume_content",
+      "latest-tail-currentText-and-sourceQuotes",
+    ),
+    details: {
+      nextAction: { mode: "batch_tail_repair" },
+    },
+  } as AgentMessage;
+  const compacted = await compactResumeGenerationContext([
+    userMessage("generate a resume for the target role"),
+    toolResult("search_experiences", "discovery-result-must-disappear"),
+    toolResult("create_resume_workspace", "source-snapshot-must-disappear"),
+    toolResult("apply_resume_content", "old-workspace-must-disappear"),
+    tailAuthority,
+  ]);
+  const serialized = JSON.stringify(compacted);
+
+  assert.match(serialized, /generate a resume for the target role/u);
+  assert.match(serialized, /latest-tail-currentText-and-sourceQuotes/u);
+  assert.doesNotMatch(
+    serialized,
+    /discovery-result-must-disappear|source-snapshot-must-disappear|old-workspace-must-disappear/u,
+  );
 });
 
 test("LLM context drops an old tool error after a newer authoritative success", async () => {
@@ -370,6 +425,31 @@ test("LLM context drops an old tool error after a newer authoritative success", 
 
   assert.doesNotMatch(serialized, /schema-error-must-not-survive/u);
   assert.match(serialized, /latest-successful-workspace/u);
+});
+
+test("LLM context keeps the latest workspace when an exact repeat is blocked", async () => {
+  const latestWorkspace = toolResultWithId(
+    "successful-call",
+    "apply_resume_content",
+    "revision-11-currentText-and-lastFailureType",
+  );
+  const repetitionError = {
+    ...toolResultWithId(
+      "blocked-call",
+      "apply_resume_content",
+      "detected_repetition-use-the-latest-workspace",
+    ),
+    isError: true,
+  } as AgentMessage;
+
+  const compacted = await compactResumeGenerationContext([
+    latestWorkspace,
+    repetitionError,
+  ]);
+  const serialized = JSON.stringify(compacted);
+
+  assert.match(serialized, /revision-11-currentText-and-lastFailureType/u);
+  assert.match(serialized, /detected_repetition-use-the-latest-workspace/u);
 });
 
 async function createDuplicateCandidate() {

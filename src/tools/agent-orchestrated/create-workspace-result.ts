@@ -36,7 +36,11 @@ export function rejectedReselectionResult(
   const payload = { ...buildAgentWorkspaceView(workspace), writeRejectedReason: reason };
   return {
     content: [{ type: "text" as const, text: JSON.stringify(payload) }],
-    details: { ...payload, loopGuardKey: resumeContentProgressKey(workspace) },
+    details: {
+      ...payload,
+      loopGuardKey: resumeContentProgressKey(workspace),
+      turnGovernorPhaseKey: "resume_generation",
+    },
   };
 }
 
@@ -60,6 +64,10 @@ export function createWorkspaceResult(
   };
   return {
     content: [{ type: "text" as const, text: JSON.stringify(payload) }],
-    details: { ...payload, loopGuardKey: resumeContentProgressKey(workspace) },
+    details: {
+      ...payload,
+      loopGuardKey: resumeContentProgressKey(workspace),
+      turnGovernorPhaseKey: "resume_generation",
+    },
   };
 }

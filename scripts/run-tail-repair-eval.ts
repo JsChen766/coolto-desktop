@@ -89,8 +89,8 @@ export async function runTailRepairEval(compiler: ResumeCompiler) {
   try {
     await agent.prompt(
       "以下是已经完成检索、首稿、篇幅和 2–3 行深度门槛后的真实简历工作区。" +
-      "只处理 nextAction：每轮把全部当前目标作为一个 tailRepairs 批次提交，每条只有一个完整 revisedText；" +
-      "基于 currentText 与来源做语义扩写，不计算字符或像素，不生成候选。\n" +
+      "只处理 nextAction：batch_tail_repair 用一批 tailGrowths；进入 batch_tail_reflow 后改用一批 lineRewrites，" +
+      "严格执行每条 requiredEdit，不生成候选。\n" +
       JSON.stringify(buildAgentWorkspaceReceipt(baseline)),
     );
   } catch (error: unknown) {
@@ -104,14 +104,21 @@ export async function runTailRepairEval(compiler: ResumeCompiler) {
     index > 0 && JSON.stringify(call) === JSON.stringify(applyCalls[index - 1])
   ).length;
   const malformedCalls = applyCalls.filter((call) =>
-    !Array.isArray(call.tailRepairs) || call.tailRepairs.length === 0 ||
-    ["items", "bulletUpdates", "bulletAdditions", "lineRewrites"].some(
-      (key) => Array.isArray(call[key]) && call[key].length > 0,
+    [call.tailGrowths, call.lineRewrites].filter((value) =>
+      Array.isArray(value) && value.length > 0
+    ).length !== 1 ||
+    ["items", "bulletUpdates", "bulletRemovals", "bulletAdditions"].some((key) =>
+      Array.isArray(call[key]) && call[key].length > 0
     )
   ).length;
-  const candidateLikeOutputs = applyCalls.flatMap((call) =>
-    Array.isArray(call.tailRepairs) ? call.tailRepairs : []
-  ).filter((entry) => typeof entry?.revisedText !== "string").length;
+  const candidateLikeOutputs = applyCalls.flatMap((call) => [
+    ...(Array.isArray(call.tailGrowths) ? call.tailGrowths.map(
+      (entry: AnyRecord) => entry?.growthText,
+    ) : []),
+    ...(Array.isArray(call.lineRewrites) ? call.lineRewrites.map(
+      (entry: AnyRecord) => entry?.revisedText,
+    ) : []),
+  ]).filter((text) => typeof text !== "string").length;
   const finalReadiness = resumeGenerationReadiness(finalWorkspace);
   const report = {
     passed: runtimeError === null && !agent.runStopError &&
@@ -213,9 +220,16 @@ function summarizeCalls(calls: AnyRecord[], messages: AgentMessage[]) {
   });
   return calls.map((call, index) => ({
     expectedRevision: call.expectedRevision,
-    targetCount: Array.isArray(call.tailRepairs) ? call.tailRepairs.length : 0,
-    revisedTexts: Array.isArray(call.tailRepairs)
-      ? call.tailRepairs.map((entry: AnyRecord) => ({
+    inputMode: Array.isArray(call.tailGrowths) ? "tailGrowths" : "lineRewrites",
+    targetCount: Array.isArray(call.tailGrowths)
+      ? call.tailGrowths.length
+      : Array.isArray(call.lineRewrites) ? call.lineRewrites.length : 0,
+    growthTexts: Array.isArray(call.tailGrowths)
+      ? call.tailGrowths.map((entry: AnyRecord) => ({
+          bulletId: entry.bulletId, growthText: entry.growthText,
+        })) : [],
+    reflowTexts: Array.isArray(call.lineRewrites)
+      ? call.lineRewrites.map((entry: AnyRecord) => ({
           bulletId: entry.bulletId, revisedText: entry.revisedText,
         })) : [],
     resultRevision: results[index]?.revision ?? null,

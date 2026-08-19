@@ -4,6 +4,7 @@ import test from "node:test";
 import type { ResumeCompileResult } from "../src/resume/compiler-types.js";
 import type { ResumeStructure } from "../src/resume/types.js";
 import type { ResumeCompiler } from "../src/resume/workspace/compiler-port.js";
+import { formalLineRewriteOutcome } from "../src/resume/workspace/line-rewrite-formal-outcome.js";
 import { selectLineRewrites } from "../src/resume/workspace/line-rewrite-selector.js";
 import type { ResumeWorkspace } from "../src/resume/workspace/types.js";
 
@@ -72,6 +73,56 @@ test("bullet-depth mode applies every crossing rewrite in one batch", async () =
   assert.equal(selected.diagnostics.heightGrowthCount, 2);
 });
 
+test("bullet-depth mode explains an overlong rewrite instead of returning only skipped", async () => {
+  const compiler = new UnderfillCompiler();
+  const structure = createStructure();
+  const compileResult = await compiler.compile(structure);
+  const workspace = createWorkspace(structure, compileResult);
+
+  const selected = await selectLineRewrites(workspace, [
+    { bulletId: "a", revisedText: "TOO_LONG_DEPTH_REWRITE" },
+  ], compiler, { goal: "bullet_depth", minimumLines: 2 });
+
+  assert.deepEqual(selected.updates, []);
+  assert.equal(selected.diagnostics.feedback[0]?.failureType, "crossed_line_limit");
+  assert.match(selected.diagnostics.feedback[0]?.reason ?? "", /超过最多 3 行/u);
+  assert.match(selected.writeRejectedReason ?? "", /少补一个/u);
+});
+
+test("formal rejection replaces a provisional Chromium application", async () => {
+  const compiler = new UnderfillCompiler();
+  const structure = createStructure();
+  const compileResult = await compiler.compile(structure);
+  const workspace = createWorkspace(structure, compileResult);
+  const selected = await selectLineRewrites(workspace, [
+    { bulletId: "a", revisedText: "ONE_LINE_PASS" },
+  ], compiler, { goal: "bullet_depth", minimumLines: 2 });
+
+  const formal = formalLineRewriteOutcome(workspace, selected.diagnostics, {
+    status: "rejected",
+    appliedItemIds: [],
+    rejectedItems: [{
+      itemId: "item-1",
+      reason: "bullet[0] bullet 末尾不得有句末标点",
+      errors: [{
+        bulletIndex: 0,
+        bulletId: "a",
+        code: "trailing_punctuation",
+        message: "bullet 末尾不得有句末标点",
+      }],
+    }],
+  });
+
+  assert.equal(formal.diagnostics.appliedRewriteCount, 0);
+  assert.equal(formal.diagnostics.heightGrowthCount, 0);
+  assert.equal(formal.diagnostics.skippedRewriteCount, 1);
+  assert.equal(
+    formal.diagnostics.feedback[0]?.failureType,
+    "content_validation_failed",
+  );
+  assert.match(formal.warning ?? "", /trailing_punctuation/u);
+});
+
 function createWorkspace(
   structure: ResumeStructure,
   compileResult: ResumeCompileResult,
@@ -99,7 +150,9 @@ class UnderfillCompiler implements ResumeCompiler {
     const bullets = structure.sections.flatMap((section) =>
       section.items.flatMap((item) => item.bullets)
     ).map((bullet) => {
-      const lineCount = bullet.text.startsWith("ONE_LINE_PASS") ? 2 : 1;
+      const lineCount = bullet.text.startsWith("TOO_LONG")
+        ? 4
+        : bullet.text.startsWith("ONE_LINE_PASS") ? 2 : 1;
       return {
         bulletId: bullet.id,
         lineCount,

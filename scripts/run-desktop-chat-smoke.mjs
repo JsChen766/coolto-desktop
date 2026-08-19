@@ -245,20 +245,25 @@ async function installAgentObservation(session) {
         const args = event.arguments && typeof event.arguments === "object"
           ? event.arguments
           : {};
-        const repairs = Array.isArray(args.tailRepairs) ? args.tailRepairs : [];
+        const growths = Array.isArray(args.tailGrowths) ? args.tailGrowths : [];
+        const reflows = Array.isArray(args.lineRewrites) ? args.lineRewrites : [];
         window.__cooltoSmokeResumeCallIds.push(event.callId);
         window.__cooltoSmokeAgentEvents.push({
           type: event.type,
           callId: event.callId,
           expectedRevision: args.expectedRevision,
           inputMode: ["items", "bulletUpdates", "bulletRemovals",
-            "bulletAdditions", "tailRepairs", "lineRewrites"]
+            "bulletAdditions", "tailGrowths", "lineRewrites"]
             .find((key) => Array.isArray(args[key]) && args[key].length),
-          targetCount: repairs.length,
-          tailRepairs: repairs.map((entry) => ({
+          targetCount: growths.length || reflows.length,
+          tailGrowths: growths.map((entry) => ({
+            bulletId: entry?.bulletId ?? "",
+            growthText: entry?.growthText ?? "",
+            growthCharacters: [...(entry?.growthText ?? "")].length,
+          })),
+          tailReflows: reflows.map((entry) => ({
             bulletId: entry?.bulletId ?? "",
             revisedText: entry?.revisedText ?? "",
-            revisedCharacters: [...(entry?.revisedText ?? "")].length,
           })),
         });
       }

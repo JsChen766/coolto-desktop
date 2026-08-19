@@ -48,8 +48,9 @@ export function resumeWriteResultForModel(
   return {
     ...authoritative,
     ...(rejected.length ? { tailRepairFeedback: rejected } : {}),
-    tailRepairReminder:
-      "一次提交最新 bulletIds 的全部目标。逐条执行 requiredEdit，只做语义工作：基于 currentText 判断背景、专业方法、具体行动、可验证结果中尚未表达且有来源的环节，再自然重写完整 bullet。严格保持每个目标的 currentLineCount，不要计算字符或像素；宿主会用 Chromium 验收。保留事实、数字、对象和结果，只提交唯一 revisedText，禁止候选和多版本",
+    tailRepairReminder: nextAction?.mode === "batch_tail_reflow"
+      ? "一次 lineRewrites 覆盖最新 bulletIds 的全部目标。逐条执行 requiredEdit：currentText 的每个原字符必须按原顺序完整保留，只能插入事实中性的定语、补语、连接语或既有关系表达；提交一份完整 revisedText，不得删除、替换、调序、加入新事实或生成候选。rejectedReflows 只用于避免复读，宿主会执行正式内容校验与 Chromium 门禁"
+      : "一次 tailGrowths 覆盖最新 bulletIds 的全部目标。currentText 是锁定的正式基线，禁止改写或重交全文；逐条执行 requiredEdit，只提交一个可直接接在 currentText 后的 growthText。增长片段从 sourceQuotes 中选择尚未充分表达的方法、对象、指标、范围、过程、交付物或结果，不得编造；rejectedGrowths 只用于避免复读。宿主会确定性拼接、执行正式内容校验并用 Chromium 验收，禁止候选和多版本",
   };
 }
 

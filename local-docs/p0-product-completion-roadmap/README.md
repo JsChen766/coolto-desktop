@@ -2916,6 +2916,80 @@ commit/push/上传/发版。
 `needs_user_decision`。报告见 `local-builds/tail-repair-eval/report-1787126655918.json` 与 S4.5.1 阶段 32。
 因独测未清零，按用户确认的顺序未打包、未跑整简历、未 commit/push/上传/发版，S4.5.1 状态不变。
 
+**S4.5.1 最新整份回归（2026-08-19，system prompt v112，未通过）：**模型侧字符目标和精准插入已从
+深度、篇幅和尾行扩写中删除，只保留基于最新正文与来源的批量单稿语义扩写；Chromium/正式写入结果新增
+逐 bullet 对账，正式内容校验拒绝不再伪报“已应用”。独立真实尾行测试已能 17→0；完整 `npm run check`
+为 635 pass、2 skip、0 fail，700 个源文件满足行数门禁，Windows 加固包及隔离安装启动门禁通过。唯一
+一次 v108 自然语言整份实测耗时 459.953 秒，全部 16 条普通 bullet 均为 2 行，单页使用率 92.59%，尾行
+16→4、revision 20，但最后 4 条因模型重复已拒绝文本触发保护，`generationReady=false`。完整演进、产物
+哈希与截图见 S4.5.1 阶段 33；本轮按用户要求已停止，不再修改或重跑。检查点提交为 `514858a`，阶段 33
+后续改动未 commit/push/上传/发版，S4.5.1 状态不变。
+
+**S4.5.1 最新整份回归（2026-08-19，system prompt v113 / temperature 0.3，未通过）：**尾行目标新增
+最近两份拒绝稿的有限负向记忆、两级小批协议恢复、成功清账及独立 `model_protocol_stalled` 终态；拒绝稿
+不落盘、不计正式进展，门槛未降低。完整 `npm run check` 为 641 pass、2 skip、0 fail，700 个源文件满足
+行数门禁，Node/Electron production build 全绿。唯一一次 v109 自然语言整份实测证明 0.3 可被真实网关
+接受，没有 temperature/schema 前置错误，但 600 秒仍未完成，随后被流式输出重复保护终止：revision 32、
+单页 98.55%、剩 9 条 2 行短尾、60 次工具调用，`generationReady=false`。其中 4 条已真实走完两级协议恢复
+并到 level 3，另外 5 条仍是语义失败/未完成项，故整体验证没有伪报 `model_protocol_stalled`；本次表现比
+v108 更差，但单样本不足以归因温度。截图、尾行比率、状态核验和限制见 S4.5.1 阶段 34。未打包、未做
+第二次生成、未 commit/push/上传/发版，S4.5.1 状态不变。
+
+**S4.5.1 最新独测/整份回归（2026-08-19，system prompt v114 / temperature 0.1，整份未通过）：**协议
+耗尽项现会从其余语义目标的 sweep 中隔离；剩余目标三轮零进展后可形成明确混合
+`model_protocol_stalled`，不再要求所有失败同类。完整 `npm run check` 为 642 pass、2 skip、0 fail，
+700 个源文件满足行数门禁。唯一一次独立真实尾行测试 82.861 秒通过，17→0、revision 1→7、单页
+94.73%，8 次模型/8 次 apply，0 exact repeat/malformed/candidate，终态 `ready_for_approval`。随后唯一一次
+v110 整份自然语言实测运行 241.355 秒，0 tool error，但在领域混合终态形成前被通用 turn governor 终止：
+revision 10、单页 92.59%、尾行 16→11、26 个工具调用，`generationReady=false`。最终状态没有 level 3
+协议耗尽项，故不能把失败归为混合判定错误；下一问题是通用 governor 早于正常领域恢复预算收口。报告、
+截图、哈希和逐项状态见 S4.5.1 阶段 35。两个用户授权测试各执行一次且未重跑；未打包、未
+commit/push/上传/发版，S4.5.1 状态不变。
+
+**S4.5.1 最新实测（2026-08-19，尾行阶段预算换挡，独测/整份均未通过）：**普通生成继续使用原 40 轮
+上限，首次进入 `batch_tail_repair` 获得一次最多 32 轮的尾行阶段预算，整次保留 72 轮绝对上限；同时裁掉
+已完成的检索/初稿上下文。同结果、同 progress key、领域协议/语义停滞门禁和 temperature 0.1 均未改变。
+`npm run check` 全绿：649 tests（647 pass、2 skip、0 fail），700 个源文件满足行数门禁，Node/Electron
+production build 通过。但唯一一次独立真实尾行测试 142.064 秒仅从 17→2，最终为
+`needs_user_decision`；唯一一次整份实测到 600 秒仍未完成，随后同一运行被通用 governor 终止，最终
+revision 23、单页 92.59%、剩 10 条 2 行短尾、57 个工具调用且 0 tool error，`generationReady=false`。
+阶段换挡解除 v110 的 241 秒过早停止，但尾行语义收敛仍不稳定，说明预算不是唯一根因。报告、截图、
+哈希和尾行比率见 S4.5.1 阶段 36；两个授权额度均已使用且未重跑，未打包、未 commit/push/上传/发版，
+当前版本不满足上线门禁，S4.5.1 状态不变。
+
+**S4.5.1 最新实现（2026-08-19，system prompt v116，待真实复测）：**尾行第一层已简化为锁定
+`currentText` 后只提交一个有来源 `growthText`，宿主确定性拼接；唯一一次 v115 独测 84.079 秒把
+17 条短尾降至 3 条，但夹具中三条各自唯一的额外事实已经写入，仍剩 65.8%/67.6%/38.4%，随后模型
+只能复述已写入事实，严格重复门禁正确拒绝。报告为
+`local-builds/tail-repair-eval/report-1787141944362.json`。根因确认是 append-only 在事实有限时不可达，
+不是温度、schema 或 Chromium 回执错误。经用户确认新增最多两次的 `batch_tail_reflow`：复用
+`lineRewrites`，currentText 全部原字符必须按原顺序保留，只允许插入事实中性的定语、补语、连接语或
+既有关系表达；正式事实/数字/重复/质量校验不变，且仅在保持原行数、尾行直接达标、单页无溢出时落地。
+`npm run check` 全绿：634 tests（632 pass、2 skip、0 fail），705 个源文件满足行数门禁，Node/Electron
+production build 通过。修复后尚未运行新的独立 LLM 或整份真实生成，未打包、未 commit/push/上传/发版，
+通过一次独测和一次整份实测前 S4.5.1 状态不变。完整诊断和实现记录见 S4.5.1 阶段 37。
+
+**S4.5.1 最新整份回归（2026-08-19，system prompt v116，未通过）：**按用户授权只执行一次当前
+production build 的自然语言整份生成，没有独立短尾重跑或整份重试。运行 224.167 秒后正常结束，0
+run/tool/schema/temperature error；revision 13、单页使用率 92.59%，16 条普通 bullet 全部为 2 行，
+但排除技能项后仍有 13 条尾行低于 70%，`needs_user_decision`、`generationReady=false`，唯一 blocker
+仍为 `layout_not_qualified`。新 `batch_tail_reflow` 已真实落地 1 条并使尾行 14→13，证明工具链可用；
+其余候选多数因模型删换/改写原句字符而违反“全部原字符有序保留”合同，在 Chromium 前即被正式内容校验
+拒绝，另有重复既有事实的候选。因此直接根因是严格逐字符插入合同与模型自然改写行为不匹配，不是温度、
+布局回执或工具报错。截图为 `local-builds/v116/investor-research-run-30.png`，SHA-256
+`F4E6EEB5C83EC5B265FF6D28FE549A30C2240534A0FB7EF0ED18AA994F8F8FFC`；完整终态与逐条比率见 S4.5.1
+阶段 38。测试进程已全部关闭，未打包、未 commit/push/上传/发版，当前版本仍不满足上线门禁。
+
+**0.1.19 发布前门禁（2026-08-19，本地 Windows 通过，跨平台发布待 CI）：**公网 Win/mac feed 当前均为
+0.1.18，因此本轮升至 0.1.19，避免同版本不同密钥/哈希覆盖。生产依赖审计 0 漏洞；macOS 的原生模块
+`signIgnore` 与 JIT/library-validation entitlements 保持不变。`npm run check` 全绿：634 tests（632 pass、
+2 skip、0 fail），705 个源文件 ≤250 行；随后完整 `package:win` 重新生成随机密钥，Rust 3/3 tests、
+ASAR/Fuses 加固审计、隔离安装真实 bootstrap、Renderer 存活和卸载清理全部通过。0.1.19 x64 NSIS 为
+135,635,266 bytes，SHA-256 `C6A5530D544FB17D02DB5CC103B1EA81D4B75F67AC2B960D6E13B69C59178A14`，
+仍为 NotSigned。用户已明确要求发布 Win/mac；后续必须经 PR 合入受保护 `app` 分支，并由 Windows/macOS
+Actions 分别构建上传，不能在 Windows 上伪造 macOS 产物。完整本地证据见 S4.5.1 阶段 39；阶段 38 的
+真实生成失败结论不变，打包通过不等于 S4.5.1 完成。
+
 | 顺序 | 状态 | 工作 | 完成门槛 |
 | --- | --- | --- | --- |
 | 1 | 已完成 | 把 `inspect_resume_layout.insufficient` 和可写容量升级为进入写作前的确定性门禁；不足时由 Agent 先扩大搜索，穷尽后返回 `needs_user_decision` | 不创建不可达 workspace；最终回复明确追问缺失事实；没有额外模型自循环 |

@@ -17,16 +17,32 @@ export interface LineRewriteInput {
 
 export interface LineRewriteSelection {
   updates: Array<{ bulletId: string; text: string }>;
-  diagnostics: {
-    phase: "page_fill" | "bullet_depth";
-    requestedTargetCount: number;
-    measuredRewriteCount: number;
-    appliedRewriteCount: number;
-    stackedProgressCount: number;
-    heightGrowthCount: number;
-    skippedRewriteCount: number;
-  };
+  diagnostics: LineRewriteDiagnostics;
   writeRejectedReason?: string;
+}
+
+export interface LineRewriteDiagnostics {
+  phase: "page_fill" | "bullet_depth";
+  requestedTargetCount: number;
+  measuredRewriteCount: number;
+  appliedRewriteCount: number;
+  stackedProgressCount: number;
+  heightGrowthCount: number;
+  skippedRewriteCount: number;
+  feedback: LineRewriteFeedback[];
+}
+
+export interface LineRewriteFeedback {
+  bulletId: string;
+  status: "applied" | "rejected";
+  progressType?: "stacked" | "height_growth";
+  failureType?:
+    | "crossed_line_limit"
+    | "unchanged_or_shorter"
+    | "line_count_decreased"
+    | "capacity_not_selected"
+    | "content_validation_failed";
+  reason?: string;
 }
 
 export interface LineRewriteSelectionOptions {
@@ -86,8 +102,18 @@ export async function selectLineRewrites(
   const skipped = measured.filter((rewrite) =>
     !updates.some((update) => update.bulletId === rewrite.bulletId)
   );
-  const warning = skipped.length
-    ? `本批未应用：${skipped.map((rewrite) => rewrite.bulletId).join(",")}`
+  const feedback = rewriteFeedback(
+    measured,
+    new Set(updates.map((update) => update.bulletId)),
+    workspace.maxBulletLines ?? 3,
+  );
+  const rejectedFeedback = feedback.filter((entry) =>
+    entry.status === "rejected"
+  );
+  const warning = rejectedFeedback.length
+    ? rejectedFeedback.map((entry) =>
+      `${entry.bulletId}: ${entry.reason ?? "本批未安全应用"}`
+    ).join("；")
     : undefined;
   const diagnostics = rewriteDiagnostics(
     options.goal ?? "page_fill",
@@ -95,6 +121,7 @@ export async function selectLineRewrites(
     measured,
     updates,
     stacked,
+    feedback,
   );
   if (updates.length) {
     return { updates, diagnostics, ...(warning ? { writeRejectedReason: warning } : {}) };
@@ -102,9 +129,9 @@ export async function selectLineRewrites(
   return {
     updates: [],
     diagnostics,
-    writeRejectedReason: options.goal === "bullet_depth"
+    writeRejectedReason: warning ?? (options.goal === "bullet_depth"
       ? "lineRewrites 未产生可叠加的深度增长或安全跨行，草稿未修改"
-      : "lineRewrites 未产生可叠加的文本增长或安全页面增高，草稿未修改",
+      : "lineRewrites 未产生可叠加的文本增长或安全页面增高，草稿未修改"),
   };
 }
 
@@ -140,6 +167,7 @@ function rewriteDiagnostics(
   measured: readonly MeasuredLineRewrite[],
   updates: readonly { bulletId: string }[],
   stacked: readonly MeasuredLineRewrite[],
+  feedback: LineRewriteFeedback[],
 ) {
   const applied = new Set(updates.map((update) => update.bulletId));
   return {
@@ -154,5 +182,52 @@ function rewriteDiagnostics(
       applied.has(rewrite.bulletId) && rewrite.addedLines > 0
     ).length,
     skippedRewriteCount: measured.length - updates.length,
+    feedback,
   };
+}
+
+function rewriteFeedback(
+  measured: readonly MeasuredLineRewrite[],
+  applied: ReadonlySet<string>,
+  maximumLines: number,
+): LineRewriteFeedback[] {
+  return measured.map((rewrite) => {
+    if (applied.has(rewrite.bulletId)) {
+      return {
+        bulletId: rewrite.bulletId,
+        status: "applied",
+        progressType: rewrite.addedLines > 0 ? "height_growth" : "stacked",
+      };
+    }
+    if (!rewrite.withinLineLimit) {
+      return {
+        bulletId: rewrite.bulletId,
+        status: "rejected",
+        failureType: "crossed_line_limit",
+        reason: `改写实测为 ${rewrite.lineCount} 行，超过最多 ${maximumLines} 行；基于最新 currentText 少补一个最有价值的来源事实点`,
+      };
+    }
+    if (rewrite.characterGrowth <= 0) {
+      return {
+        bulletId: rewrite.bulletId,
+        status: "rejected",
+        failureType: "unchanged_or_shorter",
+        reason: "改写没有比最新 currentText 更长；必须保留原文并明显补充一个来源支持的具体环节",
+      };
+    }
+    if (rewrite.addedLines < 0) {
+      return {
+        bulletId: rewrite.bulletId,
+        status: "rejected",
+        failureType: "line_count_decreased",
+        reason: "改写导致行数下降；必须保留原有信息并扩写，不能删减",
+      };
+    }
+    return {
+      bulletId: rewrite.bulletId,
+      status: "rejected",
+      failureType: "capacity_not_selected",
+      reason: "本轮跨行结果未进入剩余单页容量的安全子集；服从最新 nextAction，不要重交旧批",
+    };
+  });
 }

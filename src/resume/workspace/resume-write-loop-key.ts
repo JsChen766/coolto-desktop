@@ -33,3 +33,29 @@ export function resumeWriteLoopGuardKey(
     .digest("hex");
   return `${base}:items_rejected:${digest}`;
 }
+
+/** Finite domain recovery state may advance without changing formal content. */
+export function resumeTailRepairLoopGuardKey(
+  workspace: ResumeWorkspace,
+): string {
+  const base = resumeContentProgressKey(workspace);
+  const state = workspace.tailRepairProgress;
+  if (!state) return base;
+  const recovery = {
+    stalled: state.stalled,
+    bullets: Object.entries(state.byBulletId).sort(([left], [right]) =>
+      left.localeCompare(right)
+    ).map(([bulletId, progress]) => ({
+      bulletId,
+      mode: progress.mode ?? "growth",
+      rejectedGrowths: progress.consecutiveRejects ??
+        progress.zeroProgressRounds ?? 0,
+      reflowAttempts: progress.reflowAttempts ?? 0,
+      failureType: progress.lastFailureType ?? null,
+    })),
+  };
+  const digest = createHash("sha256")
+    .update(JSON.stringify(recovery))
+    .digest("hex");
+  return `${base}:tail_recovery:${digest}`;
+}

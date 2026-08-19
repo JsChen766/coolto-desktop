@@ -43,7 +43,7 @@ export class AgentRuntimeEvents {
         this.traces.recordModelCompleted(conversationId, "error");
         this.traces.recordStopReason(
           conversationId,
-          traceStopReason(event.message),
+          traceStopReason(event.message, event.governorStopReason),
         );
         // A gateway insufficient_credits rejection surfaces here as a folded
         // error string; forward the structured balance breakdown so the

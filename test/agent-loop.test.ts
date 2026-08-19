@@ -324,6 +324,101 @@ test("agent blocks the second consecutive tool call with identical arguments", a
   assert.match(JSON.stringify(agent.getMessages()), /detected_repetition/u);
 });
 
+test("resume writes bypass the generic exact-call block and return workspace authority", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  const call = fauxToolCall("apply_resume_content", {
+    candidateId: "candidate-1",
+    expectedRevision: 4,
+  });
+  faux.setResponses([
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage("已按最新工作区继续"),
+  ]);
+  const parameters = Type.Object({
+    candidateId: Type.String(),
+    expectedRevision: Type.Integer(),
+  });
+  let executionCount = 0;
+  const apply: AgentTool<typeof parameters> = {
+    name: "apply_resume_content",
+    label: "Apply resume",
+    description: "Returns the current authoritative workspace.",
+    parameters,
+    execute: async () => {
+      executionCount += 1;
+      const payload = {
+        revision: 5,
+        status: "needs_revision",
+        readiness: { ready: false },
+        nextAction: { mode: "batch_tail_repair", bulletIds: ["bullet-2"] },
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        details: { ...payload, loopGuardKey: "revision:5:bullet-2" },
+      };
+    },
+  };
+  const agent = createCooltoAgent(
+    { tools: [apply] },
+    {
+      model: faux.getModel(),
+      streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("继续修复简历");
+
+  assert.equal(executionCount, 2);
+  assert.doesNotMatch(JSON.stringify(agent.getMessages()), /detected_repetition/u);
+});
+
+test("workspace recovery can return a compact directive on one exact repeat", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  const call = fauxToolCall("get_resume_workspace", {});
+  faux.setResponses([
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage("已执行恢复回执中的下一动作"),
+  ]);
+  const parameters = Type.Object({});
+  let executionCount = 0;
+  const getWorkspace: AgentTool<typeof parameters> = {
+    name: "get_resume_workspace",
+    label: "Get resume workspace",
+    description: "Returns workspace authority once, then a compact directive.",
+    parameters,
+    execute: async () => {
+      executionCount += 1;
+      const payload = {
+        revision: 5,
+        status: "needs_revision",
+        nextAction: { mode: "batch_tail_repair", bulletIds: ["bullet-2"] },
+        recovery: {
+          repeated: executionCount > 1,
+          instruction: "禁止再次调用 get_resume_workspace，立即执行 nextAction",
+        },
+      };
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        details: { ...payload, loopGuardKey: "revision:5:bullet-2" },
+      };
+    },
+  };
+  const agent = createCooltoAgent(
+    { tools: [getWorkspace] },
+    {
+      model: faux.getModel(),
+      streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("恢复简历");
+
+  assert.equal(executionCount, 2);
+  assert.doesNotMatch(JSON.stringify(agent.getMessages()), /detected_repetition/u);
+});
+
 test("agent stops immediately after an authoritative ready resume result", async () => {
   const faux = fauxProvider({ tokensPerSecond: 0 });
   const call = fauxToolCall("apply_resume_content", { value: 1 });
@@ -441,7 +536,11 @@ test("agent reports a failed run after four calls without measured progress", as
 
   assert.equal(faux.state.callCount, 4);
   assert.match(agent.runStopError ?? "", /连续重复调用同一工具/u);
-  assert.equal(events.some((event) => event.type === "run.failed"), true);
+  const failed = events.find((event) => event.type === "run.failed");
+  assert.equal(failed?.type, "run.failed");
+  if (failed?.type === "run.failed") {
+    assert.equal(failed.governorStopReason, "same_tool_sequence");
+  }
   assert.equal(events.some((event) => event.type === "run.completed"), false);
 });
 

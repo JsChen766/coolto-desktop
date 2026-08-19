@@ -27,6 +27,7 @@ import { hasAuthoritativeResumeCompletion } from "./terminal-resume-result.js";
 
 export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
 export const DEFAULT_PROVIDER_ID = "deepseek";
+export const AGENT_TEMPERATURE = 0.1;
 
 export interface CreateAgentOptions {
   apiKey?: string;
@@ -95,7 +96,7 @@ export function createDeepSeekDependencies(
     streamFn: (modelInput, context, options) => {
       // 不设置产品固定输出上限：pi-ai 按模型声明的物理容量生成请求额度，
       // Credit 网关再按本次剩余余额动态收窄 max_tokens。
-      const streamOptions = { ...options, temperature: 0 };
+      const streamOptions = { ...options, temperature: AGENT_TEMPERATURE };
       if (!gateway) {
         return baseStream(modelInput, context, streamOptions);
       }

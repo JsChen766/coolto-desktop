@@ -6,9 +6,9 @@ interface ResumeWriteParams {
   bulletUpdates?: readonly { bulletId: string }[];
   bulletRemovals?: readonly { bulletId: string }[];
   bulletAdditions?: readonly { itemId: string }[];
-  tailRepairs?: readonly {
+  tailGrowths?: readonly {
     bulletId: string;
-    revisedText: string;
+    growthText: string;
   }[];
   lineRewrites?: readonly { bulletId: string }[];
 }
@@ -30,7 +30,7 @@ export function resumeWriteRejection(
   if (action.mode === "repair_bullet_counts") {
     const hasOtherMode = Boolean(
       params.bulletUpdates?.length || params.bulletRemovals?.length ||
-        params.bulletAdditions?.length || params.tailRepairs?.length ||
+        params.bulletAdditions?.length || params.tailGrowths?.length ||
         params.lineRewrites?.length,
     );
     return params.items?.length && !hasOtherMode
@@ -47,7 +47,7 @@ export function resumeWriteRejection(
   if (action.mode === "increase_usage") {
     if (params.items?.length || params.bulletUpdates?.length ||
       params.bulletRemovals?.length ||
-      params.tailRepairs?.length) {
+      params.tailGrowths?.length) {
       return `nextAction 是 increase_usage；本轮只允许 ${action.requiredInput}`;
     }
     if (action.requiredInput === "lineRewrites" &&
@@ -77,26 +77,33 @@ export function resumeWriteRejection(
     }
     return undefined;
   }
+  if (action.mode === "batch_tail_reflow") {
+    return completeLineRewriteBatchRejection(
+      "batch_tail_reflow",
+      action.bulletIds,
+      params,
+    );
+  }
   if (action.mode !== "batch_tail_repair") {
-    return params.tailRepairs?.length || params.lineRewrites?.length ||
+    return params.tailGrowths?.length || params.lineRewrites?.length ||
         params.bulletRemovals?.length
-      ? "tailRepairs 只允许用于 batch_tail_repair；lineRewrites 只允许用于 repair_bullet_depth 或 increase_usage；bulletRemovals 只允许用于 reduce_overflow"
+      ? "tailGrowths 只允许用于 batch_tail_repair；lineRewrites 只允许用于 repair_bullet_depth、increase_usage 或 batch_tail_reflow；bulletRemovals 只允许用于 reduce_overflow"
       : undefined;
   }
-  const supplied = new Set(params.tailRepairs?.map((item) => item.bulletId) ?? []);
+  const supplied = new Set(params.tailGrowths?.map((item) => item.bulletId) ?? []);
   const required = new Set(action.bulletIds);
   const missing = action.bulletIds.filter((id) => !supplied.has(id));
   const extra = [...supplied].filter((id) => !required.has(id));
   if (!params.items?.length && !params.bulletUpdates?.length &&
     !params.bulletRemovals?.length && !params.bulletAdditions?.length &&
     !params.lineRewrites?.length &&
-    params.tailRepairs?.length === action.bulletIds.length &&
+    params.tailGrowths?.length === action.bulletIds.length &&
     supplied.size === action.bulletIds.length && !missing.length &&
     !extra.length) {
     return undefined;
   }
   return [
-    "nextAction 是 batch_tail_repair；必须用一次 tailRepairs 覆盖本批全部目标，每条只提交一个完整 revisedText",
+    "nextAction 是 batch_tail_repair；必须用一次 tailGrowths 覆盖本批全部目标，每条只提交一个 growthText",
     `required=${action.bulletIds.join(",")}`,
     `missing=${missing.join(",") || "none"}`,
     `extra=${extra.join(",") || "none"}`,
@@ -104,7 +111,7 @@ export function resumeWriteRejection(
 }
 
 function completeLineRewriteBatchRejection(
-  mode: "repair_bullet_depth",
+  mode: "repair_bullet_depth" | "batch_tail_reflow",
   requiredIds: readonly string[],
   params: ResumeWriteParams,
 ): string | undefined {
@@ -116,7 +123,7 @@ function completeLineRewriteBatchRejection(
   const hasOtherMode = Boolean(
     params.items?.length || params.bulletUpdates?.length ||
       params.bulletRemovals?.length || params.bulletAdditions?.length ||
-      params.tailRepairs?.length,
+      params.tailGrowths?.length,
   );
   const complete = params.lineRewrites?.length === requiredIds.length &&
     supplied.size === requiredIds.length && !missing.length && !extra.length;
@@ -140,7 +147,7 @@ function overflowReductionRejection(
     return "nextAction 是 reduce_overflow；当前已无高于最低条数的 bullet，只能用 create_resume_workspace 从当前完整非教育经历集合中移除一段最低相关经历";
   }
   if (params.items?.length || params.bulletUpdates?.length ||
-    params.bulletAdditions?.length || params.tailRepairs?.length ||
+    params.bulletAdditions?.length || params.tailGrowths?.length ||
     params.lineRewrites?.length) {
     return "nextAction 是 reduce_overflow；本轮只允许 bulletRemovals";
   }

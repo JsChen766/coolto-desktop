@@ -65,7 +65,7 @@ test("tool progress projects only bounded resume receipt facts", () => {
   assert.doesNotMatch(JSON.stringify(progress), /privateText/u);
 });
 
-test("tail progress exposes semantic expansion goals", () => {
+test("tail progress exposes semantic growth hints", () => {
   const progress = projectToolProgress("apply_resume_content", {
     details: {
       readiness: { ready: false },
@@ -76,7 +76,7 @@ test("tail progress exposes semantic expansion goals", () => {
           requiredEdit: "必须把 currentText 写长",
           bulletId: "bullet-1",
           currentText: "一".repeat(70),
-          expansionGoal: "补充有来源支持的具体方法或结果",
+          growthHint: "补充有来源支持的具体方法或结果",
           sourceQuotes: [],
         }],
       },
@@ -85,7 +85,7 @@ test("tail progress exposes semantic expansion goals", () => {
 
   assert.deepEqual(progress?.nextTailTargets, [{
     bulletId: "bullet-1",
-    expansionGoal: "补充有来源支持的具体方法或结果",
+    growthHint: "补充有来源支持的具体方法或结果",
   }]);
 });
 
@@ -95,8 +95,8 @@ test("tool progress labels describe factual generation milestones", () => {
     "正在检索经历库中的相关经历",
   );
   assert.equal(
-    startedToolProgressLabel("apply_resume_content", { tailRepairs: [{}] }),
-    "正在批量实测尾行改写",
+    startedToolProgressLabel("apply_resume_content", { tailGrowths: [{}] }),
+    "正在批量实测尾行增长",
   );
   assert.equal(
     startedToolProgressLabel("apply_resume_content", { lineRewrites: [{}] }),
@@ -224,7 +224,7 @@ test("tail progress does not report a zero-measurement batch", () => {
       repairedTailCount: 0,
       measuredTailCount: 0,
     }),
-    "页面占用率 93.2%，正在准备下一批尾行改写，剩余 9 条",
+    "页面占用率 93.2%，正在准备下一批尾行增长，剩余 9 条",
   );
 });
 
@@ -271,6 +271,30 @@ test("tail progress counts remaining violations after the next action changes", 
   assert.equal(
     completedToolProgressLabel(progress),
     "已修复 4 条尾行，页面占用率 99.4%，剩余 13 条",
+  );
+});
+
+test("exhausted tail growth is reported as a material request", () => {
+  const progress = projectToolProgress("apply_resume_content", {
+    details: {
+      readiness: { ready: false },
+      nextAction: { mode: "request_more_material" },
+      layout: { usageRatio: 0.9259, pageCount: 1 },
+      tailRepairDiagnostics: {
+        requestedTargetCount: 2,
+        measuredTargetCount: 0,
+        appliedTargetCount: 0,
+        passedTargetCount: 0,
+        progressedTargetCount: 0,
+        rejectedTargetCount: 2,
+      },
+    },
+  });
+
+  assert.equal(progress?.phase, "tail_repair");
+  assert.equal(
+    completedToolProgressLabel(progress),
+    "页面占用率 92.6%，正在准备下一批尾行增长，剩余 0 条",
   );
 });
 

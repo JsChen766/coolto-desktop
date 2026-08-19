@@ -1,6 +1,6 @@
 import { minimumBulletLines } from "./bullet-depth-targets.js";
 import type { ResumeCompiler } from "./compiler-port.js";
-import type { TailRepairSubmission } from "./tail-repair-input.js";
+import type { TailGrowthSubmission } from "./tail-repair-input.js";
 import type { ResumeWorkspace } from "./types.js";
 
 const MINIMUM_RATIO_GAIN = 0.015;
@@ -17,7 +17,7 @@ export interface TailRepairMeasurement {
 }
 
 export interface MeasuredTailRepair {
-  submission: TailRepairSubmission;
+  submission: TailGrowthSubmission;
   measurement: TailRepairMeasurement;
 }
 
@@ -28,12 +28,12 @@ export type TailRepairMeasurementRejection = {
 
 export async function measureTailRepairBatch(
   workspace: ResumeWorkspace,
-  submissions: readonly TailRepairSubmission[],
+  submissions: readonly TailGrowthSubmission[],
   compiler: ResumeCompiler,
 ): Promise<MeasuredTailRepair[]> {
   const byId = new Map(submissions.map((entry) => [
     entry.bulletId,
-    entry.revisedText,
+    entry.composedText,
   ]));
   const structure = structuredClone(workspace.structure);
   for (const section of structure.sections) {
@@ -54,7 +54,7 @@ export async function measureTailRepairBatch(
     return {
       submission,
       measurement: {
-        characterCount: [...submission.revisedText].length,
+        characterCount: [...submission.composedText].length,
         lineCount: observed.lineCount,
         lastLineWidthPx: observed.lastLineWidthPx,
         availableLineWidthPx: observed.availableLineWidthPx,
@@ -69,7 +69,7 @@ export async function measureTailRepairBatch(
 
 export function tailRepairMeasurementRejection(
   workspace: ResumeWorkspace,
-  submission: TailRepairSubmission,
+  submission: TailGrowthSubmission,
   measurement: TailRepairMeasurement,
 ): TailRepairMeasurementRejection | undefined {
   const minimum = minimumBulletLines(workspace, submission.bulletId);

@@ -1,18 +1,25 @@
 import { workspaceEvidenceRecords } from "./agent-workspace-evidence.js";
-import { concreteExpansionHints } from "./tail-repair-hints.js";
+import {
+  isTailRepairExhausted,
+  tailRepairMode,
+  type TailGrowthFailureType,
+  type TailRepairMode,
+} from "./tail-repair-state.js";
 import type { ResumeWorkspace } from "./types.js";
-
-export { concreteExpansionHints } from "./tail-repair-hints.js";
 
 export interface TailRepairTarget {
   bulletId: string;
   currentText: string;
   currentLineCount: number;
-  evidenceIds: string[];
   sourceQuotes: string[];
-  expansionGoal: string;
-  concreteExpansionHints: string[];
-  zeroProgressRounds: number;
+  growthHint: string;
+  rejectedGrowths: string[];
+  rejectedReflows: string[];
+  consecutiveRejects: number;
+  reflowAttempts: number;
+  mode: TailRepairMode;
+  exhausted: boolean;
+  lastFailureType?: TailGrowthFailureType;
 }
 
 export interface TailRepairBatch {
@@ -20,7 +27,7 @@ export interface TailRepairBatch {
   remainingTailCount: number;
 }
 
-/** Every failed bullet is returned from its current formal text. */
+/** Returns every failed bullet from its immutable formal baseline. */
 export function tailRepairBatch(workspace: ResumeWorkspace): TailRepairBatch {
   const provenanceById = new Map(
     (workspace.bulletProvenance ?? []).map((entry) => [entry.bulletId, entry]),
@@ -34,59 +41,51 @@ export function tailRepairBatch(workspace: ResumeWorkspace): TailRepairBatch {
     workspace.sourceSnapshot,
     workspace.supplementalEvidence,
   ).map((record) => [record.evidenceId, record.text]));
-  const failed = workspace.compileResult.bullets.filter(
+  const targets = workspace.compileResult.bullets.filter(
     (bullet) => !bullet.passed,
-  );
-  const targets = failed.flatMap((observed) => {
+  ).flatMap((observed) => {
     const currentText = textById.get(observed.bulletId);
     if (!currentText) return [];
     const evidenceIds = provenanceById.get(observed.bulletId)?.evidenceIds ?? [];
-    const sourceQuotes = evidenceIds.flatMap((id) => {
-      const quote = evidenceById.get(id);
-      return quote ? [quote] : [];
-    });
+    const progress = workspace.tailRepairProgress?.byBulletId[observed.bulletId];
+    const consecutiveRejects = progress?.consecutiveRejects ??
+      progress?.zeroProgressRounds ?? 0;
     return [{
       bulletId: observed.bulletId,
       currentText,
       currentLineCount: observed.lineCount,
-      evidenceIds,
-      sourceQuotes,
-      expansionGoal: semanticExpansionGoal(observed.lastLineRatio),
-      concreteExpansionHints: concreteExpansionHints(sourceQuotes, currentText),
-      zeroProgressRounds: rejectedRounds(workspace, observed.bulletId),
+      sourceQuotes: evidenceIds.flatMap((id) => {
+        const quote = evidenceById.get(id);
+        return quote ? [quote] : [];
+      }),
+      growthHint: semanticGrowthHint(observed.lastLineRatio),
+      rejectedGrowths: progress?.rejectedGrowths ??
+        progress?.rejectedAttempts ?? [],
+      rejectedReflows: progress?.rejectedReflows ?? [],
+      consecutiveRejects,
+      reflowAttempts: progress?.reflowAttempts ?? 0,
+      mode: tailRepairMode(progress),
+      exhausted: isTailRepairExhausted(progress),
+      ...(progress?.lastFailureType
+        ? { lastFailureType: progress.lastFailureType }
+        : {}),
+      lastLineRatio: observed.lastLineRatio,
     }];
   }).sort((left, right) =>
-    attemptedRounds(workspace, left.bulletId) -
-      attemptedRounds(workspace, right.bulletId) ||
-    appliedRounds(workspace, left.bulletId) -
-      appliedRounds(workspace, right.bulletId) ||
-    rejectedRounds(workspace, left.bulletId) -
-      rejectedRounds(workspace, right.bulletId) ||
-    left.currentLineCount - right.currentLineCount ||
+    Number(left.exhausted) - Number(right.exhausted) ||
+    left.consecutiveRejects - right.consecutiveRejects ||
+    right.lastLineRatio - left.lastLineRatio ||
     left.bulletId.localeCompare(right.bulletId)
-  );
-  return { targets, remainingTailCount: failed.length };
+  ).map(({ lastLineRatio: _ratio, ...target }) => target);
+  return { targets, remainingTailCount: targets.length };
 }
 
-function semanticExpansionGoal(lastLineRatio: number): string {
+function semanticGrowthHint(lastLineRatio: number): string {
   if (lastLineRatio < 0.35) {
-    return "补充一个完整的具体方法、行动细节或证据支持的结果分句";
+    return "补一个有来源的完整分句，可选择方法、范围、交付物或结果";
   }
   if (lastLineRatio < 0.55) {
-    return "补充一个具体方法、对象、范围或交付物短语";
+    return "补一个有来源的具体短语，可选择对象、指标、工具或执行范围";
   }
-  return "自然重组整句并补充一个简短、具体且有来源的限定语";
-}
-
-function attemptedRounds(workspace: ResumeWorkspace, bulletId: string): number {
-  return workspace.tailRepairProgress?.byBulletId[bulletId]?.attemptedRounds ?? 0;
-}
-
-function appliedRounds(workspace: ResumeWorkspace, bulletId: string): number {
-  return workspace.tailRepairProgress?.byBulletId[bulletId]?.appliedRounds ?? 0;
-}
-
-function rejectedRounds(workspace: ResumeWorkspace, bulletId: string): number {
-  return workspace.tailRepairProgress?.byBulletId[bulletId]
-    ?.zeroProgressRounds ?? 0;
+  return "补一个简短且有来源的限定语，优先选择尚未表达的专业细节";
 }

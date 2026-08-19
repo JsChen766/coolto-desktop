@@ -11,6 +11,12 @@ export function createRepetitionGuard(limit = 2) {
   return async (
     context: BeforeToolCallContext,
   ): Promise<BeforeToolCallResult | undefined> => {
+    // Resume writes are optimistic-lock protected, while workspace recovery
+    // returns a compact directive on a same-state repeat. Let those
+    // domain-specific recoveries run; the turn governor still stops unchanged
+    // outcomes.
+    if (context.toolCall.name === "apply_resume_content" ||
+      context.toolCall.name === "get_resume_workspace") return undefined;
     const key = `${context.toolCall.name}\u0000${stableStringify(context.args)}`;
     if (key === lastKey) {
       if (!transientRetryUsed && lastToolResultWasTransient(context)) {

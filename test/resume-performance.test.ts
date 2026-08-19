@@ -30,6 +30,7 @@ import {
   assertTraceIsMetadataOnly,
 } from "../src/resume/performance/telemetry-safety.js";
 import { mapPiEvent } from "../src/agent/events.js";
+import { traceStopReason } from "../src/desktop/main/agent-runtime-trace.js";
 
 test("Section A contact contract preserves display phone and requires https URLs", () => {
   const contact = normalizeResumeContact({
@@ -184,4 +185,17 @@ test("Pi tool failures retain a bounded diagnostic for the desktop UI", () => {
     isError: true,
     error: "invalid resume patch",
   });
+});
+
+test("generation trace preserves the exact turn governor stop reason", () => {
+  const genericMessage =
+    "检测到 Agent 连续重复调用同一工具且没有完成任务";
+  assert.equal(
+    traceStopReason(genericMessage, "maximum_total_turns"),
+    "turn_governor_maximum_total_turns",
+  );
+  assert.equal(
+    traceStopReason(genericMessage, "same_tool_sequence"),
+    "turn_governor_same_tool_sequence",
+  );
 });

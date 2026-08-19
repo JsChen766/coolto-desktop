@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  AGENT_TEMPERATURE,
   createDeepSeekDependencies,
   withCreditMetadata,
 } from "../src/agent/create-agent.js";
+
+test("agent sampling uses the confirmed global temperature", () => {
+  assert.equal(AGENT_TEMPERATURE, 0.1);
+});
 
 test("credit gateway targets the OpenAI-compatible Credit API base", () => {
   const dependencies = createDeepSeekDependencies("deepseek-v4-flash", {

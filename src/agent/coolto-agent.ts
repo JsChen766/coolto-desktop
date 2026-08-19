@@ -16,7 +16,7 @@ import {
   TURN_GOVERNOR_ERROR,
 } from "./agent-errors.js";
 import type { CooltoAgentListener, CooltoAgentOptions } from "./coolto-agent-types.js";
-import { mapPiEvent } from "./events.js";
+import { guardFailureEvent, mapPiEvent } from "./events.js";
 import { recoverFromOutputRepetition } from "./model-output-recovery.js";
 import { wrapResumeGenerationFollowUp } from "./internal-prompt.js";
 import { StreamingOutputRepetitionGuard } from "./output-repetition-guard.js";
@@ -212,10 +212,9 @@ export class CooltoAgent {
               this.#stoppedForOutputRepetition &&
               this.#outputRecoveryRemaining > 0
             ) return;
-            await listener(
-              { type: "run.failed", message: this.#guardStopError! },
-              signal,
-            );
+            await listener(guardFailureEvent(
+              this.#guardStopError!, this.#turnGovernor?.stopReason,
+            ), signal);
             return;
           }
           await listener(mapped, signal);

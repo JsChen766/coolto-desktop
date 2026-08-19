@@ -6,16 +6,14 @@ import { applyAgentResumeContent } from "../src/resume/workspace/agent-content-a
 import { resumeContentProgressKey } from "../src/resume/workspace/agent-progress-key.js";
 import { resumeAgentNextAction } from "../src/resume/workspace/agent-next-action.js";
 import { resumeWriteRejection } from "../src/resume/workspace/agent-write-rejection.js";
+import { buildAgentWorkspaceView } from "../src/resume/workspace/agent-workspace-view.js";
 import { buildResumeSkeleton } from "../src/resume/workspace/candidate-skeleton.js";
-import { bulletCharacterTargets } from "../src/resume/workspace/character-targets.js";
 import { groundedAdditionTargets } from "../src/resume/workspace/grounded-addition-targets.js";
 import { resumeGenerationReadiness } from "../src/resume/workspace/generation-readiness.js";
 import { selectLineRewrites } from "../src/resume/workspace/line-rewrite-selector.js";
 import { retainContentAcrossSourceExpansion } from "../src/resume/workspace/source-reselection.js";
-import {
-  concreteExpansionHints,
-  tailRepairBatch,
-} from "../src/resume/workspace/tail-repair-targets.js";
+import { tailRepairBatch } from
+  "../src/resume/workspace/tail-repair-targets.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import { createApplyResumeContentTool } from "../src/tools/agent-orchestrated/apply-content.js";
 import { createAddResumeMaterialTool } from "../src/tools/agent-orchestrated/add-material.js";
@@ -56,22 +54,27 @@ class ProgressiveTailCompiler extends FixtureResumeCompiler {
     ).map((bullet) => bullet.bulletId);
     if (!improvingIds.length) return result;
     const improving = new Set(improvingIds);
+    const reflowed = new Set(improvingIds.filter((bulletId) =>
+      texts.get(bulletId)?.startsWith("系统性地")
+    ));
     return {
       ...result,
-      qualified: false,
+      qualified: reflowed.size === improving.size,
       pageCount: 1,
       overflowPx: 0,
       usedHeightPx: 950,
       availableHeightPx: 1000,
       usageRatio: 0.95,
       bullets: result.bullets.map((bullet) => improving.has(bullet.bulletId)
-        ? { ...bullet, passed: false, lastLineWidthPx: 360, lastLineRatio: 0.6 }
+        ? reflowed.has(bullet.bulletId)
+          ? { ...bullet, passed: true, lastLineWidthPx: 480, lastLineRatio: 0.8 }
+          : { ...bullet, passed: false, lastLineWidthPx: 360, lastLineRatio: 0.6 }
         : bullet),
       violations: [
         ...result.violations.filter((violation) =>
           !violation.bulletId || !improving.has(violation.bulletId)
         ),
-        ...improvingIds.map((bulletId) => ({
+        ...improvingIds.filter((bulletId) => !reflowed.has(bulletId)).map((bulletId) => ({
           code: "bullet_tail_too_short" as const,
           message: "improving tail",
           bulletId,
@@ -182,6 +185,28 @@ class DepthStackingCompiler extends FixtureResumeCompiler {
   }
 }
 
+class DepthFormalRejectionCompiler extends FixtureResumeCompiler {
+  public override async compile(
+    structure: Parameters<FixtureResumeCompiler["compile"]>[0],
+  ) {
+    const result = await super.compile(structure);
+    const texts = new Map(structure.sections.flatMap((section) =>
+      section.items.flatMap((item) =>
+        item.bullets.map((bullet) => [bullet.id, bullet.text] as const)
+      )
+    ));
+    const rewritten = new Set(result.bullets.filter((bullet) =>
+      texts.get(bullet.bulletId)?.endsWith("。")
+    ).map((bullet) => bullet.bulletId));
+    return {
+      ...result,
+      bullets: result.bullets.map((bullet) => rewritten.has(bullet.bulletId)
+        ? { ...bullet, lineCount: 2, passed: true, lastLineRatio: 0.8 }
+        : bullet),
+    };
+  }
+}
+
 class MinimalOverflowCompiler extends FixtureResumeCompiler {
   public override async compile(
     structure: Parameters<FixtureResumeCompiler["compile"]>[0],
@@ -258,26 +283,14 @@ function text(result: { content: readonly { type: string; text?: string }[] }) {
   return JSON.parse(String(result.content[0]?.text ?? "{}"));
 }
 
-test("height expansion crosses one line before requiring a passing new tail", () => {
-  const targets = bulletCharacterTargets("示".repeat(73), 2, 26, 711);
-  assert.ok(targets);
-  assert.ok(
-    targets.addOneLineAnyTail.minimum < targets.addExactlyOneLine.minimum,
-  );
-  assert.ok(targets.addOneLineAnyTail.minimum > 73);
-  assert.equal(
-    targets.addOneLineAnyTail.maximum,
-    targets.addExactlyOneLine.minimum,
-  );
-});
-
 test("tail repair schema leaves the authoritative target count to nextAction", () => {
-  const schema = applyContentParameters.properties.tailRepairs as {
+  const schema = applyContentParameters.properties.tailGrowths as {
     maxItems?: number;
     items?: { properties?: Record<string, unknown> };
   };
   assert.equal(schema.maxItems, undefined);
-  assert.ok(schema.items?.properties?.revisedText);
+  assert.ok(schema.items?.properties?.growthText);
+  assert.equal(schema.items?.properties?.revisedText, undefined);
   assert.equal(schema.items?.properties?.augmentedModifier, undefined);
   assert.equal(schema.items?.properties?.groundedCandidates, undefined);
   assert.equal(schema.items?.properties?.groundedModifiers, undefined);
@@ -285,25 +298,6 @@ test("tail repair schema leaves the authoritative target count to nextAction", (
     maxItems?: number;
   };
   assert.equal(removals.maxItems, 1);
-});
-
-test("CJK tail targets use body-font width instead of narrow mixed-text average", () => {
-  const text = "使用 SQL 分析 180,000 条数据并修复埋点问题".repeat(4);
-  const averageOnly = bulletCharacterTargets(text, 2, 80, 600);
-  const cjkCalibrated = bulletCharacterTargets(text, 2, 80, 600, 13 * 0.95);
-
-  assert.ok(averageOnly && cjkCalibrated);
-  assert.ok(
-    cjkCalibrated.passCurrentLineCount.maximum <
-      averageOnly.passCurrentLineCount.maximum,
-  );
-});
-
-test("tail repair keeps the complete grounded clause available", () => {
-  assert.deepEqual(concreteExpansionHints(
-    ["按获客渠道拆分 12 个核心指标并核对埋点口径"],
-    "拆分 12 个指标并核对口径",
-  ), ["按获客渠道拆分 12 个核心指标并核对埋点口径"]);
 });
 
 test("workspace creation applies the Agent translation without another generation stage", async () => {
@@ -1150,18 +1144,18 @@ test("tail repair requires one complete batch before per-bullet validation", asy
   value.store.restore(workspace);
   const compileCount = value.compiler.structures.length;
   assert.match(resumeWriteRejection(workspace, {
-    tailRepairs: [{
+    tailGrowths: [{
       bulletId: failed[0]!,
-      revisedText: `${originals.get(failed[0]!)}短尾，补充具体方法`,
+      growthText: "补充具体方法",
     }],
-  }) ?? "", /必须用一次 tailRepairs.*missing=/u);
+  }) ?? "", /必须用一次 tailGrowths.*missing=/u);
 
   const rejected = text(await value.apply.execute("incomplete-tail-batch", {
     candidateId: created.candidateId,
     expectedRevision: written.revision,
-    tailRepairs: [{
+    tailGrowths: [{
       bulletId: failed[0]!,
-      revisedText: `${originals.get(failed[0]!)}短尾，补充具体方法`,
+      growthText: "补充具体方法",
     }],
   }));
 
@@ -1178,20 +1172,17 @@ test("tail repair requires one complete batch before per-bullet validation", asy
       requiredEdit: string;
       bulletId: string;
       currentText: string;
-      currentLineCount: number;
-      expansionGoal: string;
-      concreteExpansionHints: string[];
+      growthHint: string;
+      rejectedGrowths: string[];
       sourceQuotes: string[];
     }) =>
       target.currentText.length > 0 &&
-      target.currentLineCount >= 1 &&
       target.sourceQuotes.length > 0 &&
-      /本轮语义目标/u.test(target.requiredEdit) &&
-      /无需计算字符或像素/u.test(target.requiredEdit) &&
-      /保持 currentText 当前实测的 \d+ 行/u.test(target.requiredEdit) &&
-      target.expansionGoal ===
-        internalTailTargets.get(target.bulletId)!.expansionGoal &&
-      Array.isArray(target.concreteExpansionHints),
+      /锁定 currentText/u.test(target.requiredEdit) &&
+      /growthText/u.test(target.requiredEdit) &&
+      target.growthHint ===
+        internalTailTargets.get(target.bulletId)!.growthHint &&
+      Array.isArray(target.rejectedGrowths),
   ));
   assert.ok(rejected.nextAction.tailRepairTargets.every(
     (target: Record<string, unknown>) =>
@@ -1209,17 +1200,16 @@ test("tail repair requires one complete batch before per-bullet validation", asy
   const modelTargets = new Map<string, ModelTarget>((
     rejected.nextAction.tailRepairTargets as ModelTarget[]
   ).map((target) => [target.bulletId, target]));
-  const revisedById = new Map(failed.map((bulletId) => {
-    const target = modelTargets.get(bulletId)!;
+  const growthById = new Map(failed.map((bulletId) => {
     const addition = "补充具体方法范围说明过程依据对象流程边界协作关系业务场景约束条件验收标准";
-    return [bulletId, `${target.currentText}${addition}`] as const;
+    return [bulletId, addition] as const;
   }));
-  const partial = text(await value.apply.execute("batch-tail-repairs", {
+  const partial = text(await value.apply.execute("batch-tail-growths", {
     candidateId: created.candidateId,
     expectedRevision: written.revision,
-    tailRepairs: failed.map((bulletId) => ({
+    tailGrowths: failed.map((bulletId) => ({
       bulletId,
-      revisedText: revisedById.get(bulletId)!,
+      growthText: growthById.get(bulletId)!,
     })),
   }));
   assert.equal(partial.revision, written.revision + 1);
@@ -1228,13 +1218,17 @@ test("tail repair requires one complete batch before per-bullet validation", asy
   const partialTexts = value.store.latest()!.structure.sections.flatMap(
     (section) => section.items.flatMap((item) => item.bullets),
   );
-  assert.equal(partialTexts.find((bullet) =>
-    bullet.id === failed[0])?.text, revisedById.get(failed[0]!));
-  assert.equal(partialTexts.find((bullet) =>
-    bullet.id === failed[1])?.text, revisedById.get(failed[1]!));
+  const formallyApplied = partialTexts.filter((bullet) =>
+    failed.includes(bullet.id) && bullet.text.endsWith(growthById.get(bullet.id)!)
+  );
+  assert.ok(formallyApplied.length > 0);
+  assert.ok(formallyApplied.every((bullet) =>
+    bullet.text ===
+      `${modelTargets.get(bullet.id)!.currentText}，${growthById.get(bullet.id)}`
+  ));
 });
 
-test("model-facing tail repair batches eight targets without dropping the ledger", async () => {
+test("model-facing tail repair batches four targets without dropping the ledger", async () => {
   const value = harness();
   const created = await createWorkspace(value);
   await value.apply.execute("initial-content", {
@@ -1289,8 +1283,8 @@ test("model-facing tail repair batches eight targets without dropping the ledger
   const nextAction = resumeAgentNextAction(workspace);
   assert.equal(nextAction.mode, "batch_tail_repair");
   if (nextAction.mode !== "batch_tail_repair") return;
-  assert.equal(nextAction.bulletIds.length, 8);
-  assert.equal(nextAction.tailRepairTargets.length, 8);
+  assert.equal(nextAction.bulletIds.length, 4);
+  assert.equal(nextAction.tailRepairTargets.length, 4);
   assert.equal(nextAction.remainingTailCount, 12);
 });
 
@@ -1336,19 +1330,12 @@ test("zero-progress tail repair keeps formal text and advances the stall counter
     (bullet) => [bullet.bulletId, bullet.lineCount],
   ));
   const initialBatch = failed;
-  const currentById = new Map(workspace.structure.sections.flatMap((section) =>
-    section.items.flatMap((item) => item.bullets.map((bullet) => [
-      bullet.id,
-      bullet.text,
-    ] as const))
-  ));
-
   const rejected = text(await value.apply.execute("zero-progress-tail", {
     candidateId: created.candidateId,
     expectedRevision: written.revision,
-    tailRepairs: initialBatch.map((bulletId) => ({
+    tailGrowths: initialBatch.map((bulletId) => ({
       bulletId,
-      revisedText: `${currentById.get(bulletId)}仍然短尾`,
+      growthText: `补充数据口径校验过程一${bulletId}`,
     })),
   }));
 
@@ -1364,16 +1351,21 @@ test("zero-progress tail repair keeps formal text and advances the stall counter
   ));
   assert.ok(rejected.nextAction.tailRepairTargets.every((target: {
     currentText: string;
-    expansionGoal: string;
+    growthHint: string;
+    lastFailureType: string;
+    requiredEdit: string;
   }) => target.currentText.length > 0 &&
-    target.expansionGoal.length > 0));
+    target.growthHint.length > 0 &&
+    ["insufficient_growth", "invalid_content"].includes(
+      target.lastFailureType,
+    ) && /growthText/u.test(target.requiredEdit)));
 
   const second = text(await value.apply.execute("zero-progress-tail-recompose", {
     candidateId: created.candidateId,
     expectedRevision: written.revision,
-    tailRepairs: initialBatch.map((bulletId) => ({
+    tailGrowths: initialBatch.map((bulletId) => ({
       bulletId,
-      revisedText: `${currentById.get(bulletId)}，说明数据口径校验过程`,
+      growthText: `补充数据口径校验过程二${bulletId}`,
     })),
   }));
   assert.equal(second.revision, written.revision);
@@ -1381,12 +1373,21 @@ test("zero-progress tail repair keeps formal text and advances the stall counter
     (target: Record<string, unknown>) => !("strategy" in target),
   ));
 
+  const third = text(await value.apply.execute("zero-progress-tail-third", {
+    candidateId: created.candidateId,
+    expectedRevision: written.revision,
+    tailGrowths: initialBatch.map((bulletId) => ({
+      bulletId,
+      growthText: `补充数据口径校验过程三${bulletId}`,
+    })),
+  }));
+  assert.equal(third.revision, written.revision);
   const stalled = text(await value.apply.execute("zero-progress-tail-stalled", {
     candidateId: created.candidateId,
     expectedRevision: written.revision,
-    tailRepairs: initialBatch.map((bulletId) => ({
+    tailGrowths: initialBatch.map((bulletId) => ({
       bulletId,
-      revisedText: `${currentById.get(bulletId)}，重组数据清洗与口径校验过程`,
+      growthText: `补充数据口径校验过程四${bulletId}`,
     })),
   }));
   assert.equal(stalled.revision, written.revision);
@@ -1429,39 +1430,56 @@ test("an improving tail revision is formally applied before it reaches 70 percen
   assert.equal(action.mode, "batch_tail_repair");
   if (action.mode !== "batch_tail_repair") return;
   const lengthTarget = action.tailRepairTargets[0]!;
-  assert.match(lengthTarget.expansionGoal, /具体/u);
+  assert.match(lengthTarget.growthHint, /来源/u);
   const addition = "逐步改善具体范围对象依据流程边界方法关系";
-  const originalCharacters = [...original];
-  const revised = [
-    ...originalCharacters.slice(0, -1),
-    ...addition,
-    ...originalCharacters.slice(-1),
-  ].join("");
+  const revised = `${original}，${addition}`;
 
-  const advanced = text(await value.apply.execute("advance-tail-baseline", {
+  const advancedExecution = await value.apply.execute("advance-tail-baseline", {
     candidateId: created.candidateId,
     expectedRevision: written.revision,
-    tailRepairs: [{
+    tailGrowths: [{
       bulletId: target.id,
-      revisedText: revised,
+      growthText: addition,
     }],
-  }));
+  });
+  const advanced = text(advancedExecution);
 
   assert.equal(advanced.revision, written.revision + 1);
   assert.equal(advanced.tailRepairDiagnostics.passedTargetCount, 0);
   assert.equal(advanced.tailRepairDiagnostics.progressedTargetCount, 1);
-  assert.equal(advanced.nextAction.mode, "batch_tail_repair");
-  assert.equal(advanced.nextAction.tailRepairTargets[0].currentText,
-    revised);
-  assert.ok(advanced.nextAction.tailRepairTargets[0].expansionGoal.length > 0);
+  assert.equal(advanced.nextAction.mode, "batch_tail_reflow");
   assert.equal(
-    "minimumFinalCharacters" in advanced.nextAction.tailRepairTargets[0],
+    (advancedExecution.details as { turnGovernorPhaseKey?: string })
+      .turnGovernorPhaseKey,
+    "resume_tail_repair",
+  );
+  assert.equal(advanced.nextAction.tailReflowTargets[0].currentText,
+    revised);
+  assert.match(advanced.nextAction.tailReflowTargets[0].requiredEdit,
+    /原字符.*顺序/u);
+  assert.equal(
+    "minimumFinalCharacters" in advanced.nextAction.tailReflowTargets[0],
     false,
   );
   assert.equal(value.store.latest()!.structure.sections
     .flatMap((section) => section.items).find((item) =>
       item.id === "item-work-1"
     )!.bullets[0]!.text, revised);
+
+  const reflowed = `系统性地${revised}`;
+  const reflowExecution = await value.apply.execute("reflow-tail", {
+    candidateId: created.candidateId,
+    expectedRevision: advanced.revision,
+    lineRewrites: [{ bulletId: target.id, revisedText: reflowed }],
+  });
+  const completed = text(reflowExecution);
+
+  assert.equal(completed.revision, advanced.revision + 1);
+  assert.equal(completed.tailRepairDiagnostics.appliedTargetCount, 1);
+  assert.equal(value.store.latest()!.structure.sections
+    .flatMap((section) => section.items).find((item) =>
+      item.id === "item-work-1"
+    )!.bullets[0]!.text, reflowed);
 });
 
 test("a large tail deficit exposes one current-text repair instruction", async () => {
@@ -1505,7 +1523,7 @@ test("a large tail deficit exposes one current-text repair instruction", async (
   const repair = tailRepairBatch(workspace).targets[0]!;
   assert.equal(repair.bulletId, observed.bulletId);
   assert.ok(repair.sourceQuotes.length > 0);
-  assert.match(repair.expansionGoal, /具体/u);
+  assert.match(repair.growthHint, /来源/u);
   assert.equal("currentCharacters" in repair, false);
   assert.equal("suggestedAddedCharacters" in repair, false);
   assert.equal("compactTotalCharacterTargets" in repair, false);
@@ -1566,21 +1584,24 @@ test("underfill lands exact extra lines before the final tail-repair phase", asy
   assert.ok(rejected.nextAction.lineExpansionTargets.length <= 8);
   assert.ok(rejected.nextAction.lineExpansionTargets.every(
     (entry: {
+      requiredEdit: string;
       currentText: string;
+      currentLines: number;
       evidenceIds: string[];
       sourceQuotes: string[];
-      currentCharacters: number;
-      characterDelta: number;
-      targetCharacters: number;
     }) =>
       entry.currentText.length > 0 && entry.evidenceIds.length > 0 &&
-      entry.sourceQuotes.length > 0 && entry.characterDelta > 0 &&
-      entry.targetCharacters === entry.currentCharacters + entry.characterDelta,
+      entry.sourceQuotes.length > 0 && entry.currentLines > 0 &&
+      /明显扩写/u.test(entry.requiredEdit) && /宁长勿短/u.test(entry.requiredEdit) &&
+      !("currentCharacters" in entry) && !("characterDelta" in entry) &&
+      !("targetCharacters" in entry),
   ));
-  const expansionCosts = rejected.nextAction.lineExpansionTargets.map(
-    (entry: { characterDelta: number }) => entry.characterDelta,
-  );
-  assert.deepEqual(expansionCosts, [...expansionCosts].sort((a, b) => a - b));
+  const fullView = buildAgentWorkspaceView(workspace) as {
+    layout: { bullets: object[] };
+  };
+  assert.ok(fullView.layout.bullets.every(
+    (entry: object) => !("characterTargets" in entry),
+  ));
   assert.match(rejected.writeRejectedReason, /lineRewrites/u);
 
   const expanded = text(await value.apply.execute("underfill-line-rewrites", {
@@ -1721,7 +1742,10 @@ test("a valid same-line expansion is applied as the next rewrite baseline", asyn
 
   assert.equal(applied.revision, workspace.revision + 1);
   assert.equal(applied.lineRewriteDiagnostics.stackedProgressCount, 1);
-  assert.equal(value.store.latest()!.pageFillProgress, undefined);
+  assert.equal(
+    value.store.latest()!.pageFillProgress?.consecutiveZeroGrowthRounds,
+    1,
+  );
   const nextAction = applied.nextAction;
   assert.equal(nextAction.mode, "increase_usage");
   assert.ok(nextAction.lineExpansionTargets.some(
@@ -1867,11 +1891,11 @@ test("one-line tiered bullets require one complete line-rewrite batch", async ()
     (entry) => entry.bulletId === firstBulletId,
   );
   assert.ok(target);
-  assert.ok(target.characterDelta > 0);
-  assert.equal(
-    target.targetCharacters,
-    target.currentCharacters + target.characterDelta,
-  );
+  assert.match(target.requiredEdit, /明显扩写/u);
+  assert.match(target.requiredEdit, /宁长勿短/u);
+  assert.equal("currentCharacters" in target, false);
+  assert.equal("characterDelta" in target, false);
+  assert.equal("targetCharacters" in target, false);
 
   const wrongMode = text(await value.apply.execute("wrong-depth-mode", {
     candidateId: created.candidateId,
@@ -1923,6 +1947,42 @@ test("same-line depth growth is applied and becomes the next repair baseline", a
   assert.equal(applied.nextAction.mode, "repair_bullet_depth");
   assert.equal(applied.nextAction.lineRewriteTargets[0].currentText, revisedText);
   assert.equal(value.store.latest()!.pageFillProgress, undefined);
+});
+
+test("depth feedback reports formal validation instead of false application", async () => {
+  const value = harness(new DepthFormalRejectionCompiler());
+  const created = await createWorkspace(value);
+  await value.apply.execute("write-before-formal-depth-rejection", {
+    candidateId: created.candidateId,
+    expectedRevision: created.revision,
+    items: [{ itemId: "item-work-1", bullets: workBullets(value) }],
+  });
+  const source = value.store.latest()!;
+  const targetId = source.structure.sections.flatMap((section) => section.items)
+    .find((item) => item.id === "item-work-1")!.bullets[0]!.id;
+  value.store.restore(withQualifiedLines(source, new Map([[targetId, 1]])));
+  const workspace = value.store.latest()!;
+  const action = resumeAgentNextAction(workspace);
+  assert.equal(action.mode, "repair_bullet_depth");
+  if (action.mode !== "repair_bullet_depth") return;
+
+  const rejected = text(await value.apply.execute("formal-depth-rejection", {
+    candidateId: created.candidateId,
+    expectedRevision: workspace.revision,
+    lineRewrites: [{
+      bulletId: targetId,
+      revisedText: `${action.lineRewriteTargets[0]!.currentText}并补充来源细节。`,
+    }],
+  }));
+
+  assert.equal(rejected.revision, workspace.revision);
+  assert.equal(rejected.operation.status, "rejected");
+  assert.equal(rejected.lineRewriteDiagnostics.appliedRewriteCount, 0);
+  assert.equal(
+    rejected.lineRewriteDiagnostics.feedback[0].failureType,
+    "content_validation_failed",
+  );
+  assert.match(rejected.rewriteWarning, /trailing_punctuation/u);
 });
 
 test("one-line education and skills bullets are exempt from the depth gate", async () => {
@@ -2209,6 +2269,12 @@ test("get_resume_workspace returns current authority without recompiling", async
     (execution.details as { loopGuardKey?: string }).loopGuardKey,
     resumeContentProgressKey(value.store.latest()!),
   );
+
+  const repeated = text(await value.get.execute("get-again", {}));
+  assert.equal(repeated.recovery.repeated, true);
+  assert.match(repeated.recovery.instruction, /禁止再次调用 get_resume_workspace/u);
+  assert.equal("availableEvidence" in repeated, false);
+  assert.deepEqual(repeated.nextAction, payload.nextAction);
 });
 
 test("create and get share one semantic no-progress key", async () => {
@@ -2227,6 +2293,11 @@ test("create and get share one semantic no-progress key", async () => {
   assert.equal(
     (createResult.details as { loopGuardKey?: string }).loopGuardKey,
     (getResult.details as { loopGuardKey?: string }).loopGuardKey,
+  );
+  assert.equal(
+    (createResult.details as { turnGovernorPhaseKey?: string })
+      .turnGovernorPhaseKey,
+    "resume_generation",
   );
 });
 

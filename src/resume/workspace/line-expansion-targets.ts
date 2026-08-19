@@ -1,17 +1,16 @@
 import { workspaceEvidenceRecords } from "./agent-workspace-evidence.js";
-import { lineExpansionInstruction } from "./line-expansion-instruction.js";
+import { SEMANTIC_LINE_EXPANSION_REQUIRED_EDIT } from "./semantic-line-expansion-instruction.js";
 import type { ResumeWorkspace } from "./types.js";
 
 const MAX_LINE_EXPANSIONS_PER_BATCH = 8;
 
 export interface LineExpansionTarget {
+  requiredEdit: string;
   bulletId: string;
   currentText: string;
+  currentLines: number;
   evidenceIds: string[];
   sourceQuotes: string[];
-  currentCharacters: number;
-  characterDelta: number;
-  targetCharacters: number;
 }
 
 /** Bounded structural targets; the Agent decides which facts are relevant. */
@@ -38,26 +37,26 @@ export function lineExpansionTargets(
   return workspace.compileResult.bullets.flatMap((bullet) => {
     const currentText = textById.get(bullet.bulletId);
     if (!currentText || bullet.lineCount >= maximumLines) return [];
-    const instruction = lineExpansionInstruction(currentText, bullet);
-    if (!instruction) return [];
     const evidenceIds = provenanceById.get(bullet.bulletId)?.evidenceIds ?? [];
     const sourceQuotes = evidenceIds.flatMap((id) => {
       const quote = evidenceById.get(id);
       return quote ? [quote] : [];
     });
+    if (sourceQuotes.length === 0) return [];
     return [{
       target: {
+        requiredEdit: SEMANTIC_LINE_EXPANSION_REQUIRED_EDIT,
         bulletId: bullet.bulletId,
         currentText,
+        currentLines: bullet.lineCount,
         evidenceIds,
         sourceQuotes,
-        ...instruction,
       },
-      expansionCapacity: sourceQuotes.join("").length -
-        instruction.currentCharacters,
+      expansionCapacity: [...sourceQuotes.join("")].length -
+        [...currentText].length,
     }];
   }).sort((left, right) =>
-    left.target.characterDelta - right.target.characterDelta ||
+    left.target.currentLines - right.target.currentLines ||
     right.expansionCapacity - left.expansionCapacity ||
     left.target.bulletId.localeCompare(right.target.bulletId)
   ).slice(0, MAX_LINE_EXPANSIONS_PER_BATCH).map(({ target }) => target);

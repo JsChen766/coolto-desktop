@@ -1,53 +1,57 @@
-import { buildValidatedBullet } from "./agent-content-validation.js";
-import { extractEvidenceNumbers } from "../evidence-numbers.js";
+import { validateTailCandidateText } from "./tail-content-validation.js";
 import {
-  tailRepairTextFingerprint,
-  wasLastRejectedTailText,
+  tailGrowthFingerprint,
+  type TailGrowthFailureType,
+  wasRejectedTailGrowth,
 } from "./tail-repair-state.js";
 import { tailRepairBatch } from "./tail-repair-targets.js";
 import type { ResumeWorkspace } from "./types.js";
 
-export interface TailRepairInput {
+export interface TailGrowthInput {
   bulletId: string;
-  revisedText: string;
+  growthText: string;
 }
 
-export interface TailRepairSubmission {
+export interface TailGrowthSubmission {
   bulletId: string;
   currentText: string;
   currentLineCount: number;
   currentLastLineRatio: number;
-  revisedText: string;
-  textFingerprint: string;
+  growthText: string;
+  composedText: string;
+  growthFingerprint: string;
 }
 
-export interface RejectedTailRepairSubmission {
+export interface RejectedTailGrowthSubmission {
   bulletId: string;
   reason: string;
-  textFingerprint: string;
+  growthFingerprint: string;
+  rejectedGrowth: string;
+  failureType: TailGrowthFailureType;
 }
 
-export function normalizeTailRepairInputs(
+export function normalizeTailGrowthInputs(
   workspace: ResumeWorkspace,
-  inputs: readonly TailRepairInput[],
+  inputs: readonly TailGrowthInput[],
 ): {
-  submissions: TailRepairSubmission[];
-  rejected: RejectedTailRepairSubmission[];
+  submissions: TailGrowthSubmission[];
+  rejected: RejectedTailGrowthSubmission[];
 } {
   const texts = currentBulletTexts(workspace);
   const measurements = new Map(
     workspace.compileResult.bullets.map((entry) => [entry.bulletId, entry]),
   );
+  const targets = new Set(
+    tailRepairBatch(workspace).targets.map((target) => target.bulletId),
+  );
   const seenIds = new Set<string>();
-  const seenTexts = new Set<string>();
-  const targets = new Map(tailRepairBatch(workspace).targets.map((target) => [
-    target.bulletId,
-    target,
-  ]));
-  const rejected: RejectedTailRepairSubmission[] = [];
-  const submissions = inputs.flatMap((input) => {
-    const revisedText = input.revisedText.trim();
-    const textFingerprint = tailRepairTextFingerprint(revisedText);
+  const seenGrowths = new Set<string>();
+  const rejected: RejectedTailGrowthSubmission[] = [];
+  const candidates: TailGrowthSubmission[] = [];
+
+  for (const input of inputs) {
+    const growthText = cleanGrowth(input.growthText);
+    const growthFingerprint = tailGrowthFingerprint(growthText);
     try {
       if (seenIds.has(input.bulletId)) {
         throw new Error(`bullet ${input.bulletId} 在本批次中重复`);
@@ -58,113 +62,92 @@ export function normalizeTailRepairInputs(
       if (!currentText || !observed) {
         throw new Error(`bullet ${input.bulletId} 缺少当前正式文本或测量`);
       }
-      if (!revisedText) {
-        throw new Error(`bullet ${input.bulletId} revisedText 不能为空`);
+      if (!targets.has(input.bulletId)) {
+        throw new Error(`bullet ${input.bulletId} 不在当前尾行增长目标中`);
       }
-      if (normalized(revisedText) === normalized(currentText)) {
+      if (!growthText) {
+        throw new Error(`bullet ${input.bulletId} growthText 不能为空`);
+      }
+      if (normalized(growthText).includes(normalized(currentText))) {
         throw new Error(
-          `bullet ${input.bulletId} revisedText 必须修改当前正式文本；当前与提交均为 ${[
-            ...currentText,
-          ].length} 字`,
+          `bullet ${input.bulletId} growthText 只能提交新增片段，不能重交完整 bullet`,
         );
       }
-      if ([...revisedText].length < [...currentText].length) {
-        throw new Error(
-          `bullet ${input.bulletId} 不能删减当前内容；请保留事实后自然重组或扩写`,
-        );
+      if (seenGrowths.has(growthFingerprint)) {
+        throw new Error(`bullet ${input.bulletId} 与本批其他增长片段重复`);
       }
-      const target = targets.get(input.bulletId);
-      if (!target) {
-        throw new Error(`bullet ${input.bulletId} 不在当前尾行修复目标中`);
-      }
-      assertPreservedNumbers(input.bulletId, currentText, revisedText);
-      if (seenTexts.has(textFingerprint)) {
-        throw new Error(`bullet ${input.bulletId} 与本批其他改写文本重复`);
-      }
-      seenTexts.add(textFingerprint);
-      if (wasLastRejectedTailText(
+      seenGrowths.add(growthFingerprint);
+      if (wasRejectedTailGrowth(
         workspace.tailRepairProgress,
         input.bulletId,
-        revisedText,
+        growthText,
       )) {
         throw new Error(
-          `bullet ${input.bulletId} 的 revisedText 已经提交过且没有进展，请基于当前正式文本重新修改`,
+          `bullet ${input.bulletId} 的 growthText 已经被拒绝，请更换增长方向`,
         );
       }
-      validateBeforeMeasurement(workspace, input.bulletId, revisedText);
-      return [{
+      candidates.push({
         bulletId: input.bulletId,
         currentText,
         currentLineCount: observed.lineCount,
         currentLastLineRatio: observed.lastLineRatio,
-        revisedText,
-        textFingerprint,
-      }];
+        growthText,
+        composedText: composeTailGrowth(
+          currentText,
+          growthText,
+          workspace.structure.language,
+        ),
+        growthFingerprint,
+      });
     } catch (error: unknown) {
+      const reason = error instanceof Error ? error.message : String(error);
       rejected.push({
         bulletId: input.bulletId,
-        reason: error instanceof Error ? error.message : String(error),
-        textFingerprint,
+        reason,
+        growthFingerprint,
+        rejectedGrowth: growthText,
+        failureType: duplicateFailure(reason) ? "duplicate" : "invalid_content",
       });
-      return [];
+    }
+  }
+
+  const candidateTexts = new Map(candidates.map((entry) => [
+    entry.bulletId,
+    entry.composedText,
+  ]));
+  const submissions = candidates.filter((candidate) => {
+    try {
+      validateTailCandidateText(
+        workspace,
+        candidate.bulletId,
+        candidate.composedText,
+        candidateTexts,
+      );
+      return true;
+    } catch (error: unknown) {
+      rejected.push({
+        bulletId: candidate.bulletId,
+        reason: error instanceof Error ? error.message : String(error),
+        growthFingerprint: candidate.growthFingerprint,
+        rejectedGrowth: candidate.growthText,
+        failureType: "invalid_content",
+      });
+      return false;
     }
   });
   return { submissions, rejected };
 }
 
-function validateBeforeMeasurement(
-  workspace: ResumeWorkspace,
-  bulletId: string,
-  text: string,
-): void {
-  const provenance = (workspace.bulletProvenance ?? []).find(
-    (entry) => entry.bulletId === bulletId,
-  );
-  for (const section of workspace.structure.sections) {
-    for (const item of section.items) {
-      const index = item.bullets.findIndex((bullet) => bullet.id === bulletId);
-      if (index < 0 || !provenance) continue;
-      const others = workspace.structure.sections.flatMap((candidateSection) =>
-        candidateSection.items.flatMap((candidateItem) =>
-          candidateItem.bullets.filter((bullet) => bullet.id !== bulletId)
-        )
-      );
-      buildValidatedBullet({
-        source: workspace,
-        item,
-        bullet: {
-          bulletId,
-          text,
-          origin: provenance.origin,
-          evidenceIds: provenance.evidenceIds,
-          requirementIds: provenance.requirementIds,
-        },
-        index,
-        retainedIds: new Set(others.map((bullet) => bullet.id)),
-        retainedTexts: others.map((bullet) => normalized(bullet.text)),
-      });
-      return;
-    }
-  }
-  throw new Error(`bullet ${bulletId} 缺少来源记录，不能修改`);
-}
-
-function assertPreservedNumbers(
-  bulletId: string,
+export function composeTailGrowth(
   currentText: string,
-  revisedText: string,
-): void {
-  const revisedNumbers = new Set(extractEvidenceNumbers(revisedText));
-  const missing = extractEvidenceNumbers(currentText).filter(
-    (value) => !revisedNumbers.has(value),
-  );
-  if (missing.length) {
-    throw new Error(
-      `bullet ${bulletId} 的语义扩写必须保留原有数字：${[
-        ...new Set(missing),
-      ].join("、")}`,
-    );
-  }
+  growthText: string,
+  language: string,
+): string {
+  const base = currentText.trim();
+  const growth = cleanGrowth(growthText);
+  const alreadyJoined = /[，,；;:]$/u.test(base);
+  const separator = alreadyJoined ? "" : language === "en-US" ? "; " : "，";
+  return `${base}${separator}${growth}`;
 }
 
 function currentBulletTexts(workspace: ResumeWorkspace): Map<string, string> {
@@ -173,6 +156,14 @@ function currentBulletTexts(workspace: ResumeWorkspace): Map<string, string> {
       item.bullets.map((bullet) => [bullet.id, bullet.text] as const),
     ),
   ));
+}
+
+function cleanGrowth(value: string): string {
+  return value.trim().replace(/^[，,；;。.!！?？:\s]+|[，,；;。.!！?？:\s]+$/gu, "");
+}
+
+function duplicateFailure(reason: string): boolean {
+  return /重复|已经被拒绝|重交完整/u.test(reason);
 }
 
 function normalized(value: string): string {

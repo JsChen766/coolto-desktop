@@ -1,7 +1,7 @@
 import type { ResumeCompiler } from "./compiler-port.js";
 import {
-  normalizeTailRepairInputs,
-  type TailRepairInput,
+  normalizeTailGrowthInputs,
+  type TailGrowthInput,
 } from "./tail-repair-input.js";
 import {
   updateTailRepairProgress,
@@ -19,7 +19,7 @@ import {
   type TailRepairValidationReasonCounts,
 } from "./tail-repair-rejection-diagnostics.js";
 
-export type { TailRepairInput } from "./tail-repair-input.js";
+export type { TailGrowthInput } from "./tail-repair-input.js";
 export type { TailRepairMeasurement } from "./tail-repair-measurement.js";
 
 export interface TailRepairFeedback {
@@ -52,10 +52,10 @@ export interface TailRepairBatchResult {
 
 export async function processTailRepairBatch(
   workspace: ResumeWorkspace,
-  inputs: readonly TailRepairInput[],
+  inputs: readonly TailGrowthInput[],
   compiler: ResumeCompiler,
 ): Promise<TailRepairBatchResult> {
-  const normalized = normalizeTailRepairInputs(workspace, inputs);
+  const normalized = normalizeTailGrowthInputs(workspace, inputs);
   const measured = normalized.submissions.length
     ? await measureTailRepairBatch(workspace, normalized.submissions, compiler)
     : [];
@@ -68,7 +68,9 @@ export async function processTailRepairBatch(
   const outcomes: TailRepairProgressOutcome[] = normalized.rejected.map((entry) => ({
     bulletId: entry.bulletId,
     applied: false,
-    textFingerprint: entry.textFingerprint,
+    growthFingerprint: entry.growthFingerprint,
+    rejectedGrowth: entry.rejectedGrowth,
+    failureType: entry.failureType,
   }));
   let passedTargetCount = 0;
   let progressedTargetCount = 0;
@@ -88,7 +90,7 @@ export async function processTailRepairBatch(
     if (applied) {
       updates.push({
         bulletId: entry.submission.bulletId,
-        text: entry.submission.revisedText,
+        text: entry.submission.composedText,
       });
       if (entry.measurement.tailPassed) passedTargetCount += 1;
       else progressedTargetCount += 1;
@@ -106,7 +108,15 @@ export async function processTailRepairBatch(
     outcomes.push({
       bulletId: entry.submission.bulletId,
       applied,
-      textFingerprint: entry.submission.textFingerprint,
+      growthFingerprint: entry.submission.growthFingerprint,
+      ...(rejection
+        ? {
+          rejectedGrowth: entry.submission.growthText,
+          failureType: rejection.kind === "line_count"
+            ? "too_long" as const
+            : "insufficient_growth" as const,
+        }
+        : {}),
     });
   }
   const failedIds = new Set(workspace.compileResult.bullets

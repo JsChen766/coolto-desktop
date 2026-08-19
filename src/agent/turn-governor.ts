@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import type { ShouldStopAfterTurnContext } from "@earendil-works/pi-agent-core";
 
 const DEFAULT_MAX_TURNS = 40;
+const DEFAULT_PHASE_MAX_TURNS = 32;
+const DEFAULT_MAX_TOTAL_TURNS = 72;
 const DEFAULT_SAME_OUTCOME_LIMIT = 3;
 const DEFAULT_ERROR_OUTCOME_LIMIT = 5;
 // Opted-in tools provide a progress key. Four consecutive results with the
@@ -11,6 +13,8 @@ const DEFAULT_SAME_TOOL_SEQUENCE_LIMIT = 4;
 
 export type TurnGovernorStopReason =
   | "maximum_turns"
+  | "maximum_phase_turns"
+  | "maximum_total_turns"
   | "terminal_model_failure"
   | "same_tool_outcome"
   | "repeated_tool_errors"
@@ -18,6 +22,8 @@ export type TurnGovernorStopReason =
 
 export interface TurnGovernorOptions {
   maxTurns?: number;
+  phaseMaxTurns?: number;
+  maxTotalTurns?: number;
   sameOutcomeLimit?: number;
   errorOutcomeLimit?: number;
   sameToolSequenceLimit?: number;
@@ -37,6 +43,8 @@ export function createTurnGovernor(
   options: TurnGovernorOptions = {},
 ): TurnGovernor {
   const maxTurns = options.maxTurns ?? DEFAULT_MAX_TURNS;
+  const phaseMaxTurns = options.phaseMaxTurns ?? DEFAULT_PHASE_MAX_TURNS;
+  const maxTotalTurns = options.maxTotalTurns ?? DEFAULT_MAX_TOTAL_TURNS;
   const sameOutcomeLimit =
     options.sameOutcomeLimit ?? DEFAULT_SAME_OUTCOME_LIMIT;
   const errorOutcomeLimit =
@@ -45,6 +53,10 @@ export function createTurnGovernor(
     options.sameToolSequenceLimit ?? DEFAULT_SAME_TOOL_SEQUENCE_LIMIT;
   let runMarker: string | undefined;
   let turns = 0;
+  let totalTurns = 0;
+  let activeTurnLimit = maxTurns;
+  let phaseKey: string | undefined;
+  let phaseBudgetGranted = false;
   let lastOutcome: string | undefined;
   let sameOutcomeRounds = 0;
   let errorOutcomeRounds = 0;
@@ -54,12 +66,19 @@ export function createTurnGovernor(
 
   const reset = (): void => {
     turns = 0;
+    totalTurns = 0;
+    activeTurnLimit = maxTurns;
+    phaseKey = undefined;
+    phaseBudgetGranted = false;
+    resetLoopCounters();
+    stopReason = undefined;
+  };
+  const resetLoopCounters = (): void => {
     lastOutcome = undefined;
     sameOutcomeRounds = 0;
     errorOutcomeRounds = 0;
     lastToolSequence = undefined;
     sameToolSequenceRounds = 0;
-    stopReason = undefined;
   };
   const evaluate = (context: ShouldStopAfterTurnContext): boolean => {
     const currentRunMarker = signature(context.newMessages[0]);
@@ -67,10 +86,29 @@ export function createTurnGovernor(
       runMarker = currentRunMarker;
       reset();
     }
-    turns += 1;
-    if (turns >= maxTurns) return stop("maximum_turns");
+    totalTurns += 1;
     if (isTerminalModelFailure(context.message)) {
       return stop("terminal_model_failure");
+    }
+    if (totalTurns >= maxTotalTurns) return stop("maximum_total_turns");
+    const observedPhase = turnGovernorPhase(context.toolResults);
+    if (!phaseKey && observedPhase) {
+      phaseKey = observedPhase;
+    } else if (
+      observedPhase && observedPhase !== phaseKey && !phaseBudgetGranted
+    ) {
+      phaseKey = observedPhase;
+      phaseBudgetGranted = true;
+      turns = 0;
+      activeTurnLimit = phaseMaxTurns;
+      resetLoopCounters();
+      return false;
+    }
+    turns += 1;
+    if (turns >= activeTurnLimit) {
+      return stop(phaseBudgetGranted
+        ? "maximum_phase_turns"
+        : "maximum_turns");
     }
     if (context.toolResults.length === 0) return false;
 
@@ -103,6 +141,20 @@ export function createTurnGovernor(
     },
     reset,
   };
+}
+
+function turnGovernorPhase(
+  results: ShouldStopAfterTurnContext["toolResults"],
+): string | undefined {
+  const keys = results.flatMap((result) => {
+    const details = result.details;
+    if (!details || typeof details !== "object") return [];
+    const key = (details as { turnGovernorPhaseKey?: unknown })
+      .turnGovernorPhaseKey;
+    return typeof key === "string" && key ? [key] : [];
+  });
+  const distinct = [...new Set(keys)];
+  return distinct.length === 1 ? distinct[0] : undefined;
 }
 
 function loopGuardSequence(

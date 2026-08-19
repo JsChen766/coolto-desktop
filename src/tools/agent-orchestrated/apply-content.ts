@@ -1,23 +1,18 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-
 import type { ApprovalManager } from "../../approvals/approval-manager.js";
-import {
-  createAugmentedApprovalDraft,
-  createAugmentedApprovalPayload,
-  RESUME_AUGMENTED_CONFIRM_ACTION_TYPE,
-} from "../../resume/confirmation/augmented-approval.js";
 import { applyAgentResumeContent } from "../../resume/workspace/agent-content-applier.js";
-import { hasPendingAugmentedContent } from "../../resume/workspace/augmentation-state.js";
 import { buildAgentWorkspaceReceipt } from "../../resume/workspace/agent-workspace-view.js";
 import { resumeAgentNextAction } from "../../resume/workspace/agent-next-action.js";
 import { resumeWriteRejection } from "../../resume/workspace/agent-write-rejection.js";
 import { selectLineRewrites } from "../../resume/workspace/line-rewrite-selector.js";
-import {
-  processTailRepairBatch,
-  type TailRepairDiagnostics,
-  type TailRepairFeedback,
-} from "../../resume/workspace/tail-repair-processor.js";
+import { formalLineRewriteOutcome } from "../../resume/workspace/line-rewrite-formal-outcome.js";
+import type { TailRepairFeedback } from
+  "../../resume/workspace/tail-repair-processor.js";
 import type { TailRepairProgressState } from "../../resume/workspace/tail-repair-state.js";
+import {
+  processTailWrite,
+  type TailWriteDiagnostics,
+} from "../../resume/workspace/tail-write-processor.js";
 import { workspaceWithTailRepairProgress } from "../../resume/workspace/tail-repair-workspace.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
@@ -26,8 +21,8 @@ import { resumeWriteRejectedResult } from "./resume-write-rejected-result.js";
 import { applyContentParameters as parameters } from "./apply-content-parameters.js";
 import { recordPageFillOutcome } from "../../resume/workspace/page-fill-progress.js";
 import { resumeWriteResultForModel } from "./resume-write-result-for-model.js";
-import { resumeWriteLoopGuardKey } from
-  "../../resume/workspace/resume-write-loop-key.js";
+import { resumeWriteLoopGuardKey } from "../../resume/workspace/resume-write-loop-key.js";
+import { syncAugmentedApproval } from "./sync-augmented-approval.js";
 
 export function createApplyResumeContentTool(
   compiler: ResumeCompiler,
@@ -53,12 +48,12 @@ export function createApplyResumeContentTool(
       const pageFillAttempt = action.mode === "increase_usage";
       const modeCount = [params.items, params.bulletUpdates,
         params.bulletRemovals,
-        params.bulletAdditions, params.tailRepairs, params.lineRewrites]
+        params.bulletAdditions, params.tailGrowths, params.lineRewrites]
         .filter((value) => value?.length).length;
       if (modeCount !== 1) {
         return resumeWriteRejectedResult(
           workspace,
-          "items、bulletUpdates、bulletRemovals、bulletAdditions、tailRepairs、lineRewrites 必须且只能提供一种",
+          "items、bulletUpdates、bulletRemovals、bulletAdditions、tailGrowths、lineRewrites 必须且只能提供一种",
         );
       }
       const rejectedReason = resumeWriteRejection(workspace, params);
@@ -68,16 +63,18 @@ export function createApplyResumeContentTool(
       let resolved: Parameters<typeof resolveResumeContentChanges>[1] = params;
       let rewriteWarning: string | undefined;
       let tailRepairFeedback: TailRepairFeedback[] | undefined;
-      let tailRepairDiagnostics: TailRepairDiagnostics | undefined;
+      let tailRepairDiagnostics: TailWriteDiagnostics | undefined;
       let tailRepairProgress: TailRepairProgressState | undefined;
       let lineRewriteDiagnostics;
       let pageFillProgressMade: boolean | undefined;
-      if (params.tailRepairs) {
+      let tailWriteHandled = false;
+      if (params.tailGrowths || action.mode === "batch_tail_reflow") {
         let processed;
         try {
-          processed = await processTailRepairBatch(
+          processed = await processTailWrite(
             workspace,
-            params.tailRepairs,
+            action,
+            params,
             compiler,
           );
         } catch (error: unknown) {
@@ -86,6 +83,13 @@ export function createApplyResumeContentTool(
             error instanceof Error ? error.message : String(error),
           );
         }
+        if (!processed) {
+          return resumeWriteRejectedResult(
+            workspace,
+            "当前尾行阶段缺少对应的 tailGrowths 或 lineRewrites",
+          );
+        }
+        tailWriteHandled = true;
         tailRepairFeedback = processed.feedback;
         tailRepairDiagnostics = processed.diagnostics;
         tailRepairProgress = processed.progress;
@@ -96,7 +100,7 @@ export function createApplyResumeContentTool(
           );
           return resumeWriteRejectedResult(
             retryWorkspace,
-            processed.writeRejectedReason ?? "tailRepairs 没有产生真实尾行进展",
+            processed.writeRejectedReason ?? "tailGrowths 没有产生真实尾行进展",
             {
               tailRepairFeedback,
               tailRepairDiagnostics: processed.diagnostics,
@@ -106,7 +110,7 @@ export function createApplyResumeContentTool(
         rewriteWarning = processed.writeRejectedReason;
         resolved = { bulletUpdates: processed.updates };
       }
-      if (params.lineRewrites) {
+      if (params.lineRewrites && !tailWriteHandled) {
         const selected = await selectLineRewrites(
           workspace,
           params.lineRewrites,
@@ -135,7 +139,9 @@ export function createApplyResumeContentTool(
           );
         }
         rewriteWarning = selected.writeRejectedReason;
-        if (pageFillAttempt) pageFillProgressMade = true;
+        if (pageFillAttempt) {
+          pageFillProgressMade = selected.diagnostics.heightGrowthCount > 0;
+        }
         resolved = { bulletUpdates: selected.updates };
       }
       let items;
@@ -171,6 +177,13 @@ export function createApplyResumeContentTool(
           ? {}
           : { pageFillProgressMade }),
       });
+      if (params.lineRewrites && lineRewriteDiagnostics) {
+        const formal = formalLineRewriteOutcome(
+          workspace, lineRewriteDiagnostics, applied.operation,
+        );
+        lineRewriteDiagnostics = formal.diagnostics;
+        rewriteWarning = formal.warning;
+      }
       const payload = buildAgentWorkspaceReceipt(
         applied.workspace,
         applied.operation,
@@ -192,7 +205,7 @@ export function createApplyResumeContentTool(
           : {}),
         ...(rewriteWarning ? { rewriteWarning } : {}),
         ...(tailRepairFeedback ? { tailRepairFeedback } : {}),
-        ...(params.tailRepairs && tailRepairDiagnostics
+        ...(tailWriteHandled && tailRepairDiagnostics
           ? { tailRepairDiagnostics }
           : {}),
         ...(params.lineRewrites && lineRewriteDiagnostics
@@ -211,29 +224,12 @@ export function createApplyResumeContentTool(
             applied.workspace,
             applied.operation,
           ),
+          ...(["batch_tail_repair", "batch_tail_reflow"].includes(
+              resumeAgentNextAction(applied.workspace).mode,
+            )
+            ? { turnGovernorPhaseKey: "resume_tail_repair" } : {}),
         },
       };
     },
   };
-}
-
-async function syncAugmentedApproval(
-  workspace: ReturnType<ResumeWorkspaceStore["get"]>,
-  approvalManager: ApprovalManager | undefined,
-): Promise<string | undefined> {
-  if (!approvalManager) return undefined;
-  const pending = hasPendingAugmentedContent(workspace);
-  const readyForConfirmation =
-    resumeAgentNextAction(workspace).mode === "await_augmented_confirmation";
-  if (!pending || !readyForConfirmation) {
-    await approvalManager.dismissByActionType(
-      RESUME_AUGMENTED_CONFIRM_ACTION_TYPE,
-    );
-    return undefined;
-  }
-  const request = await approvalManager.request(
-    createAugmentedApprovalDraft(workspace),
-    createAugmentedApprovalPayload(workspace),
-  );
-  return request.id;
 }
