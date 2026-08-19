@@ -2997,6 +2997,15 @@ workflow `32255116143` 的 NSIS/hardening 通过，但安装进程在旧 10 秒�
 marker、未退出和 3 秒持续健康；本地增强验证及完整 `npm run check` 均通过。修复 PR 与 Windows CI
 重跑完成前，不得称 Win/mac 跨平台发布完成。完整记录见 S4.5.1 阶段 39。
 
+**0.1.19 跨平台发布完成（2026-08-19）：**Windows 冷启动门禁修复 PR #43 已合入；只重跑 Windows，
+没有重建已成功的同版本 macOS 包。Windows workflow `32256080004` 在 7m07s 完成 protected build、
+NSIS、hardening、marker+CDP+持续健康安装验收、卸载及上传。公网 Win/mac feed 均为 0.1.19，下载页同时
+提供 Windows、macOS Intel 与 Apple Silicon。五个公网文件均完成 HTTP 200、Content-Length、全字节
+SHA-512 feed 匹配与独立 SHA-256 校验；Windows EXE SHA-256 为
+`CA3F310FF09AB367701EA1B59218FB431C74672AD82776B37CE9C91F014F4F60`，其余四个 macOS 哈希见 S4.5.1
+阶段 39及发布手册 10.8。Windows 仍 NotSigned，macOS 仍 ad-hoc/未 notarize。跨平台可下载已完成，但
+阶段 38 的真实简历生成仍未达标，S4.5.1 状态不变。
+
 | 顺序 | 状态 | 工作 | 完成门槛 |
 | --- | --- | --- | --- |
 | 1 | 已完成 | 把 `inspect_resume_layout.insufficient` 和可写容量升级为进入写作前的确定性门禁；不足时由 Agent 先扩大搜索，穷尽后返回 `needs_user_decision` | 不创建不可达 workspace；最终回复明确追问缺失事实；没有额外模型自循环 |
