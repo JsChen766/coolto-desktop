@@ -326,6 +326,29 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 - 本版功能：PDF 坐标布局解析（双栏/行聚类）、附件进消息（元数据持久化 +
   消息流附件卡片 + 实时状态）、带附件发送自动注入解析提示。
 
+### 10.8 已验证基线（2026-08-19，0.1.19 发布）
+
+- 发布源：PR #42（应用与 0.1.19 升版）及 PR #43（Windows CI 冷启动门禁）均已合入受保护 `app`。
+  macOS workflow `32255120066` 成功（5m46s）；Windows 首次 run `32255116143` 被旧 10 秒 bootstrap
+  窗口正确阻止上传，增强门禁后的 run `32256080004` 成功（7m07s）。
+- Windows CI：NSIS、ASAR/Fuses hardening、隔离安装、protected Main marker、CDP Renderer、持续健康、
+  卸载清理和服务器上传全部通过。公网 `Coolto-0.1.19-x64.exe` 为 133,082,942 bytes，SHA-256
+  `CA3F310FF09AB367701EA1B59218FB431C74672AD82776B37CE9C91F014F4F60`；仍为 NotSigned。
+- macOS CI：x64/arm64 分包，两个 `.app` 均为 Main loader 1,097 bytes、payload 1,004,614 bytes、
+  native 764,144 bytes、Fuses verified；`coolto-core.node` 继续跳过签名，entitlements 保留 JIT 与
+  library-validation 例外。产物仍为 ad-hoc signing、未 notarize：
+  - Intel ZIP 188,321,785 bytes，SHA-256
+    `8F16587902898D53AB49278AAD0A30F43D35A1907F0D13F6EAC9688B7B092186`；
+  - Apple Silicon ZIP 184,762,178 bytes，SHA-256
+    `44A38504A44840CC4504727F97BA983D59B2D4733D49CF482BC76C5B9C0B1FF2`；
+  - Intel DMG 191,207,109 bytes，SHA-256
+    `355112EA529E12A94DE5DEEC29184F5E34DD312B8D9226A7AD1AFF6F2C5BBDD6`；
+  - Apple Silicon DMG 187,707,925 bytes，SHA-256
+    `DF7301120F555F7F1D5B98B5AB4DE99271F415879AF5E7F53186EC1C9AC83C8B`。
+- 公网 `latest.yml` / `latest-mac.yml` 均为 0.1.19；五个文件无 query URL 均返回 HTTP 200，下载页同时
+  指向 0.1.19 Windows、Intel macOS 与 Apple Silicon macOS。五个文件已从公网完整流式读取，字节数、
+  feed SHA-512 全部匹配，并独立计算上述 SHA-256，不只依赖 CI 或 HEAD。
+
 ### 10.6 运维注意事项（坑）
 
 - **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过
