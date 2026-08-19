@@ -3032,6 +3032,23 @@ desktop production build 全部通过。该改动不新增 App 后端或数据�
 2 项平台跳过，Node/Renderer typecheck 与双 production build 均通过。后续须经现有 PR #45 合入受保护
 `app`，再按固定顺序执行 Windows、macOS 发布 workflow；两端上传与公网 feed 核验前不得称发布完成。
 
+**0.1.20 跨平台发布完成（2026-08-20）：**PR #45 已合入受保护 `app`（merge
+`2e8321a64af6007cc15c0a11e3fc8668267dda8a`）。Windows workflow
+[`32285016195`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/32285016195) 成功（7m29s），完成
+Rust native 构建/3 项测试、protected desktop bundle、NSIS、release hardening、真实安装/bootstrap 持续健康、
+卸载和上传；macOS workflow
+[`32285771060`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/32285771060) 成功（6m08s），完成
+x64/arm64 native、universal protected bundle、ZIP/DMG、双架构 hardening 与上传。下载页 workflow
+[`32286395278`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/32286395278) 成功，公网
+`latest.yml` / `latest-mac.yml` 和下载页均为 0.1.20。五个公网安装文件全部完成 HTTP 200、精确字节数、
+feed SHA-512 与独立全字节 SHA-256 校验：Windows EXE
+`4C0498533452384B15B6043EC49457342969FC57AF7A675BA48A1A804F84F876`，macOS Intel ZIP
+`134FE2FD34F5D35CF8B77B1FA327787824E7B48623454845854BB41378FB6CF9`，macOS ARM64 ZIP
+`4833CAEE80438E4053DEA549AC6B6CE5B211AFD55B2E8EFBC1EA691ADF907E5E`，macOS Intel DMG
+`87DE0D41F1F76C7E67BC511941B0AF0C13F8B0CC836A4AA38AA99FC66AE628CB`，macOS ARM64 DMG
+`5799A4A5F905A3EDD74B3F124E58771040D9705AB58764965FB6A612640AF967`。Windows 仍为 NotSigned，macOS
+仍为 ad-hoc/未 notarize；S4.5 状态不因本次反馈入口发布而改变。
+
 ## 明确不进入本路线
 
 - ResumeDraft/checkpoint 和原始文件云端同步；

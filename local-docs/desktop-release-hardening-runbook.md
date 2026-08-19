@@ -349,6 +349,25 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
   指向 0.1.19 Windows、Intel macOS 与 Apple Silicon macOS。五个文件已从公网完整流式读取，字节数、
   feed SHA-512 全部匹配，并独立计算上述 SHA-256，不只依赖 CI 或 HEAD。
 
+### 10.9 已验证基线（2026-08-20，0.1.20 发布）
+
+- 发布源：PR #45 已合入受保护 `app`，merge commit 为
+  `2e8321a64af6007cc15c0a11e3fc8668267dda8a`；版本来自 `package.json` 的 0.1.20。
+- Windows workflow `32285016195` 成功（7m29s）：Rust native 构建与 3/3 测试、protected desktop
+  bundle、NSIS、release hardening、真实安装/bootstrap 持续健康、卸载及上传全部通过。payload 为
+  1,004,614 bytes，native 为 262,144 bytes，fuses 校验通过；签名状态仍为 NotSigned。
+- macOS workflow `32285771060` 成功（6m08s）：x64/arm64 native、universal protected bundle、
+  双架构 ZIP/DMG、release hardening 与上传全部通过。两端 payload 均为 1,004,614 bytes，native 均为
+  764,144 bytes，fuses 校验通过；签名为 ad-hoc（identity `-`），notarization 明确跳过。
+- 下载页 workflow `32286395278` 成功；公网 `latest.yml` / `latest-mac.yml` 均为 0.1.20，下载页同时
+  提供 Windows、macOS Intel 与 Apple Silicon。五个文件从公网完整流式读取后均返回 HTTP 200，精确字节数与
+  feed SHA-512 匹配；独立 SHA-256 为：Windows EXE
+  `4C0498533452384B15B6043EC49457342969FC57AF7A675BA48A1A804F84F876`，Intel ZIP
+  `134FE2FD34F5D35CF8B77B1FA327787824E7B48623454845854BB41378FB6CF9`，ARM64 ZIP
+  `4833CAEE80438E4053DEA549AC6B6CE5B211AFD55B2E8EFBC1EA691ADF907E5E`，Intel DMG
+  `87DE0D41F1F76C7E67BC511941B0AF0C13F8B0CC836A4AA38AA99FC66AE628CB`，ARM64 DMG
+  `5799A4A5F905A3EDD74B3F124E58771040D9705AB58764965FB6A612640AF967`。
+
 ### 10.6 运维注意事项（坑）
 
 - **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过
