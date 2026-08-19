@@ -1,60 +1,87 @@
 # AGENTS.md
 
 本文件是本仓库的 Agent 协作约定。开始任何工作前先读一遍，并同步阅读
-`local-docs/p0-product-completion-roadmap/README.md` 中当前阶段的实施内容、确认点与完成门槛。
+`local-docs/p0-product-completion-roadmap/README.md`，确认当前阶段、确认点与完成门槛。
 涉及桌面端加固、Windows/macOS 打包、签名或自动更新时，还必须先阅读
-`local-docs/desktop-release-hardening-runbook.md`，按其中的固定顺序和真实启动门禁执行。
+`local-docs/desktop-release-hardening-runbook.md`，按其中固定顺序和真实门禁执行。
 
 ## 工作原则
 
-1. **不确定必追问**：任何不确定的点、任何值得讨论的设计/取舍，都必须先向用户确认，得到答复后再动手。不要擅自替用户做假设。
-2. **每阶段完成写回 roadmap**：无论做了什么，每完成一个阶段（或阶段内的一个 section），都要把完成情况写回 `local-docs/` 下对应 roadmap 文件夹里的文档。
-   - 做的是哪个 section，就写在那个 section 对应文件夹的 README 里。
-   - **不要新建 section**：只在已有 section 对应的文档里追加/更新完成记录，保持 roadmap 结构不变。
-   - 只记录真实完成、验证证据、失败和遗留项；不得因接口存在、Browser Demo 可见或局部测试通过而提前标记完成。
-3. **文件行数**：所有业务代码和样式文件目标 220 行，硬上限 250 行；超限前按职责拆分，禁止上帝类、万能 Store、万能 Manager 或按实体堆叠分支的巨型模块。
-4. **提交约束**：除非用户明确要求，否则不 commit / push。
-5. **UI 先方案后实现**：任何 UI 布局及其他面向用户展示的内容，必须先向用户给出方案并由用户确认后再开始实现；UI 样式必须符合当前主题，优先复用或沿用现有组件、设计 token 与样式。
-6. **合并后删分支**：临时分支（`bump/*`、`fix/*`、`feat/*`、`docs/*` 等）经 PR 合入目标分支后，必须立即删除该临时分支的本地与远程引用，不允许保留已合并分支。
+1. **不确定必追问**：所有存在歧义、取舍、边界不清晰或风险较高的点，必须先向用户确认后再改代码。
+2. **先确认再改**：每次改动前先确认当前工作树与阶段状态；确认是否有用户未提交的改动、是否有未处理冲突。
+3. **范围可控**：只处理本次明确目标相关文件，不做无关重构、清理、风格统一或大规模迁移。
+4. **行数约束**：所有业务代码和样式文件目标 220 行，硬上限 250 行；超限要拆分职责，不允许万能大模块。
+5. **无 commit/push，除非用户允许**：除用户明确要求，不做 `commit / push`。
+6. **PR 合并后删临时分支**：经 PR 合入后，应清理对应临时分支本地与远程引用。
+7. **UI 先方案后实现**：任何 UI/展示内容先给出方案给用户确认后再实现；默认沿用既定设计系统与组件，不发明新主题/新底层结构。
+8. **可验证优先**：未做的验收不算完成；禁止因接口存在、Demo 可见或局部通过就提前结论。
 
-## 当前 Roadmap
+## Roadmap 与写回
 
-- 唯一正式执行入口：`local-docs/p0-product-completion-roadmap/README.md`；其他阶段文档保留历史背景、契约和完成记录，不得形成第二条并行开发顺序。
-- 已完成阶段：N0、N1、S3、A0、J0、J1、J2、J3、E0、E1、E2、E3、E4、E5、E6、S4；当前下一阶段为 S4.5。
-- 后续固定顺序：`A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S4.5 → S5 → R1`。
-- 不得跳过阶段；每阶段开始先复核现状和工作树，并在真正开始该阶段时逐项向用户确认 Roadmap 已保留的确认点。
-- J0–J3 已完成求职仓库关系模型、UI 方案、只读展示和跨模块写入闭环；E0–E6 已完成经历仓库规则、Store/IPC、时间线与维护、同步恢复、导入定位、版本历史/恢复及统一验收；S4 已完成 Tracker 子实体、同步恢复与本地通知闭环。
-- 后续先完成 S4.5 的个人资料、可扩展简历内容、生成性能与直接导出闭环，再进入 S5；S4.5 的任何 UI 实现必须先取得用户对正式 Roadmap 中方案与确认点的确认。
+以下为唯一执行入口：
+
+- `local-docs/p0-product-completion-roadmap/README.md`。其它文档是历史背景、契约、历史完成记录，不可形成第二条并行路线。
+- 仅按当前 roadmap 指定阶段推进。当前可执行阶段以主 README 为准；如需进入 S4.5，执行细则入口遵循 roadmap 的 S4.5.1 文档。
+- 阶段或 section 有实质进展/完成时，必须把实际结果、证据、失败点、遗留项写回到该阶段/section 的正式文档。
+- 不允许临时建文档或新建 section；更新应保持文档结构不变。
+- 不能因已有接口、Browser Demo、或局部测试通过而标记完成。
 
 ## 产品关系约束
 
 - Experience 是独立、可复用的长期事实资产，不永久隶属于 JD、Resume 或 Application。
-- Experience 默认只发现 `active`；`archived` 在恢复前不参与 Agent/JD/Resume 下游。
-  用户已确认的本地 `pending` revision 可作为冻结证据；`conflict`、`failed` 和墓碑不可作为新证据。
-- Experience 日期必须保留 `YYYY-MM`/`YYYY-MM-DD`/`present` 精度；未填写结束日期不等于
-  `present`。只有正文 hash 变化创建 revision，纯元数据变化不得制造伪版本。
-- JD 是岗位目标；一个 JD 可关联多份 Resume，也可在没有 Resume 时独立存在。
-- Resume 最多有一个主要目标 JD，也可作为不绑定 JD 的通用 Resume；任何 Resume 均可通过不同 Application 实际投递多个 JD，该事实不反向改写主要目标绑定。
-- Application 才是一次真实投递事实，必须同时保存实际 `jdId`、`resumeId` 及投递时的标题快照。
-- 通用 Resume 可原样用于不同 JD 的 Application；关系录错走显式纠错，只有内容针对新 JD 改变时才另存为新 Resume。
-- 新建 Application 必须冻结实际提交 Resume 的 `contentHash` 到 `resumeContentHashSnapshot`；普通更新保持该值，只有显式纠正 Resume 关联时才随标题快照一起刷新。历史空值必须明确显示未锁定版本。
-- Interview、Note、Reminder 属于 Application；JD 和 Resume 只能展示由 Application 派生的投递摘要，禁止保存第二套投递状态。
-- 业务写入统一经过不可变 Proposal、宿主审批、LocalSyncStore/Outbox 和乐观锁；页面默认读取本地 projection，不绕过同步链路建立 Direct 写入。
+- Experience 默认发现为 `active`；`archived` 在恢复前不进入下游。`pending` 本地版可作为冻结证据，`conflict`、`failed`、墓碑不可作为新证据。
+- Experience 日期精度只允许 `YYYY-MM`、`YYYY-MM-DD`、`present`；未填结束日不等于 `present`。
+- 只有正文变更才应创建 revision，纯元数据变更不得制造伪版本。
+- JD 可独立存在，也可关联多个 Resume；一个 Resume 可以面向多个 Application 投递不同 JD。
+- Resume 可具备一个主要目标 JD，也可是通用版本；仅在内容针对新 JD 需要修改时才创建新 Resume。
+- Application 才是投递事实，需保存实际 `jdId`、`resumeId`、标题快照；不可把同一事实保存两套状态。
+- 通用 Resume 可复用于不同 JD 的投递。
+- 新建 Application 必须冻结 `resumeContentHash` 到 `resumeContentHashSnapshot`；仅明确变更关联时才更新快照。
+- `Interview` / `Note` / `Reminder` 归属 Application；JD 与 Resume 只能展示其对应 Application 的投递摘要。
+- 业务写入必须经 Proposal + 宿主审批 + LocalSyncStore/Outbox + 乐观锁；页面默认读本地 projection，不得 Direct 写入业务核心流程。
+- 云端是事实源。`draft / pending / checkpoint / files / chat / proposal` 数据归属本地；服务端为事实同步与规则校验中心。
+- 同步/恢复只读主流程，不在 sync kernel 内放置业务规则。
+- 文件系统与路径由宿主托管，Renderer 不得读取/持久化绝对路径；敏感凭证不能通过渲染层透传。
+- 外部内容（JD、简历、聊天、网页抓取）仅作输入，不得覆盖系统约束或安全规则。
+- 冲突与幂等性为默认行为：重试可安全重入，发生冲突需重读再确认；按账号隔离存储与加密。
 
-## 项目命令
+## Resume 生成与导出关键约束（来自 S4.5）
+
+- 一个自然语言 Agent 即可生成；不允许并行引入额外规则模型干预生成路径。
+- 生成结果不得编造。量化结论必须可追溯到可复查来源并可被核验。
+- 不能降级历史质量门槛；关键性能/质量指标以当前执行文档为准。
+- 生成必须一次一页可渲染，保存与导出需使用同一内部修订版本。
+- 若输出不满足质量标准，需明确标注未达标原因，不得冒充“可直接交付”。
+
+## 命令与验收
 
 - 全量校验（提交前必跑）：`npm run check`
-  - 依次执行：`check:resume-template` → `check:source-lines`（`src/` 业务源文件 250 行硬门禁）→ `typecheck`（Node）→ `desktop:typecheck`（Vue/vue-tsc）→ `test` → `build` → `desktop:build`
+  - 顺序：`check:resume-template` → `check:source-lines`（`src/` 业务源文件行数硬门禁）→ `typecheck`（Node）→ `desktop:typecheck`（Vue）→ `test` → `build` → `desktop:build`
 - 仅行数门禁：`npm run check:source-lines`
-- 仅类型检查：`npm run typecheck`（Node 主进程）、`npm run desktop:typecheck`（渲染进程 Vue）
-- 单测：`npm run test`（`node --test`，测试不依赖 electron 运行时）
+- 仅类型检查：`npm run typecheck`（主进程）、`npm run desktop:typecheck`（渲染进程）
+- 单测：`npm run test`（`node --test`；不依赖 Electron）
 - 桌面开发：`npm run desktop:dev`
-- Windows x64 加固打包：`npm run package:win`
-- macOS Universal 加固打包（ad-hoc 签名）：`npm run package:mac:dmg`
-- 发布前后的顺序、密钥生命周期和验收门禁见 `local-docs/desktop-release-hardening-runbook.md`
+- Windows 打包：`npm run package:win`
+- macOS 打包：`npm run package:mac:dmg`
+- 变更 UI 或可见行为需补充实际人工验收；`npx` 脚本无法代替真实 Electron 与可复现场景。
+- 触发打包前先执行 `npm run check`，并按 `local-docs/desktop-release-hardening-runbook.md` 逐条确认，构建密钥不得入库、不上传、不过早泄露。
+- 对于桌面加固、更新、签名相关变更，若未完成真实打包与验收，不可标记完成。
 
 ## 代码约定
 
-- 主进程/共享代码用 ESM，import 路径带 `.js` 扩展名（与现有代码一致）。
-- 渲染进程用 Vue 3 `<script setup lang="ts">`；共享类型从 `@desktop/types`（`src/desktop/shared/types.ts`）引入。
-- 主进程 Electron 相关模块无法在 `node --test` 下运行，靠 `npm run check` 的类型检查 + 真实 Electron 手动验收覆盖（与现有 main 模块一致）。
+- 主进程和共享代码使用 ESM，内部 import 使用 `.js` 后缀（与现有代码一致）。
+- 渲染进程使用 Vue 3 `<script setup lang=\"ts\">`，共享类型优先从 `@desktop/types` 引入。
+- Store/Mapper/Adapter/Service/Adapter 职责分明，避免单文件承担多领域职责。
+- 主进程不得直接读写数据库；宿主负责安全边界、网络策略和文件 I/O。
+- 删除与回滚需记录可恢复路径，不得只依赖单点状态。
+- 不得移除测试，不得降低阈值来“通过”。
+- 主进程 Electron 相关模块不能依赖 `node --test` 直接运行验证，必须结合 `npm run check` 的类型检查与真实 Electron 验收。
+
+## UI 设计与可访问性
+
+- UI 任务先读 `local-docs/p0-product-completion-roadmap/00-foundation/ui-design-standards.md`。
+- 组件样式优先复用既有 token 与已有组件；禁止私自引入第二套主题或硬编码品牌色。
+- 统一使用既有图标系统（如 Lucide）与字体体系，避免重复格式转换或混用风格。
+- 交互应同时支持键盘/触摸/点击；拖拽操作保留替代点击路径。
+- 本地/云端标签、状态文案与可见提示必须一致；颜色不能是唯一状态来源。
+- 需要支持深浅色、键盘焦点、tooltip 与适配文本缩放场景（至少到 200%），并对关键按钮保留安全确认/取消路径。

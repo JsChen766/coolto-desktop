@@ -3021,6 +3021,17 @@ SHA-512 feed 匹配与独立 SHA-256 校验；Windows EXE SHA-256 为
 （素材不足样本应写作前追问；素材充足样本首稿应接近 92% 且 240 秒内达标停机），通过后才更新
 S4.5 状态与安装器 SHA-256；不得 commit/push/发版。
 
+**跨阶段维护记录（2026-08-20，App 反馈入口）：**设置页新增轻量“帮助与反馈”入口，通过既有
+`shell.openExternal` 在系统浏览器打开 Lark 问卷；App 不自动附带邮箱、简历或聊天内容。反馈文案已纳入
+中英文目录与回归测试；`check:source-lines`、desktop typecheck、635 项测试（633 通过、2 项平台跳过）及
+desktop production build 全部通过。该改动不新增 App 后端或数据库，未改变 S4.5 当前状态。
+
+**0.1.20 发布前门禁（2026-08-20）：**本次发布仅包含设置页反馈入口、对应中英文文案/回归测试，
+以及既有 Agent 协作规则文档；版本已从 0.1.19 升至 0.1.20，避免覆盖已发布随机密钥产物。npm 官方源
+生产依赖审计为 0 漏洞；`npm run check` 全绿：706 个源文件满足 ≤250 行门禁，635 项测试中 633 通过、
+2 项平台跳过，Node/Renderer typecheck 与双 production build 均通过。后续须经现有 PR #45 合入受保护
+`app`，再按固定顺序执行 Windows、macOS 发布 workflow；两端上传与公网 feed 核验前不得称发布完成。
+
 ## 明确不进入本路线
 
 - ResumeDraft/checkpoint 和原始文件云端同步；

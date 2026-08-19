@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IdCard, ShieldCheck, Trash2, X } from "@lucide/vue";
+import { ExternalLink, IdCard, MessageSquareText, ShieldCheck, Trash2, X } from "@lucide/vue";
 import { computed, nextTick, onMounted, ref } from "vue";
 
 import type { DesktopApi } from "@desktop/types";
@@ -14,6 +14,10 @@ const confirmingClear = ref(false);
 const clearing = ref(false);
 const clearResult = ref<"success" | "error">();
 const clearError = ref<string>();
+const feedbackError = ref<string>();
+
+const FEEDBACK_FORM_URL =
+  "https://gjp785oqywpv.jp.larksuite.com/share/base/form/shrjpRBazL52SDCRqU2gJI8489c";
 
 onMounted(() => {
   dialog.value?.querySelector<HTMLElement>("[data-settings-initial-focus]")?.focus();
@@ -53,6 +57,15 @@ function dismiss(): void {
 
 function openProfile(): void {
   emit("openProfile");
+}
+
+async function openFeedback(): Promise<void> {
+  feedbackError.value = undefined;
+  try {
+    await props.api.shell.openExternal(FEEDBACK_FORM_URL);
+  } catch (error: unknown) {
+    feedbackError.value = error instanceof Error ? error.message : String(error);
+  }
 }
 
 function keydown(event: KeyboardEvent): void {
@@ -110,6 +123,21 @@ function keydown(event: KeyboardEvent): void {
         <button class="secondary-button settings-section-action" type="button" data-settings-initial-focus @click="openProfile">
           {{ $t('编辑个人信息') }}
         </button>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-section-title icon-label">
+          <MessageSquareText :size="15" :stroke-width="1.8" aria-hidden="true" />
+          <h3>{{ $t('帮助与反馈') }}</h3>
+        </div>
+        <p class="settings-section-desc">
+          {{ $t('遇到问题或有功能建议，可以通过反馈表单告诉我们。表单会在系统浏览器中打开，Coolto 不会自动附带你的邮箱、简历或聊天内容。') }}
+        </p>
+        <button class="secondary-button settings-section-action" type="button" @click="openFeedback">
+          <ExternalLink :size="14" :stroke-width="1.8" aria-hidden="true" />
+          <span>{{ $t('提交反馈') }}</span>
+        </button>
+        <p v-if="feedbackError" class="form-error" role="alert">{{ feedbackError }}</p>
       </section>
 
       <section class="settings-section">
