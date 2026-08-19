@@ -37,3 +37,10 @@ test("renderer locale translates personal information UI copy", () => {
   assert.equal(translate("带 * 的字段为简历生成必填项。"), "Fields marked * are required to generate a resume.");
   setLocale("zh-CN");
 });
+
+test("renderer locale translates the feedback entry copy", () => {
+  setLocale("en-US");
+  assert.equal(translate("帮助与反馈"), "Help & feedback");
+  assert.equal(translate("提交反馈"), "Submit feedback");
+  setLocale("zh-CN");
+});
