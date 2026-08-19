@@ -12,6 +12,8 @@ export interface SemanticEvalCase {
   experiences: ExperienceDetail[];
   expectedStatus: "ready_for_approval" | "needs_user_decision";
   forbiddenTerms: string[];
+  /** 素材数学不可达时门禁拒绝创建 workspace，模型应追问用户补充材料。 */
+  expectsNoWorkspace?: boolean;
 }
 
 export function createSemanticEvalBuilder(
@@ -130,6 +132,7 @@ function missingSourceCase(): SemanticEvalCase {
     ],
     expectedStatus: "needs_user_decision",
     forbiddenTerms: ["Kubernetes", "容器", "集群"],
+    expectsNoWorkspace: true,
   };
 }
 

@@ -175,19 +175,14 @@ test("AI proposals stay reversible until accepted and create local history on ac
     assert.equal(accepted.checkpoints.at(-1)?.reason, "ai_change_accepted");
     assert.equal(toResumeDraftDetail(accepted).pendingChange, null);
 
-    const rawTextProposal = await editor.edit(
-      accepted.workspace,
-      { type: "raw_text", itemId: "item-edu-1" },
-      "Python、TypeScript、数据分析与产品需求拆解",
+    await assert.rejects(
+      editor.edit(
+        accepted.workspace,
+        { type: "raw_text", itemId: "item-edu-1" },
+        "尝试改写固定教育信息",
+      ),
+      /教育信息来自经历库/u,
     );
-    const pendingRawText = await drafts.proposeChange({
-      artifactId: accepted.artifactId,
-      base: accepted.workspace,
-      proposed: rawTextProposal,
-      summary: "调整技能描述",
-    });
-    assert.equal(pendingRawText.pendingChange?.summary, "调整技能描述");
-    assert.deepEqual(pendingRawText.pendingChange?.changedBulletIds, []);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

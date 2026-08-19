@@ -135,7 +135,7 @@ async function runResumeRendererQa(): Promise<void> {
     }
 
     const concurrentCompileResults = await Promise.all([
-      compiler.compile(getResumeFixture("zh-qualified"), "concurrent-qualified"),
+      compiler.compile(getResumeFixture("education-details-qualified"), "concurrent-qualified"),
       compiler.compile(getResumeFixture("tail-failure"), "concurrent-tail"),
     ]);
 

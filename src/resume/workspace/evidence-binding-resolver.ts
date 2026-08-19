@@ -29,6 +29,7 @@ export function candidateMap(
 export function resolveExcerpts(
   input: EvidenceBindingInput,
   candidates: ReadonlyMap<string, AvailableEvidenceCandidate>,
+  sharedEvidence = false,
 ): Omit<BulletEvidenceBinding, "bulletId"> {
   const cited: AvailableEvidenceCandidate[] = [];
   const excerpts = input.evidenceIds.map((rawEvidenceId) => {
@@ -62,15 +63,17 @@ export function resolveExcerpts(
       "Every bullet must cite at least one evidenceId.",
     );
   }
-  const sourceExperienceId = new Set(cited.map((candidate) => candidate.experienceId));
-  if (sourceExperienceId.size > 1) {
+  const sourceExperienceIds = [
+    ...new Set(cited.map((candidate) => candidate.experienceId)),
+  ];
+  if (sourceExperienceIds.length > 1 && !sharedEvidence) {
     throw new EvidenceValidationError(
       "excerpt_experience_mismatch",
-      `Bullet cites evidence from multiple experiences (${[...sourceExperienceId].join(", ")}); every cited evidenceId must belong to one experience.`,
+      `Bullet cites evidence from multiple experiences (${sourceExperienceIds.join(", ")}); every cited evidenceId must belong to one experience.`,
     );
   }
   return {
-    sourceExperienceId: [...sourceExperienceId][0]!,
+    sourceExperienceId: sourceExperienceIds[0]!,
     bulletText: input.bulletText,
     excerpts,
     matchedRequirementIds: [

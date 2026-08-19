@@ -10,16 +10,9 @@ import { ApprovalManager } from "../approvals/approval-manager.js";
 import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
-import type { ResumeSourceSnapshotBuilder } from "../resume/source-snapshot.js";
-import type { ResumeCandidatePatcher } from "../resume/workspace/candidate-patcher.js";
-import type { ResumeLayoutInspector } from "../resume/planning/layout-inspector.js";
-import type { ResumeCandidateReviewer } from "../resume/quality/candidate-reviewer.js";
-import type { ResumeAlternativeRepairer } from "../resume/quality/alternative-repairer.js";
-import type { ResumeSaveProposalBuilder } from "../resume/save/proposal-builder.js";
 import type { ResumePublicationGateway } from "../resume/save/types.js";
 import { createGetExperienceTool } from "./get-experience.js";
 import { createGetCurrentUserTool } from "./get-current-user.js";
-import { createGetResumeSourceSnapshotTool } from "./get-resume-source-snapshot.js";
 import { createGetUserProfileTool } from "./get-user-profile.js";
 import { createPrepareProfileUpdateTool } from "./prepare-profile-update.js";
 import { createPrepareExperienceImportTool } from "./import-experiences/prepare-import.js";
@@ -31,12 +24,7 @@ import { createJdTools } from "./jd-tools.js";
 import { createSearchExperiencesTool } from "./search-experiences.js";
 import { createSyncNowTool, type SyncNowResult } from "./sync-now.js";
 import { createSelectedFileTools } from "./selected-files.js";
-import { createResumePatchTools } from "./resume-candidate/index.js";
-import { createInspectResumeLayoutTool } from "./planned-resume/inspect-layout.js";
-import { createPrepareResumeSaveTool } from "./resume-candidate/prepare-save.js";
 import { createResumeReadTools } from "./resume-tools.js";
-import type { ResumePdfExportProposalBuilder } from "../resume/export/proposal-builder.js";
-import { createPrepareResumePdfExportTool } from "./resume-candidate/prepare-pdf-export.js";
 import { MatchReportStore } from "../match/report-store.js";
 import { createPrepareMatchAnalysisTool } from "./prepare-match-analysis.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../browser/types.js";
@@ -45,6 +33,7 @@ import {
   type AgentOrchestratedDependencies,
 } from "./agent-orchestrated/index.js";
 import type { ProfileProposalExecutor } from "../profile/types.js";
+import { ExperienceReferenceRegistry } from "./experience-reference-registry.js";
 
 export interface ToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
@@ -52,13 +41,6 @@ export interface ToolRegistryDependencies {
   profileProposals?: ProfileProposalExecutor;
   experienceReader?: ExperienceReader;
   jdReader?: JdReader;
-  resumeSourceSnapshotBuilder?: ResumeSourceSnapshotBuilder;
-  resumeLayoutInspector?: ResumeLayoutInspector;
-  resumeCandidatePatcher?: ResumeCandidatePatcher;
-  resumeCandidateReviewer?: ResumeCandidateReviewer;
-  resumeAlternativeRepairer?: ResumeAlternativeRepairer;
-  resumeSaveProposalBuilder?: ResumeSaveProposalBuilder;
-  resumePdfExportProposalBuilder?: ResumePdfExportProposalBuilder;
   resumeReader?: ResumePublicationGateway;
   importProposalStore?: ExperienceImportProposalStore;
   jdProposalStore?: JdProposalStore;
@@ -79,6 +61,7 @@ export interface ToolRegistryDependencies {
 export function createToolRegistry(
   dependencies: ToolRegistryDependencies = {},
 ): AgentTool[] {
+  const experienceReferences = new ExperienceReferenceRegistry();
   const businessTools: AgentTool[] = [];
 
   if (dependencies.syncNow) {
@@ -111,11 +94,6 @@ export function createToolRegistry(
   if (dependencies.resumeReader) {
     businessTools.push(...createResumeReadTools(dependencies.resumeReader));
   }
-  if (dependencies.resumeLayoutInspector) {
-    businessTools.push(
-      createInspectResumeLayoutTool(dependencies.resumeLayoutInspector),
-    );
-  }
   if (dependencies.experienceReader) {
     businessTools.push(
       createSearchExperiencesTool(dependencies.experienceReader),
@@ -141,45 +119,6 @@ export function createToolRegistry(
       createPrepareJdImportTool(
         dependencies.jdProposalStore,
         dependencies.approvalManager,
-      ),
-    );
-  }
-  if (dependencies.resumeSaveProposalBuilder && dependencies.approvalManager) {
-    businessTools.push(
-      createPrepareResumeSaveTool(
-        dependencies.resumeSaveProposalBuilder,
-        dependencies.approvalManager,
-      ),
-    );
-  }
-  if (
-    dependencies.resumePdfExportProposalBuilder &&
-    dependencies.approvalManager
-  ) {
-    businessTools.push(
-      createPrepareResumePdfExportTool(
-        dependencies.resumePdfExportProposalBuilder,
-        dependencies.approvalManager,
-      ),
-    );
-  }
-  if (dependencies.resumeSourceSnapshotBuilder) {
-    businessTools.push(
-      createGetResumeSourceSnapshotTool(
-        dependencies.resumeSourceSnapshotBuilder,
-      ),
-    );
-  }
-  if (
-    dependencies.resumeCandidatePatcher &&
-    dependencies.resumeCandidateReviewer &&
-    dependencies.resumeAlternativeRepairer
-  ) {
-    businessTools.push(
-      ...createResumePatchTools(
-        dependencies.resumeCandidatePatcher,
-        dependencies.resumeCandidateReviewer,
-        dependencies.resumeAlternativeRepairer,
       ),
     );
   }
@@ -218,8 +157,36 @@ export function createToolRegistry(
     );
   }
 
-  return [
+  return applyExecutionPolicies([
     createRuntimeInfoTool(businessTools.map((tool) => tool.name)),
     ...businessTools,
-  ];
+  ]).map((tool) => experienceReferences.wrap(tool));
+}
+
+const SEQUENTIAL_TOOL_NAMES = new Set([
+  "sync_now",
+  "prepare_profile_update",
+  "prepare_experience_import",
+  "prepare_jd_import",
+  "prepare_match_analysis",
+  "create_resume_workspace",
+  "pause_resume_for_material",
+  "apply_resume_content",
+  "add_resume_material",
+  "prepare_experience_sync",
+  "browser_click_element",
+  "browser_fill_field",
+  "browser_select_option",
+  "browser_set_checked",
+  "browser_upload_file",
+  "browser_start_review",
+  "request_write_access",
+]);
+
+function applyExecutionPolicies(tools: AgentTool[]): AgentTool[] {
+  return tools.map((tool) =>
+    SEQUENTIAL_TOOL_NAMES.has(tool.name)
+      ? { ...tool, executionMode: "sequential" }
+      : tool,
+  );
 }

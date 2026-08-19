@@ -11,7 +11,19 @@ test("extractEvidenceNumbers: arabic numbers and units canonicalize", () => {
   ]);
   assert.deepEqual(extractEvidenceNumbers("占用率 80%"), ["80"]);
   assert.deepEqual(extractEvidenceNumbers("3.3 与 3 不同"), ["3.3", "3"]);
-  assert.deepEqual(extractEvidenceNumbers("36Kr 累计阅读 100K+"), ["36", "100"]);
+  assert.deepEqual(extractEvidenceNumbers("36Kr 累计阅读 100K+"), [
+    "100000",
+  ]);
+  assert.deepEqual(extractEvidenceNumbers("累计阅读 100K+ / 10万+"), [
+    "100000",
+    "100000",
+  ]);
+  assert.deepEqual(extractEvidenceNumbers("累计阅读 10 万+ / 100 K+"), [
+    "100000",
+    "100000",
+  ]);
+  assert.deepEqual(extractEvidenceNumbers("$1.44 trillion"), ["1.44"]);
+  assert.deepEqual(extractEvidenceNumbers("1.44 万亿美元"), ["1.44"]);
 });
 
 test("extractEvidenceNumbers: chinese numerals canonicalize", () => {
@@ -36,6 +48,13 @@ test("extractEvidenceNumbers: standalone 一 is a morpheme, not a number", () =>
   assert.deepEqual(extractEvidenceNumbers("十一"), ["11"]);
   assert.deepEqual(extractEvidenceNumbers("二十一"), ["21"]);
   assert.deepEqual(extractEvidenceNumbers("一百"), ["100"]);
+});
+
+test("extractEvidenceNumbers: single Chinese digits in names are not claims", () => {
+  assert.deepEqual(extractEvidenceNumbers("新三板、二级市场与第三方平台"), []);
+  assert.deepEqual(extractEvidenceNumbers("三大支柱、两家国企、十余年"), [
+    "3", "2", "10",
+  ]);
 });
 
 test("extractEvidenceNumbers: english number words map to arabic", () => {

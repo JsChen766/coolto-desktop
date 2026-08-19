@@ -10,6 +10,7 @@ import {
 import { ResumePdfExportError } from "../src/resume/export/errors.js";
 import { resumePdfFilename } from "../src/resume/export/filename.js";
 import { sha256, stableStringify } from "../src/resume/stable-snapshot.js";
+import { buildDraftSavePayload } from "../src/resume/save/draft-save.js";
 import type { ResumeWorkspace } from "../src/resume/workspace/types.js";
 import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
@@ -75,28 +76,29 @@ test("unmerged pending change is rejected", async () => {
   assert.equal(error.code, "draft_has_pending_change");
 });
 
-test("non ready_for_approval status is rejected", async () => {
+test("legacy workspace status does not override current mechanical gates", async () => {
   const { draft, workspace } = await createQualifiedDraft({
     status: "needs_revision",
   });
-  const error = await rejectExport({ draft, expectedRevision: workspace.revision });
-  assert.equal(error.code, "candidate_not_exportable");
+  const payload = buildDraftPdfExportPayload({
+    draft,
+    expectedRevision: workspace.revision,
+  });
+  assert.equal(payload.candidateRevision, workspace.revision);
 });
 
-test("missing quality report is rejected", async () => {
+test("removed semantic quality report is not an export dependency", async () => {
   const { draft, workspace } = await createQualifiedDraft({
     withoutQualityReport: true,
   });
-  const error = await rejectExport({ draft, expectedRevision: workspace.revision });
-  assert.equal(error.code, "candidate_not_exportable");
+  assert.equal(isExportableWorkspace(workspace), true);
 });
 
-test("unpassed structure quality status is rejected", async () => {
+test("legacy structure quality metadata does not override measured layout", async () => {
   const { draft, workspace } = await createQualifiedDraft({
     qualityStatus: "failed",
   });
-  const error = await rejectExport({ draft, expectedRevision: workspace.revision });
-  assert.equal(error.code, "candidate_not_exportable");
+  assert.equal(isExportableWorkspace(workspace), true);
 });
 
 test("unqualified compile result is rejected", async () => {
@@ -107,16 +109,16 @@ test("unqualified compile result is rejected", async () => {
   assert.equal(error.code, "candidate_not_exportable");
 });
 
-test("isExportableWorkspace gates every failure mode", async () => {
+test("isExportableWorkspace gates current layout and revision failures", async () => {
   const { draft, workspace } = await createQualifiedDraft();
   assert.equal(isExportableWorkspace(workspace), true);
   assert.equal(
     isExportableWorkspace({ ...workspace, status: "writing" }),
-    false,
+    true,
   );
   const withoutQualityReport = { ...workspace };
   delete withoutQualityReport.qualityReport;
-  assert.equal(isExportableWorkspace(withoutQualityReport), false);
+  assert.equal(isExportableWorkspace(withoutQualityReport), true);
   assert.equal(
     isExportableWorkspace({
       ...workspace,
@@ -125,7 +127,7 @@ test("isExportableWorkspace gates every failure mode", async () => {
         quality_status: "failed",
       },
     }),
-    false,
+    true,
   );
   assert.equal(
     isExportableWorkspace({
@@ -133,6 +135,128 @@ test("isExportableWorkspace gates every failure mode", async () => {
       compileResult: { ...workspace.compileResult, qualified: false },
     }),
     false,
+  );
+  assert.equal(
+    isExportableWorkspace({
+      ...workspace,
+      compileObservedRevision: workspace.revision - 1,
+    }),
+    false,
+  );
+  const withoutTiers = structuredClone(workspace);
+  delete withoutTiers.itemTiers;
+  assert.equal(
+    isExportableWorkspace(withoutTiers),
+    false,
+    "missing Agent relevance tiers must fail closed",
+  );
+});
+
+test("one-line tiered bullets cannot be saved or exported", async () => {
+  const { draft, workspace } = await createQualifiedDraft();
+  const workItem = workspace.structure.sections
+    .find((section) => section.type === "experience")?.items[0];
+  const bulletId = workItem?.bullets[0]?.id;
+  assert.ok(bulletId);
+  const measured = workspace.compileResult.bullets.find(
+    (bullet) => bullet.bulletId === bulletId,
+  );
+  assert.ok(measured);
+  measured.lineCount = 1;
+  draft.workspace = workspace;
+
+  assert.equal(isExportableWorkspace(workspace), false);
+  assert.throws(
+    () => buildDraftSavePayload({ draft, expectedRevision: workspace.revision }),
+    /实测必须达到 2–3 行/u,
+  );
+  const error = await rejectExport({
+    draft,
+    expectedRevision: workspace.revision,
+  });
+  assert.equal(error.code, "candidate_not_exportable");
+});
+
+test("chained abstract padding cannot be saved or exported", async () => {
+  const { draft, workspace } = await createQualifiedDraft();
+  const bullet = workspace.structure.sections
+    .find((section) => section.type === "experience")?.items[0]?.bullets[0];
+  assert.ok(bullet);
+  bullet.text =
+    "定位转化瓶颈并沉淀方法论与经验与最佳实践与标准化流程与推广策略";
+  draft.workspace = workspace;
+
+  assert.equal(isExportableWorkspace(workspace), false);
+  assert.throws(
+    () => buildDraftSavePayload({ draft, expectedRevision: workspace.revision }),
+    /连续抽象并列词/u,
+  );
+  const error = await rejectExport({
+    draft,
+    expectedRevision: workspace.revision,
+  });
+  assert.equal(error.code, "candidate_not_exportable");
+});
+
+test("host save builds a new or replacement library payload from the local draft", async () => {
+  const { draft, workspace } = await createQualifiedDraft({
+    withoutQualityReport: true,
+  });
+  const created = buildDraftSavePayload({
+    draft,
+    expectedRevision: workspace.revision,
+  });
+  assert.equal(created.mode, "new_resume");
+  assert.equal(created.structured.quality_status, "passed");
+
+  const replacing = buildDraftSavePayload({
+    draft: {
+      ...draft,
+      cloudLink: {
+        resumeId: "resume-1",
+        contentHash: "hash-1",
+        syncedAt: draft.updatedAt,
+        syncedRevision: workspace.revision,
+      },
+    },
+    expectedRevision: workspace.revision,
+  });
+  assert.equal(replacing.mode, "replace_resume");
+  assert.equal(replacing.resumeId, "resume-1");
+  assert.equal(replacing.expectedContentHash, "hash-1");
+});
+
+test("current AI-augmented content cannot save or export before confirmation", async () => {
+  const { draft, workspace } = await createQualifiedDraft();
+  const item = workspace.structure.sections.flatMap((section) => section.items)[0]!;
+  const bulletId = "augmented-pending";
+  item.bullets.push({
+    id: bulletId,
+    text: "建立主动复盘和跨团队协作机制",
+    matched_jd_requirement_ids: [],
+  });
+  workspace.compileResult.bullets.push({
+    bulletId,
+    lineCount: 1,
+    lastLineWidthPx: 520,
+    availableLineWidthPx: 600,
+    lastLineRatio: 520 / 600,
+    passed: true,
+  });
+  workspace.compileObservedRevision = workspace.revision;
+  workspace.bulletProvenance = [{
+    bulletId,
+    itemId: item.id,
+    origin: "agent_augmented",
+    evidenceIds: [],
+    requirementIds: [],
+    confirmation: "pending",
+  }];
+  draft.workspace = workspace;
+  assert.equal(isExportableWorkspace(workspace), false);
+  assert.throws(
+    () => buildDraftSavePayload({ draft, expectedRevision: workspace.revision }),
+    /尚未得到用户确认/u,
   );
 });
 
@@ -156,6 +280,25 @@ async function createQualifiedDraft(
     language: "zh-CN",
   });
   const workspace: ResumeWorkspace = structuredClone(prepared);
+  const workItem = workspace.structure.sections
+    .find((section) => section.type === "experience")?.items[0];
+  assert.ok(workItem, "fixture requires one work item");
+  workItem.bullets = [1, 2].map((index) => ({
+    id: `confirmed-augmented-${index}`,
+    text: `建立跨团队协作与持续复盘机制 ${index}`,
+    matched_jd_requirement_ids: [],
+  }));
+  workspace.itemTiers = { [workItem.id]: "secondary" };
+  workspace.bulletProvenance = workItem.bullets.map((bullet) => ({
+    bulletId: bullet.id,
+    itemId: workItem.id,
+    origin: "agent_augmented",
+    evidenceIds: [],
+    requirementIds: [],
+    confirmation: "confirmed",
+  }));
+  workspace.compileResult = await compiler.compile(workspace.structure);
+  workspace.compileObservedRevision = workspace.revision;
   workspace.structure.quality_status =
     overrides.qualityStatus ?? "passed";
   workspace.status = overrides.status ?? "ready_for_approval";

@@ -3,7 +3,7 @@ import type { ResumeStructure } from "../types.js";
 import { calculateResumeBudget } from "./candidate-budget.js";
 import { unwrittenExperienceItemIds } from "./candidate-content.js";
 import { rankAvailableEvidence } from "../quality/evidence-candidates.js";
-import { plannedBulletsFor } from "../source-projection.js";
+import { maxReachableUsageRatio } from "./workspace-status.js";
 import type { ResumeWorkspace } from "./types.js";
 
 export function bulletTailDiagnostics(
@@ -72,23 +72,33 @@ export function writePlan(workspace: {
     section.items
       .filter((item) => Boolean(item.source_experience_id))
       .map((item) => {
-        const planned = plannedBulletsFor(
-          workspace.sourceSnapshot.experiences.find(
-            (experience) => experience.id === item.source_experience_id,
-          )?.category ?? "other",
-        );
         const current = item.bullets.length;
+        const unused =
+          unusedByExperience.get(item.source_experience_id ?? "") ?? 0;
         return {
           itemId: item.id,
           title: item.title,
           bullets: current,
-          planned,
-          missing: Math.max(0, planned - current),
-          unusedEvidenceCount:
-            unusedByExperience.get(item.source_experience_id ?? "") ?? 0,
+          planned: current + (current === 0 && unused > 0 ? 1 : 0),
+          missing: current === 0 && unused > 0 ? 1 : 0,
+          unusedEvidenceCount: unused,
+          maxDistinctBullets: current + unused,
         };
       }),
   );
+}
+
+/** 未消费证据总数；≤2 视为素材耗尽，继续写作无法达标。 */
+export const EVIDENCE_EXHAUSTED_THRESHOLD = 2;
+
+export function unusedEvidenceTotal(workspace: {
+  sourceSnapshot: ResumeWorkspace["sourceSnapshot"];
+  bindings: readonly ResumeWorkspace["bindings"][number][];
+}): number {
+  return rankAvailableEvidence(
+    workspace.sourceSnapshot,
+    workspace.bindings,
+  ).length;
 }
 
 export function instructionFor(workspace: ResumeWorkspace): string {
@@ -98,17 +108,31 @@ export function instructionFor(workspace: ResumeWorkspace): string {
   if (workspace.status === "needs_user_decision") {
     const usage = (workspace.compileResult.usageRatio * 100).toFixed(1);
     const minimum = workspace.compileResult.effectiveTargetBand.minimum * 100;
-    const tailHints = bulletTailDiagnostics(workspace)
-      .slice(0, 5)
-      .map((diagnostic) => {
-        const value = diagnostic as { bulletId: string; shortByChars: number };
-        return `${value.bulletId}=${value.shortByChars}`;
-      })
-      .join(", ");
-    return `自动生成尚未完成：页面占用率 ${usage}%（需 ≥${minimum.toFixed(0)}%）${tailHints ? `，尾行缺口 ${tailHints}` : ""}。若仍有尾行违规或页面未满，用修饰语改写补齐——基于每条 bullet 已引用的证据补充方法/对象/规模/结果细节或 XX% 占位量化，不依赖未消费证据；只有证据缺失导致内容无法成立时才向用户如实说明，并给出两条出路：1) 用户补充或完善经历后重新生成；2) 用户要求放宽匹配条件时，调用 search_experiences 以更宽条件搜索并纳入更多相关经历，重新调用 get_resume_source_snapshot 建立新快照并生成新候选。不得降低任何质量门槛。若简历包含占位符数字（XX% 等），同时逐条列出并请用户填写。`;
+    if (unusedEvidenceTotal(workspace) <= EVIDENCE_EXHAUSTED_THRESHOLD) {
+      // 素材耗尽：继续写作无法达标，明确引导用户补充经历。
+      return `当前所选经历的素材不足：未消费证据已基本耗尽（页面占用率 ${usage}%，需 ≥${minimum.toFixed(0)}%），继续写作无法达标。请如实告知用户并引导其补充经历（具体项目、量化成果、技术栈等，要求可验证事实）后重新生成；若用户要求放宽匹配条件，调用 search_experiences 以更宽条件搜索。不得降低任何质量门槛，不得编造证据。`;
+    }
+    return `自动生成尚未完成：页面占用率 ${usage}%（需 ≥${minimum.toFixed(0)}%）${bulletTailDiagnostics(workspace).length ? "，存在尾行违规" : ""}。用修饰语改写补齐——基于已引用证据补充方法/对象/规模/结果细节，不依赖未消费证据；只有证据缺失导致内容无法成立时才如实说明，并给出两条出路：1) 用户补充或完善经历后重新生成；2) 用户要求放宽匹配条件时调用 search_experiences 以更宽条件搜索。不得降低任何质量门槛。`;
   }
   if (workspace.status === "layout_qualified") {
     return "All G3 source and layout gates pass; the host runs deterministic quality review automatically after this tool result.";
+  }
+  if (
+    (workspace.status === "writing" || workspace.status === "needs_revision") &&
+    unusedEvidenceTotal(workspace) <= EVIDENCE_EXHAUSTED_THRESHOLD
+  ) {
+    const usage = (workspace.compileResult.usageRatio * 100).toFixed(1);
+    const minimum = workspace.compileResult.effectiveTargetBand.minimum;
+    const maxReachable = maxReachableUsageRatio(
+      workspace.compileResult,
+      workspace.maxBulletLines ?? 3,
+    );
+    if (maxReachable >= minimum) {
+      // 素材耗尽但补长可达标：用已引用证据补长，不需要未消费证据。
+      return `未消费证据已耗尽，但把现有 bullet 补长到单条最多 ${workspace.maxBulletLines ?? 3} 行即可达到 ${(minimum * 100).toFixed(0)}%（当前 ${usage}%，补长天花板约 ${(maxReachable * 100).toFixed(0)}%）。立即停止写新 bullet，用 patch_resume_candidate 的 append_text / replace_substring 把每条 bullet 基于其已引用证据补长（补充方法、对象、规模、结果、责任归属等细节），目标每条约 ${bulletCharTarget(workspace)}；不得字面重复，不得编造；补长到 ≥${(minimum * 100).toFixed(0)}% 后调用 inspect_resume_draft 完成最终校验。`;
+    }
+    // 素材耗尽 + 补长天花板不足：数学上无路可走，立即停止并交还用户。
+    return `素材已耗尽（页面占用率 ${usage}%，补长到每条最多 ${workspace.maxBulletLines ?? 3} 行也仅约 ${(maxReachable * 100).toFixed(0)}%，需 ≥${(minimum * 100).toFixed(0)}%）：当前素材物理上无法写满一页。立即停止一切 write_bullet / patch_resume_candidate 操作，不得字面重复或强行追加同一内容；先调用 inspect_resume_draft 完成校验收尾，然后如实说明缺口并引导用户补充经历/项目细节/量化成果/技术栈；若用户要求放宽匹配条件，调用 search_experiences 以更宽条件搜索。不得降低任何质量门槛，不得编造证据。`;
   }
   if (workspace.qualityReviewStarted) {
     return "Use only the reported repairTargets and bounded alternativeTargets. Do not modify frozen bullets or bypass the three-round limit.";
@@ -135,24 +159,23 @@ export function instructionFor(workspace: ResumeWorkspace): string {
   if (workspace.status === "writing") {
     const unwritten = unwrittenExperienceItemIds(workspace.structure);
     if (unwritten.length) {
-      return `These source-backed experience items still need at least one distinct bullet: ${unwritten.join(", ")}. Follow writePlan.missing, add them with unused evidence, each about ${bulletChars}. ${incremental} ${continuation}`;
+      return `These source-backed experience items still need at least one distinct bullet: ${unwritten.join(", ")}. Add one grounded bullet for each, then use the physical page budget—not a host-fixed category count—to decide further bullets. Each should be about ${bulletChars}. ${incremental} ${continuation}`;
     }
     const planHints = writePlan(workspace)
-      .filter((plan) => (plan as { missing: number }).missing > 0)
+      .filter((plan) => (plan as { unusedEvidenceCount: number }).unusedEvidenceCount > 0)
       .slice(0, 4)
       .map((plan) => {
         const value = plan as {
           itemId: string;
-          missing: number;
           unusedEvidenceCount: number;
         };
-        return `${value.itemId} needs ${value.missing} more (${value.unusedEvidenceCount} unused evidence)`;
+        return `${value.itemId} has ${value.unusedEvidenceCount} unused evidence candidates`;
       })
       .join("; ");
     const overTarget = workspace.compileResult.usageRatio >= 0.95;
     const closing = overTarget
       ? "Page is at/above 95%: STOP adding new bullets. Trim the 1-2 longest bullets (trim_text or replace_substring, keep evidence facts and numbers) until usage lands in [92%, 98%], then fix any remaining tail-deficit bullets."
-      : `Submit one complete batch now, not a single lengthen-only tweak: ${planHints || "no item needs more bullets — lengthen the shortest ones"}. New bullets about ${bulletChars} each so the last line stays ≥ 80% wide; every existing bullet must reach the same target length in this or the next batch.`;
+      : `Submit one complete batch now, not a single lengthen-only tweak: ${planHints || "no unused evidence remains — lengthen the shortest grounded bullets"}. Use roughly ${remainingBullets} additional max-length bullets as a physical estimate, allocating them yourself by JD relevance and available evidence. New bullets about ${bulletChars} each so the last line stays ≥ 80% wide; every existing bullet must reach the same target length in this or the next batch.`;
     return `The page is at ${(workspace.compileResult.usageRatio * 100).toFixed(1)}% (need ≥${(workspace.compileResult.effectiveTargetBand.minimum * 100).toFixed(0)}%, max ${(workspace.compileResult.effectiveTargetBand.maximum * 100).toFixed(0)}%), roughly ${remainingBullets} more bullets. ${closing} ${incremental} ${continuation}`;
   }
   return `Fix the reported violations in one bounded batch of 2–8 incremental operations. Page overflow/multiple pages is the TOP priority: trim the longest bullets first (trim_text or replace_substring, keep evidence facts and numbers) until usage ≤ 100% and the page fits; only then fix tail-deficit bullets (${tailHints || "none"}): enrich each bullet's own wording with more precise/specific/quantified detail from its cited evidence (methods, object, scale, result, responsibility — about shortByChars +2-6 chars); no literal repeats, no new numbers; if the same bullet still has a tail deficit after 2 attempts, stop fixing it and move on — report it in needs_user_decision instead of looping. ${incremental} ${continuation}`;
@@ -176,6 +199,20 @@ function unusedEvidenceCountByExperience(workspace: {
 }
 
 function bulletCharTarget(workspace: ResumeWorkspace): string {
+  const budget = workspace.layoutBudget;
+  if (budget) {
+    const perLine = Math.max(1, budget.charsPerLine);
+    const capacity = Math.max(1, budget.writableBulletCapacity);
+    const linesPerBullet = budget.requiredBulletLinesAtMinimum / capacity;
+    // 指令目标展示预算需要的每 bullet 行数（aim），但不超过 3 行物理上限；
+    // 与写时默认区间（perLine 下限）区分：写时不强拒，指令层推长度。
+    const minimum = Math.max(
+      perLine,
+      Math.min(perLine * 3, Math.round(perLine * linesPerBullet)),
+    );
+    const maximum = perLine * budget.maxBulletLines;
+    return workspace.structure.language === "zh-CN" ? `${minimum}–${maximum} 个汉字` : `${minimum}–${maximum} characters`;
+  }
   const compile = workspace.compileResult;
   const fontSize = fontSizePx(workspace.compileResult);
   const firstBulletWidth = compile.bullets[0]?.availableLineWidthPx;

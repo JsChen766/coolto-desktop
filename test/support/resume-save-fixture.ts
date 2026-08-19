@@ -1,11 +1,8 @@
 import { ResumeQualityEvaluator } from "../../src/resume/quality/quality-evaluator.js";
 import { ResumeCandidateReviewer } from "../../src/resume/quality/candidate-reviewer.js";
 import { ResumeSaveProposalBuilder } from "../../src/resume/save/proposal-builder.js";
-import { allEvidenceCandidates } from "../../src/resume/quality/evidence-candidates.js";
-import type { ResumeSourceSnapshot } from "../../src/resume/source-types.js";
 import { ResumeCandidatePreparer } from "../../src/resume/workspace/candidate-preparer.js";
 import { ResumeWorkspaceStore } from "../../src/resume/workspace/workspace-store.js";
-import type { EvidenceBindingInput } from "../../src/resume/workspace/types.js";
 import {
   FixtureResumeCompiler,
   WORK_CONTENT,
@@ -36,10 +33,16 @@ export async function createReadySaveFixture() {
     experienceIds: ["edu-1", "work-1"],
     language: "zh-CN",
     initialBindings: [
-      educationBinding(snapshot),
       createBinding(snapshot, "bullet-work", WORK_CONTENT.split("。")[0] + "。"),
+      createBinding(snapshot, "bullet-work-2", WORK_CONTENT.split("。")[1] + "。"),
     ],
   });
+  const workItem = prepared.structure.sections
+    .find((section) => section.type === "experience")?.items[0];
+  if (!workItem) throw new Error("save fixture requires one work item");
+  prepared.itemTiers = { [workItem.id]: "secondary" };
+  prepared.compileObservedRevision = prepared.revision;
+  store.replace(prepared, prepared.revision);
   const reviewer = new ResumeCandidateReviewer(
     new ResumeQualityEvaluator(),
     store,
@@ -49,15 +52,5 @@ export async function createReadySaveFixture() {
     store,
     ready,
     proposalBuilder: new ResumeSaveProposalBuilder(store),
-  };
-}
-
-function educationBinding(snapshot: ResumeSourceSnapshot): EvidenceBindingInput {
-  const source = snapshot.experiences.find((item) => item.id === "edu-1")!;
-  return {
-    bulletText: source.content,
-    evidenceIds: allEvidenceCandidates(snapshot)
-      .filter((candidate) => candidate.experienceId === source.id)
-      .map((candidate) => candidate.evidenceId),
   };
 }

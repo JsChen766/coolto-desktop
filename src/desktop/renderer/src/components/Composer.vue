@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { ArrowUp, FileText, Paperclip, Plus, Square, X } from "@lucide/vue";
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useTemplateRef,
+} from "vue";
 import ComposerResumeContext from "./ComposerResumeContext.vue";
 import IconButton from "./IconButton.vue";
 import ResumePickerPopup from "./ResumePickerPopup.vue";
@@ -8,8 +15,8 @@ import type { ResumeChatReference } from "@desktop/types";
 import type { AttachmentView } from "../attachments/use-conversation-attachment";
 import { attachmentStatus, fileSize } from "../attachments/attachment-formatters";
 import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
-import { desktopApi } from "../lib/desktop-api";
 import { translate } from "../i18n/locale";
+import { useComposerDrop } from "../chat/use-composer-drop";
 
 const props = defineProps<{
   disabled?: boolean;
@@ -34,10 +41,20 @@ const emit = defineEmits<{
 const text = ref("");
 const reference = ref<ResumeChatReference>();
 const pickerOpen = ref(false);
-const textarea = ref<HTMLTextAreaElement>();
-const dragActive = ref(false);
+const textarea = useTemplateRef<HTMLTextAreaElement>("textarea");
 const effectiveReference = computed(() => reference.value ?? props.resumeContext);
 let unsubscribeReference: (() => void) | undefined;
+
+const {
+  dragActive,
+  handleDragLeave,
+  handleDragOver,
+  handleDrop,
+  handleFileInput,
+} = useComposerDrop({
+  selectAttachmentPath: (path) => emit("selectAttachmentPath", path),
+  selectResumeReference: selectReference,
+});
 
 onMounted(() => {
   unsubscribeReference = subscribeResumeReference(selectReference);
@@ -73,43 +90,6 @@ function handleKeydown(event: KeyboardEvent): void {
   }
 }
 
-function handleDrop(event: DragEvent): void {
-  event.preventDefault();
-  dragActive.value = false;
-  const files = event.dataTransfer?.files;
-  const file = files?.[0];
-  if (file) {
-    const path = getPathForFile(file);
-    if (path) emit("selectAttachmentPath", path);
-    return;
-  }
-  const encoded = event.dataTransfer?.getData(
-    "application/x-coolto-resume-reference",
-  );
-  if (!encoded) return;
-  try {
-    const parsed = JSON.parse(encoded) as ResumeChatReference;
-    if (
-      parsed &&
-      typeof parsed.artifactId === "string" &&
-      typeof parsed.targetId === "string" &&
-      typeof parsed.label === "string"
-    ) {
-      selectReference(parsed);
-    }
-  } catch {
-    return;
-  }
-}
-
-function getPathForFile(file: File): string | undefined {
-  try {
-    return desktopApi.getPathForFile(file);
-  } catch {
-    return undefined;
-  }
-}
-
 function handlePick(selected: ResumeChatReference): void {
   pickerOpen.value = false;
   selectReference(selected);
@@ -124,25 +104,13 @@ function selectReference(selected: ResumeChatReference): void {
   });
 }
 
-function handleDragOver(event: DragEvent): void {
-  event.preventDefault();
-  dragActive.value = true;
-  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
-}
-
-function handleDragLeave(event: DragEvent): void {
-  const container = event.currentTarget as HTMLElement | null;
-  const related = event.relatedTarget as Node | null;
-  if (!container || !related || !container.contains(related)) {
-    dragActive.value = false;
-  }
-}
 </script>
 
 <template>
-  <footer class="composer-dock">
+  <footer class="composer-dock" data-testid="chat-composer">
     <div
       class="composer"
+      data-testid="chat-composer-surface"
       :class="{ 'drag-active': dragActive }"
       @dragenter.prevent="dragActive = true"
       @dragover="handleDragOver"
@@ -153,7 +121,11 @@ function handleDragLeave(event: DragEvent): void {
         <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
         {{ $t('松开后引用到聊天') }}
       </div>
-      <div v-if="attachment" class="composer-attachment">
+      <div
+        v-if="attachment"
+        class="composer-attachment"
+        data-testid="chat-composer-attachment"
+      >
         <FileText :size="16" :stroke-width="1.8" aria-hidden="true" />
         <span class="composer-attachment-copy">
           <span class="composer-attachment-name">{{ attachment.filename }}</span>
@@ -177,7 +149,11 @@ function handleDragLeave(event: DragEvent): void {
           <X :size="14" :stroke-width="1.8" aria-hidden="true" />
         </button>
       </div>
-      <p v-if="attachmentError" class="composer-attachment-error">
+      <p
+        v-if="attachmentError"
+        class="composer-attachment-error"
+        data-testid="chat-composer-attachment-error"
+      >
         {{ attachmentError }}
       </p>
       <ComposerResumeContext
@@ -188,10 +164,21 @@ function handleDragLeave(event: DragEvent): void {
         @clear="clearReference"
         @create-local-copy="$emit('requestLocalCopy')"
       />
+      <input
+        hidden
+        type="file"
+        tabindex="-1"
+        aria-hidden="true"
+        data-testid="chat-composer-file"
+        accept=".pdf,.docx,.txt,.md,.markdown"
+        @change="handleFileInput"
+      />
       <textarea
         ref="textarea"
         v-model="text"
         rows="1"
+        data-testid="chat-composer-input"
+        :aria-label="$t('消息输入框')"
         :placeholder="$t('给 Coolto 发消息…')"
         :disabled="disabled"
         @input="resize"
@@ -219,6 +206,7 @@ function handleDragLeave(event: DragEvent): void {
           v-if="running"
           class="send-button"
           type="button"
+          data-testid="chat-composer-stop"
           :aria-label="$t('停止生成')"
           :title="$t('停止生成')"
           @click="$emit('cancel')"
@@ -229,6 +217,7 @@ function handleDragLeave(event: DragEvent): void {
           v-else
           class="send-button"
           type="button"
+          data-testid="chat-composer-send"
           :aria-label="$t('发送')"
           :title="$t('发送')"
           :disabled="disabled || !text.trim()"

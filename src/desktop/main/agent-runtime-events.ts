@@ -8,6 +8,7 @@ import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { parseExperienceImportResult } from "../../import/result-artifact.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import { extractInsufficientCreditsDetail } from "./insufficient-credits-detect.js";
+import { traceStopReason, traceToolMetadata } from "./agent-runtime-trace.js";
 
 export class AgentRuntimeEvents {
   public constructor(
@@ -40,6 +41,10 @@ export class AgentRuntimeEvents {
       }
       if (event.type === "run.failed") {
         this.traces.recordModelCompleted(conversationId, "error");
+        this.traces.recordStopReason(
+          conversationId,
+          traceStopReason(event.message, event.governorStopReason),
+        );
         // A gateway insufficient_credits rejection surfaces here as a folded
         // error string; forward the structured balance breakdown so the
         // renderer can open the purchase dialog.
@@ -60,6 +65,7 @@ export class AgentRuntimeEvents {
           event.callId,
           event.name,
           event.isError ? "error" : "success",
+          traceToolMetadata(event.progress, event.error),
         );
       }
       if (
@@ -67,8 +73,15 @@ export class AgentRuntimeEvents {
         isResumeWorkspaceTool(event.name) &&
         !event.isError
       ) {
-        await this.syncLatestWorkspace(conversationId, context);
-        this.emitTailFillActivity(conversationId, context);
+        this.emit(conversationId, { type: "resume.draft.saving" });
+        try {
+          await this.syncLatestWorkspace(conversationId, context);
+        } catch (error: unknown) {
+          this.emit(conversationId, {
+            type: "resume.draft.save-failed",
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
       if (
         event.type === "tool.completed" &&
@@ -111,7 +124,7 @@ export class AgentRuntimeEvents {
     });
   }
 
-  private async syncLatestWorkspace(
+  public async syncLatestWorkspace(
     conversationId: string,
     context: ConversationAgentContext,
   ): Promise<void> {
@@ -197,42 +210,6 @@ export class AgentRuntimeEvents {
     });
   }
 
-  private emitTailFillActivity(
-    conversationId: string,
-    context: ConversationAgentContext,
-  ): void {
-    const workspace = context.workspaceStore.latest();
-    const tailFills =
-      workspace?.lastOperationReport?.repairs.filter(
-        (repair) => repair.kind === "tail_fill",
-      ) ?? [];
-    if (!tailFills.length || !workspace) return;
-    const details = tailFills
-      .map((repair) => `${repair.bulletId}+${repair.evidenceIds.length}`)
-      .join(", ");
-    this.emitHostFill(conversationId, [`尾行 ${details}`]);
-  }
-
-  public emitHostFill(
-    conversationId: string,
-    labels: readonly string[],
-  ): void {
-    if (!labels.length) return;
-    const callId = `host-fill-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    this.emit(conversationId, {
-      type: "tool.started",
-      callId,
-      name: "host_fill",
-      arguments: { label: `自动补充：${labels.join("；")}` },
-    });
-    this.emit(conversationId, {
-      type: "tool.completed",
-      callId,
-      name: "host_fill",
-      isError: false,
-    });
-  }
-
   private emit(conversationId: string, event: DesktopAgentEvent): void {
     if (!this.target.isDestroyed()) {
       this.target.send("agent:event", { conversationId, event });
@@ -242,9 +219,8 @@ export class AgentRuntimeEvents {
 
 function isResumeWorkspaceTool(name: string): boolean {
   return [
-    "prepare_resume_draft",
-    "write_bullet",
-    "inspect_resume_draft",
-    "patch_resume_candidate",
+    "create_resume_workspace",
+    "apply_resume_content",
+    "add_resume_material",
   ].includes(name);
 }

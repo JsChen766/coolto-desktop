@@ -12,7 +12,7 @@ import type {
 import { ResumeWorkspaceStore } from "./workspace-store.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
 
-const MAX_PATCH_COUNT = 40;
+const MAX_PATCH_COUNT = 160;
 
 export class ResumeCandidatePatcher {
   public constructor(
@@ -26,6 +26,15 @@ export class ResumeCandidatePatcher {
       throw new ResumeWorkspaceError(
         "stale_candidate_revision",
         `Candidate revision changed from ${input.expectedRevision} to ${current.revision}.`,
+      );
+    }
+    if (
+      current.status === "ready_for_approval" ||
+      current.status === "needs_user_decision"
+    ) {
+      throw new ResumeWorkspaceError(
+        "workspace_terminal",
+        `Candidate is terminal with status ${current.status}.`,
       );
     }
     if (current.qualityReviewStarted) {
@@ -94,24 +103,34 @@ export class ResumeCandidatePatcher {
     )
       ? candidateSnapshot
       : current.bestSnapshot;
-    const operationReport =
-      resolution.rejected.length || resolution.repairs.length
-        ? {
-            repairs: resolution.repairs,
-            rejected: resolution.rejected,
-          }
-        : undefined;
+    const operationReport = {
+      status: resolution.rejected.length
+        ? ("partial_success" as const)
+        : ("success" as const),
+      attempted: input.operations.length,
+      applied: resolution.resolved.length,
+      repairs: resolution.repairs,
+      rejected: resolution.rejected,
+    };
     return this.store.replace(
       {
         ...current,
         revision,
         patchCount: current.patchCount + 1,
-        status: deriveWorkspaceStatus(compileResult, patched.structure),
+        status: deriveWorkspaceStatus(
+          compileResult,
+          patched.structure,
+          {
+            sourceSnapshot: current.sourceSnapshot,
+            bindings: patched.bindings,
+          },
+          current.maxBulletLines ?? 3,
+        ),
         structure: patched.structure,
         bindings: patched.bindings,
         compileResult,
         bestSnapshot,
-        ...(operationReport ? { lastOperationReport: operationReport } : {}),
+        lastOperationReport: operationReport,
       },
       input.expectedRevision,
     );

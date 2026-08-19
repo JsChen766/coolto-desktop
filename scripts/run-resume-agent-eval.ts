@@ -11,10 +11,6 @@ import { CooltoApiClient } from "../src/api/coolto-api-client.js";
 import { KeychainSessionStore } from "../src/auth/keychain-session-store.js";
 import { ensureAuthenticated } from "../src/auth/session-manager.js";
 import { loadLocalEnv, readConfig } from "../src/config.js";
-import { ResumeAlternativeRepairer } from "../src/resume/quality/alternative-repairer.js";
-import { ResumeCandidateReviewer } from "../src/resume/quality/candidate-reviewer.js";
-import { ResumeQualityEvaluator } from "../src/resume/quality/quality-evaluator.js";
-import { ResumeCandidatePatcher } from "../src/resume/workspace/candidate-patcher.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../src/tools/registry.js";
 import { performEmailOtpLogin } from "../src/cli/login.js";
@@ -73,24 +69,15 @@ async function runCase(evalCase: SemanticEvalCase) {
   const builder = createSemanticEvalBuilder(evalCase);
   const compiler = new SemanticEvalCompiler();
   const store = new ResumeWorkspaceStore();
-  const evaluator = new ResumeQualityEvaluator();
-  const patcher = new ResumeCandidatePatcher(compiler, store);
-  const reviewer = new ResumeCandidateReviewer(evaluator, store);
-  const repairer = new ResumeAlternativeRepairer(compiler, evaluator, store);
   const agent = createCooltoAgent(
     {
       ...(config.apiKey ? { apiKey: config.apiKey } : {}),
       modelId: config.modelId,
       tools: createToolRegistry({
-        resumeSourceSnapshotBuilder: builder,
-        resumeCandidatePatcher: patcher,
-        resumeCandidateReviewer: reviewer,
-        resumeAlternativeRepairer: repairer,
         agentOrchestrated: {
           snapshotBuilder: builder,
           compiler,
           store,
-          reviewer,
         },
       }),
     },
@@ -143,28 +130,42 @@ async function runCase(evalCase: SemanticEvalCase) {
         .join("\n")
     : "";
   const toolNames = toolCalls(messages);
+  const expectsWorkspace = !evalCase.expectsNoWorkspace;
   const assertions = {
     noRuntimeError: runtimeError === undefined && assistantErrors.length === 0,
-    workspaceCreated: workspace !== undefined,
-    expectedStatus: workspace?.status === evalCase.expectedStatus,
-    evidenceBound: Boolean(
-      workspace &&
-        workspace.bindings.length > 0 &&
-        workspace.bindings.length ===
-          workspace.structure.sections.flatMap((section) =>
-            section.items.flatMap((item) => item.bullets),
-          ).length,
-    ),
+    workspaceCreated: expectsWorkspace
+      ? workspace !== undefined
+      : workspace === undefined,
+    expectedStatus: expectsWorkspace
+      ? workspace?.status === evalCase.expectedStatus
+      : true,
+    evidenceBound: expectsWorkspace
+      ? Boolean(
+          workspace &&
+            workspace.bindings.length > 0 &&
+            workspace.bindings.length ===
+              workspace.structure.sections.flatMap((section) =>
+                section.items.flatMap((item) => item.bullets),
+              ).length,
+        )
+      : true,
     noForbiddenClaim: evalCase.forbiddenTerms.every(
       (term) => !bulletText.toLocaleLowerCase().includes(term.toLocaleLowerCase()),
     ),
     usedSnapshot: toolNames.includes("get_resume_source_snapshot"),
-    usedDraft: toolNames.includes("prepare_resume_draft"),
-    usedWriteOrPatch: (
-      toolNames.includes("write_bullet") ||
-      toolNames.includes("patch_resume_candidate")
-    ),
+    usedDraft: expectsWorkspace
+      ? toolNames.includes("prepare_resume_draft")
+      : true,
+    usedWriteOrPatch: expectsWorkspace
+      ? (
+          toolNames.includes("write_bullet") ||
+          toolNames.includes("patch_resume_candidate")
+        )
+      : true,
     respectedRepairLimit: (workspace?.repairRound ?? 0) <= 3,
+    askedForMaterial: evalCase.expectsNoWorkspace
+      ? /补充|新增|完善|提供|经历|素材|材料|Kubernetes/iu.test(finalResponse)
+      : true,
   };
   const passed = Object.values(assertions).every(Boolean);
   return {

@@ -33,7 +33,6 @@ const { locked, makeLocked, sendLockedToChat } = useResumeLockPopover(
   () => props.draft,
 );
 let resizeObserver: ResizeObserver | undefined;
-const autosaveTimers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
 
 watch(
   () => props.draft,
@@ -49,8 +48,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
-  autosaveTimers.forEach(clearTimeout);
-  autosaveTimers.clear();
 });
 
 async function draw(): Promise<void> {
@@ -145,23 +142,16 @@ function makeEditable(
   element.contentEditable = props.draft.pendingChange ? "false" : "true";
   element.spellcheck = true;
   element.dataset.originalText = element.innerText.trim();
+  element.dataset.dirty = "false";
   element.classList.add("resume-editable-text");
   element.addEventListener("input", () => {
-    const previous = autosaveTimers.get(element);
-    if (previous) clearTimeout(previous);
-    autosaveTimers.set(
-      element,
-      setTimeout(() => {
-        autosaveTimers.delete(element);
-        emitChangedText(element, target, false);
-      }, 900),
-    );
+    element.dataset.dirty = "true";
+    emitChangedText(element, target, false);
   });
   element.addEventListener("blur", () => {
-    const pending = autosaveTimers.get(element);
-    if (pending) clearTimeout(pending);
-    autosaveTimers.delete(element);
+    if (element.dataset.dirty !== "true") return;
     emitChangedText(element, target, true);
+    element.dataset.dirty = "false";
   });
   element.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -177,7 +167,6 @@ function emitChangedText(
   createCheckpoint: boolean,
 ): void {
   const text = element.innerText.trim();
-  if (!text || text === element.dataset.originalText) return;
   const input: ResumeDraftEditInput = {
     artifactId: props.draft.artifactId,
     target,

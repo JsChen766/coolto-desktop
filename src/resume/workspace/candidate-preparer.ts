@@ -15,6 +15,7 @@ import type {
 } from "./types.js";
 import { ResumeWorkspaceStore } from "./workspace-store.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
+import { applyCriticalSkillGate } from "./critical-skill-gate.js";
 
 export interface ResumeCandidatePreparerOptions {
   createCandidateId?: () => string;
@@ -59,16 +60,31 @@ export class ResumeCandidatePreparer {
         )
       : { structure: skeleton, bindings: [] };
     const compileResult = await this.compiler.compile(initial.structure);
-    const operationReport =
-      draft.rejected.length || draft.repairs.length
-        ? { repairs: draft.repairs, rejected: draft.rejected }
-        : undefined;
-    const workspace: ResumeWorkspace = {
+    const operationReport = input.initialBindings?.length
+      ? {
+          status: draft.rejected.length
+            ? ("partial_success" as const)
+            : ("success" as const),
+          attempted: input.initialBindings.length,
+          applied: draft.bindings.length,
+          repairs: draft.repairs,
+          rejected: draft.rejected,
+        }
+      : undefined;
+    const workspace: ResumeWorkspace = applyCriticalSkillGate({
       candidateId:
         this.options.createCandidateId?.() ?? `resume-candidate-${randomUUID()}`,
       revision: 0,
       patchCount: 0,
-      status: deriveWorkspaceStatus(compileResult, initial.structure),
+      status: deriveWorkspaceStatus(
+        compileResult,
+        initial.structure,
+        {
+          sourceSnapshot: snapshot,
+          bindings: initial.bindings,
+        },
+        this.options.maxBulletLines ?? 3,
+      ),
       sourceSnapshot: snapshot,
       structure: initial.structure,
       bindings: initial.bindings,
@@ -84,7 +100,7 @@ export class ResumeCandidatePreparer {
         bindings: structuredClone(initial.bindings),
         compileResult: structuredClone(compileResult),
       },
-    };
+    });
     return this.store.create(workspace);
   }
 }

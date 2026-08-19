@@ -5,12 +5,12 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import { sanitizeAgentMessagesForPersistence } from "../src/agent/persistence-policy.js";
 
-test("source snapshots are redacted before Agent transcripts are persisted", () => {
+test("resume workspace sources are redacted before transcripts are persisted", () => {
   const messages = [
     {
       role: "toolResult",
       toolCallId: "snapshot-call",
-      toolName: "get_resume_source_snapshot",
+      toolName: "create_resume_workspace",
       content: [{ type: "text", text: "private current revision content" }],
       details: { experiences: [{ content: "private current revision content" }] },
       isError: false,
@@ -22,7 +22,7 @@ test("source snapshots are redacted before Agent transcripts are persisted", () 
   const serialized = JSON.stringify(persisted);
 
   assert.doesNotMatch(serialized, /private current revision content/);
-  assert.match(serialized, /snapshot expired/);
+  assert.match(serialized, /workspace expired/);
   assert.equal("details" in persisted[0]!, false);
   assert.match(JSON.stringify(messages), /private current revision content/);
 });
@@ -42,12 +42,12 @@ test("ordinary Agent messages are cloned without redaction", () => {
   assert.notStrictEqual(persisted[0], messages[0]);
 });
 
-test("in-memory resume candidates are redacted with a rebuild instruction", () => {
+test("in-memory resume revisions are redacted with a rebuild instruction", () => {
   const messages = [
     {
       role: "toolResult",
       toolCallId: "candidate-call",
-      toolName: "patch_resume_candidate",
+      toolName: "apply_resume_content",
       content: [{ type: "text", text: "private candidate and evidence" }],
       details: { candidateId: "candidate-old", visibleText: "private candidate" },
       isError: false,
@@ -60,7 +60,7 @@ test("in-memory resume candidates are redacted with a rebuild instruction", () =
 
   assert.doesNotMatch(serialized, /private candidate/);
   assert.doesNotMatch(serialized, /candidate-old/);
-  assert.match(serialized, /prepare_resume_draft again/);
+  assert.match(serialized, /create_resume_workspace again/);
   assert.match(serialized, /do not reuse the old candidateId/);
 });
 

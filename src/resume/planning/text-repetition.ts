@@ -15,11 +15,27 @@ export function findRepeatedFragment(
     const seen = new Set<string>();
     for (let index = 0; index + window <= chars.length; index += 1) {
       const fragment = chars.slice(index, index + window).join("");
+      if (!isCompleteAsciiFragment(chars, index, window, fragment)) continue;
       if (seen.has(fragment)) return fragment;
       seen.add(fragment);
     }
   }
   return null;
+}
+
+function isCompleteAsciiFragment(
+  chars: string[],
+  index: number,
+  window: number,
+  fragment: string,
+): boolean {
+  if (!/^[\x00-\x7F]+$/u.test(fragment)) return true;
+  const startsInsideWord = index > 0 && /[A-Za-z0-9]/u.test(chars[index - 1]!) &&
+    /[A-Za-z0-9]/u.test(chars[index]!);
+  const end = index + window;
+  const endsInsideWord = end < chars.length && /[A-Za-z0-9]/u.test(chars[end - 1]!) &&
+    /[A-Za-z0-9]/u.test(chars[end]!);
+  return !startsInsideWord && !endsInsideWord;
 }
 
 /**
@@ -37,4 +53,23 @@ export function stripEvidenceQuotes(
     stripped = stripped.split(excerpt.sourceQuote).join("");
   }
   return stripped;
+}
+
+/**
+ * 只检查"本次修改的文本"与其他文本之间的碰撞：changedText 中的片段出现在任一
+ * otherText 里才返回（即本次操作会制造重复）。其他文本之间既有的重复不阻塞本
+ * 操作——否则模型永远无法用后续操作修复它们：修哪条都会被同一个无关理由拒绝，
+ * 形成永久死锁（真实日志：bl-0 尾行修复被 bl-4 里既有的重复短语拒绝）。
+ */
+export function findNewCrossBulletRepeat(
+  changedText: string,
+  otherTexts: readonly string[],
+  minWindow = 20,
+): string | null {
+  if ([...changedText].length < minWindow) return null;
+  for (const other of otherTexts) {
+    const found = findRepeatedFragment(`${changedText}\n${other}`, minWindow);
+    if (found && changedText.includes(found)) return found;
+  }
+  return null;
 }

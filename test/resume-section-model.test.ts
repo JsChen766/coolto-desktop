@@ -27,6 +27,33 @@ test("custom sections normalize, remain open, and preserve fixed display order",
   assert.deepEqual(collectSkillHints(snapshot.experiences), ["Research", "Python"]);
 });
 
+test("work and project items are ordered newest first inside their sections", () => {
+  const dated = structuredClone(snapshot);
+  dated.experiences = [
+    dated.experiences.find((entry) => entry.category === "education")!,
+    datedExperience("work-old", "work", "2022-01", "2023-06"),
+    datedExperience("project-current", "project", "2023-02", "present"),
+    datedExperience("work-current", "work", "2021-01", "present"),
+    datedExperience("project-undated", "project", null, null),
+    datedExperience("work-new", "work", "2024-02", "2025-06"),
+    datedExperience("project-new", "project", "2025-02", "2025-07"),
+    datedExperience("project-old", "project", "2023-07", "2023-10"),
+  ];
+  const structure = buildResumeSkeleton(
+    dated,
+    dated.experiences.map((entry) => entry.id),
+    "zh-CN",
+  );
+
+  assert.deepEqual(itemIds(structure, "experience"), [
+    "item-work-current", "item-work-new", "item-work-old",
+  ]);
+  assert.deepEqual(itemIds(structure, "project"), [
+    "item-project-current", "item-project-new", "item-project-old",
+    "item-project-undated",
+  ]);
+});
+
 test("imports require normalized paired keys and retain legacy five categories", () => {
   const paper = normalizeImportCandidate({
     category: "other", title: "论文", content: "发表论文：可验证原文。",
@@ -79,4 +106,21 @@ function item(category: "education" | "work" | "project" | "other", id: string, 
     tags: [id === "skills" ? "Python" : "Research"], resumeSectionKey: key, resumeSectionLabel: label,
     revisionId: `revision-${id}`, serverRevisionHash: null, contentHash: `hash-${id}`,
     content: `${id} 的可验证事实。`, updatedAt: "2026-08-03T00:00:00Z" };
+}
+
+function datedExperience(
+  id: string,
+  category: "work" | "project",
+  startDate: string | null,
+  endDate: string | null,
+) {
+  return { ...item(category, id, null, null), startDate, endDate };
+}
+
+function itemIds(
+  structure: ReturnType<typeof buildResumeSkeleton>,
+  type: "experience" | "project",
+): string[] {
+  return structure.sections.find((section) => section.type === type)
+    ?.items.map((entry) => entry.id) ?? [];
 }

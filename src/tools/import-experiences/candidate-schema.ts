@@ -10,15 +10,25 @@ const categorySchema = Type.Union([
 
 export const importCandidateSchema = Type.Object({
   category: categorySchema,
-  title: Type.String({ minLength: 1, maxLength: 300 }),
+  title: Type.String({
+    minLength: 1,
+    maxLength: 300,
+    description: "教育经历填写学校；其他类别填写经历或项目标题。",
+  }),
   content: Type.String({
     minLength: 1,
     maxLength: 30_000,
     description:
       "保留事实、指标、技术名和每条要点，不要补充原文中没有的内容。",
   }),
-  organization: Type.Optional(Type.String({ maxLength: 300 })),
-  role: Type.Optional(Type.String({ maxLength: 300 })),
+  organization: Type.Optional(Type.String({
+    maxLength: 300,
+    description: "教育经历填写专业；其他类别填写组织。",
+  })),
+  role: Type.Optional(Type.String({
+    maxLength: 300,
+    description: "教育经历填写学位；其他类别填写角色。",
+  })),
   location: Type.Optional(Type.String({ maxLength: 300 })),
   startDate: Type.Optional(
     Type.String({

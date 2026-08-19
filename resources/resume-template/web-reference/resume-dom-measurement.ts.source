@@ -180,7 +180,7 @@ export function measureResumeBullets(
       lastLineWidthPx: roundMetric(lastLineWidthPx),
       availableLineWidthPx: roundMetric(availableLineWidthPx),
       lastLineRatio: roundMetric(lastLineRatio),
-      passed: lastLineRatio + Number.EPSILON >= gateRatio,
+      passed: lastLineRatio - Number.EPSILON > gateRatio,
       error: '',
     })
   }

@@ -8,30 +8,23 @@ import { readConfig } from "../../config.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
 import { JdProposalStore } from "../../jd/proposal-store.js";
 import { MatchReportStore } from "../../match/report-store.js";
-import type { ResumePdfCompiler, ResumePdfExportGateway } from "../../resume/export/types.js";
-import { ResumePdfExportProposalBuilder } from "../../resume/export/proposal-builder.js";
-import { ResumePdfExportSourceResolver } from "../../resume/export/source-resolver.js";
-import { ResumeAlternativeRepairer } from "../../resume/quality/alternative-repairer.js";
-import { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
-import { ResumeQualityEvaluator } from "../../resume/quality/quality-evaluator.js";
-import { ResumeSaveProposalBuilder } from "../../resume/save/proposal-builder.js";
+import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
-import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { TracedResumeCompiler } from "../../resume/performance/traced-compiler.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
-import { ResumeLayoutInspector } from "../../resume/planning/layout-inspector.js";
 import { createToolRegistry } from "../../tools/registry.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
+import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
+import { createResumeGenerationFollowUp } from "./resume-generation-follow-up.js";
 
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
   resumeCompiler: ResumePdfCompiler;
-  resumePdfExports: ResumePdfExportGateway;
   selectedFiles: ConversationSelectedFiles;
   browserPageReader: BrowserPageReader;
   browserPageOperator: BrowserPageOperator;
@@ -40,6 +33,7 @@ export interface AgentContextFactoryDependencies {
   jds: JdReader & JdWriter;
   profiles: UserProfileReader;
   profileProposals: ProfileProposalExecutor;
+  experienceSyncProposals: ResumeExperienceSyncProposalPort;
   events: AgentRuntimeEvents;
   traces: ResumeGenerationTraceStore;
   /** Immediately runs one sync round (agent sync_now tool). */
@@ -58,15 +52,22 @@ export class AgentContextFactory {
     const proposalStore = new ExperienceImportProposalStore();
     const jdProposalStore = new JdProposalStore();
     const matchReportStore = new MatchReportStore();
+    const workspaceStore = new ResumeWorkspaceStore();
+    const resumeCompiler = new TracedResumeCompiler(
+      deps.resumeCompiler,
+      deps.traces,
+      conversationId,
+    );
     const approvalManager = createActionApprovalManager({
       experienceWriter: deps.experiences,
       importProposalStore: proposalStore,
       profileProposals: deps.profileProposals,
       jdWriter: deps.jds,
       jdProposalStore,
-      resumePublications: deps.resumePublications,
-      resumePdfExports: deps.resumePdfExports,
       browserPageOperator: deps.browserPageOperator,
+      resumeWorkspaceStore: workspaceStore,
+      resumeCompiler,
+      resumeExperienceSyncProposals: deps.experienceSyncProposals,
     });
     const sourceBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: deps.apiClient,
@@ -74,41 +75,7 @@ export class AgentContextFactory {
       jd: deps.jds,
       experience: deps.experiences,
     });
-    const workspaceStore = new ResumeWorkspaceStore();
-    const resumeCompiler = new TracedResumeCompiler(
-      deps.resumeCompiler,
-      deps.traces,
-      conversationId,
-    );
-    const qualityEvaluator = new ResumeQualityEvaluator();
-    const resumeCandidatePatcher = new ResumeCandidatePatcher(
-      resumeCompiler,
-      workspaceStore,
-    );
-    const resumeCandidateReviewer = new ResumeCandidateReviewer(
-      qualityEvaluator,
-      workspaceStore,
-    );
-    const resumeAlternativeRepairer = new ResumeAlternativeRepairer(
-      resumeCompiler,
-      qualityEvaluator,
-      workspaceStore,
-    );
-    const resumeSaveProposalBuilder = new ResumeSaveProposalBuilder(
-      workspaceStore,
-    );
-    const resumePdfExportProposalBuilder = new ResumePdfExportProposalBuilder(
-      new ResumePdfExportSourceResolver(
-        workspaceStore,
-        deps.resumePublications,
-      ),
-        resumeCompiler,
-    );
-    const resumeLayoutInspector = new ResumeLayoutInspector(
-      sourceBuilder,
-      resumeCompiler,
-      config.resumeMaxBulletLines,
-    );
+    const currentUserMessage = { timestamp: undefined as number | undefined };
     const modelDependencies = createConfiguredModelDependencies(
       config,
       () => deps.apiClient.getSessionToken(),
@@ -125,13 +92,6 @@ export class AgentContextFactory {
         experienceReader: deps.experiences,
         jdReader: deps.jds,
         resumeReader: deps.resumePublications,
-        resumeSourceSnapshotBuilder: sourceBuilder,
-        resumeLayoutInspector,
-        resumeCandidatePatcher,
-        resumeCandidateReviewer,
-        resumeAlternativeRepairer,
-        resumeSaveProposalBuilder,
-        resumePdfExportProposalBuilder,
         importProposalStore: proposalStore,
         jdProposalStore,
         matchReportStore,
@@ -143,10 +103,13 @@ export class AgentContextFactory {
           snapshotBuilder: sourceBuilder,
           compiler: resumeCompiler,
           store: workspaceStore,
-          reviewer: resumeCandidateReviewer,
+          currentUserMessageTimestamp: () => currentUserMessage.timestamp,
+          approvalManager,
+          experienceSyncProposals: deps.experienceSyncProposals,
         },
         syncNow: deps.syncNow,
       }),
+      automaticFollowUp: createResumeGenerationFollowUp(workspaceStore),
     }, modelDependencies);
     const context: ConversationAgentContext = {
       agent,
@@ -155,6 +118,7 @@ export class AgentContextFactory {
       jdProposalStore,
       matchReportStore,
       artifactIdByCandidate: new Map(),
+      currentUserMessage,
       compaction: {
         models: modelDependencies.models,
         model: modelDependencies.model,

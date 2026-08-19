@@ -41,8 +41,8 @@
     {
       "origin": "cv-agent-app/src/utils/resume-dom-measurement.ts",
       "target": "resources/resume-template/web-reference/resume-dom-measurement.ts.source",
-      "sha256": "1ab79840b900373deabc2f94c238e91d8019da15701f630c2f0d190c6839be50",
-      "size": 9965
+      "sha256": "67b1a82fa2b227ef1091d3a657c4d65290d8632ed91ffcfb547f670a15cd4fda",
+      "size": 9964
     },
     {
       "origin": "cv-agent-app/src/utils/resume-section-order.ts",

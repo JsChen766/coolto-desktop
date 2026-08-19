@@ -1,4 +1,9 @@
 import type { ResumePdfPostflightResult } from "../pdf-postflight.js";
+import {
+  extractEducationDetails,
+  presentEducationSupplement,
+} from "../education-details.js";
+import { educationFields } from "../education-fields.js";
 import { inspectResumePdf } from "../pdf-postflight.js";
 import type { ResumeStructure } from "../types.js";
 import { ResumePdfExportError } from "./errors.js";
@@ -51,8 +56,27 @@ function expectedVisibleFragments(structure: ResumeStructure): string[] {
   for (const section of structure.sections) {
     add(section.heading);
     for (const item of section.items) {
-      add(item.title);
-      add(item.raw_text);
+      if (section.type === "education") {
+        const fields = educationFields(item);
+        add(fields.school);
+        add(fields.degree);
+        add(fields.major);
+        add(item.location);
+        add(item.start_date);
+        add(item.end_date);
+        const supplemental = presentEducationSupplement(
+          extractEducationDetails(item.raw_text),
+          structure.language,
+        );
+        add(supplemental.performance);
+        add(supplemental.coursework);
+      } else if (section.type === "experience") {
+        add(item.organization || item.title || item.role);
+        if (item.organization) add(item.title || item.role);
+      } else {
+        add(item.title);
+        add(item.raw_text);
+      }
       for (const bullet of item.bullets) add(bullet.text);
     }
   }

@@ -2,11 +2,10 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 const TRANSIENT_TOOL_NAMES = new Set([
   "get_resume",
-  "get_resume_source_snapshot",
-  "prepare_resume_draft",
-  "write_bullet",
-  "inspect_resume_draft",
-  "patch_resume_candidate",
+  "create_resume_workspace",
+  "get_resume_workspace",
+  "apply_resume_content",
+  "add_resume_material",
 ]);
 
 interface ToolResultLike {
@@ -53,10 +52,7 @@ function expirationInstruction(toolName: string): string {
   if (toolName === "get_resume") {
     return "This cloud Resume content expired when the task was persisted. Call get_resume again with the exact resumeId before using it.";
   }
-  if (toolName === "get_resume_source_snapshot") {
-    return "This source snapshot expired when the task was persisted. Call get_resume_source_snapshot again before using source evidence.";
-  }
-  return "This in-memory resume draft expired when the task was persisted. Rebuild its sources and call prepare_resume_draft again; do not reuse the old candidateId or evidence offsets without a fresh snapshot.";
+  return "This in-memory resume workspace expired when the task was persisted. Call create_resume_workspace again to lock fresh sources; do not reuse the old candidateId or evidence IDs.";
 }
 
 function isTransientToolResult(message: AgentMessage): message is AgentMessage & ToolResultLike {

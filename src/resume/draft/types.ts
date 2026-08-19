@@ -51,6 +51,12 @@ export interface ResumeDraftArtifactReference {
   title: string;
   createdAt: string;
   anchorMessageId?: string;
+  revision?: number;
+  workspaceStatus?: ResumeWorkspace["status"];
+  generationReady?: boolean;
+  pageCount?: number;
+  usageRatio?: number;
+  blockerCodes?: string[];
 }
 
 export interface ResumeDraftSummary {

@@ -45,6 +45,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
       accept: unavailable,
       reject: unavailable,
       exportPdf: unavailable,
+      save: unavailable,
     },
     updates: {
       getState: unavailable,
@@ -114,6 +115,9 @@ export function createUnavailableDesktopApi(): DesktopApi {
       minimize: unavailable,
       toggleMaximize: unavailable,
       close: unavailable,
+      reportDraftSaveState: unavailable,
+      completeSaveBeforeClose: unavailable,
+      onSaveBeforeClose: () => () => undefined,
     },
     data: {
       clearLocal: unavailable,

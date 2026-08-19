@@ -8,6 +8,7 @@ import type {
   ConversationRenameInput,
 } from "../shared/types.js";
 import type { UserServices } from "./user-services.js";
+import type { WindowCloseGuard } from "./window-close-guard.js";
 
 type CurrentUserServices = () => Promise<UserServices>;
 
@@ -15,6 +16,7 @@ export function registerConversationAgentIpc(
   ipcMain: IpcMain,
   window: BrowserWindow,
   servicesForCurrentUser: CurrentUserServices,
+  closeGuard: WindowCloseGuard,
 ): void {
   ipcMain.handle("conversations:list", async () =>
     (await servicesForCurrentUser()).conversations.list(),
@@ -107,7 +109,7 @@ export function registerConversationAgentIpc(
     if (window.isMaximized()) window.unmaximize();
     else window.maximize();
   });
-  ipcMain.handle("window:close", () => window.close());
+  ipcMain.handle("window:close", () => closeGuard.requestClose());
 }
 
 export const CONVERSATION_AGENT_IPC_CHANNELS = [

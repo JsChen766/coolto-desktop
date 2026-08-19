@@ -3,6 +3,7 @@ import type {
   AgentTool,
   BeforeToolCallContext,
   BeforeToolCallResult,
+  ShouldStopAfterTurnContext,
   StreamFn,
 } from "@earendil-works/pi-agent-core";
 import { randomUUID } from "node:crypto";
@@ -18,11 +19,15 @@ import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek";
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import { createToolRegistry } from "../tools/registry.js";
 import { CooltoAgent } from "./coolto-agent.js";
-import { compactResumeGenerationContext } from "./context-policy.js";
+import { compactResumeGenerationContext, stripThinkingParts } from "./context-policy.js";
 import { COOLTO_SYSTEM_PROMPT } from "./system-prompt.js";
+import { createTurnGovernor } from "./turn-governor.js";
+import { createRepetitionGuard } from "./repetition-guard.js";
+import { hasAuthoritativeResumeCompletion } from "./terminal-resume-result.js";
 
 export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
 export const DEFAULT_PROVIDER_ID = "deepseek";
+export const AGENT_TEMPERATURE = 0.1;
 
 export interface CreateAgentOptions {
   apiKey?: string;
@@ -38,9 +43,13 @@ export interface CreateAgentOptions {
     messages: AgentMessage[],
     signal?: AbortSignal,
   ) => Promise<AgentMessage[]>;
+  shouldStopAfterTurn?: (
+    context: ShouldStopAfterTurnContext,
+    signal?: AbortSignal,
+  ) => boolean | Promise<boolean>;
+  automaticFollowUp?: (promptSequence: number) => string | undefined;
   approvalManager?: ApprovalManager;
 }
-
 export interface AgentDependencies {
   model: Model<Api>;
   streamFn: StreamFn;
@@ -85,10 +94,9 @@ export function createDeepSeekDependencies(
     model,
     models,
     streamFn: (modelInput, context, options) => {
-      // 输出上限与服务端 pricing.json 的 max_completion_tokens 一致（16384）。
-      // 不设置时服务端按 8192 兜底，推理模型的 thinking 会吃光预算导致
-      // 工具调用参数被截断 → 客户端判失败 → 模型重试 → 重复死循环。
-      const streamOptions = { ...options, temperature: 0, maxTokens: 16384 };
+      // 不设置产品固定输出上限：pi-ai 按模型声明的物理容量生成请求额度，
+      // Credit 网关再按本次剩余余额动态收窄 max_tokens。
+      const streamOptions = { ...options, temperature: AGENT_TEMPERATURE };
       if (!gateway) {
         return baseStream(modelInput, context, streamOptions);
       }
@@ -135,6 +143,8 @@ export function createCooltoAgent(
 ): CooltoAgent {
   const runtime =
     dependencies ?? createDeepSeekDependencies(options.modelId);
+  const defaultTurnGovernor = createTurnGovernor();
+  const repetitionGuard = createRepetitionGuard();
 
   const agentOptions = {
     model: runtime.model,
@@ -160,7 +170,20 @@ export function createCooltoAgent(
         }
       : { beforeToolCall: repetitionGuard }),
     transformContext:
-      options.transformContext ?? compactResumeGenerationContext,
+      options.transformContext ??
+      (async (messages: AgentMessage[]) =>
+        stripThinkingParts(await compactResumeGenerationContext(messages))),
+    shouldStopAfterTurn: async (
+      context: ShouldStopAfterTurnContext,
+      signal?: AbortSignal,
+    ) =>
+      hasAuthoritativeResumeCompletion(context) ||
+      defaultTurnGovernor.evaluate(context) ||
+      Boolean(await options.shouldStopAfterTurn?.(context, signal)),
+    turnGovernor: defaultTurnGovernor,
+    ...(options.automaticFollowUp
+      ? { automaticFollowUp: options.automaticFollowUp }
+      : {}),
     ...(options.approvalManager
       ? { approvalManager: options.approvalManager }
       : {}),
@@ -168,52 +191,3 @@ export function createCooltoAgent(
 
   return new CooltoAgent(agentOptions);
 }
-
-const REPETITION_LIMIT = 3;
-
-/**
- * 连续 N 次相同工具调用（同工具名 + 同参数）即判定为重复死循环并 block。
- * 温度 0 下失败重试会产生逐 token 相同的输出（输出截断 → 工具判失败 →
- * 模型重试 → 再截断），此守卫是这类确定性循环的兜底：block 后错误信息
- * 进入上下文，输入变化足以让模型停止。
- */
-function createRepetitionGuard(limit: number) {
-  let lastKey: string | undefined;
-  let consecutive = 0;
-  return async (
-    context: BeforeToolCallContext,
-  ): Promise<BeforeToolCallResult | undefined> => {
-    const key = `${context.toolCall.name}\u0000${stableStringify(context.args)}`;
-    if (key === lastKey) {
-      consecutive += 1;
-    } else {
-      lastKey = key;
-      consecutive = 1;
-    }
-    if (consecutive >= limit) {
-      return {
-        block: true,
-        reason:
-          "detected_repetition：检测到连续重复的工具调用（参数完全相同），" +
-          "请停止重试同一操作，基于当前结果继续或结束任务。",
-      };
-    }
-    return undefined;
-  };
-}
-
-/** 键序无关的 JSON 序列化（重试产生的参数键顺序可能不同）。 */
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-      .map(([key, nested]) => `${JSON.stringify(key)}:${stableStringify(nested)}`);
-    return `{${entries.join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
-const repetitionGuard = createRepetitionGuard(REPETITION_LIMIT);

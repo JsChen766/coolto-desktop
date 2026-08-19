@@ -22,6 +22,7 @@ defineEmits<{
   <nav class="sidebar-primary-navigation" :aria-label="$t('主要功能')">
     <button
       class="new-chat-button icon-label"
+      data-testid="sidebar-new-chat"
       type="button"
       :disabled="generating"
       :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"

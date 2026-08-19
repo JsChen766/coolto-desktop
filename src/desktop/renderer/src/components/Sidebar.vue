@@ -117,10 +117,10 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
             :class="draft.cloudState"
             :title="
               draft.cloudState === 'synced'
-                ? $t('已同步云端')
+                ? $t('已加入简历库')
                 : draft.cloudState === 'local_changes'
-                  ? $t('有未同步修改')
-                  : $t('仅保存在本机')
+                  ? $t('本地草稿有新修改')
+                  : $t('本地草稿已自动保存')
             "
           />
         </button>

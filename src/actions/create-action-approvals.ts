@@ -24,6 +24,17 @@ import {
   PROFILE_UPDATE_ACTION_TYPE,
 } from "../profile/approval-draft.js";
 import { createProfileUpdateExecutor } from "./profile-update-executor.js";
+import {
+  RESUME_AUGMENTED_CONFIRM_ACTION_TYPE,
+} from "../resume/confirmation/augmented-approval.js";
+import { createAugmentedConfirmationExecutor } from "../resume/confirmation/augmented-executor.js";
+import type { ResumeCompiler } from "../resume/workspace/compiler-port.js";
+import type { ResumeWorkspaceStore } from "../resume/workspace/workspace-store.js";
+import {
+  RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
+} from "../resume/material/experience-sync-approval.js";
+import { createResumeExperienceSyncExecutor } from "../resume/material/experience-sync-executor.js";
+import type { ResumeExperienceSyncProposalPort } from "../resume/material/experience-sync-port.js";
 
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
@@ -34,6 +45,9 @@ export interface ActionApprovalDependencies {
   resumePublications?: ResumePublicationGateway;
   resumePdfExports?: ResumePdfExportGateway;
   browserPageOperator?: BrowserPageOperator;
+  resumeWorkspaceStore?: ResumeWorkspaceStore;
+  resumeCompiler?: ResumeCompiler;
+  resumeExperienceSyncProposals?: ResumeExperienceSyncProposalPort;
 }
 
 export function createActionApprovalManager(
@@ -76,6 +90,21 @@ export function createActionApprovalManager(
     executors.register(
       BROWSER_WRITE_ACCESS_ACTION_TYPE,
       createBrowserWriteAccessExecutor(deps.browserPageOperator),
+    );
+  }
+  if (deps.resumeWorkspaceStore && deps.resumeCompiler) {
+    executors.register(
+      RESUME_AUGMENTED_CONFIRM_ACTION_TYPE,
+      createAugmentedConfirmationExecutor(
+        deps.resumeWorkspaceStore,
+        deps.resumeCompiler,
+      ),
+    );
+  }
+  if (deps.resumeExperienceSyncProposals) {
+    executors.register(
+      RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
+      createResumeExperienceSyncExecutor(deps.resumeExperienceSyncProposals),
     );
   }
   return new ApprovalManager(new ApprovalStore(), executors);

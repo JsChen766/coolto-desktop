@@ -1,6 +1,9 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
-import { isWrappedInternalPrompt } from "../../agent/internal-prompt.js";
+import {
+  isWrappedInternalPrompt,
+  isWrappedResumeGenerationFollowUp,
+} from "../../agent/internal-prompt.js";
 import type { ChatMessage, MessageAttachment } from "../shared/types.js";
 import type { StoredMessageAttachment } from "./conversation-record.js";
 
@@ -27,6 +30,13 @@ export function projectConversationMessages(
   const visible: ChatMessage[] = [];
   messages.forEach((message, index) => {
     if (message.role !== "user" && message.role !== "assistant") return;
+    if (message.role === "assistant" && includesToolCall(message.content)) return;
+    if (
+      message.role === "assistant" &&
+      isWrappedResumeGenerationFollowUp(
+        extractText(messageContent(messages[index + 1])),
+      )
+    ) return;
     const raw = extractText(message.content);
     if (isHiddenInternalPrompt(raw)) return;
     const content = presentConversationContent(raw, message.role);
@@ -53,6 +63,21 @@ export function projectConversationMessages(
     });
   });
   return visible;
+}
+
+function messageContent(message: AgentMessage | undefined): unknown {
+  return message && "content" in message ? message.content : undefined;
+}
+
+function includesToolCall(content: unknown): boolean {
+  return Array.isArray(content) && content.some((part) =>
+    Boolean(
+      part &&
+      typeof part === "object" &&
+      "type" in part &&
+      part.type === "toolCall",
+    ),
+  );
 }
 
 function isHiddenInternalPrompt(value: string): boolean {

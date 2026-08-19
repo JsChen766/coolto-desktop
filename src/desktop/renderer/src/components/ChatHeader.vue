@@ -15,7 +15,7 @@ import type { ResumeDraftDetail } from "@desktop/types";
 import { translate } from "../i18n/locale";
 import IconButton from "./IconButton.vue";
 
-defineProps<{
+const props = defineProps<{
   title: string;
   sidebarOpen: boolean;
   artifactOpen: boolean;
@@ -23,6 +23,8 @@ defineProps<{
   resumeDraft: ResumeDraftDetail | undefined;
   exporting?: boolean;
   exportMessage?: string;
+  savingToLibrary?: boolean;
+  saveMessage?: string;
 }>();
 
 defineEmits<{
@@ -45,10 +47,25 @@ function factLabel(value: ResumeDraftDetail["quality"]["factIntegrity"]): string
   if (value === "failed") return translate("未通过");
   return translate("待重新验证");
 }
+
+function resumeActionLabel(action: "保存到简历库" | "导出到本地文件"): string {
+  const blocker = props.resumeDraft?.generationReadiness.blockers[0]?.message;
+  return blocker ? `${translate(action)}：${blocker}` : translate(action);
+}
 </script>
 
 <template>
-  <header class="chat-header window-drag">
+  <header
+    class="chat-header window-drag"
+    data-testid="resume-active-draft-status"
+    :data-artifact-id="resumeDraft?.artifactId ?? ''"
+    :data-revision="resumeDraft?.revision ?? ''"
+    :data-workspace-status="resumeDraft?.workspaceStatus ?? ''"
+    :data-page-count="resumeDraft?.compileResult.pageCount ?? ''"
+    :data-page-usage-ratio="resumeDraft?.compileResult.usageRatio ?? ''"
+    :data-generation-ready="resumeDraft ? String(resumeDraft.generationReadiness.ready) : ''"
+    :data-blocker-codes="resumeDraft?.generationReadiness.blockers.map((item) => item.code).join(',') ?? ''"
+  >
     <div class="chat-header-left no-drag">
       <IconButton
         :icon="sidebarOpen ? PanelLeftClose : PanelLeftOpen"
@@ -76,20 +93,20 @@ function factLabel(value: ResumeDraftDetail["quality"]["factIntegrity"]): string
         />
         <IconButton
           :icon="CloudUpload"
-          :label="$t('保存到云端')"
+          :label="resumeActionLabel('保存到简历库')"
           :disabled="
-            resumeDraft.workspaceStatus !== 'ready_for_approval' ||
+            savingToLibrary ||
+            !resumeDraft.generationReadiness.ready ||
             Boolean(resumeDraft.pendingChange)
           "
           @click="$emit('saveResume')"
         />
         <IconButton
           :icon="Download"
-          :label="$t('导出到本地文件')"
+          :label="resumeActionLabel('导出到本地文件')"
           :disabled="
             exporting ||
-            resumeDraft.workspaceStatus !== 'ready_for_approval' ||
-            !resumeDraft.compileResult.qualified ||
+            !resumeDraft.generationReadiness.ready ||
             Boolean(resumeDraft.pendingChange)
           "
           @click="$emit('exportResume')"
@@ -100,6 +117,13 @@ function factLabel(value: ResumeDraftDetail["quality"]["factIntegrity"]): string
         </span>
         <span v-else-if="exportMessage" class="resume-export-status">
           {{ exportMessage }}
+        </span>
+        <span v-else-if="savingToLibrary" class="resume-export-status">
+          <LoaderCircle class="spin" :size="13" :stroke-width="1.8" aria-hidden="true" />
+          {{ $t('正在保存到简历库…') }}
+        </span>
+        <span v-else-if="saveMessage" class="resume-export-status">
+          {{ saveMessage }}
         </span>
         <div v-if="detailsOpen" class="resume-details-popover">
           <div class="resume-detail-row">

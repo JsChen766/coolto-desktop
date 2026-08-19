@@ -4,6 +4,7 @@ export type ResumeWorkspaceErrorCode =
   | "candidate_evidence_incomplete"
   | "stale_candidate_revision"
   | "workspace_revision_limit"
+  | "workspace_terminal"
   | "missing_education_source"
   | "unsupported_experience_category"
   | "invalid_experience_order"

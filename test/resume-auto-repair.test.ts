@@ -278,7 +278,8 @@ test("write plan reports unused evidence counts per item", async () => {
   const workItem = plan.find((item) => item.itemId === "item-work-1")!;
   assert.equal(typeof workItem.unusedEvidenceCount, "number");
   assert.ok((workItem.unusedEvidenceCount as number) >= 2);
-  assert.ok((workItem.missing as number) >= 3);
+  assert.equal(workItem.missing, 1);
+  assert.ok((workItem.maxDistinctBullets as number) >= 2);
 });
 
 test("range-conflict repair never maps two excerpts to the same candidate", async () => {

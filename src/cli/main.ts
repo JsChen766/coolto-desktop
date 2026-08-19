@@ -14,11 +14,7 @@ import { loadLocalEnv, readConfig } from "../config.js";
 import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
-import { ResumeAlternativeRepairer } from "../resume/quality/alternative-repairer.js";
-import { ResumeCandidateReviewer } from "../resume/quality/candidate-reviewer.js";
-import { ResumeQualityEvaluator } from "../resume/quality/quality-evaluator.js";
 import { ResumeSourceSnapshotBuilder } from "../resume/source-snapshot.js";
-import { ResumeCandidatePatcher } from "../resume/workspace/candidate-patcher.js";
 import { ResumeWorkspaceStore } from "../resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../tools/registry.js";
 import { CliSemanticCompiler } from "./semantic-compiler.js";
@@ -83,7 +79,6 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
     profileProposals,
     jdWriter: apiClient,
     jdProposalStore,
-    resumePublications: apiClient.resumes,
   });
   const resumeSourceSnapshotBuilder = new ResumeSourceSnapshotBuilder({
     currentUser: apiClient,
@@ -96,19 +91,6 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
     () => apiClient.getSessionToken(),
   );
   const resumeWorkspaceStore = new ResumeWorkspaceStore();
-  const resumeCandidatePatcher = new ResumeCandidatePatcher(
-    compiler,
-    resumeWorkspaceStore,
-  );
-  const resumeCandidateReviewer = new ResumeCandidateReviewer(
-    new ResumeQualityEvaluator(),
-    resumeWorkspaceStore,
-  );
-  const resumeAlternativeRepairer = new ResumeAlternativeRepairer(
-    compiler,
-    new ResumeQualityEvaluator(),
-    resumeWorkspaceStore,
-  );
   const agent = createCooltoAgent({
     ...(config.apiKey ? { apiKey: config.apiKey } : {}),
     modelId: config.modelId,
@@ -120,7 +102,6 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
       experienceReader: apiClient,
       jdReader: apiClient,
       resumeReader: apiClient.resumes,
-      resumeSourceSnapshotBuilder,
       importProposalStore,
       jdProposalStore,
       approvalManager,
@@ -129,11 +110,7 @@ export async function runCli(compiler: ResumeCompiler): Promise<void> {
         snapshotBuilder: resumeSourceSnapshotBuilder,
         compiler,
         store: resumeWorkspaceStore,
-        reviewer: resumeCandidateReviewer,
       },
-      resumeCandidatePatcher,
-      resumeCandidateReviewer,
-      resumeAlternativeRepairer,
     }),
   }, modelDependencies);
 

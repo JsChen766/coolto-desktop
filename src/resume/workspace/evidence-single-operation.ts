@@ -2,6 +2,7 @@ import { EvidenceValidationError } from "../evidence-validation.js";
 import type { ResumeSourceSnapshot } from "../source-types.js";
 import type { BulletEvidenceBinding } from "../source-types.js";
 import {
+  findNewCrossBulletRepeat,
   findRepeatedFragment,
   stripEvidenceQuotes,
 } from "../planning/text-repetition.js";
@@ -130,18 +131,16 @@ function resolveIncrementalText(
       : applyIncrementalText(original.bulletText, operation);
   if (mergedText === original.bulletText) {
     // Fully absorbed: the text the model wants is already in the bullet.
-    // Resolve as a successful no-op (unchanged binding) so the model sees
-    // "already present" in the response and moves on, instead of retrying a
-    // rejection forever. The binding is reused as-is: it is already
-    // normalized and unchanged.
-    return {
-      operation: {
-        op: "replace_bullet",
-        bulletId: original.bulletId,
-        binding: original,
-      },
-      repairs: [],
-    };
+    // 此前作为"成功 no-op"返回会让模型误以为补长生效（revision 涨但内容
+    // 不变，usage 卡死，实测补长阶段反复 no-op 空转）。改为明确拒绝并告知
+    // "文本已存在"，引导模型改补其他内容或改写现有表述。
+    const wanted =
+      operation.op === "replace_substring" ? operation.to : operation.text;
+    throw new EvidenceValidationError(
+      "repeated_fragment",
+      `Bullet ${operation.bulletId} already contains the text you tried to add ("${wanted.slice(0, 40)}"); it is already there (possibly from an earlier append). Do not add it again — lengthen elsewhere or rewrite an existing part with replace_substring instead.`,
+      operation.bulletId,
+    );
   }
   // Same repetition gates as write_bullet: appending/prepending/inserting
   // text that repeats a fragment already present in the bullet (e.g. when
@@ -173,7 +172,12 @@ function resolveIncrementalText(
     work,
     original.sharedEvidence === true,
   );
-  if (repaired.binding.sourceExperienceId !== original.sourceExperienceId) {
+  // 技能区（sharedEvidence）bullet 允许跨经历引用证据，"归属经历"对它只是
+  // 首个引用经历的标签，比对无意义；非技能 bullet 必须保持单一经历归属。
+  if (
+    !original.sharedEvidence &&
+    repaired.binding.sourceExperienceId !== original.sourceExperienceId
+  ) {
     throw new EvidenceValidationError(
       "excerpt_experience_mismatch",
       `Incremental text for bullet ${operation.bulletId} cites evidence from ${repaired.binding.sourceExperienceId} but the bullet belongs to ${original.sourceExperienceId}.`,
@@ -182,7 +186,10 @@ function resolveIncrementalText(
   }
   // Cross-bullet repetition mirrors write_bullet: evidence source quotes are
   // stripped first so two bullets citing different ranges of the same
-  // experience never deadlock on shared source sentences.
+  // experience never deadlock on shared source sentences. 只查"本次修改"与
+  // 其他 bullet 的碰撞——其他 bullet 之间既有的重复（先于本次操作存在）不
+  // 阻塞本操作，否则模型永远无法用后续操作修复它们（修哪条都会被同一个
+  // 无关理由拒绝，形成永久死锁）。
   const strippedMerged = stripEvidenceQuotes(
     mergedText,
     repaired.binding.excerpts,
@@ -190,10 +197,7 @@ function resolveIncrementalText(
   const strippedOthers = [...work.entries()]
     .filter(([bulletId]) => bulletId !== operation.bulletId.trim())
     .map(([, binding]) => stripEvidenceQuotes(binding.bulletText, binding.excerpts));
-  const crossRepeat = findRepeatedFragment(
-    [...strippedOthers, strippedMerged].join("\n"),
-    20,
-  );
+  const crossRepeat = findNewCrossBulletRepeat(strippedMerged, strippedOthers, 20);
   if (crossRepeat) {
     throw new EvidenceValidationError(
       "repeated_fragment",

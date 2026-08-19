@@ -66,7 +66,11 @@ function accept(): void {
 </script>
 
 <template>
-  <section class="approval-card">
+  <section
+    class="approval-card"
+    data-testid="approval-card"
+    :data-approval-action-type="request.actionType"
+  >
     <header class="approval-heading">
       <div class="approval-icon" aria-hidden="true">
         <ShieldCheck :size="18" :stroke-width="1.8" />
@@ -128,6 +132,7 @@ function accept(): void {
     <div class="approval-actions">
       <button
         class="approval-button primary icon-label"
+        data-testid="approval-accept"
         type="button"
         :disabled="busy"
         @click="accept"

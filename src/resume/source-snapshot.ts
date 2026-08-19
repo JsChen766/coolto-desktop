@@ -17,6 +17,8 @@ import {
 import { ResumeSourceSnapshotError } from "./source-snapshot-error.js";
 import { deepFreeze, sha256, stableStringify } from "./stable-snapshot.js";
 import { missingResumeContactFields } from "./contracts/profile-contact.js";
+import { experienceEvidenceEligibility } from "../experience/evidence-eligibility.js";
+import { orderResumeSourceExperiences } from "./education-order.js";
 
 export {
   ResumeSourceSnapshotError,
@@ -56,16 +58,23 @@ export class ResumeSourceSnapshotBuilder {
       .sort((left, right) => left.localeCompare(right));
     validateRequest(jdId, experienceIds);
 
-    const [currentUser, profile, jd, experiences] = await Promise.all([
+    const [currentUser, profile, jd, educationIds] = await Promise.all([
       this.#readers.currentUser.getCurrentUser(signal),
       this.#readers.profile.getUserProfile(signal),
       this.#readers.jd.getJd(jdId, signal),
-      Promise.all(
-        experienceIds.map((experienceId) =>
-          this.#readers.experience.getExperience(experienceId, signal),
-        ),
-      ),
+      this.#activeEducationIds(signal),
     ]);
+    const completeExperienceIds = [...new Set([...experienceIds, ...educationIds])];
+    const experiences = await Promise.all(
+      completeExperienceIds.map((experienceId) =>
+        this.#readers.experience.getExperience(experienceId, signal),
+      ),
+    );
+    const normalizedExperiences = orderResumeSourceExperiences(
+      experiences.map((experience, index) =>
+        normalizeSourceExperience(experience, completeExperienceIds[index] ?? ""),
+      ),
+    );
     const fingerprintPayload = {
       schemaVersion: RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION,
       profile: normalizeSourceProfile(
@@ -74,9 +83,7 @@ export class ResumeSourceSnapshotBuilder {
         profile,
       ),
       jd: normalizeSourceJd(jd, jdId),
-      experiences: experiences.map((experience, index) =>
-        normalizeSourceExperience(experience, experienceIds[index] ?? ""),
-      ),
+      experiences: normalizedExperiences,
       template: input.template,
     };
     validateResumeContact(fingerprintPayload.profile);
@@ -85,6 +92,28 @@ export class ResumeSourceSnapshotBuilder {
       capturedAt: this.#now().toISOString(),
       sourceFingerprint: sha256(stableStringify(fingerprintPayload)),
     });
+  }
+
+  async #activeEducationIds(signal?: AbortSignal): Promise<string[]> {
+    const ids = new Set<string>();
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+    do {
+      const page = await this.#readers.experience.searchExperiences(
+        { category: "education", status: "active", limit: 100, ...(cursor ? { cursor } : {}) },
+        signal,
+      );
+      for (const experience of page.items) {
+        if (
+          experience.category === "education" &&
+          experienceEvidenceEligibility(experience).eligible
+        ) ids.add(experience.id);
+      }
+      cursor = page.nextCursor ?? undefined;
+      if (cursor && cursors.has(cursor)) break;
+      if (cursor) cursors.add(cursor);
+    } while (cursor);
+    return [...ids].sort((left, right) => left.localeCompare(right));
   }
 }
 

@@ -10,7 +10,7 @@ import type {
   MessageAttachment,
   ResumeChatReference,
 } from "@desktop/types";
-import type { ToolRun } from "../components/ToolActivity.vue";
+import type { ToolRun } from "./tool-run-state";
 import { desktopApi } from "../lib/desktop-api";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { findReusableEmptyConversation } from "./conversation-list";
@@ -103,7 +103,8 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
 
   async function createConversation(): Promise<void> {
     if (running.value || creatingConversation) return;
-    const reusable = findReusableEmptyConversation(conversations.value);
+    const reusable = findReusableEmptyConversation(conversations.value,
+      current.value?.messages.length ? current.value.id : undefined);
     if (reusable) {
       await selectConversation(reusable.id);
       return;
@@ -214,7 +215,6 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       });
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();
-      pendingApproval.value = undefined;
       await refreshConversationList();
     } catch (error: unknown) {
       runError.value = desktopErrorMessage(error);

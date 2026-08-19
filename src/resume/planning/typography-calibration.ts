@@ -1,6 +1,13 @@
 import type { ResumeCompiler } from "../workspace/compiler-port.js";
+import type { ResumeCompileResult } from "../compiler-types.js";
 import type { ResumeStructure } from "../types.js";
 import type { PlanningParameters } from "./planner.js";
+
+export interface TypographyCalibration {
+  parameters: PlanningParameters;
+  /** 空骨架本次编译结果：prepare_resume_draft 直接复用，避免第三次编译。 */
+  emptyCompileResult: ResumeCompileResult;
+}
 
 /**
  * Calibrates typography with two real Chromium compiles: an empty skeleton
@@ -11,7 +18,7 @@ export async function calibrateTypography(
   compiler: ResumeCompiler,
   skeleton: ResumeStructure,
   language: "zh-CN" | "en-US",
-): Promise<PlanningParameters> {
+): Promise<TypographyCalibration> {
   const empty = await compiler.compile(skeleton);
   const lineHeightPx = empty.bodyLineHeightPx;
   const fixedLines = Math.max(
@@ -41,9 +48,12 @@ export async function calibrateTypography(
       ? Math.max(20, Math.round(widthPx / fontSize))
       : Math.max(30, Math.round((widthPx / fontSize) * 1.9));
   return {
-    charsPerLine,
-    lineHeightPx,
-    availableHeightPx: measured.availableHeightPx,
-    fixedLines,
+    parameters: {
+      charsPerLine,
+      lineHeightPx,
+      availableHeightPx: measured.availableHeightPx,
+      fixedLines,
+    },
+    emptyCompileResult: empty,
   };
 }

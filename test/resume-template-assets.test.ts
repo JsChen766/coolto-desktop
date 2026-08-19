@@ -113,7 +113,7 @@ test("Web renderer snapshot preserves the canonical DOM and CSS contract", async
   assert.match(measurement, /range\.getClientRects\(\)/);
   assert.match(
     measurement,
-    /lastLineRatio \+ Number\.EPSILON >= gateRatio/,
+    /lastLineRatio - Number\.EPSILON > gateRatio/,
   );
 });
 

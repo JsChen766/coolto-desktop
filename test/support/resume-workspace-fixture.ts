@@ -19,8 +19,21 @@ import type { EvidenceBindingInput } from "../../src/resume/workspace/types.js";
 export const WORK_CONTENT =
   "使用 Python 清洗运营数据产品。为 3 个团队建立周度报表。设计异常检查规则并与业务团队协作。";
 
-export function createWorkspaceSnapshotBuilder(): ResumeSourceSnapshotBuilder {
-  const experiences = [createEducation(), createWork()];
+export function createWorkspaceSnapshotBuilder(
+  options: {
+    includeEducation?: boolean;
+    jdRequirements?: JdRecord["requirements"];
+    educationContent?: string;
+    workContent?: string;
+    tinyWorkContent?: string;
+  } = {},
+): ResumeSourceSnapshotBuilder {
+  const experiences = [
+    createEducation(options.educationContent), createWork(options.workContent),
+    createTinyWork(options.tinyWorkContent), createSkills(),
+    createLegacySkills(),
+  ].filter((experience) => options.includeEducation !== false || experience.category !== "education");
+  const jd = createJd(options.jdRequirements);
   const byId = new Map(experiences.map((experience) => [experience.id, experience]));
   return new ResumeSourceSnapshotBuilder(
     {
@@ -29,8 +42,8 @@ export function createWorkspaceSnapshotBuilder(): ResumeSourceSnapshotBuilder {
       },
       profile: { getUserProfile: async () => createProfile() },
       jd: {
-        listJds: async () => ({ items: [createJd()], nextCursor: null }),
-        getJd: async () => createJd(),
+        listJds: async () => ({ items: [jd], nextCursor: null }),
+        getJd: async () => structuredClone(jd),
       },
       experience: {
         searchExperiences: async () => ({ items: experiences, nextCursor: null }),
@@ -59,7 +72,7 @@ export class FixtureResumeCompiler implements ResumeCompiler {
       violations.push({ code: "page_underfilled", message: "Page is underfilled." });
     }
     for (const bullet of bullets.filter((candidate) =>
-      candidate.text.includes("短尾"),
+      candidate.text.endsWith("短尾"),
     )) {
       violations.push({
         code: "bullet_tail_too_short",
@@ -89,11 +102,11 @@ export class FixtureResumeCompiler implements ResumeCompiler {
       effectiveTargetBand: { minimum: 0.92, target: 0.95, maximum: 0.98 },
       bullets: bullets.map((bullet) => ({
         bulletId: bullet.id,
-        lineCount: 2,
-        lastLineWidthPx: bullet.text.includes("短尾") ? 200 : 480,
+        lineCount: bullet.text.includes("增加一行") ? 3 : 2,
+        lastLineWidthPx: bullet.text.endsWith("短尾") ? 200 : 480,
         availableLineWidthPx: 600,
-        lastLineRatio: bullet.text.includes("短尾") ? 1 / 3 : 0.8,
-        passed: !bullet.text.includes("短尾"),
+        lastLineRatio: bullet.text.endsWith("短尾") ? 1 / 3 : 0.8,
+        passed: !bullet.text.endsWith("短尾"),
       })),
       violations,
     };
@@ -141,14 +154,14 @@ function createProfile(): UserProfile {
   };
 }
 
-function createJd(): JdRecord {
+function createJd(requirements?: JdRecord["requirements"]): JdRecord {
   return {
     id: "jd-1",
     title: "数据产品经理",
     company: "Example",
     targetRole: "产品经理",
     rawText: "需要数据产品经验和跨团队协作能力。",
-    requirements: [
+    requirements: requirements ?? [
       {
         id: "req-1",
         text: "具备数据产品经验",
@@ -171,7 +184,7 @@ function createJd(): JdRecord {
   };
 }
 
-function createEducation(): ExperienceDetail {
+function createEducation(content = "主修信息系统与数据分析。"): ExperienceDetail {
   return createExperience({
     id: "edu-1",
     revisionId: "rev-edu-1",
@@ -179,12 +192,12 @@ function createEducation(): ExperienceDetail {
     title: "香港示例大学",
     organization: "信息系统专业",
     role: "学士",
-    content: "主修信息系统与数据分析。",
+    content,
     tags: ["数据分析"],
   });
 }
 
-function createWork(): ExperienceDetail {
+function createWork(content = WORK_CONTENT): ExperienceDetail {
   return createExperience({
     id: "work-1",
     revisionId: "rev-work-1",
@@ -192,20 +205,64 @@ function createWork(): ExperienceDetail {
     title: "数据分析实习生",
     organization: "Example",
     role: "数据团队",
-    content: WORK_CONTENT,
+    content,
     tags: ["Python", "数据分析"],
+  });
+}
+
+/** 单句短素材：用于写作前门禁的"物理不可达"回归样本。 */
+function createTinyWork(content = "负责日常数据整理。"): ExperienceDetail {
+  return createExperience({
+    id: "tiny-work-1",
+    revisionId: "rev-tiny-work-1",
+    category: "work",
+    title: "数据助理",
+    organization: "Tiny Corp",
+    role: "成员",
+    content,
+    tags: ["数据分析"],
+  });
+}
+
+function createSkills(): ExperienceDetail {
+  return createExperience({
+    id: "skills-1",
+    revisionId: "rev-skills-1",
+    category: "other",
+    title: "语言与技能",
+    organization: "",
+    role: "",
+    content: "熟练使用 Python 与 SQL，英语可作为工作语言。",
+    tags: ["Python", "SQL", "英语"],
+    resumeSectionKey: "skills",
+    resumeSectionLabel: "专业技能",
+  });
+}
+
+function createLegacySkills(): ExperienceDetail {
+  return createExperience({
+    id: "legacy-skills-1",
+    revisionId: "rev-legacy-skills-1",
+    category: "other",
+    title: "语言与技能",
+    organization: "",
+    role: "",
+    content: "英语可作为工作语言，熟练使用 Excel、SQL 与 Python。",
+    tags: ["英语", "Excel", "SQL", "Python"],
   });
 }
 
 function createExperience(input: {
   id: string;
   revisionId: string;
-  category: "education" | "work";
+  category: "education" | "work" | "other";
   title: string;
   organization: string;
   role: string;
   content: string;
   tags: string[];
+  resumeSectionKey?: string;
+  resumeSectionLabel?: string;
 }): ExperienceDetail {
   const revision = {
     id: input.revisionId,
@@ -226,6 +283,8 @@ function createExperience(input: {
     startDate: "2022-09",
     endDate: "2026-06",
     tags: input.tags,
+    resumeSectionKey: input.resumeSectionKey ?? null,
+    resumeSectionLabel: input.resumeSectionLabel ?? null,
     status: "active",
     currentRevisionId: revision.id,
     currentRevision: revision,

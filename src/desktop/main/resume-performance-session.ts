@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { appendFile } from "node:fs/promises";
-import { performance } from "node:perf_hooks";
 
 import type { CooltoAgentEvent } from "../../agent/events.js";
 import { createCooltoAgent } from "../../agent/create-agent.js";
@@ -12,18 +11,9 @@ import {
   summarizeTrace,
 } from "../../resume/performance/generation-trace-store.js";
 import { TracedResumeCompiler } from "../../resume/performance/traced-compiler.js";
-import { ResumeAlternativeRepairer } from "../../resume/quality/alternative-repairer.js";
-import { ResumeCandidateReviewer } from "../../resume/quality/candidate-reviewer.js";
-import { ResumeQualityEvaluator } from "../../resume/quality/quality-evaluator.js";
 import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
-import { ResumeCandidatePatcher } from "../../resume/workspace/candidate-patcher.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../../tools/registry.js";
-import { ResumeLayoutInspector } from "../../resume/planning/layout-inspector.js";
-import {
-  continueUntilTerminal,
-  DEFAULT_CONTINUATION_BUDGET,
-} from "./resume-continuation.js";
 import {
   exportQualifiedPdf,
   qualitySnapshot,
@@ -54,7 +44,6 @@ export async function runPerformanceSession(
   iteration: number,
 ): Promise<PerformanceRun> {
   const conversationId = `resume-perf-${randomUUID()}`;
-  const commandStartedAt = performance.now();
   const traces = new ResumeGenerationTraceStore();
   const workspaceStore = new ResumeWorkspaceStore();
   const tracedCompiler = new TracedResumeCompiler(compiler, traces, conversationId);
@@ -65,10 +54,6 @@ export async function runPerformanceSession(
     jd: client,
     experience: client,
   });
-  const evaluator = new ResumeQualityEvaluator();
-  const patcher = new ResumeCandidatePatcher(tracedCompiler, workspaceStore);
-  const reviewer = new ResumeCandidateReviewer(evaluator, workspaceStore);
-  const repairer = new ResumeAlternativeRepairer(tracedCompiler, evaluator, workspaceStore);
   const modelDependencies = createConfiguredModelDependencies(
     config,
     () => client.getSessionToken(),
@@ -82,20 +67,10 @@ export async function runPerformanceSession(
       userProfileReader: { getUserProfile: async () => syntheticProfile() },
       experienceReader: client,
       jdReader: client,
-      resumeSourceSnapshotBuilder: sourceBuilder,
-      resumeLayoutInspector: new ResumeLayoutInspector(
-        sourceBuilder,
-        tracedCompiler,
-        config.resumeMaxBulletLines,
-      ),
-      resumeCandidatePatcher: patcher,
-      resumeCandidateReviewer: reviewer,
-      resumeAlternativeRepairer: repairer,
       agentOrchestrated: {
         snapshotBuilder: sourceBuilder,
         compiler: tracedCompiler,
         store: workspaceStore,
-        reviewer,
       },
     }),
   }, modelDependencies);
@@ -126,20 +101,6 @@ export async function runPerformanceSession(
       }
     });
     await agent.prompt(promptFor(manifest, sample));
-    const debugPath = process.env.COOLTO_RESUME_PERF_DEBUG_PATH;
-    await continueUntilTerminal(
-      agent,
-      workspaceStore,
-      tracedCompiler,
-      {
-        ...DEFAULT_CONTINUATION_BUDGET,
-        startedAtMs: commandStartedAt,
-      },
-      {
-        log: (line) =>
-          debugPath ? appendFile(debugPath, `${line}\n`) : Promise.resolve(),
-      },
-    );
   } catch (caught: unknown) {
     if (!aborted) error = caught instanceof Error ? caught.message : String(caught);
   }

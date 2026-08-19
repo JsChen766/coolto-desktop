@@ -1,5 +1,7 @@
 import type { AgentEvent } from "@earendil-works/pi-agent-core";
 import type { ApprovalEvent } from "../approvals/types.js";
+import { projectToolProgress, type ResumeToolProgress } from "./tool-progress.js";
+import type { TurnGovernorStopReason } from "./turn-governor.js";
 
 export interface ModelCallUsage {
   input: number;
@@ -26,11 +28,25 @@ export type CooltoAgentEvent =
       name: string;
       isError: boolean;
       error?: string;
+      progress?: ResumeToolProgress;
     }
-  | { type: "run.failed"; message: string }
+  | {
+      type: "run.failed";
+      message: string;
+      governorStopReason?: TurnGovernorStopReason;
+    }
   | { type: "run.completed" }
   | { type: "turn.completed" }
   | ApprovalEvent;
+
+export function guardFailureEvent(
+  message: string,
+  governorStopReason?: TurnGovernorStopReason,
+): CooltoAgentEvent {
+  return governorStopReason
+    ? { type: "run.failed", message, governorStopReason }
+    : { type: "run.failed", message };
+}
 
 export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
   switch (event.type) {
@@ -81,12 +97,16 @@ export function mapPiEvent(event: AgentEvent): CooltoAgentEvent | undefined {
 
     case "tool_execution_end": {
       const errorText = event.isError ? toolErrorText(event.result) : undefined;
+      const progress = event.isError
+        ? undefined
+        : projectToolProgress(event.toolName, event.result);
       return {
         type: "tool.completed",
         callId: event.toolCallId,
         name: event.toolName,
         isError: event.isError,
         ...(errorText ? { error: errorText } : {}),
+        ...(progress ? { progress } : {}),
       };
     }
 

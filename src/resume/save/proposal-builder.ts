@@ -7,6 +7,7 @@ import type {
   ResumeSaveApprovalPayload,
   ResumeSaveMode,
 } from "./types.js";
+import { resumeGenerationReadiness } from "../workspace/generation-readiness.js";
 
 export interface BuildResumeSaveProposalInput {
   candidateId: string;
@@ -28,15 +29,11 @@ export class ResumeSaveProposalBuilder {
         `Candidate revision changed from ${input.expectedRevision} to ${workspace.revision}.`,
       );
     }
-    if (
-      workspace.status !== "ready_for_approval" ||
-      !workspace.qualityReport?.passed ||
-      !workspace.compileResult.qualified ||
-      workspace.structure.quality_status !== "passed"
-    ) {
+    const readiness = resumeGenerationReadiness(workspace);
+    if (!readiness.ready) {
       throw new ResumeWorkspaceError(
         "candidate_not_ready_for_save",
-        "Only a source, quality, and layout-qualified candidate can be saved.",
+        `Candidate is not ready for save: ${readiness.blockers.map((item) => item.message).join("; ")}`,
       );
     }
     const bulletCount = workspace.structure.sections.reduce(
@@ -44,10 +41,20 @@ export class ResumeSaveProposalBuilder {
         total + section.items.reduce((sum, item) => sum + item.bullets.length, 0),
       0,
     );
-    if (bulletCount === 0 || bulletCount !== workspace.bindings.length) {
+    const supplementalEvidenceIds = new Set(
+      (workspace.supplementalEvidence ?? []).map((entry) => entry.evidenceId),
+    );
+    const groundedCount = workspace.bulletProvenance
+      ? workspace.bulletProvenance.filter(
+          (entry) => entry.origin === "grounded" && entry.evidenceIds.some(
+            (evidenceId) => !supplementalEvidenceIds.has(evidenceId),
+          ),
+        ).length
+      : bulletCount;
+    if (bulletCount === 0 || groundedCount !== workspace.bindings.length) {
       throw new ResumeWorkspaceError(
         "candidate_evidence_incomplete",
-        "Every persisted bullet must retain one evidence binding.",
+        "Every source-backed bullet must retain one evidence binding.",
       );
     }
     const title = input.title.trim();

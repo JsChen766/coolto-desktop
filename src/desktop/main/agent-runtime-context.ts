@@ -12,6 +12,8 @@ export interface ConversationAgentContext {
   jdProposalStore: JdProposalStore;
   matchReportStore: MatchReportStore;
   artifactIdByCandidate: Map<string, string>;
+  /** Host-owned provenance anchor for facts added from the current user turn. */
+  currentUserMessage: { timestamp: number | undefined };
   /** Model plumbing for context compaction (summary generation). */
   compaction?: CompactionDependencies;
   activeEdit?: {

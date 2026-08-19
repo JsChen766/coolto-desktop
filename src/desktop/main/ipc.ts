@@ -47,6 +47,11 @@ import {
   registerUpdateIpc,
   UPDATE_IPC_CHANNELS,
 } from "./update/update-ipc.js";
+import {
+  registerWindowCloseGuardIpc,
+  WINDOW_CLOSE_IPC_CHANNELS,
+  WindowCloseGuard,
+} from "./window-close-guard.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -69,10 +74,12 @@ export function registerDesktopIpc(
     ...TRACKER_CHILD_IPC_CHANNELS,
     ...PROFILE_IPC_CHANNELS,
     ...UPDATE_IPC_CHANNELS,
+    ...WINDOW_CLOSE_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
   const auth = new DesktopAuthService();
+  const closeGuard = new WindowCloseGuard(window);
   const services = new UserServicesResolver(
     auth,
     window,
@@ -113,7 +120,13 @@ export function registerDesktopIpc(
   updateService.init();
   void updateService.checkPendingInstall();
   registerUpdateIpc(ipcMain, window, updateService);
-  registerConversationAgentIpc(ipcMain, window, servicesForCurrentUser);
+  registerWindowCloseGuardIpc(ipcMain, closeGuard);
+  registerConversationAgentIpc(
+    ipcMain,
+    window,
+    servicesForCurrentUser,
+    closeGuard,
+  );
   registerClearLocalDataIpc(ipcMain, {
     services: servicesForCurrentUser,
     syncStore: () => auth.requireSyncStore(),

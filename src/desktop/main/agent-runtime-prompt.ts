@@ -1,5 +1,3 @@
-import { performance } from "node:perf_hooks";
-
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import type {
@@ -11,22 +9,13 @@ import {
   promptWithResumeReference,
 } from "./agent-prompt-reference.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
-import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import { buildAttachmentNotice } from "./conversation-attachments.js";
-import {
-  continueUntilTerminal,
-  INITIAL_TURN_MAX_MS,
-  UNLIMITED_CONTINUATION_BUDGET,
-} from "./resume-continuation.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 
 export interface AgentPromptExecutionInput {
   prompt: AgentPromptInput;
   context: ConversationAgentContext;
   resumeDrafts: ResumeDraftService;
-  events: AgentRuntimeEvents;
-  commandStartedAt: number;
-  isCancelled: () => boolean;
   /** 发送该消息时会话的附件快照；最终保存时绑定到本次用户消息。 */
   pendingAttachments: MessageAttachment[];
 }
@@ -73,39 +62,17 @@ export async function executeAgentPrompt(
     input.pendingAttachments.length > 0
       ? buildAttachmentNotice(input.pendingAttachments)
       : "";
-  const unsubscribeInitialTurn = context.agent.subscribe((event) => {
-    if (
-      event.type === "model.started" &&
-      performance.now() - input.commandStartedAt >= INITIAL_TURN_MAX_MS
-    ) {
-      context.agent.cancel();
-    }
-  });
+  // pi-agent-core owns the complete model -> tool -> model loop. A real user
+  // message maps to exactly one prompt; the host never injects phase prompts
+  // or re-prompts a half-finished resume workspace.
+  context.currentUserMessage.timestamp = Date.now();
   await context.agent.prompt(promptText + attachmentNotice);
-  unsubscribeInitialTurn();
+  const runStopError = context.agent.runStopError;
+  if (runStopError) {
+    discardFailedRunMessages(context);
+    throw new Error(runStopError);
+  }
   const attachTimestamp = lastUserMessageTimestamp(context.agent.getMessages());
-  while (context.agent.isRunning) {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  if (!input.isCancelled()) {
-    await continueUntilTerminal(
-      context.agent,
-      context.workspaceStore,
-      context.resumeCompiler,
-      {
-        ...UNLIMITED_CONTINUATION_BUDGET,
-        startedAtMs: input.commandStartedAt,
-      },
-      {
-        isCancelled: input.isCancelled,
-        onHostFill: (fills) =>
-          input.events.emitHostFill(
-            prompt.conversationId,
-            fills.map((fill) => `${fill.itemId}:${fill.bulletText.slice(0, 12)}…`),
-          ),
-      },
-    );
-  }
   const proposed = context.workspaceStore.latest();
   if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
     await input.resumeDrafts.proposeChange({
@@ -119,6 +86,14 @@ export async function executeAgentPrompt(
     messages: context.agent.getMessages(),
     attachTimestamp,
   };
+}
+
+function discardFailedRunMessages(
+  context: ConversationAgentContext,
+): void {
+  const messages = context.agent.getMessages();
+  const lastUserIndex = messages.findLastIndex((message) => message.role === "user");
+  if (lastUserIndex >= 0) context.agent.replaceMessages(messages.slice(0, lastUserIndex + 1));
 }
 
 /** 返回 transcript 里最后一条 user 消息的 timestamp（无则 undefined）。 */

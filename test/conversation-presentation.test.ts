@@ -3,7 +3,10 @@ import test from "node:test";
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
-import { wrapInternalPrompt } from "../src/agent/internal-prompt.js";
+import {
+  wrapInternalPrompt,
+  wrapResumeGenerationFollowUp,
+} from "../src/agent/internal-prompt.js";
 import {
   presentConversationTitle,
   projectConversationMessages,
@@ -37,6 +40,45 @@ test("conversation projection hides legacy JD and browser continuations", () => 
     assistant("操作完成。", 3),
   ]);
   assert.deepEqual(messages.map((message) => message.content), ["操作完成。"]);
+});
+
+test("conversation projection hides assistant planning attached to tool calls", () => {
+  const messages = projectConversationMessages([
+    user("生成简历", 1),
+    {
+      role: "assistant",
+      timestamp: 2,
+      content: [
+        { type: "text", text: "让我计算像素并继续重试" },
+        {
+          type: "toolCall",
+          id: "call-1",
+          name: "apply_resume_content",
+          arguments: {},
+        },
+      ],
+    } as unknown as AgentMessage,
+    assistant("简历已准备好。", 3),
+  ]);
+
+  assert.deepEqual(
+    messages.map((message) => message.content),
+    ["生成简历", "简历已准备好。"],
+  );
+});
+
+test("conversation projection hides a text-only plan resumed by Pi follow-up", () => {
+  const messages = projectConversationMessages([
+    user("生成简历", 1),
+    assistant("让我先计算下一批参数", 2),
+    user(wrapResumeGenerationFollowUp("立即继续"), 3),
+    assistant("简历已准备好。", 4),
+  ]);
+
+  assert.deepEqual(
+    messages.map((message) => message.content),
+    ["生成简历", "简历已准备好。"],
+  );
 });
 
 test("resume reference metadata is hidden while user text stays visible", () => {

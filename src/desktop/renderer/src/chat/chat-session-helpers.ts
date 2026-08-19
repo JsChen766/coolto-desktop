@@ -7,7 +7,7 @@ import type {
   DesktopApprovalRequest,
   MessageAttachment,
 } from "@desktop/types";
-import type { ToolRun } from "../components/ToolActivity.vue";
+import type { ToolRun } from "./tool-run-state";
 import type { useJdArtifacts } from "./use-jd-artifacts";
 import type { useMatchReports } from "./use-match-reports";
 

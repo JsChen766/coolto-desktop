@@ -1,13 +1,9 @@
 import { ref } from "vue";
 
-import type {
-  ResumeDraftDetail,
-  ResumeDraftEditInput,
-  ResumeDraftRestoreInput,
-} from "@desktop/types";
+import type { ResumeDraftDetail, ResumeDraftEditInput, ResumeDraftRestoreInput } from "@desktop/types";
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { desktopApi } from "../lib/desktop-api";
-import { translateFormat } from "../i18n/locale";
+import { translate, translateFormat } from "../i18n/locale";
 
 export function useResumeWorkspace() {
   const drafts = ref<ResumeDraftSummary[]>([]);
@@ -16,17 +12,24 @@ export function useResumeWorkspace() {
   const error = ref<string>();
   const exporting = ref(false);
   const exportMessage = ref("");
-  const localSaveState = ref<"idle" | "saving" | "saved" | "error">(
+  const savingToLibrary = ref(false);
+  const saveMessage = ref("");
+  const localSaveState = ref<"idle" | "dirty" | "saving" | "saved" | "error">(
     "idle",
   );
   let editQueue = Promise.resolve();
+  const pendingEdits = new Map<string, ResumeDraftEditInput>();
+  const autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const editFailures = new Map<string, string>();
   let exportMessageTimer: ReturnType<typeof setTimeout> | undefined;
+  let saveMessageTimer: ReturnType<typeof setTimeout> | undefined;
 
   async function loadDrafts(): Promise<void> {
     drafts.value = await desktopApi.resumeDrafts.list();
   }
 
   async function openDraft(artifactId: string): Promise<void> {
+    if (pendingEdits.size && !await flushPendingEdits()) return;
     busy.value = true;
     error.value = undefined;
     try {
@@ -49,29 +52,62 @@ export function useResumeWorkspace() {
   }
 
   async function edit(input: ResumeDraftEditInput): Promise<void> {
-    await enqueueEdit(input, true);
+    const key = editKey(input);
+    clearEditTimer(key);
+    pendingEdits.delete(key);
+    await enqueueEdit({ ...input, createCheckpoint: true }, true);
   }
 
-  async function autosave(input: ResumeDraftEditInput): Promise<void> {
-    await enqueueEdit({ ...input, createCheckpoint: false }, false);
+  function autosave(input: ResumeDraftEditInput): void {
+    const key = editKey(input);
+    pendingEdits.set(key, { ...input, createCheckpoint: false });
+    clearEditTimer(key);
+    localSaveState.value = "dirty";
+    autosaveTimers.set(key, setTimeout(() => {
+      autosaveTimers.delete(key);
+      const pending = pendingEdits.get(key);
+      pendingEdits.delete(key);
+      if (pending) void enqueueEdit(pending, false);
+    }, 900));
+  }
+
+  function clearEditTimer(key: string): void {
+    const timer = autosaveTimers.get(key);
+    if (timer) clearTimeout(timer);
+    autosaveTimers.delete(key);
+  }
+
+  async function flushPendingEdits(): Promise<boolean> {
+    const pending = [...pendingEdits.values()];
+    pendingEdits.clear();
+    autosaveTimers.forEach(clearTimeout);
+    autosaveTimers.clear();
+    for (const input of pending) {
+      await enqueueEdit({ ...input, createCheckpoint: true }, true);
+    }
+    await editQueue;
+    return localSaveState.value !== "error" && editFailures.size === 0;
   }
 
   async function enqueueEdit(
     input: ResumeDraftEditInput,
     refreshView: boolean,
   ): Promise<void> {
+    const key = editKey(input);
     editQueue = editQueue.then(async () => {
       localSaveState.value = "saving";
       error.value = undefined;
       try {
         const saved = await desktopApi.resumeDrafts.edit(input);
+        editFailures.delete(key);
         if (refreshView) {
           activeDraft.value = saved;
           await loadDrafts();
         }
-        localSaveState.value = "saved";
+        localSaveState.value = editFailures.size ? "error" : "saved";
       } catch (cause: unknown) {
         error.value = errorMessage(cause);
+        editFailures.set(key, error.value);
         localSaveState.value = "error";
       }
     });
@@ -98,9 +134,7 @@ export function useResumeWorkspace() {
     busy.value = true;
     error.value = undefined;
     try {
-      activeDraft.value = await desktopApi.resumeDrafts[decision](
-        draft.artifactId,
-      );
+      activeDraft.value = await desktopApi.resumeDrafts[decision](draft.artifactId);
       localSaveState.value = "saved";
       await loadDrafts();
     } catch (cause: unknown) {
@@ -111,6 +145,7 @@ export function useResumeWorkspace() {
   }
 
   async function exportActiveDraft(): Promise<void> {
+    if (!await flushPendingEdits()) return;
     const draft = activeDraft.value;
     if (!draft || exporting.value) return;
     exporting.value = true;
@@ -122,13 +157,9 @@ export function useResumeWorkspace() {
         expectedRevision: draft.revision,
       });
       if (result.status === "exported") {
-        exportMessage.value = translateFormat("已导出到 {file}", {
-          file: result.filename,
-        });
+        exportMessage.value = translateFormat("已导出到 {file}", { file: result.filename });
         if (exportMessageTimer) clearTimeout(exportMessageTimer);
-        exportMessageTimer = setTimeout(() => {
-          exportMessage.value = "";
-        }, 4000);
+        exportMessageTimer = setTimeout(() => { exportMessage.value = ""; }, 4000);
       }
     } catch (cause: unknown) {
       error.value = errorMessage(cause);
@@ -137,15 +168,48 @@ export function useResumeWorkspace() {
     }
   }
 
+  async function saveActiveDraft(): Promise<void> {
+    if (!await flushPendingEdits()) return;
+    const draft = activeDraft.value;
+    if (!draft || savingToLibrary.value) return;
+    savingToLibrary.value = true;
+    error.value = undefined;
+    saveMessage.value = "";
+    try {
+      activeDraft.value = await desktopApi.resumeDrafts.save({
+        artifactId: draft.artifactId,
+        expectedRevision: draft.revision,
+      });
+      await loadDrafts();
+      saveMessage.value = translate("已保存到简历库");
+      if (saveMessageTimer) clearTimeout(saveMessageTimer);
+      saveMessageTimer = setTimeout(() => { saveMessage.value = ""; }, 4000);
+    } catch (cause: unknown) {
+      error.value = errorMessage(cause);
+    } finally {
+      savingToLibrary.value = false;
+    }
+  }
+
   function clear(): void {
+    pendingEdits.clear();
+    autosaveTimers.forEach(clearTimeout);
+    autosaveTimers.clear();
+    editFailures.clear();
     drafts.value = [];
     activeDraft.value = undefined;
     error.value = undefined;
     exporting.value = false;
     exportMessage.value = "";
+    savingToLibrary.value = false;
+    saveMessage.value = "";
     localSaveState.value = "idle";
   }
+  function markLocalSaveFailed(message: string): void {
+    error.value = message; localSaveState.value = "error";
+  }
 
+  function markLocalSaving(): void { localSaveState.value = "saving"; }
   return {
     drafts,
     activeDraft,
@@ -153,17 +217,30 @@ export function useResumeWorkspace() {
     error,
     exporting,
     exportMessage,
+    savingToLibrary,
+    saveMessage,
     localSaveState,
     loadDrafts,
     openDraft,
     refreshActive,
     edit,
     autosave,
+    flushPendingEdits,
     restore,
     resolvePending,
     exportActiveDraft,
+    saveActiveDraft,
     clear,
+    markLocalSaveFailed,
+    markLocalSaving,
   };
+}
+
+function editKey(input: ResumeDraftEditInput): string {
+  const targetId = input.target.type === "bullet"
+    ? input.target.bulletId
+    : input.target.itemId;
+  return `${input.artifactId}:${input.target.type}:${targetId}`;
 }
 
 function errorMessage(error: unknown): string {
