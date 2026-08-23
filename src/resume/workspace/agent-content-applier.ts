@@ -18,16 +18,17 @@ import {
 } from "./tail-repair-state.js";
 import { workspaceWithTailRepairProgress } from "./tail-repair-workspace.js";
 import { RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
-import { recordPageFillOutcome } from "./page-fill-progress.js";
+import { recordLineRewriteOutcome, type LineRewritePhase } from "./line-rewrite-progress.js";
 import { validateAgentItemBullets } from "./agent-item-validation.js";
+import { applyBulletCountMaterialGate } from "./material-request-gate.js";
 
 export async function applyAgentResumeContent(input: {
   workspace: ResumeWorkspace;
   items: readonly AgentItemContentInput[];
   augmentations?: readonly AgentAugmentedFragmentInput[];
   tailRepairProgress?: TailRepairProgressState;
-  pageFillAttempt?: boolean;
-  pageFillProgressMade?: boolean;
+  lineRewriteAttempt?: LineRewritePhase;
+  lineRewriteProgressMade?: boolean;
   compiler: ResumeCompiler;
   store: ResumeWorkspaceStore;
 }): Promise<{ workspace: ResumeWorkspace; operation: WorkspaceOperationReceipt }> {
@@ -183,13 +184,15 @@ export async function applyAgentResumeContent(input: {
     );
     if (progress) updated = workspaceWithTailRepairProgress(updated, progress);
   }
-  if (input.pageFillAttempt) {
-    updated = recordPageFillOutcome(
+  if (input.lineRewriteAttempt) {
+    updated = recordLineRewriteOutcome(
       updated,
-      input.pageFillProgressMade ?? compileResult.usedHeightPx >
+      input.lineRewriteAttempt,
+      input.lineRewriteProgressMade ?? compileResult.usedHeightPx >
         source.compileResult.usedHeightPx + RESUME_LAYOUT_TOLERANCE_PX,
     );
   }
+  updated = applyBulletCountMaterialGate(updated);
   return { workspace: input.store.replace(updated, source.revision), operation };
 }
 

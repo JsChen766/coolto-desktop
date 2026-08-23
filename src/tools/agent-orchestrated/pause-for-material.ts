@@ -2,6 +2,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
+import { createResumeMaterialRequest } from "../../resume/workspace/material-request.js";
 import { buildAgentWorkspaceReceipt } from "../../resume/workspace/agent-workspace-view.js";
 import { resumeGenerationReadiness } from "../../resume/workspace/generation-readiness.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
@@ -53,13 +54,12 @@ export function createPauseResumeForMaterialTool(
         status: "needs_user_decision",
         compileObservedRevision: revision,
         bestSnapshot: { ...workspace.bestSnapshot, revision },
-        materialRequest: {
+        materialRequest: createResumeMaterialRequest(workspace, {
           kind: "agent_declared",
           reason,
           question,
           ...(targetExperienceId ? { targetExperienceId } : {}),
-          requestedAt: new Date().toISOString(),
-        },
+        }),
       }, workspace.revision);
       const payload = buildAgentWorkspaceReceipt(updated);
       return {

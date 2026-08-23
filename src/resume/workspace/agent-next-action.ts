@@ -1,39 +1,28 @@
-import {
-  RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
-  RESUME_LAYOUT_TOLERANCE_PX,
-} from "../compiler-types.js";
+import { RESUME_GLOBAL_MINIMUM_USAGE_RATIO, RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
 import { resumeGenerationReadiness } from "./generation-readiness.js";
-import {
-  groundedAdditionTargets,
-  type GroundedAdditionTarget,
-} from "./grounded-addition-targets.js";
-import {
-  lineExpansionTargets,
-  type LineExpansionTarget,
-} from "./line-expansion-targets.js";
+import { groundedAdditionTargets, type GroundedAdditionTarget } from "./grounded-addition-targets.js";
+import { lineExpansionTargets, type LineExpansionTarget } from "./line-expansion-targets.js";
 import { tailRepairBatch } from "./tail-repair-targets.js";
 import { tailGrowthInstruction } from "./tail-repair-instruction.js";
 import { TAIL_REFLOW_REQUIRED_EDIT } from "./tail-reflow-instruction.js";
-import {
-  type TailGrowthFailureType,
-} from "./tail-repair-state.js";
+import type { TailGrowthFailureType } from "./tail-repair-state.js";
 import type { ResumeWorkspace } from "./types.js";
 import { hasPendingAugmentedContent } from "./augmentation-state.js";
-import { criticalSkillMaterialRequest } from "./critical-skill-gate.js";
 import {
   bulletDepthRewriteTargets,
   MAX_TIERED_BULLET_LINES,
   MIN_TIERED_BULLET_LINES,
   type BulletDepthRewriteTarget,
 } from "./bullet-depth-targets.js";
-import {
-  overflowReductionPlan,
-  type OverflowReductionPlan,
-} from "./overflow-reduction-plan.js";
+import { overflowReductionPlan, type OverflowReductionPlan } from "./overflow-reduction-plan.js";
 import {
   bulletCountRepairPlan,
   type BulletCountRepairTarget,
 } from "./bullet-count-repair.js";
+import {
+  resumeMaterialNextAction,
+  type ResumeMaterialNextAction,
+} from "./material-next-action.js";
 const MIN_GROUNDED_ADDITION_OPTIONS = 12;
 const MAX_MODEL_TAIL_GROWTH_TARGETS = 4;
 
@@ -57,11 +46,7 @@ interface AgentTailReflowTarget {
 
 export type ResumeAgentNextAction =
   | { mode: "stop" }
-  | {
-    mode: "request_more_material";
-    question?: string;
-    targetExperienceId?: string;
-  }
+  | ResumeMaterialNextAction
   | { mode: "await_augmented_confirmation" }
   | ({ mode: "reduce_overflow" } & OverflowReductionPlan)
   | {
@@ -109,24 +94,8 @@ export type ResumeAgentNextAction =
 export function resumeAgentNextAction(
   workspace: ResumeWorkspace,
 ): ResumeAgentNextAction {
-  const criticalSkillRequest = criticalSkillMaterialRequest(workspace);
-  if (criticalSkillRequest) {
-    return {
-      mode: "request_more_material",
-      question: criticalSkillRequest.question,
-    };
-  }
-  if (workspace.status === "needs_user_decision") {
-    return {
-      mode: "request_more_material",
-      ...(workspace.materialRequest?.question
-        ? { question: workspace.materialRequest.question }
-        : {}),
-      ...(workspace.materialRequest?.targetExperienceId
-        ? { targetExperienceId: workspace.materialRequest.targetExperienceId }
-        : {}),
-    };
-  }
+  const materialAction = resumeMaterialNextAction(workspace);
+  if (materialAction) return materialAction;
   if (resumeGenerationReadiness(workspace).ready) return { mode: "stop" };
 
   const compile = workspace.compileResult;

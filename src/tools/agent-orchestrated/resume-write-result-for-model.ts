@@ -22,8 +22,8 @@ export function resumeWriteResultForModel(
     return {
       ...authoritative,
       terminalInstruction: question
-        ? `立即停止所有工具调用，直接向用户提出这个问题：${question}`
-        : "立即停止所有工具调用，直接向用户询问一个最有价值的具体事实。",
+        ? `立即停止所有工具调用；面向用户只能原样输出这个问题本身，不得输出计划、英文过程说明或内部状态：${question}`
+        : "立即停止所有工具调用；面向用户只能输出一个最有价值的具体事实问题，不得输出计划、英文过程说明或内部状态。",
     };
   }
   if (!Array.isArray(result.tailRepairFeedback)) return result;

@@ -83,3 +83,21 @@ test("cloud Resume content is transient and must be read again", () => {
   assert.doesNotMatch(serialized, /private cloud Resume content/);
   assert.match(serialized, /Call get_resume again/);
 });
+
+test("material boundary results expire with the in-memory resume workspace", () => {
+  const messages = ["pause_resume_for_material", "decline_resume_material"]
+    .map((toolName, index) => ({
+      role: "toolResult" as const,
+      toolCallId: `material-call-${index}`,
+      toolName,
+      content: [{ type: "text" as const, text: "candidate-old material request" }],
+      details: { candidateId: "candidate-old", requestId: "request-old" },
+      isError: false,
+      timestamp: index + 1,
+    })) satisfies AgentMessage[];
+
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence(messages));
+
+  assert.doesNotMatch(serialized, /candidate-old|request-old/u);
+  assert.match(serialized, /create_resume_workspace again/u);
+});

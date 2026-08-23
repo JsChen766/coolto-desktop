@@ -7,6 +7,7 @@ import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createApplyResumeContentTool } from "./apply-content.js";
 import { createAddResumeMaterialTool } from "./add-material.js";
+import { createDeclineResumeMaterialTool } from "./decline-material.js";
 import { createResumeWorkspaceTool } from "./create-workspace.js";
 import { createGetResumeWorkspaceTool } from "./get-workspace.js";
 import { createPrepareExperienceSyncTool } from "./prepare-experience-sync.js";
@@ -43,6 +44,10 @@ export function createAgentOrchestratedTools(
       dependencies.approvalManager,
     ),
     createAddResumeMaterialTool(
+      dependencies.store,
+      dependencies.currentUserMessageTimestamp ?? (() => undefined),
+    ),
+    createDeclineResumeMaterialTool(
       dependencies.store,
       dependencies.currentUserMessageTimestamp ?? (() => undefined),
     ),

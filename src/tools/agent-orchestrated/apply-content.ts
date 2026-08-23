@@ -19,7 +19,8 @@ import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js"
 import { resolveResumeContentChanges } from "./content-change-resolver.js";
 import { resumeWriteRejectedResult } from "./resume-write-rejected-result.js";
 import { applyContentParameters as parameters } from "./apply-content-parameters.js";
-import { recordPageFillOutcome } from "../../resume/workspace/page-fill-progress.js";
+import { recordLineRewriteOutcome } from
+  "../../resume/workspace/line-rewrite-progress.js";
 import { resumeWriteResultForModel } from "./resume-write-result-for-model.js";
 import { resumeWriteLoopGuardKey } from "../../resume/workspace/resume-write-loop-key.js";
 import { syncAugmentedApproval } from "./sync-augmented-approval.js";
@@ -45,7 +46,9 @@ export function createApplyResumeContentTool(
         );
       }
       const action = resumeAgentNextAction(workspace);
-      const pageFillAttempt = action.mode === "increase_usage";
+      const lineRewriteAttempt = action.mode === "increase_usage"
+        ? "page_fill" as const
+        : action.mode === "repair_bullet_depth" ? "bullet_depth" as const : undefined;
       const modeCount = [params.items, params.bulletUpdates,
         params.bulletRemovals,
         params.bulletAdditions, params.tailGrowths, params.lineRewrites]
@@ -66,7 +69,7 @@ export function createApplyResumeContentTool(
       let tailRepairDiagnostics: TailWriteDiagnostics | undefined;
       let tailRepairProgress: TailRepairProgressState | undefined;
       let lineRewriteDiagnostics;
-      let pageFillProgressMade: boolean | undefined;
+      let lineRewriteProgressMade: boolean | undefined;
       let tailWriteHandled = false;
       if (params.tailGrowths || action.mode === "batch_tail_reflow") {
         let processed;
@@ -126,9 +129,9 @@ export function createApplyResumeContentTool(
         );
         lineRewriteDiagnostics = selected.diagnostics;
         if (!selected.updates.length) {
-          const retryWorkspace = pageFillAttempt
+          const retryWorkspace = lineRewriteAttempt
             ? store.replace(
-                recordPageFillOutcome(workspace, false),
+                recordLineRewriteOutcome(workspace, lineRewriteAttempt, false),
                 workspace.revision,
               )
             : workspace;
@@ -139,9 +142,9 @@ export function createApplyResumeContentTool(
           );
         }
         rewriteWarning = selected.writeRejectedReason;
-        if (pageFillAttempt) {
-          pageFillProgressMade = selected.diagnostics.heightGrowthCount > 0;
-        }
+        lineRewriteProgressMade = lineRewriteAttempt === "page_fill"
+          ? selected.diagnostics.heightGrowthCount > 0
+          : selected.updates.length > 0;
         resolved = { bulletUpdates: selected.updates };
       }
       let items;
@@ -172,10 +175,10 @@ export function createApplyResumeContentTool(
         ...(tailRepairProgress ? { tailRepairProgress } : {}),
         compiler,
         store,
-        pageFillAttempt,
-        ...(pageFillProgressMade === undefined
+        ...(lineRewriteAttempt ? { lineRewriteAttempt } : {}),
+        ...(lineRewriteProgressMade === undefined
           ? {}
-          : { pageFillProgressMade }),
+          : { lineRewriteProgressMade }),
       });
       if (params.lineRewrites && lineRewriteDiagnostics) {
         const formal = formalLineRewriteOutcome(

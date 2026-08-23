@@ -9,6 +9,7 @@ import { createAddResumeMaterialTool } from "../src/tools/agent-orchestrated/add
 import { createApplyResumeContentTool } from "../src/tools/agent-orchestrated/apply-content.js";
 import { createResumeWorkspaceTool } from "../src/tools/agent-orchestrated/create-workspace.js";
 import { createPauseResumeForMaterialTool } from "../src/tools/agent-orchestrated/pause-for-material.js";
+import { createDeclineResumeMaterialTool } from "../src/tools/agent-orchestrated/decline-material.js";
 import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
@@ -83,6 +84,7 @@ test("must-have technology evidence passes, and only a relevant grounded answer 
   const stillPaused = payload(await add.execute("add-unrelated-material", {
     candidateId: created.candidateId,
     expectedRevision: created.revision,
+    requestId: created.nextAction.requestId,
     experienceId: "work-1",
     facts: ["负责整理周度产品数据并输出复盘报告"],
   }));
@@ -92,6 +94,7 @@ test("must-have technology evidence passes, and only a relevant grounded answer 
   const resumed = payload(await add.execute("add-critical-skill", {
     candidateId: created.candidateId,
     expectedRevision: stillPaused.revision,
+    requestId: stillPaused.nextAction.requestId,
     experienceId: "work-1",
     facts: ["使用 Kubernetes 部署数据服务并完成发布检查"],
   }));
@@ -168,6 +171,7 @@ test("Agent can pause for one material question and resume from the user answer"
   const resumed = payload(await add.execute("add", {
     candidateId: created.candidateId,
     expectedRevision: paused.revision,
+    requestId: paused.nextAction.requestId,
     experienceId: "work-1",
     facts: ["将周报处理时间缩短了 30%"],
   }));
@@ -215,6 +219,69 @@ test("Agent can pause for one material question and resume from the user answer"
     ),
     false,
   );
+});
+
+test("partial material answers narrow the gap and an explicit decline ends the request", async () => {
+  const store = new ResumeWorkspaceStore();
+  const created = payload(await createResumeWorkspaceTool(
+    createWorkspaceSnapshotBuilder(),
+    new FixtureResumeCompiler(),
+    store,
+  ).execute("create-partial-material", {
+    jdId: "jd-1",
+    language: "zh-CN",
+    experiences: [
+      { experienceId: "tiny-work-1", tier: "main" },
+      { experienceId: "work-1", tier: "secondary" },
+    ],
+  }));
+  assert.match(created.nextAction.question, /至少 2 条/u);
+
+  const add = createAddResumeMaterialTool(store, () => 2_000);
+  const partial = payload(await add.execute("partial-answer", {
+    candidateId: created.candidateId,
+    expectedRevision: created.revision,
+    requestId: created.nextAction.requestId,
+    experienceId: "tiny-work-1",
+    facts: ["与产品团队核对每周异常数据并记录处理结论"],
+  }));
+  assert.equal(partial.status, "needs_user_decision");
+  assert.equal(partial.nextAction.mode, "request_more_material");
+  assert.match(partial.nextAction.question, /至少 1 条/u);
+  assert.notEqual(partial.nextAction.requestId, created.nextAction.requestId);
+  await assert.rejects(
+    add.execute("stale-request-answer", {
+      candidateId: partial.candidateId,
+      expectedRevision: partial.revision,
+      requestId: created.nextAction.requestId,
+      experienceId: "tiny-work-1",
+      facts: ["这条事实不应写入"],
+    }),
+    /requestId 与当前材料请求不一致/u,
+  );
+
+  const declined = payload(await createDeclineResumeMaterialTool(
+    store,
+    () => 2_001,
+  ).execute("no-more-facts", {
+    candidateId: partial.candidateId,
+    expectedRevision: partial.revision,
+    requestId: partial.nextAction.requestId,
+  }));
+  assert.equal(declined.materialRequest.status, "declined");
+  assert.equal(declined.nextAction.mode, "stop_insufficient_material");
+  assert.match(declined.terminalInstruction, /未达到交付门槛/u);
+
+  const resumed = payload(await add.execute("later-answer", {
+    candidateId: declined.candidateId,
+    expectedRevision: declined.revision,
+    requestId: declined.nextAction.requestId,
+    experienceId: "tiny-work-1",
+    facts: ["维护周度指标报表并向业务负责人同步数据偏差"],
+  }));
+  assert.equal(resumed.status, "writing");
+  assert.equal("materialRequest" in resumed, false);
+  assert.equal(resumed.nextAction.mode, "repair_bullet_counts");
 });
 
 test("pause ignores a search-result short id that is not a workspace experience id", async () => {

@@ -12,11 +12,14 @@ import type {
 } from "../../resume/workspace/types.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { applyCriticalSkillGate } from "../../resume/workspace/critical-skill-gate.js";
+import { applyBulletCountMaterialGate } from "../../resume/workspace/material-request-gate.js";
+import { normalizeResumeMaterialRequest } from "../../resume/workspace/material-request.js";
 import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
 
 const parameters = Type.Object({
   candidateId: Type.String({ minLength: 1 }),
   expectedRevision: Type.Integer({ minimum: 0 }),
+  requestId: Type.Optional(Type.String({ minLength: 1 })),
   experienceId: Type.String({ minLength: 1 }),
   facts: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
 });
@@ -29,7 +32,7 @@ export function createAddResumeMaterialTool(
     name: "add_resume_material",
     label: "加入用户补充材料",
     description:
-      "把当前用户回答中明确提供的多条事实一次加入指定经历。事实会追加为稳定 evidence，不修改初始 source snapshot，也不重新编译；随后用 apply_resume_content 批量改写。",
+      "把当前用户回答中明确提供的多条事实一次加入指定经历。工作区正在追问时必须原样传回 nextAction.requestId；事实会追加为稳定 evidence，不修改初始 source snapshot，也不重新编译。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {
@@ -39,6 +42,15 @@ export function createAddResumeMaterialTool(
           "stale_candidate_revision",
           `Candidate revision changed from ${params.expectedRevision} to ${workspace.revision}.`,
         );
+      }
+      const activeRequest = workspace.materialRequest
+        ? normalizeResumeMaterialRequest(workspace.candidateId, workspace.materialRequest)
+        : undefined;
+      if (activeRequest && params.requestId !== activeRequest.id) {
+        throw new Error(`requestId 与当前材料请求不一致：${activeRequest.id}`);
+      }
+      if (!activeRequest && params.requestId) {
+        throw new Error("当前工作区没有可响应的材料请求");
       }
       if (!workspace.sourceSnapshot.experiences.some((item) => item.id === params.experienceId)) {
         throw new Error(`经历 ${params.experienceId} 不在当前工作区`);
@@ -75,10 +87,10 @@ export function createAddResumeMaterialTool(
         supplementalEvidence: [...existing, ...added],
       };
       delete resumedWorkspace.materialRequest;
-      delete resumedWorkspace.pageFillProgress;
+      delete resumedWorkspace.lineRewriteProgress;
       delete resumedWorkspace.tailRepairProgress;
       const updated = store.replace(
-        applyCriticalSkillGate(resumedWorkspace),
+        applyBulletCountMaterialGate(applyCriticalSkillGate(resumedWorkspace)),
         workspace.revision,
       );
       const payload = {

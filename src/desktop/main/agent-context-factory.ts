@@ -21,6 +21,7 @@ import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import { createResumeGenerationFollowUp } from "./resume-generation-follow-up.js";
+import { createResumeInteractionStop } from "./resume-interaction-stop.js";
 
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
@@ -109,6 +110,7 @@ export class AgentContextFactory {
         },
         syncNow: deps.syncNow,
       }),
+      shouldStopAfterTurn: createResumeInteractionStop(workspaceStore),
       automaticFollowUp: createResumeGenerationFollowUp(workspaceStore),
     }, modelDependencies);
     const context: ConversationAgentContext = {

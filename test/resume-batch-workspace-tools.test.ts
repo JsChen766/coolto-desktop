@@ -621,7 +621,10 @@ test("bullet count repair pauses before retrying an evidence-poor item", async (
     ],
   }));
 
+  assert.equal(payload.status, "needs_user_decision");
   assert.equal(payload.nextAction.mode, "request_more_material");
+  assert.equal(payload.materialRequest.status, "awaiting_response");
+  assert.match(payload.materialRequest.id, /^resume-material:/u);
   assert.equal(payload.nextAction.targetExperienceId, "tiny-work-1");
   assert.match(payload.nextAction.question, /只有 1 条可独占事实/u);
   assert.match(payload.nextAction.question, /至少需要 2 条 bullet/u);
@@ -1717,7 +1720,7 @@ test("an invalid page-fill rewrite does not count as a measured zero-growth roun
 
   assert.equal(rejected.revision, workspace.revision);
   assert.match(rejected.operation.rejectedItems[0].reason, /999/u);
-  assert.equal(value.store.latest()!.pageFillProgress, undefined);
+  assert.equal(value.store.latest()!.lineRewriteProgress, undefined);
 });
 
 test("a valid same-line expansion is applied as the next rewrite baseline", async () => {
@@ -1743,7 +1746,7 @@ test("a valid same-line expansion is applied as the next rewrite baseline", asyn
   assert.equal(applied.revision, workspace.revision + 1);
   assert.equal(applied.lineRewriteDiagnostics.stackedProgressCount, 1);
   assert.equal(
-    value.store.latest()!.pageFillProgress?.consecutiveZeroGrowthRounds,
+    value.store.latest()!.lineRewriteProgress?.consecutiveZeroGrowthRounds,
     1,
   );
   const nextAction = applied.nextAction;
@@ -1788,7 +1791,7 @@ test("two consecutive zero-growth page-fill rounds pause for user material", asy
   }));
   assert.equal(first.revision, workspace.revision);
   assert.equal(first.nextAction.mode, "increase_usage");
-  assert.equal(value.store.latest()!.pageFillProgress?.consecutiveZeroGrowthRounds, 1);
+  assert.equal(value.store.latest()!.lineRewriteProgress?.consecutiveZeroGrowthRounds, 1);
 
   const second = text(await value.apply.execute("zero-growth-two", {
     candidateId: created.candidateId,
@@ -1802,18 +1805,19 @@ test("two consecutive zero-growth page-fill rounds pause for user material", asy
   assert.equal(second.status, "needs_user_decision");
   assert.equal(second.nextAction.mode, "request_more_material");
   assert.match(second.nextAction.question, /具体职责|项目背景|方法|结果/u);
-  assert.equal(second.materialRequest.kind, "page_fill_stalled");
+  assert.equal(second.materialRequest.kind, "line_rewrite_stalled");
 
   const add = createAddResumeMaterialTool(value.store, () => 66_666);
   const resumed = text(await add.execute("resume-after-page-stall", {
     candidateId: created.candidateId,
     expectedRevision: workspace.revision,
+    requestId: second.nextAction.requestId,
     experienceId: "work-1",
     facts: ["补充完成 5 场需求评审并记录关键决策"],
   }));
   assert.equal(resumed.status, "writing");
   assert.equal("materialRequest" in resumed, false);
-  assert.equal(value.store.latest()!.pageFillProgress, undefined);
+  assert.equal(value.store.latest()!.lineRewriteProgress, undefined);
   assert.equal(resumed.nextAction.requiredInput, "bulletAdditionsOrLineRewrites");
 });
 
@@ -1918,6 +1922,58 @@ test("one-line tiered bullets require one complete line-rewrite batch", async ()
   assert.equal(incomplete.revision, workspace.revision);
 });
 
+test("duplicate novel depth growth is bounded and becomes one material request", async () => {
+  const value = harness();
+  const created = await createWorkspace(value);
+  await value.apply.execute("write-before-duplicate-depth", {
+    candidateId: created.candidateId,
+    expectedRevision: created.revision,
+    items: [{ itemId: "item-work-1", bullets: workBullets(value) }],
+  });
+  const source = value.store.latest()!;
+  const workItem = source.structure.sections.flatMap((section) => section.items)
+    .find((item) => item.id === "item-work-1")!;
+  const targetIds = workItem.bullets.slice(0, 2).map((bullet) => bullet.id);
+  value.store.restore(withQualifiedLines(source, new Map(
+    targetIds.map((bulletId) => [bulletId, 1] as const),
+  )));
+  const workspace = value.store.latest()!;
+  const action = resumeAgentNextAction(workspace);
+  assert.equal(action.mode, "repair_bullet_depth");
+  if (action.mode !== "repair_bullet_depth") return;
+  const sharedGrowth = "并据此输出完整投资建议";
+  const rewrites = action.lineRewriteTargets.map((target) => ({
+    bulletId: target.bulletId,
+    revisedText: `${target.currentText}${sharedGrowth}`,
+  }));
+
+  const first = text(await value.apply.execute("duplicate-depth-one", {
+    candidateId: created.candidateId,
+    expectedRevision: workspace.revision,
+    lineRewrites: rewrites,
+  }));
+  assert.equal(first.revision, workspace.revision);
+  assert.equal(first.nextAction.mode, "repair_bullet_depth");
+  assert.ok(first.lineRewriteDiagnostics.feedback.every(
+    (entry: { failureType?: string }) => entry.failureType === "duplicate_growth",
+  ));
+  assert.equal(
+    value.store.latest()!.lineRewriteProgress?.consecutiveZeroGrowthRounds,
+    1,
+  );
+
+  const second = text(await value.apply.execute("duplicate-depth-two", {
+    candidateId: created.candidateId,
+    expectedRevision: workspace.revision,
+    lineRewrites: rewrites,
+  }));
+  assert.equal(second.revision, workspace.revision);
+  assert.equal(second.status, "needs_user_decision");
+  assert.equal(second.nextAction.mode, "request_more_material");
+  assert.equal(second.materialRequest.kind, "line_rewrite_stalled");
+  assert.match(second.nextAction.question, /具体方法|执行范围|交付物|结果/u);
+});
+
 test("same-line depth growth is applied and becomes the next repair baseline", async () => {
   const value = harness(new DepthStackingCompiler());
   const created = await createWorkspace(value);
@@ -1946,7 +2002,7 @@ test("same-line depth growth is applied and becomes the next repair baseline", a
   assert.equal(applied.lineRewriteDiagnostics.stackedProgressCount, 1);
   assert.equal(applied.nextAction.mode, "repair_bullet_depth");
   assert.equal(applied.nextAction.lineRewriteTargets[0].currentText, revisedText);
-  assert.equal(value.store.latest()!.pageFillProgress, undefined);
+  assert.equal(value.store.latest()!.lineRewriteProgress, undefined);
 });
 
 test("depth feedback reports formal validation instead of false application", async () => {

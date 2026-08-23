@@ -96,6 +96,10 @@ test("system prompt assigns resume semantics to the Agent and uses batch tools",
   assert.match(COOLTO_SYSTEM_PROMPT, /每个原字符必须按原顺序完整保留/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /每条最多尝试两次/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /全部剩余短尾耗尽.*request_more_material/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /request_more_material.*requestId/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /只能原样输出该问题本身/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /decline_resume_material/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得再次提出同一材料问题/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /真实增长至少 1\.5%/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /sourceQuotes/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /expansionGoal/u);

@@ -173,6 +173,7 @@ const SEQUENTIAL_TOOL_NAMES = new Set([
   "pause_resume_for_material",
   "apply_resume_content",
   "add_resume_material",
+  "decline_resume_material",
   "prepare_experience_sync",
   "browser_click_element",
   "browser_fill_field",

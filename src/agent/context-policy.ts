@@ -6,6 +6,8 @@ const WORKSPACE_TOOLS = new Set([
   "get_resume_workspace",
   "apply_resume_content",
   "add_resume_material",
+  "pause_resume_for_material",
+  "decline_resume_material",
   "prepare_experience_sync",
 ]);
 const DISCOVERY_TOOLS = new Set([

@@ -5,6 +5,7 @@ import {
 import { resumeGenerationReadiness } from "./generation-readiness.js";
 import { resumeAgentNextAction } from "./agent-next-action.js";
 import type { ResumeWorkspace } from "./types.js";
+import { normalizeResumeMaterialRequest } from "./material-request.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
 import { minimumResumeBulletCount } from "./bullet-count-rules.js";
 
@@ -125,7 +126,10 @@ export function buildAgentWorkspaceView(
     status: workspace.status,
     nextAction: resumeAgentNextAction(workspace),
     ...(workspace.materialRequest
-      ? { materialRequest: structuredClone(workspace.materialRequest) }
+      ? { materialRequest: normalizeResumeMaterialRequest(
+          workspace.candidateId,
+          workspace.materialRequest,
+        ) }
       : {}),
     readiness: {
       ready: readiness.ready,
