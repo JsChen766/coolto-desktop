@@ -3,7 +3,12 @@ import { createCooltoAgent } from "../../agent/create-agent.js";
 import { createConfiguredModelDependencies } from "../../agent/create-configured-dependencies.js";
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter, UserProfileReader } from "../../api/types.js";
-import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
+import type { BrowserAgentController } from "../../browser/agent-control-types.js";
+import type { BrowserPageOperator } from "../../browser/types.js";
+import { isBe2SitePolicyAllowed } from "../../browser/be2-site-policy.js";
+import type { AgentHarnessServices } from "../../agent-task/agent-harness-services.js";
+import { ManagedTaskPolicyHooks } from "../../agent-task/managed-task-policy-hooks.js";
+import { TaskLifecycleController } from "../../agent-task/task-lifecycle-controller.js";
 import { readConfig } from "../../config.js";
 import { ExperienceImportProposalStore } from "../../import/proposal-store.js";
 import { JdProposalStore } from "../../jd/proposal-store.js";
@@ -22,13 +27,33 @@ import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import { createResumeGenerationFollowUp } from "./resume-generation-follow-up.js";
 import { createResumeInteractionStop } from "./resume-interaction-stop.js";
+import type { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
+import { JobScoutController } from "../../job-scout/job-scout-controller.js";
+import type { ApplicationProposalService } from "./application-library/application-proposal-service.js";
+import { ApplicationSubmissionService } from "./agent-task/application-submission-service.js";
+import type { ApplicationSyncStore } from "./application-library/application-sync-store.js";
+import type { MailConnectionRegistry } from "../../inbox-signals/inbox-signal-types.js";
+import { GmailInboxAdapter } from "../../inbox-signals/gmail-inbox-adapter.js";
+import { OutlookInboxAdapter } from "../../inbox-signals/outlook-inbox-adapter.js";
+import { InboxSignalController } from "../../inbox-signals/inbox-signal-controller.js";
+import { InboxSignalApplicationService } from "./agent-task/inbox-signal-application-service.js";
+import { InboxSignalInterviewService } from "./agent-task/inbox-signal-interview-service.js";
+import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
+import type { InterviewProposalService } from "./tracker/interview-proposal-service.js";
 
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
   resumeCompiler: ResumePdfCompiler;
   selectedFiles: ConversationSelectedFiles;
-  browserPageReader: BrowserPageReader;
+  browserAgentController: BrowserAgentController;
   browserPageOperator: BrowserPageOperator;
+  agentHarness: AgentHarnessServices;
+  agentTaskProposals: AgentTaskProposalService;
+  applications: ApplicationSyncStore;
+  applicationProposals: ApplicationProposalService;
+  mailConnections: MailConnectionRegistry;
+  interviews: InterviewSyncStore;
+  interviewProposals: InterviewProposalService;
   resumePublications: ResumePublicationGateway;
   experiences: ExperienceReader & ExperienceWriter;
   jds: JdReader & JdWriter;
@@ -59,6 +84,13 @@ export class AgentContextFactory {
       deps.traces,
       conversationId,
     );
+    const inboxApplication = new InboxSignalApplicationService(
+      conversationId, deps.agentHarness, deps.applications,
+    );
+    const inboxInterview = new InboxSignalInterviewService(
+      conversationId, deps.agentHarness, deps.applications,
+      deps.interviews, deps.interviewProposals,
+    );
     const approvalManager = createActionApprovalManager({
       experienceWriter: deps.experiences,
       importProposalStore: proposalStore,
@@ -69,6 +101,10 @@ export class AgentContextFactory {
       resumeWorkspaceStore: workspaceStore,
       resumeCompiler,
       resumeExperienceSyncProposals: deps.experienceSyncProposals,
+      agentTaskProposals: deps.agentTaskProposals,
+      answerVault: deps.agentHarness.answers,
+      inboxApplicationProposals: inboxApplication,
+      inboxInterviewProposals: inboxInterview,
     });
     const sourceBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: deps.apiClient,
@@ -81,35 +117,71 @@ export class AgentContextFactory {
       config,
       () => deps.apiClient.getSessionToken(),
     );
+    const taskLifecycle = new TaskLifecycleController(
+      conversationId,
+      deps.agentHarness,
+    );
+    const jobScout = new JobScoutController(conversationId, deps.agentHarness);
+    const applicationSubmission = new ApplicationSubmissionService(
+      conversationId, deps.agentHarness, deps.browserAgentController,
+      deps.jds, deps.resumePublications, deps.applicationProposals,
+    );
+    const inboxSignals = new InboxSignalController(
+      conversationId, deps.agentHarness, deps.mailConnections,
+      [new GmailInboxAdapter(), new OutlookInboxAdapter()], deps.applications,
+      deps.browserAgentController,
+      isBe2SitePolicyAllowed,
+    );
+    const tools = createToolRegistry({
+      currentUserReader: deps.apiClient,
+      userProfileReader: deps.profiles,
+      profileProposals: deps.profileProposals,
+      experienceReader: deps.experiences,
+      jdReader: deps.jds,
+      resumeReader: deps.resumePublications,
+      importProposalStore: proposalStore,
+      jdProposalStore,
+      matchReportStore,
+      approvalManager,
+      selectedFileRegistry: selectedFiles,
+      browserPageReader: deps.browserAgentController,
+      browserAgentController: deps.browserAgentController,
+      browserPageOperator: deps.browserPageOperator,
+      agentTaskLifecycle: taskLifecycle,
+      agentTaskProposals: deps.agentTaskProposals,
+      conversationId,
+      jobScout,
+      applicationSubmission,
+      answerVault: deps.agentHarness.answers,
+      inboxSignals,
+      inboxApplicationProposals: inboxApplication,
+      inboxInterviewProposals: inboxInterview,
+      agentOrchestrated: {
+        snapshotBuilder: sourceBuilder,
+        compiler: resumeCompiler,
+        store: workspaceStore,
+        currentUserMessageTimestamp: () => currentUserMessage.timestamp,
+        approvalManager,
+        experienceSyncProposals: deps.experienceSyncProposals,
+      },
+      syncNow: deps.syncNow,
+    });
+    const taskPolicy = new ManagedTaskPolicyHooks({
+      conversationId,
+      services: deps.agentHarness,
+      browser: deps.browserAgentController,
+      tools,
+      sitePolicyAllows: isBe2SitePolicyAllowed,
+      grantBrowserAccess: (reason) => deps.browserPageOperator.grantWriteAccess(reason),
+    });
     const agent = createCooltoAgent({
       ...(config.apiKey ? { apiKey: config.apiKey } : {}),
       modelId: config.modelId,
       thinkingLevel: config.thinkingLevel,
       approvalManager,
-      tools: createToolRegistry({
-        currentUserReader: deps.apiClient,
-        userProfileReader: deps.profiles,
-        profileProposals: deps.profileProposals,
-        experienceReader: deps.experiences,
-        jdReader: deps.jds,
-        resumeReader: deps.resumePublications,
-        importProposalStore: proposalStore,
-        jdProposalStore,
-        matchReportStore,
-        approvalManager,
-        selectedFileRegistry: selectedFiles,
-        browserPageReader: deps.browserPageReader,
-        browserPageOperator: deps.browserPageOperator,
-        agentOrchestrated: {
-          snapshotBuilder: sourceBuilder,
-          compiler: resumeCompiler,
-          store: workspaceStore,
-          currentUserMessageTimestamp: () => currentUserMessage.timestamp,
-          approvalManager,
-          experienceSyncProposals: deps.experienceSyncProposals,
-        },
-        syncNow: deps.syncNow,
-      }),
+      tools,
+      beforeToolCall: taskPolicy.beforeToolCall,
+      afterToolCall: taskPolicy.afterToolCall,
       shouldStopAfterTurn: createResumeInteractionStop(workspaceStore),
       automaticFollowUp: createResumeGenerationFollowUp(workspaceStore),
     }, modelDependencies);
@@ -122,7 +194,7 @@ export class AgentContextFactory {
       artifactIdByCandidate: new Map(),
       currentUserMessage,
       compaction: {
-        models: modelDependencies.models,
+        ...(modelDependencies.models ? { models: modelDependencies.models } : {}),
         model: modelDependencies.model,
       },
     };

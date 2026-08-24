@@ -1,7 +1,8 @@
 # Coolto P0 产品能力补齐路线
 
 > 状态：既有产品路线与完成记录保留为历史基线；后续开发已统一为一条正式执行链
-> 当前阶段：S4 Tracker 业务闭环已完成；下一阶段为 S4.5 简历生成与交付修复，之后按 S5 → R1 推进
+> 当前阶段：Browser Enhance BE5 Inbox Signals；BE1–BE4 已于 2026-08-23 完成门禁
+> 后续顺序：BE5 → BE6 → BE7 → BE8 → S4.5 → S5 → R1
 > 建立日期：2026-07-24
 > 上游依赖：[简历生成交付路线](../resume-generation-roadmap/README.md) G1–G7 已完成
 
@@ -165,6 +166,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 → A0（已完成）→ J0（已完成）→ J1（已完成）→ J2（已完成）→ J3（已完成）
 → E0（已完成）→ E1（已完成）→ E2（已完成）→ E3（已完成）
 → E4（已完成）→ E5（已完成）→ E6（已完成）→ S4（已完成）
+→ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（当前）→ BE6 → BE7 → BE8
 → S4.5 → S5 → R1
 ```
 
@@ -186,7 +188,16 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | E5 | 版本记录 | 在线分页历史、pending 本地版本说明和恢复为新 revision | ✅ 已完成 |
 | E6 | 经历仓库验收 | Electron + Docker、离线、冲突、日期、可访问性、跨账号与性能回归 | ✅ 已完成 |
 | S4 | Tracker 业务闭环 | 独立接入 Interview、Note、Reminder、状态历史与本地通知 | ✅ 已完成 |
-| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；H 未开始（用户决定由专职测试人员按 Section H 标准验收，见 Section G/G-1 完成记录） |
+| BE0 | [Browser Enhance 架构冻结](../browser-enhance/00-foundation/README.md) | 复用现有 Agent Harness，冻结 Agent/Harness/Adapter、grant、工具与威胁模型契约 | ✅ 2026-08-23 合同完成 |
+| BE1 | Agent Browser Control | 复用现有 BrowserWindow/Tab/Page 底座，补 Agent 标签、导航、等待、混合观察和可逆交互原语 | ✅ 2026-08-23 完成；27/27 真实 Electron fixture 场景、全量 650 pass/2 skip |
+| BE2 | Persistent Agent Harness | AgentTask、grant、事件邮箱、checkpoint、接管、暂停/恢复和审计 | ✅ 2026-08-23 完成；全量 669 pass/2 skip，Harness 10/10、任务 UI 11/11、BrowserBar 回归 29/29 |
+| BE3 | Managed Job Scout | App 打开期间多源搜索、去重、匹配、Shortlist 和增量巡视 | ✅ 2026-08-23 完成；Greenhouse 15×2、Lever 383×2，重复 0，673 pass/2 skip，Shortlist UI 12/12 |
+| BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionReceipt 与 Application Proposal | ✅ 2026-08-23 机制闭环完成；685 pass/2 skip，Browser 31/31、Harness 10/10、UI 14/14；真实域名 submit 仍待 BE8 逐域验收 |
+| BE5 | Inbox Signals | 默认 Browser Webmail、可选 Gmail/Outlook 增量、Application 关联与状态/Interview Proposal | **当前阶段**；QQ 个人邮箱 candidate Site Policy 已建立并启动监督验收，尚未完成真实页面/账号与 ≥99% 关联准确率门禁；OAuth Client 只阻塞可选 API Connector；邮件发送始终由用户点击 |
+| BE6 | macOS Calendar | EventKit write-only、映射、改期/取消和去重 | 待 BE5 完成 |
+| BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | 待 BE6 完成；仅 App 打开时运行 |
+| BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |
+| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | 暂停至 BE8 完成；Section A–G、G-1 已完成，[S4.5.1](./S4.5.1-phase-driven-resume-generation.md) 真实稳定性门禁仍未通过 |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
 | R1 | 生产上线准备 | 邮件、限流、域名、备份、监控、密钥、发布与回滚 | 功能路线完成后执行 |
 
@@ -2137,7 +2148,9 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   承诺无 SmartScreen/Gatekeeper 提醒；自动更新源仍为 `http://127.0.0.1:8099`，须在用户提供准确 HTTPS
   发布基础地址后重打最终分发包。本轮只完成本地 Windows 测试发行，未上传产物。
 
-- 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S4.5 → S5 → R1 推进；
+- 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4
+  → BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（当前）→ BE6 → BE7 → BE8
+  → S4.5 → S5 → R1 推进；2026-08-23 用户明确覆盖此前先回 S4.5 的顺序；
 - 每阶段先复核现状和工作树；列出的确认点必须在该阶段开始时向用户确认，不提前假设；
 - 每阶段和阶段内 section 完成后单独质检，并将真实结果、失败和遗留项写回本 README；
 - 每个业务模块只提供自己的 Store/Mapper/Adapter，不把实体分支集中进同步或求职仓库上帝类；

@@ -75,6 +75,13 @@ export default defineConfig({
           "browser-shell": resolve(
             "src/desktop/renderer/browser-shell.html",
           ),
+          ...(process.env.COOLTO_AGENT_TASKS_UI_QA === "1"
+            ? {
+                "agent-tasks-qa": resolve(
+                  "src/desktop/renderer/agent-tasks-qa.html",
+                ),
+              }
+            : {}),
         },
       },
     },

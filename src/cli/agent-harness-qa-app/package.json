@@ -1,0 +1,5 @@
+{
+  "name": "coolto-agent-harness-qa",
+  "version": "1.0.0",
+  "main": "../../../out/cli/agent-harness-qa-entry.cjs"
+}

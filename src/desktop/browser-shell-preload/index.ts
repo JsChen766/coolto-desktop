@@ -25,6 +25,10 @@ const api: BrowserShellApi = {
   toggleMaximizeWindow: () =>
     ipcRenderer.send(BROWSER_SHELL_CHANNELS.toggleMaximize),
   closeWindow: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.closeWindow),
+  pauseAgent: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.pauseAgent),
+  resumeAgent: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.resumeAgent),
+  takeoverAgent: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.takeoverAgent),
+  stopAgent: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.stopAgent),
   onStateChanged: (listener: (state: BrowserShellState) => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,

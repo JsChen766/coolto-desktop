@@ -77,7 +77,9 @@ export class BrowserTabManager {
   }
 
   public layout(): void {
-    const [width, height] = this.window.getContentSize();
+    const size = this.window.getContentSize();
+    const width = size[0] ?? 0;
+    const height = size[1] ?? 0;
     const bounds = {
       x: 0,
       y: this.#chromeHeight,
@@ -89,6 +91,14 @@ export class BrowserTabManager {
 
   public activeTab(): BrowserTab | undefined {
     return this.#tabs.find((tab) => tab.id === this.#activeId);
+  }
+
+  public tab(tabId: string): BrowserTab | undefined {
+    return this.#tabs.find((tab) => tab.id === tabId);
+  }
+
+  public allTabs(): readonly BrowserTab[] {
+    return this.#tabs;
   }
 
   public hasTabs(): boolean {

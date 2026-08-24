@@ -62,6 +62,15 @@ export function createBrowserDemoApi(): DesktopApi {
     shell: {
       openExternal: async () => undefined,
     },
+    mailConnections: {
+      providers: async () => [
+        { provider: "gmail", configured: false, requiredReadScope: "gmail.readonly", sendPermissionRequested: false },
+        { provider: "outlook", configured: false, requiredReadScope: "Mail.Read", sendPermissionRequested: false },
+      ],
+      list: async () => [],
+      connect: async () => { throw new Error("Demo 模式未配置邮箱 OAuth"); },
+      disconnect: async () => undefined,
+    },
     conversations: chat.conversations,
     attachments: chat.attachments,
     getPathForFile: () => "",
@@ -80,6 +89,18 @@ export function createBrowserDemoApi(): DesktopApi {
       onStateChange: () => () => undefined,
     },
     agent: chat.agent,
+    agentTasks: {
+      list: async () => [],
+      get: async () => { throw new Error("Demo 中没有 Agent 任务"); },
+      prepare: async () => { throw new Error("Demo 不支持 Agent 任务"); },
+      executeProposal: async () => { throw new Error("Demo 不支持 Agent 任务"); },
+      start: async () => { throw new Error("Demo 不支持 Agent 任务"); },
+      resume: async () => { throw new Error("Demo 不支持 Agent 任务"); },
+      pause: async () => { throw new Error("Demo 不支持 Agent 任务"); },
+      cancel: async () => { throw new Error("Demo 不支持 Agent 任务"); },
+      revoke: async () => { throw new Error("Demo 不支持 Agent 任务"); },
+      submissionReceipt: async () => undefined,
+    },
     library: createDemoLibraryApi(),
     jobAssets: createDemoJobAssetsApi(now),
     experiences: {

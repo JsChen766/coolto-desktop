@@ -55,6 +55,16 @@ export interface BrowserShellState {
   theme: "light" | "dark";
   platform: DesktopPlatform;
   isMaximized: boolean;
+  agentControl: BrowserAgentControlState | null;
+}
+
+export interface BrowserAgentControlState {
+  taskId: string;
+  goal: string;
+  status: string;
+  control: "agent" | "user";
+  message: string;
+  updatedAt: string;
 }
 
 export interface BrowserShellApi {
@@ -72,6 +82,10 @@ export interface BrowserShellApi {
   minimizeWindow(): void;
   toggleMaximizeWindow(): void;
   closeWindow(): void;
+  pauseAgent(): void;
+  resumeAgent(): void;
+  takeoverAgent(): void;
+  stopAgent(): void;
   onStateChanged(listener: (state: BrowserShellState) => void): () => void;
 }
 

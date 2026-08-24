@@ -8,7 +8,7 @@ export function buildTagElementsScript(maxElements: number): string {
   return `(() => {
   const labelFor = (el) => {
     if (el.id) {
-      const l = document.querySelector('label[for="' + el.id + '"]');
+      const l = el.ownerDocument.querySelector('label[for="' + CSS.escape(el.id) + '"]');
       if (l && l.innerText) return l.innerText.trim();
     }
     const wrap = el.closest && el.closest('label');
@@ -16,10 +16,11 @@ export function buildTagElementsScript(maxElements: number): string {
     return el.getAttribute('aria-label') || el.getAttribute('title') || '';
   };
   const isVisible = (el) => {
-    if (!(el instanceof HTMLElement)) return false;
+    const view = el.ownerDocument.defaultView;
+    if (!view || !(el instanceof view.HTMLElement)) return false;
     const r = el.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) return false;
-    const cs = window.getComputedStyle(el);
+    const cs = el.ownerDocument.defaultView.getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none') return false;
     return true;
   };
@@ -74,35 +75,37 @@ export function buildTagElementsScript(maxElements: number): string {
   };
 
   const selector =
-    'input, textarea, select, button, a[href], [contenteditable=""], [contenteditable="true"]';
-  const nodes = document.querySelectorAll(selector);
+    'input, textarea, select, button, a[href], [contenteditable=""], [contenteditable="true"], ' +
+    '[draggable="true"], [data-drop-target]';
   const out = [];
-  for (const el of nodes) {
-    if (out.length >= ${maxElements}) break;
-    const type = inputTypeOf(el);
-    if (type === 'hidden') continue;
-    if (!isVisible(el)) continue;
-    // contenteditable 只保留顶层，跳过嵌套的可编辑子节点。
-    if (el.isContentEditable && !isTopEditable(el)) continue;
-    const fillId = ensureId(el);
-    const label = (labelFor(el) || '').slice(0, 200);
-    const placeholder = (el.getAttribute('placeholder') || '').slice(0, 200);
-    const required = el.hasAttribute('required')
-      || el.getAttribute('aria-required') === 'true';
-    const summary = {
-      fillId,
-      elementType: kindOf(el),
-      label,
-      placeholder,
-      required,
-    };
-    if (type) summary.inputType = type;
-    const currentValue = readValue(el);
-    if (currentValue !== undefined && currentValue !== '') {
-      summary.currentValue = currentValue;
+  const visit = (root) => {
+    const nodes = root.querySelectorAll(selector);
+    for (const el of nodes) {
+      if (out.length >= ${maxElements}) return;
+      const type = inputTypeOf(el);
+      if (type === 'hidden' || !isVisible(el)) continue;
+      if (el.isContentEditable && !isTopEditable(el)) continue;
+      const summary = {
+        fillId: ensureId(el), elementType: kindOf(el),
+        label: (labelFor(el) || '').slice(0, 200),
+        placeholder: (el.getAttribute('placeholder') || '').slice(0, 200),
+        required: el.hasAttribute('required') || el.getAttribute('aria-required') === 'true',
+      };
+      if (type) summary.inputType = type;
+      const currentValue = readValue(el);
+      if (currentValue !== undefined && currentValue !== '') summary.currentValue = currentValue;
+      out.push(summary);
     }
-    out.push(summary);
-  }
+    for (const el of root.querySelectorAll('*')) {
+      if (out.length >= ${maxElements}) return;
+      if (el.shadowRoot) visit(el.shadowRoot);
+      if (el.tagName === 'IFRAME') {
+        try { if (el.contentDocument) visit(el.contentDocument); }
+        catch (e) { /* cross-origin frame intentionally unavailable */ }
+      }
+    }
+  };
+  visit(document);
   return out;
 })();`;
 }

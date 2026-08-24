@@ -127,6 +127,9 @@ test("system prompt assigns resume semantics to the Agent and uses batch tools",
   assert.match(COOLTO_SYSTEM_PROMPT, /首次选择.*全部明确相关经历/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得在文本中逐字计数/);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_start_review/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_list_tabs/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_snapshot/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_download/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /prepare_resume_draft/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /write_bullet/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /patch_resume_candidate/);

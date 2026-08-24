@@ -3,6 +3,12 @@ import test from "node:test";
 
 import { createToolRegistry } from "../src/tools/registry.js";
 import { ExperienceReferenceRegistry } from "../src/tools/experience-reference-registry.js";
+import { requireToolCapability } from "../src/tools/tool-capabilities.js";
+import { AgentHarnessServices } from "../src/agent-task/agent-harness-services.js";
+import {
+  AgentHarnessStateRepository,
+  MemoryAgentHarnessStatePersistence,
+} from "../src/agent-task/agent-harness-state-repository.js";
 
 test("tool registry has unique, explicitly scoped tools", async () => {
   const tools = createToolRegistry();
@@ -10,6 +16,7 @@ test("tool registry has unique, explicitly scoped tools", async () => {
 
   assert.deepEqual(names, ["get_runtime_info"]);
   assert.equal(new Set(names).size, names.length);
+  assert.ok(tools.every((tool) => requireToolCapability(tool).requiredScopes.length > 0));
 
   const runtimeTool = tools[0];
   assert.ok(runtimeTool);
@@ -19,6 +26,24 @@ test("tool registry has unique, explicitly scoped tools", async () => {
   assert.equal(result.details.architecture, "single-agent");
   assert.equal(result.details.cloudLangGraphUsed, false);
   assert.equal(result.details.persistentAssetCacheEnabled, false);
+});
+
+test("registry exposes Answer Vault only through scoped read and prepare tools", () => {
+  const services = new AgentHarnessServices(
+    "owner-1",
+    new AgentHarnessStateRepository(
+      "owner-1", new MemoryAgentHarnessStatePersistence(),
+    ),
+  );
+  const tools = createToolRegistry({
+    answerVault: services.answers,
+    approvalManager: {} as never,
+  });
+  assert.deepEqual(tools.map((tool) => tool.name), [
+    "get_runtime_info", "get_answer_vault", "prepare_answer_vault_entry",
+  ]);
+  assert.deepEqual(requireToolCapability(tools[1]!).requiredScopes, ["answers.read"]);
+  assert.deepEqual(requireToolCapability(tools[2]!).requiredScopes, ["answers.prepare"]);
 });
 
 test("workspace projection shortens education IDs discovered inside snapshot creation", async () => {

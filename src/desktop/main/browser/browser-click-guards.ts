@@ -79,6 +79,20 @@ export function evaluateClickTarget(hint: ClickTargetHint): ClickGuardResult {
   return { allow: true };
 }
 
+export function isSubmissionTarget(hint: ClickTargetHint): boolean {
+  const type = (hint.type ?? "").toLowerCase();
+  const tag = hint.tagName.toLowerCase();
+  if ((tag === "input" && ["submit", "image"].includes(type)) ||
+      (tag === "button" && type === "submit")) return true;
+  const haystack = [
+    hint.ariaLabel, hint.text, hint.value, hint.name,
+    hint.id, hint.testId,
+  ].join(" | ");
+  if (SUBMIT_TEXT_PATTERN.test(haystack)) return true;
+  return hint.inForm && SOFT_NEXT_PATTERN.test(haystack) &&
+    (type === "submit" || (tag === "button" && !type));
+}
+
 function firstMatch(input: string, pattern: RegExp): string {
   const m = input.match(pattern);
   return m ? m[0] : "";

@@ -101,3 +101,39 @@ test("material boundary results expire with the in-memory resume workspace", () 
   assert.doesNotMatch(serialized, /candidate-old|request-old/u);
   assert.match(serialized, /create_resume_workspace again/u);
 });
+
+test("browser observations and actions expire before transcript persistence", () => {
+  const messages = ["extract_page", "browser_snapshot", "browser_fill_field"]
+    .map((toolName, index) => ({
+      role: "toolResult" as const,
+      toolCallId: `browser-${index}`,
+      toolName,
+      content: [
+        { type: "text" as const, text: "private page and field value" },
+        { type: "image" as const, data: "private-screenshot", mimeType: "image/png" },
+      ],
+      details: { dom: "private page", value: "private field value" },
+      isError: false,
+      timestamp: index + 1,
+    })) satisfies AgentMessage[];
+
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence(messages));
+
+  assert.doesNotMatch(serialized, /private page|private field|private-screenshot/u);
+  assert.match(serialized, /browser_snapshot again/u);
+});
+
+test("Delegation Proposal expires across App restart", () => {
+  const message = {
+    role: "toolResult" as const,
+    toolCallId: "task-proposal",
+    toolName: "prepare_agent_task",
+    content: [{ type: "text" as const, text: "proposal-secret" }],
+    details: { proposalId: "proposal-old", allowedDomains: ["jobs.example"] },
+    isError: false,
+    timestamp: 1,
+  } satisfies AgentMessage;
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence([message]));
+  assert.doesNotMatch(serialized, /proposal-secret|proposal-old/u);
+  assert.match(serialized, /prepare_agent_task again/u);
+});

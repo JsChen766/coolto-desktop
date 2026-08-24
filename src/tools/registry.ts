@@ -17,7 +17,10 @@ import { createGetUserProfileTool } from "./get-user-profile.js";
 import { createPrepareProfileUpdateTool } from "./prepare-profile-update.js";
 import { createPrepareExperienceImportTool } from "./import-experiences/prepare-import.js";
 import { createExtractPageTool } from "./extract-page.js";
-import { createBrowserWriteTools } from "./browser/index.js";
+import {
+  createBrowserControlTools,
+  createBrowserWriteTools,
+} from "./browser/index.js";
 import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
@@ -28,12 +31,32 @@ import { createResumeReadTools } from "./resume-tools.js";
 import { MatchReportStore } from "../match/report-store.js";
 import { createPrepareMatchAnalysisTool } from "./prepare-match-analysis.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../browser/types.js";
+import type { BrowserAgentController } from "../browser/agent-control-types.js";
 import {
   createAgentOrchestratedTools,
   type AgentOrchestratedDependencies,
 } from "./agent-orchestrated/index.js";
 import type { ProfileProposalExecutor } from "../profile/types.js";
 import { ExperienceReferenceRegistry } from "./experience-reference-registry.js";
+import { applyToolCapabilities } from "./tool-capabilities.js";
+import type { CapabilityAgentTool } from "./tool-capabilities.js";
+import type { TaskLifecycleController } from "../agent-task/task-lifecycle-controller.js";
+import { createAgentTaskLifecycleTools } from "./agent-task-lifecycle.js";
+import type { AgentTaskProposalService } from "../desktop/main/agent-task/agent-task-proposal-service.js";
+import { createPrepareAgentTaskTool } from "./prepare-agent-task.js";
+import { applyExecutionPolicies } from "./tool-execution-policies.js";
+import type { JobScoutController } from "../job-scout/job-scout-controller.js";
+import { createJobScoutTools } from "./job-scout-tools.js";
+import type { ApplicationSubmissionService } from "../desktop/main/agent-task/application-submission-service.js";
+import { createApplicationSubmissionTools } from "./application-submission-tools.js";
+import type { AnswerVaultStore } from "../agent-task/answer-vault-store.js";
+import { createAnswerVaultTools } from "./answer-vault-tools.js";
+import type { InboxSignalController } from "../inbox-signals/inbox-signal-controller.js";
+import { createInboxSignalTools } from "./inbox-signal-tools.js";
+import type { InboxSignalApplicationService } from "../desktop/main/agent-task/inbox-signal-application-service.js";
+import { createPrepareInboxApplicationTool } from "./inbox-action-tools.js";
+import type { InboxSignalInterviewService } from "../desktop/main/agent-task/inbox-signal-interview-service.js";
+import { createPrepareInboxInterviewTool } from "./inbox-interview-tools.js";
 
 export interface ToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
@@ -48,7 +71,17 @@ export interface ToolRegistryDependencies {
   selectedFileRegistry?: SelectedFileRegistry;
   matchReportStore?: MatchReportStore;
   browserPageReader?: BrowserPageReader;
+  browserAgentController?: BrowserAgentController;
   browserPageOperator?: BrowserPageOperator;
+  agentTaskLifecycle?: TaskLifecycleController;
+  agentTaskProposals?: AgentTaskProposalService;
+  conversationId?: string;
+  jobScout?: JobScoutController;
+  applicationSubmission?: ApplicationSubmissionService;
+  answerVault?: AnswerVaultStore;
+  inboxSignals?: InboxSignalController;
+  inboxApplicationProposals?: InboxSignalApplicationService;
+  inboxInterviewProposals?: InboxSignalInterviewService;
   agentOrchestrated?: AgentOrchestratedDependencies;
   /** Immediately runs one sync round; resolves with a result summary. */
   syncNow?: () => Promise<SyncNowResult>;
@@ -60,7 +93,7 @@ export interface ToolRegistryDependencies {
  */
 export function createToolRegistry(
   dependencies: ToolRegistryDependencies = {},
-): AgentTool[] {
+): CapabilityAgentTool[] {
   const experienceReferences = new ExperienceReferenceRegistry();
   const businessTools: AgentTool[] = [];
 
@@ -143,6 +176,41 @@ export function createToolRegistry(
   if (dependencies.browserPageReader) {
     businessTools.push(createExtractPageTool(dependencies.browserPageReader));
   }
+  if (
+    dependencies.browserAgentController &&
+    dependencies.browserPageOperator &&
+    dependencies.approvalManager
+  ) {
+    businessTools.push(
+      ...createBrowserControlTools(dependencies.browserAgentController),
+    );
+  }
+  if (dependencies.jobScout) {
+    businessTools.push(...createJobScoutTools(dependencies.jobScout));
+  }
+  if (dependencies.applicationSubmission) {
+    businessTools.push(...createApplicationSubmissionTools(dependencies.applicationSubmission));
+  }
+  if (dependencies.answerVault) {
+    businessTools.push(...createAnswerVaultTools({
+      store: dependencies.answerVault,
+      ...(dependencies.approvalManager
+        ? { approvals: dependencies.approvalManager }
+        : {}),
+    }));
+  }
+  if (dependencies.inboxSignals) businessTools.push(...createInboxSignalTools(dependencies.inboxSignals));
+  if (dependencies.inboxApplicationProposals && dependencies.approvalManager) {
+    businessTools.push(createPrepareInboxApplicationTool({
+      proposals: dependencies.inboxApplicationProposals, approvals: dependencies.approvalManager,
+    }));
+  }
+  if (dependencies.inboxInterviewProposals && dependencies.approvalManager) {
+    businessTools.push(createPrepareInboxInterviewTool({
+      proposals: dependencies.inboxInterviewProposals,
+      approvals: dependencies.approvalManager,
+    }));
+  }
   if (dependencies.browserPageOperator && dependencies.approvalManager) {
     businessTools.push(
       ...createBrowserWriteTools(
@@ -156,38 +224,27 @@ export function createToolRegistry(
       ...createAgentOrchestratedTools(dependencies.agentOrchestrated),
     );
   }
+  if (dependencies.agentTaskLifecycle) {
+    businessTools.push(
+      ...createAgentTaskLifecycleTools(dependencies.agentTaskLifecycle),
+    );
+  }
+  if (
+    dependencies.agentTaskProposals &&
+    dependencies.conversationId &&
+    dependencies.approvalManager
+  ) {
+    businessTools.push(createPrepareAgentTaskTool({
+      conversationId: dependencies.conversationId,
+      proposals: dependencies.agentTaskProposals,
+      approvals: dependencies.approvalManager,
+    }));
+  }
 
-  return applyExecutionPolicies([
-    createRuntimeInfoTool(businessTools.map((tool) => tool.name)),
-    ...businessTools,
-  ]).map((tool) => experienceReferences.wrap(tool));
-}
-
-const SEQUENTIAL_TOOL_NAMES = new Set([
-  "sync_now",
-  "prepare_profile_update",
-  "prepare_experience_import",
-  "prepare_jd_import",
-  "prepare_match_analysis",
-  "create_resume_workspace",
-  "pause_resume_for_material",
-  "apply_resume_content",
-  "add_resume_material",
-  "decline_resume_material",
-  "prepare_experience_sync",
-  "browser_click_element",
-  "browser_fill_field",
-  "browser_select_option",
-  "browser_set_checked",
-  "browser_upload_file",
-  "browser_start_review",
-  "request_write_access",
-]);
-
-function applyExecutionPolicies(tools: AgentTool[]): AgentTool[] {
-  return tools.map((tool) =>
-    SEQUENTIAL_TOOL_NAMES.has(tool.name)
-      ? { ...tool, executionMode: "sequential" }
-      : tool,
+  return applyToolCapabilities(
+    applyExecutionPolicies([
+      createRuntimeInfoTool(businessTools.map((tool) => tool.name)),
+      ...businessTools,
+    ]).map((tool) => experienceReferences.wrap(tool)),
   );
 }

@@ -1,13 +1,13 @@
 # Browser Enhance：Agent 托管浏览器路线
 
-> 状态：产品与架构初稿；2026-08-20 已确认 Agent-native Harness 总体方向，BE0 产品参数待确认
+> 状态：BE0–BE4 已完成；BE5 Inbox Signals 当前执行
 > 建立日期：2026-08-20
 > 前置基线：[浏览器自动填写路线](../browser-autofill-roadmap/README.md) B0–B5、
 > [P0 产品能力补齐路线](../p0-product-completion-roadmap/README.md) S3–S4
 > 路线关系：本路线是 `browser-autofill-roadmap` 的正式后继；旧路线保留为已实现原语与历史决策，
 > 未完成的 B6 集成交付由本路线 BE4、BE5、BE8 吸收，不再单独推进
-> 执行约束：本次只建立规划，不改变 P0 主路线当前的 S4.5 → S5 → R1 顺序；若用户决定启动
-> BE0，需先在 P0 主 README 写回新的执行顺序
+> 执行约束：2026-08-23 用户确认先完成 Browser Enhance BE1–BE8，再返回 S4.5 → S5 → R1；
+> BE0 完成记录：[00-foundation](./00-foundation/README.md)
 
 ## 1. 路线目标
 
@@ -72,7 +72,8 @@ Vue Renderer / Chat UI
 
 可直接复用的基础包括：
 
-- `CooltoAgent`、`pi-agent-core`、context compaction、重复保护、turn governor 和取消传播；
+- `CooltoAgent`、`pi-agent-core@0.84.2` 已实现的 `Agent`、context compaction、事件订阅、
+  steering/follow-up、tool pre/postflight、turn stop、abort/idle、重复保护和取消传播；
 - `DesktopAgentRuntime` 的会话上下文、transcript 持久化和运行中快照能力；
 - `AgentContextFactory` 与唯一 `ToolRegistry` 注入入口；
 - `ApprovalManager`、不可变 Proposal、LocalSyncStore/Outbox、乐观锁和幂等重放；
@@ -86,6 +87,12 @@ Vue Renderer / Chat UI
 没有独立长期任务、等待外部事件、定时唤醒和 App 重启后恢复托管运行。因此 BE2 只在现有 runtime
 上补持久化任务能力，不替换 Agent Core，也不复制既有工具、Store 或业务实体。
 
+BE0.6 对当前安装包做了额外 capability audit：`pi-agent-core@0.84.2` 虽然导出了包含 durable Session、
+lane、queue、resume、hooks/events 的 `AgentHarness` 类型，但生产实现的大部分运行方法仍会抛
+`HarnessNotImplemented`；smoke 中 `InMemorySessionRepo` 可写，`AgentHarness.prompt()` 明确不可用。
+因此当前不能为追求命名一致而切到不可用脚手架，也不能复制一套通用 Agent loop。BE2 开始前必须
+复核当时依赖版本；若原生 Harness 已实现所需能力，应优先迁移/适配并删除重叠设计。
+
 ### 2.4 已确认的 Agent-native Harness 决策
 
 > 用户于 2026-08-20 确认：能复用的必须复用；新增能力必须在现有架构上延伸；禁止重复造轮子；
@@ -97,7 +104,7 @@ Vue Renderer / Chat UI
 | 层 | 允许职责 | 禁止职责 |
 | --- | --- | --- |
 | Agent | 感知、规划、比较、选择工具、判断结果、决定继续/等待/追问/结束 | 扩大授权、绕过工具、把网页指令当系统约束 |
-| Task Harness | Agent 生命周期、checkpoint、事件邮箱、定时唤醒、工具暴露、取消、资源上限 | 理解求职阶段、选择岗位、决定投递顺序、根据邮件直接改状态 |
+| Task Harness | App 打开期间的 Agent 生命周期、checkpoint、本地事件邮箱/timer、工具暴露、取消、资源上限 | 理解求职阶段、选择岗位、决定投递顺序、根据邮件直接改状态、创建云端自动化任务 |
 | Policy Reference Monitor | 对 Agent 提出的动作执行 `allow / block / ask`，签发一次性 token | 替 Agent 选择动作、生成业务答案、静默扩大 grant |
 | Adapter / Store | 执行原子 I/O、规范化真实结果、Proposal/Outbox/乐观锁 | 串联搜索→填写→提交→追踪流程，建立第二套业务事实 |
 
@@ -105,14 +112,15 @@ Vue Renderer / Chat UI
 
 1. 继续使用同一个自然语言 Agent 和 `pi-agent-core` 的 model → tool → model 循环；不增加 planner、
    规则模型或第二个业务 Agent；
-2. 扩展 `DesktopAgentRuntime` 为可承载 conversation 和持久化 `AgentTask` 的通用 Harness，
-   不新建 Browser 专属 Agent runtime；
+2. 保持 `CooltoAgent` 中唯一 `new Agent()`；在 `DesktopAgentRuntime` 周围只增加 task catalog、
+   持久事件、授权和回执，并最小透出 native queue/idle/afterToolCall 能力，不新建 Browser runtime、
+   turn governor、内存队列或消息协议；
 3. 浏览器、邮件、Calendar 和 Tracker 都是能力 Adapter/工具或环境事件源，不拥有业务工作流；
 4. 工具保持原子、可组合、幂等、可审计；禁止新增 `auto_apply_job`、`run_campaign`、
    `process_recruiting_email`、`advance_application_pipeline` 等隐藏流程的宏工具；
 5. 允许 `prepare_application_create`、`prepare_interview_create` 这类原子语义 Proposal 工具，
    但何时调用、参数是什么、调用后做什么必须由 Agent 决定；
-6. 定时器、邮件增量、Calendar 变化和浏览器状态变化只写入通用事件邮箱并唤醒同一个 Agent；
+6. App 打开期间，timer、邮件增量、Calendar 变化和浏览器状态变化只写入本地事件邮箱并唤醒同一个 Agent；
    宿主不得按事件类型注入下一业务阶段或直接写 Tracker；
 7. DelegationGrant 是 Harness 独立执行的能力契约，不只是 system prompt；模型可读取授权摘要，
    但不能创建、修改或扩大自己的 grant；
@@ -132,7 +140,7 @@ Vue Renderer / Chat UI
 新增且确实缺失的基础设施仅限：
 
 - 通用 `AgentTask` / `AgentRun` / `AgentCheckpoint` 本地持久化；
-- 通用事件邮箱、timer wake-up、崩溃恢复和任务锁；
+- 仅在 App 打开期间工作的本地事件邮箱、timer wake-up、崩溃恢复和任务锁；
 - `DelegationGrant`、Policy Reference Monitor 和一次性 Action/Submission token；
 - 浏览器控制原语、ActionReceipt/SubmissionReceipt；
 - Gmail/Outlook 与 EventKit 的最小权限 Adapter；
@@ -166,7 +174,8 @@ Vue Renderer / Chat UI
 - `jobCriteria`：职位、地点、远程政策、公司类型、年资、技术栈、语言、薪酬底线等；
 - `assetPolicy`：允许使用的 Resume、是否允许生成新 Resume、语言和事实门槛；
 - `answerPolicy`：哪些申请问题可从已验证 Profile/Answer Vault 自动回答；
-- `submissionBudget`：单次/单日最大岗位数、最低匹配门槛、同公司频率和去重规则；
+- `submissionBudget`：用户投递数量上限可为空、最低匹配门槛固定 80%，并保留同公司频率、
+  站点限制、credit、安全资源预算和去重规则；
 - `expiresAt`、空闲时限、是否允许无人值守；
 - `createdByUserAt`、界面版本、政策版本和不可变内容 hash。
 
@@ -176,7 +185,7 @@ Vue Renderer / Chat UI
 | --- | --- | --- |
 | R0 只读 | 搜索、读页、切标签、比较岗位 | grant 范围内自动执行 |
 | R1 可逆写 | 填字段、选择选项、保存草稿、创建本地 lead | grant 范围内自动执行并记录 |
-| R2 外部承诺 | 提交申请、发送求职邮件、更新 Tracker、创建 Calendar event | 仅在 grant 明确包含该动作时自动执行 |
+| R2 外部承诺 | 提交申请、发送求职邮件、更新 Tracker、创建 Calendar event | 仅在 grant 明确包含该动作时自动执行；`mail.send` 例外，永远由用户点击发送 |
 | R3 敏感/高不确定 | 登录、验证码、身份/平等机会声明、法律声明、未知薪酬答案、上传非简历文件 | 始终暂停并交还用户，除非已有字段级明确规则且法律/站点允许 |
 
 ### 3.4 用户控制面
@@ -255,7 +264,7 @@ JD 指纹 + Resume hash + 时间窗口生成 `dedupeKey`。重试不得创建第
 建议把“浏览器 Webmail 扫描”和“持续邮件同步”分开：
 
 - 浏览器读页适合用户正在查看邮件时的即时识别；
-- 后台持续同步优先使用官方 Gmail API / Microsoft Graph，按最小权限读取增量事件；
+- App 打开期间的本地持续同步使用用户指定的 Gmail API / Microsoft Graph Provider，按最小权限读取增量事件；
 - 原始邮件默认不进入云端，不长期保存整封正文；只保存归一化 `ExternalSignal`、必要引用、
   来源 message ID/hash 和解析置信度；
 - Connector 只归一化 transport envelope、正文引用和增量游标，不判断招聘语义；signal kind、
@@ -310,6 +319,41 @@ BE1 至少补齐：
 不允许给模型一个不受限的 CDP/JavaScript 执行工具。所有动作必须是主进程可验证、可记录、
 可按 grant 拒绝的语义原语。
 
+2026-08-23 BE1 现状复核与实施顺序：
+
+- 已有 `BrowserWindowManager` / `BrowserTabManager` / `BrowserTab` 承载多标签和导航，BE1 只向唯一
+  ToolRegistry 暴露原子能力，不创建第二个 Browser runtime；
+- 已有 `extract_page` 只读取当前活跃页，写工具具备 current tab/origin gate 与提交按钮拦截；
+- 旧 B3 文档曾把 hover/drag 记为已实施，但当前 `BrowserPageOperator` 和工具注册中没有这两个能力，
+  BE1 按真实源码视为缺失，不沿用错误完成结论；
+- 实施顺序固定为：① 标签与导航；② wait/query/DOM+AX+screenshot 观察；③ key/hover/drag 与
+  frame/shadow 上下文；④ 20 个真实 Electron 只读/可逆场景；
+- BE1 不实现 `browser_submit`、DelegationGrant、长期任务、邮件或 Tracker 写入；这些仍由 BE2–BE5
+  的安全与业务门禁约束。
+
+**2026-08-23 BE1 完成记录：**
+
+- 在唯一 ToolRegistry 增加 16 个原子 Agent 能力：标签 list/get/new/select/close，navigate/back/forward/
+  reload，wait/query/DOM+AX+screenshot snapshot，keypress/hover/drag 和受控 download；未新增 Browser
+  runtime、宏工具、任意 JavaScript/CDP 工具或 `browser_submit`；
+- 标签和导航直接复用 `BrowserWindowManager` / `BrowserTabManager` / `BrowserTab`；所有可见控制、
+  key/hover/drag/download 继续经过现有宿主审批与 current tab/origin gate。Agent 不能在浏览器关闭时
+  启动隐藏窗口，HTTP(S) 外协议、URL 内嵌凭证、submit click、Enter/NumpadEnter/Space 均被阻断；
+- query/tag/write 支持同源 iframe 与 open shadow root；跨域 iframe 按浏览器安全边界不可读写，必须
+  用户接管。Snapshot 使用真实 Chrome AX tree，密码/OTP 值脱敏，截图遮罩敏感输入，检测到 CAPTCHA
+  时不把 screenshot 交给模型；
+- `browser_download` 使用 Electron DownloadItem 写入用户 Downloads 的唯一安全文件名，但 Agent 只
+  得到文件名、来源、字节和状态，永不获得本地绝对路径；后续上传仍由系统选择器让用户亲自选取；
+- 修正旧 Pi 兼容漂移：浏览器工具失败现在直接 throw，由 `pi-agent-core@0.84.2` 生成真实
+  `toolResult.isError=true`，不再把未授权/提交阻断伪报成功；所有浏览器 tool result 在 BE2 短期证据
+  仓库落地前不写入持久 transcript，重启后必须重新观察；
+- 新增 `qa:browser-agent`：Electron 43.2.0 / Windows 使用隔离 userData、本机 HTTP fixture 和真实
+  WebContentsView，27/27 场景通过，覆盖 DOM/AX/screenshot、iframe/shadow、等待、hover/drag/key、
+  两标签、导航历史、下载、危险 URL、无授权控制和 submit/Enter 绕过；
+- `npm run check` 全绿：730 个源文件全部 ≤250 行；652 tests 中 650 pass、2 platform skip、0 fail；
+  Node/Renderer typecheck、Node build、Electron production build 通过。BE1 完成不代表真实招聘站点已
+  验收；站点政策、账号和长任务仍留到 BE3/BE8。
+
 ### 5.2 混合感知
 
 复杂网页不能只靠当前 DOM 文本：
@@ -351,6 +395,36 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 运行时需要 step budget、model/tool budget、导航超时、重试策略、循环检测、取消传播、checkpoint、
 任务锁和崩溃恢复。第一版同一账号只允许一个有写权限的 run，读取型搜索任务可有限并发。
 
+**2026-08-23 BE2 完成记录：**
+
+- 再次核对 `pi-agent-core@0.84.2`：生产继续复用已实现的单一 `Agent`、before/afterToolCall、
+  native terminate、turn stop、abort 和现有 Conversation transcript；公开 `AgentHarness.prompt/resume`
+  仍抛 `HarnessNotImplemented`，因此只新增产品级 task catalog/policy/event/receipt，不复制模型循环；
+- 落地 UUIDv7、canonical JSON SHA-256、AgentTask/Run/Checkpoint、不可变 DelegationGrant + 独立
+  revocation、EnvironmentEvent、ToolCapabilityMetadata、PolicyDecision、ActionToken/Receipt；
+  PolicyDecision 补齐 owner/task/run/toolCall 关联，避免只靠 requestHash 无法形成完整审计链；
+- 唯一 ToolRegistry 为全部现有/新增工具补 capability metadata；普通 list/get 可并行，DOM/AX/debugger
+  observation 串行。Managed task 的 beforeToolCall 只做 allow/block/ask，越界/blocked domain/stale
+  observation/R3 均 fail-closed；合法 grant 可自动打开现有页面 gate，但不产生宿主业务下一步；
+- `prepare_agent_task` 从自然语言冻结 Delegation Proposal，使用专用 DelegationPanel 确认；接受后自动
+  建立并启动本机任务。`task_checkpoint/wait/need_user/complete` 由 Agent 决定生命周期，terminal tool
+  与其他工具混批会被 preflight 整批拒绝；App 打开期间本地 timer 只投递通用事件；
+- task/grant/event/token/receipt 使用 owner hash + safeStorage 加密单文件、临时文件原子替换；原始
+  DOM/AX/screenshot 使用独立加密 Evidence Cache，7 天过期；普通 ActionReceipt/PolicyDecision 90 天
+  过期。Renderer 不获得路径、Cookie、token、完整 DOM 或截图 base64；
+- App 重启把中断 run 恢复为 paused 并投递 `system.run_interrupted`；未消费 ActionToken 收口为
+  `uncertain` receipt，不能盲目重做。事件 checkpoint 后才 ack；账号切换同步收回页面 gate、取消 run、
+  写 `account_changed` revocation；grant 撤销实测持久化低于 1 秒；
+- UI 按已确认结构实现一级「Agent 任务」、主从列表、概览/动态/回执/授权、暂停/继续/停止/撤销、
+  窄屏返回、深浅主题与 200% 缩放；BrowserAgentBar 显示控制权并提供暂停/接管/交还/停止；未新增
+  主题、图标库、通用工作流设计器或第二套 Application 状态；
+- `npm run check` 全绿：789 个源文件全部 ≤250 行；671 tests 中 669 pass、2 platform skip、0 fail；
+  Node/Renderer typecheck、Node build、Electron production build 通过。Electron 43.2.0/Windows 独立
+  门禁：Harness safeStorage/重启/跨账号/evidence 10/10，任务 UI/深浅/窄屏/200% 11/11，浏览器与
+  BrowserAgentBar 29/29；
+- 真实 Career/ATS 搜索、站点策略记录、Job Lead 去重和匹配尚未实现，严格留给 BE3；submit、邮件和
+  Calendar 仍分别留给 BE4–BE6，不能据 BE2 宣称完全托管可用。
+
 ## 6. 更 AI Native 的场景池
 
 以下不是普通浏览器宏，而是基于 Coolto 已有 Experience、JD、Resume、Tracker 事实形成的差异化能力。
@@ -358,11 +432,13 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 ### P0：应并入本路线
 
 1. **Job Scout Campaign**
-   定时巡视用户允许的岗位源，只报告新增、变更或截止的高匹配岗位；记住上次运行结果，避免重复。
+   App 打开期间周期巡视用户允许的岗位源，只报告新增、变更或截止的高匹配岗位；记住上次运行结果，
+   避免重复。App 关闭时不在云端继续执行。
 
 2. **质量优先的自动投递策略**
-   不按数量盲投。Agent 在每日预算内按 match、证据充足度、Resume 是否可交付、公司偏好和重复风险
-   排序；不达门槛就不投，并解释为什么没有用完额度。
+   不按数量盲投。Agent 按 match、证据充足度、Resume 是否可交付、公司偏好和重复风险排序；
+   不达 80% 或事实/质量门槛就不投。产品不设每日投递业务上限，但 credit、站点政策、去重和 Harness
+   技术安全预算继续生效。
 
 3. **Application Answer Vault**
    把用户在表单中反复确认的工作授权、薪酬、到岗时间、搬迁、语言等答案保存为有来源、有适用范围、
@@ -379,6 +455,31 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 6. **Calendar-aware Interview Agent**
    面试邀请到达后识别时区、检查冲突、生成 Interview/Reminder 和 Calendar event；面试前自动准备
    JD/Resume/经历证据 briefing，结束后提示复盘。
+
+**2026-08-23 BE3 完成记录：**
+
+- 新增本地 BrowserLead、LeadEvaluation、JobSourceCursor；Lead 只保存公开岗位发现事实，不是 JD、
+  Application 或第二套云端资产。Adapter 只执行公开 GET + 规范化，Agent 通过
+  `record_job_lead_evaluation` 自主给出分数、理由和 Shortlist 决策；宿主只拒绝 `<80` 入选；
+- 首批多源采用 Greenhouse Job Board API 与 Lever Postings API。两者官方资料均说明公开岗位 GET
+  可用于构建 career/job site；未调用任何需认证或申请 POST endpoint：
+  [Greenhouse Job Board API](https://developer.greenhouse.io/job-board.html)、
+  [Lever Postings API](https://github.com/lever/postings-api)；
+- DelegationGrant 必须在 `jobCriteria.sources` 逐项冻结 `{provider, sourceKey, company}`，并允许对应
+  官方 API domain；Controller 在网络请求前校验，不允许只凭 `jobs.search` scope 枚举任意公司；
+- 同一 task/source/externalId 使用 canonical dedupeKey；重复读取保持同一 Lead ID，正文变化标记
+  changed，来源消失标记 closed。task_wait/task_complete 在存在未关闭且未评估 Lead 时 fail-closed，
+  从产品路径保证所有入选/排除都有 Agent 理由；
+- App 打开期间的周期增量继续复用 BE2 timer event + task_wait，由 Agent 决定何时 fetch/evaluate/wait，
+  宿主没有新增“抓取→评分→投递”工作流；Agent Tasks 概览展示 Shortlist/分数并可打开真实岗位；
+- 真实公网 QA 连续读取两次：Greenhouse 官方 `greenhouse` board 15→15、Lever 官方文档
+  `leverdemo` board 383→383；第二次全部 unchanged、重复 Lead ID=0。只读取公开岗位，未写站点；
+- `npm run check` 全绿：796 个源文件全部 ≤250 行；675 tests 中 673 pass、2 platform skip、0 fail；
+  Node/Renderer typecheck、Node build、Electron production build 通过。更新后的 Agent Tasks UI
+  Electron 门禁 12/12 通过；
+- 本轮没有使用真实用户 credit 批量评估 398 个公开岗位；这不作为质量准确率证据。真实用户目标下的
+  匹配质量、来源偏好和长周期效果仍在 BE8 验收，但未评估 Lead 已无法被静默完成或进入 Shortlist；
+- 未实现 JD 冻结、Resume 选择/生成、表单 submit 或 Tracker 写入；这些严格属于 BE4。
 
 ### P1：核心闭环稳定后
 
@@ -419,14 +520,14 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 | BE0 | 产品契约与威胁模型 | Harness 不变量、复用矩阵、模式、grant、风险等级、数据归属、站点政策 | 用户确认全部关键取舍；宿主业务编排禁令可静态/动态验证；prompt injection/误提交/隐私/恢复威胁测试可执行 |
 | BE1 | Agent Browser Control | 标签、导航、等待、混合快照、frame/shadow、键鼠原语 | 真实 Electron 跨标签完成 20 个只读/可逆任务；无越权导航或上下文串用 |
 | BE2 | Persistent Agent Harness | AgentTask、grant、事件邮箱、checkpoint、接管、暂停/恢复、审计 | 不新增第二套 Agent Core；grant 越界 100% 被 Harness 拒绝；撤销立即生效；重启可恢复且不重复动作 |
-| BE3 | Managed Job Scout | 多源搜索、BrowserLead、去重、匹配、Shortlist、定时增量 | 真实允许站点连续运行；重复 lead <1%；所有入选/排除理由可追溯 |
+| BE3 | Managed Job Scout | App 打开期间的多源搜索、BrowserLead、去重、匹配、Shortlist、周期增量 | 真实允许站点连续运行；App 关闭时无云端任务；重复 lead <1%；所有入选/排除理由可追溯 |
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionToken/Receipt、Application Proposal | 自动提交仅发生在有效 grant；错误投递/重复 Application 为 0；实际 JD/Resume/hash 冻结正确 |
-| BE5 | Inbox Signals | Gmail/Outlook 增量、求职邮件分类、状态/Interview Proposal | 原始邮件不越界持久化；错误自动迁移为 0；模糊信号进入确认队列 |
+| BE5 | Inbox Signals | 通用 Browser Webmail、可选 Gmail/Outlook 增量、求职邮件分类、状态/Interview Proposal | 原始邮件不越界持久化；错误自动迁移为 0；模糊信号进入确认队列 |
 | BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | 拒绝权限可降级；无重复 event/同步回环；时区和重启恢复通过 |
 | BE7 | AI Native Loops | Scout 调度、Follow-up、Briefing、Strategy Learner、风险提醒 | 每项有独立开关、停止条件、通知去重和效果指标 |
 | BE8 | 真实集成交付 | 真实账号/站点、长任务、断网、崩溃、跨账号、安全与发布验收 | 完整矩阵通过前不得宣称“完全托管可用” |
 
-正式执行顺序：
+Browser Enhance 内部长期顺序：
 
 ```text
 BE0 → BE1 → BE2 → BE3 → BE4 → BE5 → BE6 → BE7 → BE8
@@ -434,23 +535,37 @@ BE0 → BE1 → BE2 → BE3 → BE4 → BE5 → BE6 → BE7 → BE8
 
 BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再补 consent 或审计。
 
+当前跨路线唯一执行顺序为：
+
+```text
+BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（当前）→ BE6 → BE7 → BE8
+→ S4.5 → S5 → R1
+```
+
+2026-08-23 用户明确覆盖此前“先回 S4.5”的顺序，要求先按本路线完善浏览器。每阶段仍需独立质检，
+不得因总路线已排期而跳过 BE1/BE2 或提前开放自动提交。
+
 ## 8. 分阶段关键验收
 
 ### BE0：架构冻结与产品取舍
 
 - 冻结本 README 2.4 的 Agent/Harness/Adapter 职责，代码评审拒绝宿主业务状态机、宏工具和
   Browser/Mail/Calendar 专属 Agent runtime；
+- 已核对 `pi-agent-core@0.84.2`：复用已实现的 `Agent` 原语；公开 `AgentHarness` 运行方法仍未实现，
+  BE2 开始前必须重做版本 capability audit，防止未来与可用原生 Harness 重复建设；
 - 建立现有 `CooltoAgent`、`DesktopAgentRuntime`、ToolRegistry、Browser、Proposal/SyncStore 的
   逐项复用清单；新增模块必须说明现有能力为什么不能延伸，不能仅因命名或调用不方便而复制；
 - 定义统一环境事件、工具元数据、任务 terminal tool 与 checkpoint contract；
-- 完全托管的默认单日投递上限和最低匹配门槛；
-- 首批允许自动搜索/投递的站点和明确禁用站点；
-- 哪些表单字段允许持久化到 Answer Vault；
-- 自动提交是否覆盖求职邮件发送，还是邮件始终单次确认；
-- Gmail 与 Outlook 的接入优先级；
-- Calendar 先只写还是首版就读写；
-- 本地截图/回执的保留周期与“一键清除”语义；
-- App 关闭、休眠或网络断开时，托管任务是暂停还是允许后台常驻。
+- 已确认不设单日投递业务上限，使用用户 credit；最低匹配门槛 80%，站点/去重/安全预算保留；
+- 已确认允许用户白名单内的公司 Career/ATS，自动提交仍需逐域验收，受限平台不开放托管提交；
+- 已确认 Answer Vault 可保存用户确认的常用求职事实，敏感/法律字段不得保存；
+- 已确认求职邮件发送键永远由用户点击；
+- 2026-08-23 用户补充确认不能假设用户使用 Gmail/Outlook：默认使用授权 domain 内的 Browser Webmail；
+  Gmail/Outlook API 是可选增强，Generic IMAP 后续按用户 Provider 分布决定；
+- 已确认 Calendar 首版 write-only；
+- 已确认原始 DOM/screenshot 本地保留 7 天、普通 ActionReceipt 保留 90 天、SubmissionReceipt
+  保留至 Application 删除或用户主动清除；一键清除不删除云端业务事实或撤回投递；
+- 已确认所有 Browser Enhance 能力只在 App 打开时本地运行，不建立服务端自动化任务；
 
 ### BE1–BE2：安全与恢复门禁
 
@@ -472,6 +587,32 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 - SubmissionReceipt 与 Application 一一关联，重放不重复创建；
 - 站点显示成功但 Tracker 写入失败时保留可恢复 receipt，并明确显示“已投递、待同步”。
 
+**2026-08-23 BE4 完成记录：**
+
+- 在唯一 ToolRegistry 增加 `prepare_application_submission`、`browser_submit`、
+  `sync_submission_receipt`。准备阶段必须读取正式 JD 与实际 Resume，校验 `qualityStatus=passed`、非归档、
+  64 位内容 hash、当前 tab/origin、有效 grant 和重复 Application，再复用现有
+  `ApplicationProposalService → LocalSyncStore/Outbox` 冻结 JD/Resume/hash；
+- 普通 `browser_click_element` 与 Enter/Space 仍不能提交。只有专用 `browser_submit` 能消费短期
+  SubmissionIntent/ActionToken 并调用受限 submit 原语；成功与超时分别生成 confirmed/pending
+  SubmissionReceipt。相同 intent 重放返回同一 receipt，不重复点击或创建 Application；
+- SubmissionIntent 在外部点击前原子写入 `startedAt` claim。若 App 在 claim 后、receipt 前中断，恢复时
+  只收口为 pending receipt 并请求核验，不盲目重提；Tracker 暂时写入失败时保留 receipt，后续只允许
+  `sync_submission_receipt` 重试业务同步；
+- SubmissionReceipt 与 Application 一一关联并在详情页展示状态、投递时间与实际 Resume hash；本地
+  回执保留至 Application 删除，删除时连同对应 intent 清理，不影响站点上的既成投递事实；
+- Answer Vault 作为 owner 隔离的 Harness 加密本地事实落地，支持工作授权、签证、搬迁、语言、到岗时间、
+  薪酬范围及 domain/有效期。Agent 可按站点读取；新增/更新必须经过现有不可变 ApprovalManager，接受前
+  零写入。EEO、残障、退伍军人、种族、宗教、性别、身份/法律声明、密码、OTP 等字段 fail-closed；
+- 新增 V1 Harness 状态兼容归一化：旧加密文件缺少 BrowserLead/Submission/Answer Vault 扩展集合时补空
+  集合，不再将整份旧任务状态静默丢弃；Answer Vault 和 Submission 工具原始结果不持久化到 transcript；
+- `npm run check` 全绿：807 个源文件全部 ≤250 行；687 tests 中 685 pass、2 platform skip、0 fail；
+  Node/Renderer typecheck、Node build、Electron production build 通过。Electron 43.2.0/Windows 门禁：
+  Browser/Managed Apply 31/31、Harness 10/10、任务 + Answer Vault 审批 + Tracker receipt UI 14/14；
+- 本阶段证明的是本地真实 Electron fixture 上的机制闭环，没有在真实用户招聘账号发起投递，也不是站点
+  可用性证明。生产真实域名的 `browser_submit` 继续默认 fail-closed，仅测试 origin 可通过显式环境配置；
+  每个 Career/ATS 的条款、页面、账号、长任务和安全验收统一留在 BE8，完成前不得称“完全托管可用”。
+
 ### BE5–BE6：联动门禁
 
 - 邮件信号先关联 Application，再提出状态迁移；不能按公司名模糊匹配就静默写入；
@@ -481,6 +622,57 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 - Calendar event 删除不能自动删除 Interview 事实，只能生成变更 Proposal；
 - Tracker/Calendar 任一侧变更都携带 source identifier，防止来回创建。
 
+**2026-08-23 BE5 实现进展（阶段仍未完成）：**
+
+- 用户确认 Browser Webmail 为默认通用来源，Gmail/Outlook 不再是 BE5 前置。新增
+  `capture_browser_mail_event`：只在不可变 grant 同时包含 `browser.read + mail.read`、
+  `connectorPolicy.browserWebmail=true` 且当前 Webmail origin 命中 allowedDomains 时执行；
+  fresh snapshot 中的 sender、subject、时间证据和必要正文必须与工具参数逐字一致；只保存当前邮件的
+  必要正文，不复制整个收件箱。相同 origin/URL/sender/subject/time 生成稳定 source hash 并去重；
+- 新增 provider-neutral MailConnection/InboxIncrementalAdapter。Gmail 使用 `messages.list/get` +
+  `history.list(startHistoryId)`，404 过期游标回到最近 30 天基线；Outlook 使用 Inbox
+  `messages/delta` 并原样保存受 origin/path 校验的 nextLink/deltaLink。两者只做 GET，不存在发送、删除、
+  标记已读或附件下载能力；实现依据：
+  [Gmail history.list](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.history/list)、
+  [Gmail messages.get](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/get)、
+  [Microsoft Graph message delta](https://learn.microsoft.com/en-us/graph/api/message-delta?view=graph-rest-1.0)；
+- 设置页增加用户已确认的「Browser Agent / 邮箱连接」分区。Gmail/Outlook 均使用系统浏览器、loopback
+  redirect、state + PKCE S256；refresh token 只在主进程按 owner 使用 safeStorage 加密、原子替换，
+  Renderer 只得到 provider/account/scope/时间。Gmail 只申请 `gmail.readonly`，Outlook 申请
+  `Mail.Read` + 识别当前账号所需 `User.Read`/OIDC scope，永不申请 `Mail.Send`；
+- DelegationGrant 增加可选 `connectorPolicy.mailConnectionIds`；授权 `mail.read/mail.classify` 时必须冻结
+  至少一个用户选择的已连接邮箱。App 关闭后无轮询；App 打开期间继续由同一 Agent + BE2 timer/event
+  决定何时增量 fetch/read/classify/wait，宿主未增加邮件业务工作流；
+- 原始 subject/body/sender 作为 `external_untrusted` connector payload 只进入 7 天加密 Evidence Cache，
+  transcript 持久化前立即清除。EnvironmentEvent 使用 provider/connection/message ID 去重；长期只保留
+  ExternalSignal 的 source hash、kind、0–100 置信度、可靠 Application 关联、最多 3 条逐字引用和必要
+  envelope。未分类 mail event 会阻止 task_wait/task_complete，不能静默丢信；
+- 增加间接 prompt-injection 风险标记；可疑邮件仍只作为数据，Agent prompt 明确禁止按邮件要求扩权、
+  跨域读取、上传或发送。Agent 引用必须逐字存在于当前 7 天 payload；无法关联或语义模糊时
+  `applicationId=null`，不得猜测；
+- Application 投递确认/合法状态迁移与 Interview 创建/改期/取消均由 Agent 分别准备不可变 Proposal，
+  复用现有 ApplicationSyncStore、InterviewProposalService、LocalSyncStore/Outbox 和漂移校验。
+  面试邀请必须先确认 Application 进入 interviewing，并具备完整时间/时区；改期必须指向同一
+  Application 的既有 InterviewRound；
+- 在真实邮件关联准确率达到本路线要求的 ≥99% 前，**所有**邮件触发的 Tracker/Interview 写入仍逐条
+  显示 ApprovalCard，由用户接受后执行；当前没有“高置信自动写”开关，也没有 `mail.send` 工具；
+- 当前自动化证据：`npm run check` 全绿，832 个源文件 ≤250 行；700 tests 中 698 pass、2 platform
+  skip、0 fail；Node/Renderer typecheck、Node build、Electron production build 通过。Electron
+  43.2.0/Windows：Browser + 真实 Webmail fixture 33/33、Harness + OAuth PKCE/safeStorage/重启刷新 16/16、设置/任务/回执 UI
+  15/15；Gmail/Graph adapters、游标、重复通知、逐字证据、Application/Interview Proposal 有 fixture
+  回归；
+- **未完成门禁**：尚未在用户允许的真实 Webmail 站点/账号验证跨标签巡视、打开具体邮件、SPA URL
+  不变时的去重、登录接管、长列表、邮件关联和 ≥99% 准确率。因此 BE5 继续是当前阶段，不能以本机
+  fixture 标记完成，也不能切换 BE6。正式 Google/Microsoft OAuth Client、Google restricted scope 验证
+  和真实 API 增量验收只阻塞对应可选 Connector，不再阻塞 Browser Webmail 基线；Generic IMAP 尚未实现。
+- 2026-08-24 用户选择个人 QQ 邮箱作为首个真实 Webmail 验收站点，并确认只打开测试邮件、接受站点
+  可能自动标记已读，登录/二维码/验证码均亲自完成。新增 candidate Site Policy
+  `qq-mail-personal-web-v1`：只覆盖 `https://mail.qq.com`，腾讯企业邮不在范围；允许 read/control/
+  capture_mail，明确拒绝 send/delete/move/archive/mark-read/附件下载/邮件外链/设置写入。candidate 在普通
+  运行中仍 fail-closed，只有 `COOLTO_BROWSER_SITE_ACCEPTANCE_ORIGINS=https://mail.qq.com` 的监督验收
+  进程可 capture；`browser_submit` 的独立测试 allowlist 不受影响。针对性 typecheck 与 8 项 QQ policy/
+  Browser Webmail/Delegation 回归通过；真实登录后的页面、全量 `npm run check` 与阶段完成结论仍待验收。
+
 ## 9. 站点政策与产品边界
 
 自动化能力必须有 `SitePolicyRegistry`，至少记录：
@@ -488,7 +680,7 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 - domain 与登录态要求；
 - 允许的 read/search/fill/submit 范围；
 - robots/服务条款/官方 API 或合作状态；
-- CAPTCHA、速率、并发和每日预算；
+- CAPTCHA、速率、并发、credit 和站点安全预算；
 - 已验收页面与最近验收版本；
 - 风险等级和默认运行模式；
 - 失败时是降级辅助模式、请求接管还是完全禁用。
@@ -504,7 +696,7 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 - 代替用户完成 CAPTCHA、OTP、密码输入；
 - 绕过站点访问控制、频率限制或反自动化措施；
 - 自动同意超出 grant 的法律条款、背景调查、隐私授权或身份声明；
-- 无上限批量投递、重复投递或明显不符合条件的岗位；
+- 绕过 credit、站点频率、去重或 Harness 安全预算进行失控批量投递；
 - 从邮件/网页中读取指令后跨域发送用户数据。
 
 ## 10. 产品指标
@@ -562,7 +754,7 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
   [Indeed Terms](https://www.indeed.com/legal?zlang=en)。
 - AI Native 的价值不止是一次性浏览。当前通用 Agent 产品已经把定时、重复运行、变化监控、
   通知和跨工具连接视为核心形态，因此本路线把 Job Scout、Inbox signals 和 Calendar 联动
-  设计为长期任务，而不是聊天快捷指令：
+  设计为可恢复的本地长期任务，而不是聊天快捷指令；本产品仅在 App 打开时执行，不采用云端调度：
   [Scheduled Tasks in ChatGPT](https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt)、
   [Workspace agents](https://openai.com/academy/workspace-agents/)。
 
@@ -570,8 +762,8 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 
 - 本 README 是 `browser-enhance` 的唯一执行入口；阶段开始前先在对应阶段标题下补现状复核与
   用户确认结果，不创建平行路线；
-- 当前仅建立总路线。用户确认 BE0 后，才按阶段创建 `00-foundation/`、`01-agent-control/` 等正式
-  阶段目录；不预建空文档；
+- BE0 已完成，正式完成记录为 [00-foundation](./00-foundation/README.md)；BE1–BE4 已在本 README
+  既有 5.1/5.3/6/7/8 节写回，不创建平行文档或新 section；当前唯一执行指针为 P0 BE5；
 - 每个阶段完成后在本 README 的阶段表和正式阶段文档写回真实结果、失败点、证据和遗留项；
 - 接口存在、Browser Demo、本地测试页或单一网站成功都不算“完全托管可用”；
 - 任何新增 UI 先提交 Delegation Panel、Task Control Center、Timeline、Receipt 和错误/接管状态方案，

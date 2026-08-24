@@ -5,31 +5,20 @@ import type {
 
 /**
  * B3: 写工具通用辅助。
- *  - 未授予写权限 / 浏览器未打开 → 返回 isError 兜底文本（不炸掉 turn）
- *  - 执行时抛错 → 同样以 isError 返回
+ * 失败直接抛错，由 pi-agent-core 统一生成 toolResult.isError=true。
  *  - 页面 label/文本一律视为不可信数据，返回文案里明确标注
  */
 
 export interface ToolExecuteResult {
   content: { type: "text"; text: string }[];
-  isError?: boolean;
   details: unknown;
 }
 
 export function preflightWriteAccess(
   operator: BrowserPageOperator,
-): ToolExecuteResult | null {
+): void {
   const check = operator.checkWriteAccess();
-  if (check.ok) return null;
-  return isError(check.message);
-}
-
-export function isError(message: string): ToolExecuteResult {
-  return {
-    content: [{ type: "text", text: message }],
-    isError: true,
-    details: { error: message },
-  };
+  if (!check.ok) throw new Error(check.message);
 }
 
 export async function runWriteOperation<T>(
@@ -37,15 +26,8 @@ export async function runWriteOperation<T>(
   op: () => Promise<T>,
   successBuilder: (value: T) => ToolExecuteResult,
 ): Promise<ToolExecuteResult> {
-  const pre = preflightWriteAccess(operator);
-  if (pre) return pre;
-  try {
-    const value = await op();
-    return successBuilder(value);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return isError(message);
-  }
+  preflightWriteAccess(operator);
+  return successBuilder(await op());
 }
 
 export function summariesToUntrustedText(

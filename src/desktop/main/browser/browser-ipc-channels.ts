@@ -30,6 +30,10 @@ export const BROWSER_SHELL_CHANNELS = {
   minimize: "browser-shell:minimize",
   toggleMaximize: "browser-shell:toggle-maximize",
   closeWindow: "browser-shell:close-window",
+  pauseAgent: "browser-shell:agent-pause",
+  resumeAgent: "browser-shell:agent-resume",
+  takeoverAgent: "browser-shell:agent-takeover",
+  stopAgent: "browser-shell:agent-stop",
 } as const;
 
 export type BrowserIpcChannel =

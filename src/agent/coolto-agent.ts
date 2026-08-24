@@ -21,7 +21,6 @@ import { recoverFromOutputRepetition } from "./model-output-recovery.js";
 import { wrapResumeGenerationFollowUp } from "./internal-prompt.js";
 import { StreamingOutputRepetitionGuard } from "./output-repetition-guard.js";
 import type { TurnGovernor } from "./turn-governor.js";
-
 export class CooltoAgent {
   readonly #agent: Agent;
   readonly #approvalManager: ApprovalManager | undefined;
@@ -51,6 +50,9 @@ export class CooltoAgent {
       ...(options.getApiKey ? { getApiKey: options.getApiKey } : {}),
       ...(options.beforeToolCall
         ? { beforeToolCall: options.beforeToolCall }
+        : {}),
+      ...(options.afterToolCall
+        ? { afterToolCall: options.afterToolCall }
         : {}),
       ...(options.transformContext
         ? { transformContext: options.transformContext }

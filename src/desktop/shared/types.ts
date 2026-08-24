@@ -58,3 +58,6 @@ export type * from "./types/conversations.js";
 export type * from "./types/desktop-api.js";
 export type * from "./types/resume-library.js";
 export type * from "./types/updates.js";
+export type * from "./types/agent-tasks.js";
+export type * from "./types/mail-connections.js";
+export type * from "./types/tracker-child-api.js";

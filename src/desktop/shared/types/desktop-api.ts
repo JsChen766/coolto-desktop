@@ -6,8 +6,6 @@ import type {
   NoteInput,
   Reminder,
   ReminderInput,
-  TrackerChildProposal,
-  TrackerChildTombstone,
   TrackerRecoveryProposal,
   TrackerSyncIssueSummary,
 } from "../../../tracker/child-types.js";
@@ -88,7 +86,9 @@ import type {
   ResumeDraftSaveInput,
 } from "./resume-library.js";
 import type { AppUpdateState, UpdateTrigger } from "./updates.js";
-
+import type { AgentTaskDesktopApi } from "./agent-tasks.js";
+import type { MailConnectionsDesktopApi } from "./mail-connections.js";
+import type { TrackerChildDesktopApi } from "./tracker-child-api.js";
 export interface DesktopApi {
   platform: DesktopPlatform;
   auth: {
@@ -107,6 +107,7 @@ export interface DesktopApi {
   shell: {
     openExternal(url: string): Promise<void>;
   };
+  mailConnections: MailConnectionsDesktopApi;
   conversations: {
     list(): Promise<ConversationSummary[]>;
     create(): Promise<ConversationDetail>;
@@ -144,6 +145,7 @@ export interface DesktopApi {
     resolveApproval(input: ApprovalResolveInput): Promise<ConversationDetail>;
     onEvent(listener: (conversationId: string, event: DesktopAgentEvent) => void): () => void;
   };
+  agentTasks: AgentTaskDesktopApi;
   library: {
     list(): Promise<ResumeLibraryEntry[]>;
     preview(resumeId: string): Promise<CloudResumePreview>;
@@ -235,16 +237,9 @@ export interface DesktopApi {
     onCaptchaDetected(listener: (payload: { kind: "recaptcha" | "hcaptcha" | "geetest" | "slider" | "image" | "unknown"; detail?: string }) => void): () => void;
   };
 }
-
 export type WindowDraftSaveState =
   | "idle"
   | "dirty"
   | "saving"
   | "saved"
   | "error";
-export interface TrackerChildDesktopApi<T, I> {
-  prepareCreate(input: { applicationId: string; value: I }): Promise<TrackerChildProposal>;
-  prepareUpdate(input: { id: string; value: I }): Promise<TrackerChildProposal>;
-  prepareDelete(id: string): Promise<TrackerChildProposal>;
-  executeProposal(proposalId: string): Promise<T | TrackerChildTombstone>;
-}
