@@ -147,46 +147,36 @@ export class AgentRuntimeEvents {
   ): Promise<void> {
     const workspace = context.workspaceStore.latest();
     if (!workspace) return;
-    if (context.activeEdit) {
-      const draft = await this.resumeDrafts.proposeChange({
-        artifactId: context.activeEdit.artifactId,
-        base: context.activeEdit.base,
+    const editing = context.activeEdit;
+    let draft: Awaited<ReturnType<ResumeDraftService["get"]>>;
+    if (editing) {
+      draft = await this.resumeDrafts.proposeChange({
+        artifactId: editing.artifactId,
+        base: editing.base,
         proposed: workspace,
-        summary: context.activeEdit.summary,
+        summary: editing.summary,
       });
-      this.notifyDraftUpdated(conversationId, draft.artifactId);
-      this.traces.recordDraftSaved(conversationId);
-      if (workspace.status === "ready_for_approval") {
-        this.traces.recordQualifiedPreviewDelivered(conversationId);
-      }
-      return;
-    }
-    const artifactId = context.artifactIdByCandidate.get(workspace.candidateId);
-    const synced = await this.resumeDrafts.syncWorkspace({
-      conversationId,
-      workspace,
-      ...(artifactId ? { artifactId } : {}),
-    });
-    context.artifactIdByCandidate.set(
-      workspace.candidateId,
-      synced.draft.artifactId,
-    );
-    const draft =
-      synced.created && workspace.status === "ready_for_approval"
-        ? await this.resumeDrafts.ensureGeneratedCheckpoint(
-            synced.draft.artifactId,
-          )
+    } else {
+      const artifactId = context.artifactIdByCandidate.get(workspace.candidateId);
+      const synced = await this.resumeDrafts.syncWorkspace({
+        conversationId, workspace, ...(artifactId ? { artifactId } : {}),
+      });
+      context.artifactIdByCandidate.set(workspace.candidateId, synced.draft.artifactId);
+      draft = synced.created && workspace.status === "ready_for_approval"
+        ? await this.resumeDrafts.ensureGeneratedCheckpoint(synced.draft.artifactId)
         : synced.draft;
+    }
     const draftWithSync = await requestDraftExperienceSyncApproval({
       draft,
       drafts: this.resumeDrafts,
       proposals: context.experienceSyncProposals,
       approvals: context.approvalManager,
     }).catch(() => draft);
-    await this.store.addResumeArtifact(
-      conversationId,
-      this.resumeDrafts.artifactReference(draftWithSync),
-    );
+    if (!editing) {
+      await this.store.addResumeArtifact(
+        conversationId, this.resumeDrafts.artifactReference(draftWithSync),
+      );
+    }
     this.notifyDraftUpdated(conversationId, draftWithSync.artifactId);
     this.traces.recordDraftSaved(conversationId);
     if (workspace.status === "ready_for_approval") {

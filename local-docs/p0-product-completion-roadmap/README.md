@@ -3176,6 +3176,16 @@ JD continuation；用户只回复“确认”时会沿用前一条生成意图�
 重复。新增意图、持久化与 Renderer 合同回归后，`npm run check` 为 753 文件、682/682 tests 和全部
 typecheck/build 通过；本轮没有新的待确认 JD 做真实接受回放，未 package/commit/push/上传/发版。
 
+**S4.5.1 文件补材的经历仓库沉淀确认（2026-08-26，实现与回归通过）：**用户在修改简历时上传并说明属于
+已有经历的报告、作品或其他材料，Agent 必须一次提取并加入其中全部可核验事实，尽量保留背景、职责、方法、
+对象、数据、交付物与结果；一页简历只按当前岗位和版面择取部分内容，不能反向压缩经历仓库的长期证据。
+`add_resume_material` 成功后，宿主不再等待简历达到交付门槛，而是立即复用 ApprovalCard 展示“将补充事实
+同步到经历仓库”，完整预览拟追加内容并让用户整体接受或拒绝；拒绝只阻止经历仓库写入，当前本地简历草稿
+仍保留材料。已有简历 AI 编辑分支也接入同一审批，纯 supplemental 变化会先持久化，不再因尚未选入 bullet
+而丢失同步机会；同一 evidence fingerprint 仍只提示一次。`npm run check` 全绿：758 个业务源文件均
+≤250 行、688/688 tests、Node/Preload/Vue typecheck、Node build 与 Electron production build 通过。
+本轮未执行真实附件 + Electron 人工接受/拒绝验收，未 package/commit/push/上传/发版，阶段总状态不变。
+
 ## 明确不进入本路线
 
 - ResumeDraft/checkpoint 和原始文件云端同步；

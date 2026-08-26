@@ -17,13 +17,15 @@ export function createExperienceSyncApprovalDraft(
     actionType: RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
     scopeKey: "resume-experience-sync",
     risk: "write",
-    title: "把补充内容保存到经历仓库",
+    title: "将补充事实同步到经历仓库",
     description:
-      "接受后会把本轮用户补充事实追加到对应经历，并加入本地同步队列。",
+      "经历仓库会保留本轮材料中全部可核验事实，当前简历只选择与岗位和版面最相关的部分。接受后会把以下事实追加到对应经历并加入本地同步队列；拒绝则只保留在当前简历草稿中。",
     preview: {
-      summary: [{ label: "待更新经历", value: `${proposals.length} 条` }],
+      summary: [
+        { label: "待更新经历", value: `${proposals.length} 条` },
+        { label: "保存范围", value: "本轮全部可核验事实" },
+      ],
       items: proposals.map((proposal) => ({
-        id: proposal.experienceId,
         title: proposal.current?.title ?? proposal.experienceId,
         description: addedText(proposal),
       })),

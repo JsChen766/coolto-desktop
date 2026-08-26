@@ -12,8 +12,6 @@ import type { ResumeExperienceSyncProposalPort } from
   "../../../resume/material/experience-sync-port.js";
 import type { ResumeExperienceSyncDraftPort } from
   "../../../resume/material/experience-sync-port.js";
-import { resumeGenerationReadiness } from
-  "../../../resume/workspace/generation-readiness.js";
 
 export async function requestDraftExperienceSyncApproval(input: {
   draft: LocalResumeDraft;
@@ -22,7 +20,6 @@ export async function requestDraftExperienceSyncApproval(input: {
   approvals: ApprovalManager;
 }): Promise<LocalResumeDraft> {
   const { draft, drafts } = input;
-  if (!resumeGenerationReadiness(draft.workspace).ready) return draft;
   const evidenceFingerprint = supplementalFingerprint(draft);
   if (!evidenceFingerprint ||
     draft.experienceSync?.evidenceFingerprint === evidenceFingerprint) {

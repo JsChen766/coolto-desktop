@@ -190,7 +190,9 @@ function workspaceContentChanged(
 ): boolean {
   return (
     JSON.stringify(base.structure) !== JSON.stringify(proposed.structure) ||
-    JSON.stringify(base.bindings) !== JSON.stringify(proposed.bindings)
+    JSON.stringify(base.bindings) !== JSON.stringify(proposed.bindings) ||
+    JSON.stringify(base.supplementalEvidence ?? []) !==
+      JSON.stringify(proposed.supplementalEvidence ?? [])
   );
 }
 

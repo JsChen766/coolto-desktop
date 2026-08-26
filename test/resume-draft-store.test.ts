@@ -290,6 +290,44 @@ test("AI proposals stay reversible until accepted and create local history on ac
   }
 });
 
+test("AI edit proposals persist newly supplied facts before bullet selection", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "coolto-resume-facts-"));
+  try {
+    const drafts = new ResumeDraftService(
+      "user-1",
+      new ResumeDraftFileRepository("user-1", directory, codec),
+    );
+    const base = await createWorkspace();
+    const synced = await drafts.syncWorkspace({
+      conversationId: "conversation-1",
+      workspace: base,
+    });
+    const proposed = {
+      ...base,
+      revision: base.revision + 1,
+      supplementalEvidence: [{
+        evidenceId: "supplemental:work-1:file-fact",
+        experienceId: "work-1",
+        text: "报告记录了三个业务团队的数据口径核对过程",
+        sourceMessageTimestamp: 300,
+        createdAt: "2026-08-26T00:00:00Z",
+      }],
+    };
+
+    const saved = await drafts.proposeChange({
+      artifactId: synced.draft.artifactId,
+      base,
+      proposed,
+      summary: "使用附件补充经历事实",
+    });
+    assert.equal(saved.pendingChange?.changedBulletIds.length, 0);
+    assert.equal(saved.workspace.supplementalEvidence?.length, 1);
+    assert.equal(saved.pendingChange?.proposed.supplementalEvidence?.length, 1);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 async function createWorkspace() {
   const compiler = new FixtureResumeCompiler();
   const preparer = new ResumeCandidatePreparer(

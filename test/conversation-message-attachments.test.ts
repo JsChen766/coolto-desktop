@@ -110,6 +110,8 @@ test("attachment notice names the files and is stripped from presentation", () =
     { fileId: "attachment-b", filename: "经历.md", type: "markdown", sizeBytes: 20, status: "pending" },
   ]);
   assert.match(notice, /<attachment_notice>/u);
+  assert.match(notice, /全部可核验的具体事实/u);
+  assert.match(notice, /经历仓库同步确认卡/u);
   assert.match(notice, /resume\.pdf（PDF）/u);
   assert.match(notice, /parse_selected_file/u);
 

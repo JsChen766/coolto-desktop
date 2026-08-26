@@ -29,7 +29,7 @@ export function createAddResumeMaterialTool(
     name: "add_resume_material",
     label: "加入用户补充材料",
     description:
-      "把当前用户回答中明确提供的多条事实一次加入指定经历。事实会追加为稳定 evidence，不修改初始 source snapshot，也不重新编译；随后用 apply_resume_content 批量改写。",
+      "把当前用户回答或附件中可核验的事实一次完整加入指定经历。尽量保留具体背景、职责、方法、对象、数据、交付物和结果，不要只提交简历最终采用的少量事实；简历可择取部分内容，但经历仓库同步确认卡会保留本批全部事实。事实会追加为稳定 evidence，不修改初始 source snapshot，也不重新编译；随后用 apply_resume_content 批量改写。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {

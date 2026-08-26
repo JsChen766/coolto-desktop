@@ -32,6 +32,9 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /同名重复记录/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /contentMode=fact_neutral/);
   assert.match(COOLTO_SYSTEM_PROMPT, /不要先询问用户是否同步/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /全部可核验的具体事实/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /无论简历是否已经达标/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /经历仓库同步确认卡/u);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /repair_bullet_depth/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /tailExpansions/);
   assert.match(COOLTO_SYSTEM_PROMPT, /保存和导出不是 Agent 行为/);

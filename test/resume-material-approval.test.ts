@@ -257,6 +257,73 @@ test("prepare_experience_sync batches supplemental facts behind approval", async
   assert.deepEqual(proposals.executed, ["proposal-work-1"]);
 });
 
+test("supplemental facts prompt for warehouse sync before the resume qualifies", async () => {
+  const value = await workspaceHarness();
+  const facts = [
+    "覆盖三个业务团队的数据口径核对",
+    "保留异常样本与逐项复核记录",
+    "交付可复用的周度分析底稿",
+  ];
+  const add = createAddResumeMaterialTool(value.store, () => 99);
+  await add.execute("add-before-qualified", {
+    candidateId: value.created.candidateId,
+    expectedRevision: 0,
+    experienceId: "work-1",
+    facts,
+  });
+  const draft = createLocalResumeDraft({
+    ownerId: "user-1",
+    conversationId: "conversation-1",
+    workspace: value.store.latest()!,
+    artifactId: "22222222-2222-4222-8222-222222222222",
+  });
+  assert.equal(resumeGenerationReadiness(draft.workspace).ready, false);
+
+  const proposals = new FakeExperienceProposals();
+  proposals.currentContent = draft.workspace.sourceSnapshot.experiences
+    .find((item) => item.id === "work-1")!.content;
+  let currentDraft = draft;
+  const drafts = {
+    markExperienceSync: async (
+      _artifactId: string,
+      state: ResumeDraftExperienceSyncState,
+    ): Promise<LocalResumeDraft> => {
+      currentDraft = { ...currentDraft, experienceSync: state };
+      return currentDraft;
+    },
+  };
+  const executors = new ActionExecutorRegistry();
+  executors.register(
+    RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
+    createResumeExperienceSyncExecutor(proposals, drafts),
+  );
+  const approvals = new ApprovalManager(new ApprovalStore(), executors);
+
+  currentDraft = await requestDraftExperienceSyncApproval({
+    draft: currentDraft,
+    drafts,
+    proposals,
+    approvals,
+  });
+  const approval = approvals.listPending()[0]!;
+  assert.equal(approval.title, "将补充事实同步到经历仓库");
+  assert.match(approval.description, /全部可核验事实/u);
+  assert.match(approval.description, /简历只选择/u);
+  assert.deepEqual(approval.preview.summary[1], {
+    label: "保存范围",
+    value: "本轮全部可核验事实",
+  });
+  assert.equal(approval.preview.items?.[0]?.id, undefined);
+  for (const fact of facts) {
+    assert.match(approval.preview.items?.[0]?.description ?? "", new RegExp(fact, "u"));
+  }
+  assert.equal(currentDraft.experienceSync?.status, "pending_approval");
+
+  await approvals.resolve(approval.id, { type: "reject" });
+  assert.deepEqual(proposals.discarded, ["proposal-work-1"]);
+  assert.equal(currentDraft.experienceSync?.status, "rejected");
+});
+
 test("qualified draft automatically opens one experience sync approval", async () => {
   const value = await workspaceHarness();
   const apply = createApplyResumeContentTool(value.compiler, value.store);
