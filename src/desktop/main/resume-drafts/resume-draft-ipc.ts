@@ -6,6 +6,7 @@ import { sha256, stableStringify } from "../../../resume/stable-snapshot.js";
 import type {
   ResumeDraftEditInput,
   ResumeDraftExportPdfInput,
+  ResumeDraftLineSpacingInput,
   ResumeDraftRestoreInput,
   ResumeDraftSaveInput,
 } from "../../shared/types.js";
@@ -15,6 +16,7 @@ export const RESUME_DRAFT_IPC_CHANNELS = [
   "resume-drafts:list",
   "resume-drafts:get",
   "resume-drafts:edit",
+  "resume-drafts:set-line-spacing",
   "resume-drafts:restore",
   "resume-drafts:accept",
   "resume-drafts:reject",
@@ -37,6 +39,11 @@ export function registerResumeDraftIpc(
     "resume-drafts:edit",
     async (_event, input: ResumeDraftEditInput) =>
       (await servicesForCurrentUser()).resumeDraftEditing.edit(input),
+  );
+  ipcMain.handle(
+    "resume-drafts:set-line-spacing",
+    async (_event, input: ResumeDraftLineSpacingInput) =>
+      (await servicesForCurrentUser()).resumeDraftEditing.setLineSpacing(input),
   );
   ipcMain.handle(
     "resume-drafts:restore",

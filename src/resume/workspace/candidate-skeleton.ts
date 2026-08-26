@@ -8,6 +8,7 @@ import {
   RESUME_DEFAULT_TARGET_USAGE_RATIO,
   RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
 } from "../compiler-types.js";
+import { defaultResumeBodyLineHeight } from "../layout-line-spacing.js";
 import { projectEducationRawText } from "../education-details.js";
 import { compareEducation } from "../education-order.js";
 import { ResumeWorkspaceError } from "./errors.js";
@@ -60,7 +61,7 @@ export function buildResumeSkeleton(
     tail_policy_version: RESUME_TAIL_POLICY_V2.version,
     layout_tuning: {
       body_font_scale: 1,
-      body_line_height: 1.18,
+      body_line_height: defaultResumeBodyLineHeight(snapshot.template.templateId),
       section_gap_scale: 1,
       item_gap_scale: 1,
       bullet_gap_scale: 1,

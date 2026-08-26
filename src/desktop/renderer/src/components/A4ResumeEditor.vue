@@ -13,15 +13,18 @@ import {
   resolveResumeTemplate,
 } from "../resume-renderer/template";
 import { addResumeDragHandle } from "../resume-workspace/resume-drag-source";
+import { useResumeLineSpacingPreview } from "../resume-workspace/use-resume-line-spacing-preview";
 import { useResumeLockPopover } from "../resume-workspace/use-resume-lock-popover";
 
 const props = defineProps<{
   draft: ResumeDraftDetail;
+  lineSpacingPercent: number;
 }>();
 
 const emit = defineEmits<{
   edit: [input: ResumeDraftEditInput];
   autosave: [input: ResumeDraftEditInput];
+  lineSpacingMaximum: [value: number];
 }>();
 
 const viewport = ref<HTMLElement>();
@@ -33,6 +36,12 @@ const { locked, makeLocked, sendLockedToChat } = useResumeLockPopover(
   () => props.draft,
 );
 let resizeObserver: ResizeObserver | undefined;
+const lineSpacing = useResumeLineSpacingPreview({
+  root: resumeRoot,
+  draft: () => props.draft,
+  percent: () => props.lineSpacingPercent,
+  onMaximum: (value) => emit("lineSpacingMaximum", value),
+});
 
 watch(
   () => props.draft,
@@ -56,8 +65,11 @@ async function draw(): Promise<void> {
   const template =
     resolveResumeTemplate(props.draft.structure) ??
     requireResumeTemplate("resume-standard");
+  lineSpacing.setTemplate(template);
   renderResume(root, props.draft.structure, template);
   await nextTick();
+  await document.fonts.ready.catch(() => undefined);
+  lineSpacing.refreshMaximum();
   decorateEditableFields(root);
   updateScale();
 }

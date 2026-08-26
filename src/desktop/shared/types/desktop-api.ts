@@ -81,14 +81,13 @@ import type {
   LibraryRestoreCheckpointInput,
   CloudResumePreview,
   ResumeDraftDetail,
-  ResumeDraftEditInput,
+  ResumeDraftEditInput, ResumeDraftLineSpacingInput,
   ResumeDraftExportPdfInput,
   ResumeDraftExportPdfResult,
   ResumeDraftRestoreInput,
   ResumeDraftSaveInput,
 } from "./resume-library.js";
 import type { AppUpdateState, UpdateTrigger } from "./updates.js";
-
 export interface DesktopApi {
   platform: DesktopPlatform;
   auth: {
@@ -126,6 +125,7 @@ export interface DesktopApi {
     list(): Promise<ResumeDraftSummary[]>;
     get(artifactId: string): Promise<ResumeDraftDetail>;
     edit(input: ResumeDraftEditInput): Promise<ResumeDraftDetail>;
+    setLineSpacing(input: ResumeDraftLineSpacingInput): Promise<ResumeDraftDetail>;
     restore(input: ResumeDraftRestoreInput): Promise<ResumeDraftDetail>;
     accept(artifactId: string): Promise<ResumeDraftDetail>;
     reject(artifactId: string): Promise<ResumeDraftDetail>;

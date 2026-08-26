@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createLocalResumeDraft } from "../src/resume/draft/projection.js";
 import type { LocalResumeDraft } from "../src/resume/draft/types.js";
+import { withResumeLineSpacing } from "../src/resume/layout-line-spacing.js";
 import {
   buildDraftPdfExportPayload,
   isExportableWorkspace,
@@ -21,6 +22,8 @@ import {
 
 test("buildDraftPdfExportPayload returns a frozen payload for a qualified draft", async () => {
   const { draft, workspace } = await createQualifiedDraft();
+  workspace.structure = withResumeLineSpacing(workspace.structure, 108);
+  draft.workspace = workspace;
   const payload = buildDraftPdfExportPayload({
     draft,
     expectedRevision: workspace.revision,
@@ -31,6 +34,7 @@ test("buildDraftPdfExportPayload returns a frozen payload for a qualified draft"
   assert.equal(payload.candidateRevision, workspace.revision);
   assert.equal(payload.title, draft.title);
   assert.equal(payload.suggestedFilename, resumePdfFilename(draft.title));
+  assert.equal(payload.structure.layout_tuning?.body_line_height, 1.2744);
   assert.equal(
     payload.structureHash,
     sha256(stableStringify(payload.structure)),
@@ -196,11 +200,14 @@ test("host save builds a new or replacement library payload from the local draft
   const { draft, workspace } = await createQualifiedDraft({
     withoutQualityReport: true,
   });
+  workspace.structure = withResumeLineSpacing(workspace.structure, 108);
+  draft.workspace = workspace;
   const created = buildDraftSavePayload({
     draft,
     expectedRevision: workspace.revision,
   });
   assert.equal(created.mode, "new_resume");
+  assert.equal(created.structured.layout_tuning?.body_line_height, 1.2744);
   assert.equal(created.structured.quality_status, "passed");
 
   const replacing = buildDraftSavePayload({

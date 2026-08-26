@@ -60,6 +60,8 @@ const api: DesktopApi = {
     list: () => ipcRenderer.invoke("resume-drafts:list"),
     get: (artifactId) => ipcRenderer.invoke("resume-drafts:get", artifactId),
     edit: (input) => ipcRenderer.invoke("resume-drafts:edit", input),
+    setLineSpacing: (input) =>
+      ipcRenderer.invoke("resume-drafts:set-line-spacing", input),
     restore: (input) => ipcRenderer.invoke("resume-drafts:restore", input),
     accept: (artifactId) =>
       ipcRenderer.invoke("resume-drafts:accept", artifactId),

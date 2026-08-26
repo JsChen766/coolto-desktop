@@ -1651,6 +1651,28 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   由专职测试人员按 Section H 标准执行（含本 Section 门槛逐项复核），不以本轮自动门禁提前宣称
   Section G 完成。
 
+**S4.5 当前预览行间距调节补充记录（2026-08-26，用户确认）**：
+
+- **产品与交互**：预览打开且存在本地草稿时，在右上角高级详情与保存按钮之间增加复用 Lucide 与既有
+  popover token 的“调整行间距”入口；滑块固定展示 `90%–135%`、步长 `1%`、默认 `100%`，同时提供
+  减小、增大和还原默认的点击/键盘路径。拖动时 A4 立即预览，松开后才提交正式本地修订；中英文、
+  `aria-label`、`aria-valuetext`、Esc 收起、点击外部收起和焦点返回均接入。
+- **一页硬门禁**：右侧同源 A4 DOM 逐档测量每个候选行距，以 `pageCount=1`、`overflow≤1px` 和既有
+  最大页面占比作为动态安全上限；完整轨道仍可见，但安全上限之后显示为不可用尾段，滑块不能进入，
+  到达边界时显示“继续增大将超过一页，已到达当前安全上限”。Main 保存前再次使用隐藏 Chromium 编译
+  同一结构；任何多页、溢出或超过页面占比上限的结果均拒绝写入并保持原行距，因此 Renderer 估算不会
+  成为唯一安全边界。
+- **持久化与同源交付**：行距写入既有 `layout_tuning.body_line_height`，不修改或补写正文；成功调整会
+  增加本地 revision 和“调整行间距”checkpoint，并带 expected revision 防止并发覆盖。预览、保存到
+  简历库与 PDF 导出继续消费同一结构，新增回归明确验证保存/导出 payload 保留该 tuning；pending AI
+  修改存在时入口禁用，文字自动保存会在行距提交前先完成。
+- **验证证据**：新增纯逻辑与草稿服务回归，覆盖 `90%–135%` 映射、模板基线防漂移、动态上限、陈旧
+  revision、一页拒绝、checkpoint、保存/导出同源；`npm run check` 全绿（686/686 tests、758 个源文件
+  ≤250 行、模板快照、Node/preload/renderer 类型检查与两端构建通过），`git diff --check` 通过。真实
+  Electron 已复验按钮位置、popover 视觉与可访问结构；隔离内存 Demo 中当前样本在 `101%` 达到安全
+  上限，加号随即禁用、警告出现且无法继续增大，重置后回到 `100%`。Demo 未写入真实业务数据；本轮
+  未另行导出真实文件，完整 PDF 人工质检仍随既定 Section H 执行。本轮未 commit。
+
 #### S4.5 Section G-1：应用自动更新闭环
 
 - 在既有 electron-builder 打包链（`electron-builder@26`，`package:mac`）上接入 `electron-updater`：

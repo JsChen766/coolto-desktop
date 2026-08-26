@@ -21,7 +21,6 @@ import type { AppShell } from "./use-app-shell";
 import { useStreamingElapsed } from "../chat/use-streaming-elapsed";
 import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
-
 const props = defineProps<{ shell: AppShell }>();
 const emptyStages = useEmptyStateStages();
 const {
@@ -80,7 +79,6 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
 
 const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
 </script>
-
 <template>
       <ChatHeader
         :title="!current || current.title === '新对话' ? $t('新对话') : current.title"
@@ -92,11 +90,13 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
         :export-message="resumeWorkspace.exportMessage.value"
         :saving-to-library="resumeWorkspace.savingToLibrary.value"
         :save-message="resumeWorkspace.saveMessage.value"
+        :line-spacing-percent="resumeWorkspace.lineSpacing.percent.value" :line-spacing-maximum="resumeWorkspace.lineSpacing.maximumPercent.value" :line-spacing-saving="resumeWorkspace.lineSpacing.saving.value"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
         @toggle-artifact="toggleArtifact"
         @toggle-browser="toggleBrowser"
         @save-resume="saveResumeToCloud"
         @export-resume="exportResume"
+        @preview-line-spacing="resumeWorkspace.lineSpacing.preview" @commit-line-spacing="resumeWorkspace.lineSpacing.commit"
         @rename="current && openDialog('rename', { id: current.id, title: current.title, createdAt: current.createdAt, updatedAt: current.updatedAt, messageCount: current.messageCount })"
       />
 

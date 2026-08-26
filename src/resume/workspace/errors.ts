@@ -8,6 +8,7 @@ export type ResumeWorkspaceErrorCode =
   | "missing_education_source"
   | "unsupported_experience_category"
   | "invalid_experience_order"
+  | "layout_line_spacing_overflow"
   | "item_not_found"
   | "bullet_not_found"
   | "bullet_anchor_not_found"

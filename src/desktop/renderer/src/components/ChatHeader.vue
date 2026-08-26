@@ -14,6 +14,7 @@ import { ref } from "vue";
 import type { ResumeDraftDetail } from "@desktop/types";
 import { translate } from "../i18n/locale";
 import IconButton from "./IconButton.vue";
+import ResumeLineSpacingControl from "./ResumeLineSpacingControl.vue";
 
 const props = defineProps<{
   title: string;
@@ -25,6 +26,9 @@ const props = defineProps<{
   exportMessage?: string;
   savingToLibrary?: boolean;
   saveMessage?: string;
+  lineSpacingPercent: number;
+  lineSpacingMaximum: number;
+  lineSpacingSaving?: boolean;
 }>();
 
 defineEmits<{
@@ -34,6 +38,8 @@ defineEmits<{
   saveResume: [];
   exportResume: [];
   rename: [];
+  previewLineSpacing: [value: number];
+  commitLineSpacing: [value: number];
 }>();
 
 const detailsOpen = ref(false);
@@ -90,6 +96,15 @@ function resumeActionLabel(action: "保存到简历库" | "导出到本地文件
           :label="$t('高级详情')"
           :active="detailsOpen"
           @click="detailsOpen = !detailsOpen"
+        />
+        <ResumeLineSpacingControl
+          :value="lineSpacingPercent"
+          :maximum="lineSpacingMaximum"
+          :saving="lineSpacingSaving"
+          :disabled="Boolean(resumeDraft.pendingChange)"
+          @opened="detailsOpen = false"
+          @preview="$emit('previewLineSpacing', $event)"
+          @commit="$emit('commitLineSpacing', $event)"
         />
         <IconButton
           :icon="CloudUpload"

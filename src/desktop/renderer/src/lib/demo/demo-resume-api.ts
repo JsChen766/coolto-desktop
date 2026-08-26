@@ -6,6 +6,7 @@ import {
   draftSummary,
 } from "./demo-resume-data";
 import { getResumeFixture } from "../../../../../resume/fixtures";
+import { withResumeLineSpacing } from "../../../../../resume/layout-line-spacing";
 
 export function createDemoResumeDraftApi(
   draft: ResumeDraftDetail,
@@ -45,6 +46,22 @@ export function createDemoResumeDraftApi(
           revision: draft.checkpoints.length + 1,
         });
       }
+      return structuredClone(draft);
+    },
+    setLineSpacing: async ({ artifactId, expectedRevision, scalePercent }) => {
+      requireDraft(artifactId);
+      if (draft.revision !== expectedRevision) throw new Error("简历修订已变化");
+      draft.structure = withResumeLineSpacing(draft.structure, scalePercent);
+      draft.revision += 1;
+      draft.updatedAt = new Date().toISOString();
+      draft.cloudState = "local_changes";
+      draft.checkpoints.push({
+        id: crypto.randomUUID(),
+        label: "调整行间距",
+        reason: "manual_edit",
+        createdAt: draft.updatedAt,
+        revision: draft.revision,
+      });
       return structuredClone(draft);
     },
     restore: async ({ artifactId, checkpointId }) => {

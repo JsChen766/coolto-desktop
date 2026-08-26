@@ -41,6 +41,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
       list: unavailable,
       get: unavailable,
       edit: unavailable,
+      setLineSpacing: unavailable,
       restore: unavailable,
       accept: unavailable,
       reject: unavailable,

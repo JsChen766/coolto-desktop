@@ -75,6 +75,12 @@ export interface ResumeDraftEditInput {
   createCheckpoint?: boolean;
 }
 
+export interface ResumeDraftLineSpacingInput {
+  artifactId: string;
+  expectedRevision: number;
+  scalePercent: number;
+}
+
 export interface ResumeDraftRestoreInput {
   artifactId: string;
   checkpointId: string;

@@ -1,10 +1,9 @@
 import { ref } from "vue";
-
 import type { ResumeDraftDetail, ResumeDraftEditInput, ResumeDraftRestoreInput } from "@desktop/types";
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { desktopApi } from "../lib/desktop-api";
 import { translate, translateFormat } from "../i18n/locale";
-
+import { useResumeLineSpacing } from "./use-resume-line-spacing";
 export function useResumeWorkspace() {
   const drafts = ref<ResumeDraftSummary[]>([]);
   const activeDraft = ref<ResumeDraftDetail>();
@@ -23,12 +22,18 @@ export function useResumeWorkspace() {
   const editFailures = new Map<string, string>();
   let exportMessageTimer: ReturnType<typeof setTimeout> | undefined;
   let saveMessageTimer: ReturnType<typeof setTimeout> | undefined;
-
+  const lineSpacing = useResumeLineSpacing({
+    activeDraft,
+    error,
+    localSaveState,
+    flushTextEdits: flushPendingEdits,
+    reloadDrafts: loadDrafts,
+  });
   async function loadDrafts(): Promise<void> {
     drafts.value = await desktopApi.resumeDrafts.list();
   }
-
   async function openDraft(artifactId: string): Promise<void> {
+    await lineSpacing.flush();
     if (pendingEdits.size && !await flushPendingEdits()) return;
     busy.value = true;
     error.value = undefined;
@@ -42,7 +47,6 @@ export function useResumeWorkspace() {
       busy.value = false;
     }
   }
-
   async function refreshActive(): Promise<void> {
     if (activeDraft.value) {
       await openDraft(activeDraft.value.artifactId);
@@ -50,14 +54,12 @@ export function useResumeWorkspace() {
       await loadDrafts();
     }
   }
-
   async function edit(input: ResumeDraftEditInput): Promise<void> {
     const key = editKey(input);
     clearEditTimer(key);
     pendingEdits.delete(key);
     await enqueueEdit({ ...input, createCheckpoint: true }, true);
   }
-
   function autosave(input: ResumeDraftEditInput): void {
     const key = editKey(input);
     pendingEdits.set(key, { ...input, createCheckpoint: false });
@@ -70,13 +72,11 @@ export function useResumeWorkspace() {
       if (pending) void enqueueEdit(pending, false);
     }, 900));
   }
-
   function clearEditTimer(key: string): void {
     const timer = autosaveTimers.get(key);
     if (timer) clearTimeout(timer);
     autosaveTimers.delete(key);
   }
-
   async function flushPendingEdits(): Promise<boolean> {
     const pending = [...pendingEdits.values()];
     pendingEdits.clear();
@@ -88,7 +88,6 @@ export function useResumeWorkspace() {
     await editQueue;
     return localSaveState.value !== "error" && editFailures.size === 0;
   }
-
   async function enqueueEdit(
     input: ResumeDraftEditInput,
     refreshView: boolean,
@@ -113,7 +112,6 @@ export function useResumeWorkspace() {
     });
     await editQueue;
   }
-
   async function restore(input: ResumeDraftRestoreInput): Promise<void> {
     busy.value = true;
     error.value = undefined;
@@ -127,7 +125,6 @@ export function useResumeWorkspace() {
       busy.value = false;
     }
   }
-
   async function resolvePending(decision: "accept" | "reject"): Promise<void> {
     const draft = activeDraft.value;
     if (!draft) return;
@@ -143,8 +140,8 @@ export function useResumeWorkspace() {
       busy.value = false;
     }
   }
-
   async function exportActiveDraft(): Promise<void> {
+    await lineSpacing.flush();
     if (!await flushPendingEdits()) return;
     const draft = activeDraft.value;
     if (!draft || exporting.value) return;
@@ -169,6 +166,7 @@ export function useResumeWorkspace() {
   }
 
   async function saveActiveDraft(): Promise<void> {
+    await lineSpacing.flush();
     if (!await flushPendingEdits()) return;
     const draft = activeDraft.value;
     if (!draft || savingToLibrary.value) return;
@@ -192,6 +190,7 @@ export function useResumeWorkspace() {
   }
 
   function clear(): void {
+    lineSpacing.clear();
     pendingEdits.clear();
     autosaveTimers.forEach(clearTimeout);
     autosaveTimers.clear();
@@ -208,7 +207,6 @@ export function useResumeWorkspace() {
   function markLocalSaveFailed(message: string): void {
     error.value = message; localSaveState.value = "error";
   }
-
   function markLocalSaving(): void { localSaveState.value = "saving"; }
   return {
     drafts,
@@ -219,6 +217,7 @@ export function useResumeWorkspace() {
     exportMessage,
     savingToLibrary,
     saveMessage,
+    lineSpacing,
     localSaveState,
     loadDrafts,
     openDraft,
@@ -235,14 +234,12 @@ export function useResumeWorkspace() {
     markLocalSaving,
   };
 }
-
 function editKey(input: ResumeDraftEditInput): string {
   const targetId = input.target.type === "bullet"
     ? input.target.bulletId
     : input.target.itemId;
   return `${input.artifactId}:${input.target.type}:${targetId}`;
 }
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }

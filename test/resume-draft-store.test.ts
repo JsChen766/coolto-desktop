@@ -10,6 +10,7 @@ import { toResumeDraftDetail } from "../src/desktop/main/resume-drafts/draft-vie
 import { ResumeDraftService } from "../src/desktop/main/resume-drafts/resume-draft-service.js";
 import type { ResumeDraftCodec } from "../src/resume/draft/types.js";
 import { ResumeManualEditor } from "../src/resume/draft/manual-editor.js";
+import { resumeLineSpacingPercent } from "../src/resume/layout-line-spacing.js";
 import { applyCandidatePatch } from "../src/resume/workspace/candidate-patch.js";
 import { resolveEvidenceBindingInput } from "../src/resume/workspace/evidence-resolution.js";
 import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-preparer.js";
@@ -170,6 +171,67 @@ test("manual edits preserve cited supplemental numeric evidence", async () => {
     `${numericText}，并保持原有事实口径`,
   );
   assert.match(firstBulletText(edited), /260 亿元/u);
+});
+
+test("line spacing creates a local revision and rejects any value that exceeds one page", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "coolto-resume-spacing-"));
+  try {
+    const drafts = new ResumeDraftService(
+      "user-1",
+      new ResumeDraftFileRepository("user-1", directory, codec),
+    );
+    const editing = new ResumeDraftEditingService(
+      drafts,
+      new ResumeManualEditor(new FixtureResumeCompiler()),
+    );
+    const workspace = await createWorkspace();
+    const synced = await drafts.syncWorkspace({
+      conversationId: "conversation-1",
+      workspace,
+    });
+    const committed = await editing.setLineSpacing({
+      artifactId: synced.draft.artifactId,
+      expectedRevision: workspace.revision,
+      scalePercent: 110,
+    });
+
+    assert.equal(resumeLineSpacingPercent(committed.structure), 110);
+    assert.equal(committed.revision, workspace.revision + 1);
+    assert.equal(committed.checkpoints.at(-1)?.label, "调整行间距");
+    await assert.rejects(
+      editing.setLineSpacing({
+        artifactId: synced.draft.artifactId,
+        expectedRevision: workspace.revision,
+        scalePercent: 111,
+      }),
+      /简历已变化到修订/u,
+    );
+
+    const overflowCompiler = {
+      compile: async () => ({
+        ...workspace.compileResult,
+        qualified: false,
+        pageCount: 2,
+        overflowPx: 24,
+        usageRatio: 1.02,
+        violations: [{
+          code: "page_overflow" as const,
+          message: "Page overflowed.",
+        }],
+      }),
+    };
+    await assert.rejects(
+      new ResumeManualEditor(overflowCompiler).setLineSpacing(workspace, 120),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "layout_line_spacing_overflow" &&
+        /超过一页/u.test(error.message),
+    );
+    assert.equal(resumeLineSpacingPercent(workspace.structure), 100);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("AI proposals stay reversible until accepted and create local history on acceptance", async () => {
