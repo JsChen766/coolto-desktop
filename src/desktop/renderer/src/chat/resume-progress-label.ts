@@ -48,9 +48,9 @@ export function completedToolProgressLabel(
         ? `（${progress.stackedProgressCount} 条继续叠加）`
         : "";
       return (progress.appliedRewriteCount ?? 0) > 0
-        ? `已应用 ${progress.appliedRewriteCount} 条 bullet 深度扩写${stacked}` +
+        ? `已应用 ${progress.appliedRewriteCount} 条内容要点扩写${stacked}` +
           `${usage ? `，页面占用率 ${usage}` : ""}`
-        : `正在修复一行 bullet${usage ? `，页面占用率 ${usage}` : ""}`;
+        : `正在扩写过短的内容要点${usage ? `，页面占用率 ${usage}` : ""}`;
     }
     case "filling":
       if ((progress.appliedRewriteCount ?? 0) > 0) {
@@ -67,7 +67,7 @@ export function completedToolProgressLabel(
       return `当前页面占用率 ${usage ?? "待测"}，正在补足到 92%`;
     case "trimming":
       return (progress.removedBulletCount ?? 0) > 0
-        ? `已移除 ${progress.removedBulletCount} 条低价值 bullet 并重新排版` +
+        ? `已移除 ${progress.removedBulletCount} 条低价值内容要点并重新排版` +
           `${usage ? `，页面占用率 ${usage}` : ""}`
         : "内容超过一页，正在执行最小删减";
     case "awaiting_material": return "现有事实不足，正在准备一个具体的补充问题";
@@ -84,8 +84,8 @@ function applyStartedLabel(args: unknown): string {
     ? args as Record<string, unknown>
     : {};
   if (Array.isArray(value.tailGrowths)) return "正在批量实测尾行增长";
-  if (Array.isArray(value.bulletRemovals)) return "正在移除一条低价值 bullet 并重新排版";
-  if (Array.isArray(value.lineRewrites)) return "正在批量扩写 bullet 并重新排版";
+  if (Array.isArray(value.bulletRemovals)) return "正在移除一条低价值内容要点并重新排版";
+  if (Array.isArray(value.lineRewrites)) return "正在批量扩写内容要点并重新排版";
   if (Array.isArray(value.bulletAdditions)) {
     return "正在补足页面内容并重新排版";
   }

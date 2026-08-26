@@ -68,6 +68,10 @@ export interface ResumeDraftSummary {
   hasPendingChange: boolean;
   cloudState: "local_only" | "synced" | "local_changes";
   cloudResumeId?: string | null;
+  workspaceStatus: ResumeWorkspace["status"];
+  generationReady: boolean;
+  jdId: string | null;
+  jdTitle: string | null;
 }
 
 export interface ResumeDraftCodec {

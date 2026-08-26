@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, shallowRef, type Ref } from "vue";
 
 import type {
   CheckoutPlan,
@@ -18,39 +18,44 @@ const LAST_CHECKOUT_KEY = "coolto:last-checkout";
 const POLL_INTERVAL_MS = 3_000;
 const POLL_ATTEMPTS = 10;
 
+interface UseCreditDialogOptions {
+  summary: Readonly<Ref<DesktopCreditSummary | undefined>>;
+  refreshSummary: () => Promise<DesktopCreditSummary | undefined>;
+}
+
 /**
  * Credit balance + plan catalog + purchase flow state (PRD D1/D2). The
  * purchase flow follows PRD D2: open the Afdian link in the system browser,
  * poll the credit summary, then fall back to manual verification.
  */
-export function useCreditDialog(api: DesktopApi) {
-  const summary = ref<DesktopCreditSummary>();
-  const plans = ref<CheckoutPlan[]>([]);
-  const phase = ref<PurchasePhase>("idle");
-  const busy = ref(false);
-  const loadError = ref<string>();
-  const purchaseError = ref<string>();
-  const lastCheckoutId = ref(
+export function useCreditDialog(
+  api: DesktopApi,
+  options: UseCreditDialogOptions,
+) {
+  const plans = shallowRef<CheckoutPlan[]>([]);
+  const phase = shallowRef<PurchasePhase>("idle");
+  const busy = shallowRef(false);
+  const loadError = shallowRef<string>();
+  const purchaseError = shallowRef<string>();
+  const lastCheckoutId = shallowRef(
     localStorage.getItem(LAST_CHECKOUT_KEY) ?? undefined,
   );
   let disposed = false;
 
   const totalCredits = computed(
     () =>
-      (summary.value?.weeklyFreeCredits ?? 0) +
-      (summary.value?.creditBalance ?? 0),
+      (options.summary.value?.weeklyFreeCredits ?? 0) +
+      (options.summary.value?.creditBalance ?? 0),
   );
 
   async function loadAll(): Promise<void> {
     busy.value = true;
     loadError.value = undefined;
     try {
-      const [freshSummary, freshPlans] = await Promise.all([
-        api.auth.getCredits(),
-        api.checkout.plans(),
-      ]);
-      summary.value = freshSummary;
-      plans.value = freshPlans;
+      const freshSummary = await options.refreshSummary();
+      plans.value = freshSummary?.unlimited
+        ? []
+        : await api.checkout.plans();
     } catch (error: unknown) {
       loadError.value =
         error instanceof Error ? error.message : String(error);
@@ -59,11 +64,12 @@ export function useCreditDialog(api: DesktopApi) {
     }
   }
 
-  async function refreshSummary(): Promise<void> {
+  async function refreshSummary(): Promise<DesktopCreditSummary | undefined> {
     try {
-      summary.value = await api.auth.getCredits();
+      return await options.refreshSummary();
     } catch {
       // Poll failures must not kill the waiting state; the user can retry.
+      return undefined;
     }
   }
 
@@ -89,8 +95,11 @@ export function useCreditDialog(api: DesktopApi) {
     for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       if (disposed) return;
-      await refreshSummary();
-      if (totalCredits.value > initialTotal) {
+      const freshSummary = await refreshSummary();
+      const freshTotal = freshSummary
+        ? freshSummary.weeklyFreeCredits + freshSummary.creditBalance
+        : totalCredits.value;
+      if (freshTotal > initialTotal) {
         phase.value = "success";
         return;
       }
@@ -132,7 +141,7 @@ export function useCreditDialog(api: DesktopApi) {
   }
 
   return {
-    summary,
+    summary: options.summary,
     plans,
     phase,
     busy,

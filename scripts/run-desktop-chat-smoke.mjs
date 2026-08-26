@@ -258,77 +258,70 @@ async function installAgentObservation(session, stopAfterReuseWorkspace) {
   const installed = await evaluate(session, `(() => {
     window.__cooltoSmokeAgentUnsubscribe?.();
     window.__cooltoSmokeAgentEvents = [];
-    window.__cooltoSmokeResumeCallIds = [];
     window.__cooltoSmokeReuseCallIds = [];
     window.__cooltoSmokeStoppedAfterReuseWorkspace = false;
     const agent = window.coolto?.agent;
     if (!agent?.onEvent) return false;
     window.__cooltoSmokeAgentUnsubscribe = agent.onEvent((_conversationId, event) => {
-      if (event.type === "tool.started" && [
-        "find_resume_reuse_candidates", "create_resume_workspace",
-      ].includes(event.name)) {
-        const args = event.arguments && typeof event.arguments === "object"
-          ? event.arguments : {};
-        window.__cooltoSmokeAgentEvents.push({
-          type: event.type, callId: event.callId, name: event.name,
-          targetJdId: args.targetJdId ?? "", jdId: args.jdId ?? "",
-          baseResumeId: args.baseResumeId ?? "",
-          experienceCount: Array.isArray(args.experiences) ? args.experiences.length : 0,
-        });
-        if (event.name === "create_resume_workspace" && args.baseResumeId) {
-          window.__cooltoSmokeReuseCallIds.push(event.callId);
-        }
-      }
-      if (event.type === "tool.completed" &&
-          event.name === "create_resume_workspace" &&
-          window.__cooltoSmokeReuseCallIds.includes(event.callId)) {
-        window.__cooltoSmokeAgentEvents.push({
-          type: event.type, callId: event.callId, name: event.name,
-          isError: event.isError, error: event.error ?? "",
-        });
-        if (!event.isError && ${stopAfterReuseWorkspace}) {
-          window.__cooltoSmokeStoppedAfterReuseWorkspace = true;
-          void agent.cancel();
-        }
-      }
-      if (event.type === "tool.started" && event.name === "apply_resume_content") {
+      if (event.type === "tool.started") {
         const args = event.arguments && typeof event.arguments === "object"
           ? event.arguments
           : {};
         const growths = Array.isArray(args.tailGrowths) ? args.tailGrowths : [];
         const reflows = Array.isArray(args.lineRewrites) ? args.lineRewrites : [];
-        window.__cooltoSmokeResumeCallIds.push(event.callId);
         window.__cooltoSmokeAgentEvents.push({
           type: event.type,
           callId: event.callId,
-          expectedRevision: args.expectedRevision,
-          inputMode: ["items", "bulletUpdates", "bulletRemovals",
-            "bulletAdditions", "tailGrowths", "lineRewrites"]
-            .find((key) => Array.isArray(args[key]) && args[key].length),
-          targetCount: growths.length || reflows.length,
-          tailGrowths: growths.map((entry) => ({
-            bulletId: entry?.bulletId ?? "",
-            growthText: entry?.growthText ?? "",
-            growthCharacters: [...(entry?.growthText ?? "")].length,
-          })),
-          tailReflows: reflows.map((entry) => ({
-            bulletId: entry?.bulletId ?? "",
-            revisedText: entry?.revisedText ?? "",
-          })),
+          name: event.name,
+          status: "running",
+          ...(["find_resume_reuse_candidates", "create_resume_workspace"]
+            .includes(event.name) ? {
+              targetJdId: args.targetJdId ?? "",
+              jdId: args.jdId ?? "",
+              baseResumeId: args.baseResumeId ?? "",
+              experienceCount: Array.isArray(args.experiences)
+                ? args.experiences.length
+                : 0,
+            } : {}),
+          ...(event.name === "apply_resume_content" ? {
+            expectedRevision: args.expectedRevision,
+            inputMode: ["items", "bulletUpdates", "bulletRemovals",
+              "bulletAdditions", "tailGrowths", "lineRewrites"]
+              .find((key) => Array.isArray(args[key]) && args[key].length),
+            targetCount: growths.length || reflows.length,
+            tailGrowths: growths.map((entry) => ({
+              bulletId: entry?.bulletId ?? "",
+              growthText: entry?.growthText ?? "",
+              growthCharacters: [...(entry?.growthText ?? "")].length,
+            })),
+            tailReflows: reflows.map((entry) => ({
+              bulletId: entry?.bulletId ?? "",
+              revisedText: entry?.revisedText ?? "",
+            })),
+          } : {}),
         });
+        if (event.name === "create_resume_workspace" && args.baseResumeId) {
+          window.__cooltoSmokeReuseCallIds.push(event.callId);
+        }
       }
-      if (
-        event.type === "tool.completed" &&
-        event.name === "apply_resume_content" &&
-        window.__cooltoSmokeResumeCallIds.includes(event.callId)
-      ) {
+      if (event.type === "tool.completed") {
         window.__cooltoSmokeAgentEvents.push({
           type: event.type,
           callId: event.callId,
+          name: event.name,
+          status: event.isError ? "error" : "completed",
           isError: event.isError,
           error: event.error ?? "",
           progress: event.progress,
         });
+        if (
+          event.name === "create_resume_workspace" &&
+          window.__cooltoSmokeReuseCallIds.includes(event.callId) &&
+          !event.isError && ${stopAfterReuseWorkspace}
+        ) {
+          window.__cooltoSmokeStoppedAfterReuseWorkspace = true;
+          void agent.cancel();
+        }
       }
     });
     return true;
@@ -358,7 +351,9 @@ async function waitForResult(
   let started = false;
   const state = await poll(waitMs, async () => {
     const current = await readState(session);
-    for (const tool of current.tools) observedTools.set(tool.callId, tool);
+    for (const tool of toolRunsFromEvents(await readAgentObservation(session))) {
+      observedTools.set(tool.callId, tool);
+    }
     if (current.progressLabel && !progressSeen.has(current.progressLabel)) {
       progressSeen.add(current.progressLabel);
       observedProgress.push(current.progressLabel);
@@ -388,7 +383,9 @@ async function waitForResult(
     observedProgress.push(settledState.progressLabel);
   }
   const tools = [...observedTools.values()];
-  for (const tool of settledState.tools) observedTools.set(tool.callId, tool);
+  for (const tool of toolRunsFromEvents(await readAgentObservation(session))) {
+    observedTools.set(tool.callId, tool);
+  }
   tools.splice(0, tools.length, ...observedTools.values());
   const toolErrors = tools.filter((tool) => tool.status === "error");
   const resumeChanged = Boolean(settledState.resumeArtifactId) && (
@@ -452,12 +449,6 @@ async function readState(session) {
       resumePageCount: Number(resume?.dataset.pageCount ?? 0),
       resumeUsageRatio: Number(resume?.dataset.pageUsageRatio ?? 0),
       resumeBlockerCodes: (resume?.dataset.blockerCodes ?? "").split(",").filter(Boolean),
-      tools: [...document.querySelectorAll('[data-testid="tool-run"]')].map((item) => ({
-        callId: item.dataset.toolCallId ?? "",
-        name: item.dataset.toolName ?? "",
-        status: item.dataset.toolStatus ?? "",
-        error: item.dataset.toolError ?? "",
-      })),
     };
   })()`);
 }
@@ -496,10 +487,37 @@ async function openResumePreview(session, artifactId, waitMs) {
 async function settleCompletedTools(session, waitMs) {
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
-    const state = await readState(session);
-    if (!state.tools.some((tool) => tool.status === "running")) return;
+    const events = await readAgentObservation(session);
+    if (!toolRunsFromEvents(events).some((tool) => tool.status === "running")) {
+      return;
+    }
     await sleep(100);
   }
+}
+
+function toolRunsFromEvents(events) {
+  const runs = new Map();
+  for (const event of events) {
+    if (event.type === "tool.started") {
+      runs.set(event.callId, {
+        callId: event.callId,
+        name: event.name,
+        status: "running",
+        error: "",
+      });
+    } else if (event.type === "tool.completed") {
+      const current = runs.get(event.callId) ?? {
+        callId: event.callId,
+        name: event.name,
+      };
+      runs.set(event.callId, {
+        ...current,
+        status: event.isError ? "error" : "completed",
+        error: event.error ?? "",
+      });
+    }
+  }
+  return [...runs.values()];
 }
 
 async function poll(waitMs, operation, description) {

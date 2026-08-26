@@ -7,6 +7,7 @@ import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-prepa
 import { ResumeWorkspaceError } from "../src/resume/workspace/errors.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import {
+  BASE_WORK_CONTENT,
   FixtureResumeCompiler,
   createBinding,
   createWorkspaceSnapshotBuilder,
@@ -17,7 +18,9 @@ const SECOND_QUOTE = "为 3 个团队建立周度报表。";
 const THIRD_QUOTE = "设计异常检查规则并与业务团队协作。";
 
 async function createInitial() {
-  const builder = createWorkspaceSnapshotBuilder();
+  const builder = createWorkspaceSnapshotBuilder({
+    workContent: BASE_WORK_CONTENT,
+  });
   const compiler = new FixtureResumeCompiler();
   const store = new ResumeWorkspaceStore();
   const preparer = new ResumeCandidatePreparer(builder, compiler, store, {

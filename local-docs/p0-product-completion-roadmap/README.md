@@ -3062,6 +3062,92 @@ feed SHA-512 与独立全字节 SHA-256 校验：Windows EXE
 `5799A4A5F905A3EDD74B3F124E58771040D9705AB58764965FB6A612640AF967`。Windows 仍为 NotSigned，macOS
 仍为 ad-hoc/未 notarize；S4.5 状态不因本次反馈入口发布而改变。
 
+**跨阶段 P0 维护（2026-08-25，首装 QA 三项阻断）：**当前 `0.1.20` 代码已在并行本地分支修复三项
+旧 QA 缺口：生成侧新增写前物理可达性门禁并阻止空 workspace 发布成可见草稿；普通聊天不再提供可展开的
+工具清单，Renderer DOM 不渲染工具名、call ID、UUID/hash/evidence range 或原始工具错误，只保留白名单
+事实进度，Electron smoke 改从内部事件观察工具错误以免削弱质检；Credit 由 `CreditsHost` 的单一
+`DesktopCreditSummary` 驱动，`unlimited=true` 时侧栏和弹窗统一显示“无限量/不扣费”，隐藏数值 0、余额
+构成与购买套餐。完整 `npm run check` 全绿：834 个源文件 ≤250 行，709 tests（707 pass、2 skip、0 fail）
+及 Node/Electron production build 通过。真实 Electron Renderer Demo 通过有限账号 25 Credits 与注入
+unlimited 0/0 两态检查：有限态 2 个套餐；无限态数值 chip=false、套餐卡=0；工具状态注入原始名称、UUID、
+hash 后用户 DOM 均不存在。截图及 SHA-256：`local-builds/p0-fix/credit-finite-electron.png`
+`44C4CFBF4EA8EC698E5F480B8B883F16AE67184BA0C8A16B647E04E0220B022D`，
+`credit-unlimited-electron.png` `12083D9F9CE4BD6B5DE671A4DA9A1796C59AFB9BB9C76C70283B2ECDB0032E16`，
+`tool-activity-clean-electron.png` `B998B71EA3BEBE3CD948AEFB6257DC108FAB572F6711EB2D952ECC722AEE6A92`。
+production preview 因本机已登录会话失效停在登录页，本轮没有发送验证码，也未完成真实账号的模型生成与
+unlimited API 往返；因此只认定确定性门禁和 Renderer 可见行为通过，不把三项修复扩张为首装闭环或
+S4.5.1 完成。未打包、未 commit/push/上传/发布。
+
+**跨阶段 P0 维护（2026-08-26，剩余首装 QA 缺陷）：**在不新增 JD location 后端字段的确认范围内，完成
+五组当前缺陷修复。JD 使用后端既有 `manual | pasted | browser | imported` 与 `sourceUrl`：Agent 工具、
+不可变审批、Direct 兼容 API、本地 projection/Outbox、Job Repository 与详情完整往返；URL 仅允许无凭据的
+HTTP(S)，旧记录回落 `manual/null`。对话加密记录 V4 持久化安全运行终态；草稿摘要投影现有 workspace JD
+与机械生成状态，本地未上云草稿也进入 JD 关联视图。后台 SyncRuntime 每轮结束只发送无 payload 的
+`sync:completed`，经历仓库收到后重读本地 projection；手动同步行为保持不变。Resume IPC 错误统一转为
+用户文案，离开简历上下文时清理，不再跨页面残留原始 channel/candidate/revision 信息。
+
+完整 `npm run check` 通过：845 个源文件 ≤250 行，719 tests（717 pass、2 skip、0 fail），Node、Preload、
+Vue typecheck 与 Node/Electron production build 全绿。真实 Electron Renderer Demo 通过 JD 卡片/详情来源、
+失败终态和未完成草稿可见验收，DOM 内部工具选择器为 0：`local-builds/p0-fix/jd-source-electron.png`
+110,816 bytes，SHA-256 `305B733E0AE8C52113E7684DA12ACEA0748F69847090E42FB7EE99FADCB7E83E`；
+`run-terminal-draft-status-electron.png` 86,099 bytes，SHA-256
+`DC3720A0653BC9D4B54BC5F7564E51990B0B9E9CB99EC1DC9CB51F4940BFFFCF`。尚未使用真实登录账号执行
+sourceUrl 云端 Push/Pull、自动同步事件或 safeStorage 重启回放，因此只认定代码契约、全量门禁与 Renderer
+可见行为通过，不宣称线上/跨设备验收完成。BUG-05 当前 Windows 冷启动 AX tree 无需缩放即有 36 节点、
+27 个非忽略节点；macOS 仍需发布回归，不做猜测式补丁。非活动浏览器标签已有 `setVisible(false)`，本轮
+不重复修改。未打包、未 commit/push/上传/发布。
+
+同日补做真实 Windows Electron + 真实登录账号功能验收（普通 production build，未打包）。真实 unlimited
+Credit API 返回 `unlimited=true / weekly=20 / balance=0`；首次启动有一次 Credit 网关 10 秒连接超时，界面
+没有误显示为 0，打开 Credit 弹窗重试后侧栏与弹窗统一为“无限量/不限量用户（不扣费）”，套餐、余额构成
+和数值 chip 均为 0 个。无任何素材的自然语言简历请求在 8.110 秒内直接追问真实材料，0 workspace、
+0 visible draft。真实只读经历检索暴露了普通 Conversation 静态带入 `task_need_user` 的缺口：工具失败后
+模型曾把内部工具名写进最终回复；修复后复用 Pi Agent 原生可变 `state.tools`，普通对话移除四个 AgentTask
+生命周期工具，只有同 Conversation 确有 running AgentTask 时才恢复，原请求复测 5 次只读工具调用全部成功、
+0 tool error。用户可见文本投影与流式累计又增加已知工具名、内部 ID、call ID、UUID/hash 脱敏；重启回放
+旧原始回答后 `create_resume_workspace`、`experienceId`、call ID、UUID 与原始工具 DOM 均为 0。
+
+真实 JD `QA Source Roundtrip 20260826` 经不可变审批写入生产同步队列，`syncNow()` 回读为
+`sourceKind=browser`、精确 `https://example.com/jobs/coolto-qa-source-roundtrip-20260826`、4 条要求且
+`syncStatus=clean`；完整退出重启后再次同步与 Job Repository 详情仍显示“浏览器页面/打开来源页面”，
+无 pending/conflict/error。该测试资产因产品当前无 JD 删除入口暂留账号；本轮没有伪造 Direct 删除。
+取消中的真实 Agent run 和模型重复失败 run 均跨完整进程重启从 safeStorage 对话记录恢复为“已取消/未完成”，
+保留继续/重新开始且终态 DOM 无内部 ID。经历仓库在一次手动同步和一个 35 秒纯后台观察窗中均收到
+`sync:completed` 并重读 projection；后台窗观察到两轮约 30 秒间隔的 disabled/spin 开关且最终无错误。
+失败提示只在原对话保留，切换其他对话不残留原始 IPC/candidate/revision/call/UUID。
+
+按用户澄清把草稿/JD 验收收窄为“首个含内容草稿即停止”，不等待整份简历达标。两个既有 JD 均因真实
+must-have 事实缺失在写前进入 `needs_user_decision`；随后新增与账号已有数据分析/可视化经历严格匹配的
+`QA Draft Link 20260826` 测试 JD。第一次最小运行在首个 `resume.draft.updated` 到达后立即取消，草稿摘要
+已正确保存 JD，但 Job Repository 错误显示 `primaryJdState=empty`、关联数 0。根因为
+`ResumeLibraryService` 仍有一份旧的私有草稿摘要函数，漏掉新字段；删除重复投影并统一复用正式
+`summarizeDraft()` 后，不再运行生成，直接用既有草稿重启验收：草稿为 `needs_revision/local_only`，两侧
+JD ID 一致；仓库为 `kind=targeted / primaryJdState=linked`，目标 JD 关联数 0→1，界面显示
+“1 份关联简历 / 针对本岗位 / 仅本机”。截图 `local-builds/functional-qa/draft-jd-link-after-restart.png`
+146,398 bytes，
+SHA-256 `A1BAA07AD1743DE4A739CDC9E808C878403A70A35934308654F445F3536E87A7`。该最小关联已通过；没有继续做
+整份生成、质量或导出，S4.5 状态不变。
+
+用户随后明确对话终态不应占用左侧栏 item。侧栏已移除“已取消/未完成/待补充”标签、对应样式和专用翻译，
+但 Conversation V4 的 `lastRun` 持久化、对话内 `ChatRunTerminal` 安全说明及打开草稿/继续/重新开始均保留。
+真实 Electron 打开已取消对话后，侧栏 `.conversation-run-state` 数量为 0，全部 item 只显示标题和时间；
+对话区仍显示取消终态与恢复操作。截图 `local-builds/functional-qa/sidebar-without-run-status.png`
+102,160 bytes，SHA-256 `7FB603FF5A856C7A6B2103C24A2099BAF3CEB3E9E3DC94F1FADB4EF61851706C`。
+
+最终 `npm run check` 全绿：847 个源文件 ≤250 行，725 tests（723 pass、2 skip、0 fail），Node、Preload、
+Vue typecheck 与 Node/Electron production build 通过。真实截图及 SHA-256：
+`local-builds/functional-qa/credit-real-unlimited.png`
+`D1D9E3D86D41CD604C1CA4373C0CC95A54DFA7D87473C0C5FA458CA4DD8942C2`；
+`jd-source-cloud-after-restart.png`
+`FA63E2FC9E0438788E290A4C20D59C98938CBE77E8B637101384B63FD1D0F067`；
+`failed-terminal-after-restart.png`
+`14EB262BBBD2B18847DCDE420AAAB8ADE24E6A539F1B18DF68DAEB1E61206DC0`；
+`internal-text-sanitized-after-restart.png`
+`80AF62F6450D3E09A0FAF20712B9568501E75DE30AFDF06335CE5092057CEB3C`；无素材与真实只读工具截图分别为
+`FD58991ED2BB84A527C62C5541CB63944B68DA5F58558B3989F5ED8BE6AC6D21`、
+`3A79E547D70B05B8164A2D6B42F877C6C61F09C3CB08548FF510D35BDC1D3721`。按用户明确范围未打包、未测 macOS；
+没有 commit/push/上传/发布，未做第二设备或清空本地 projection 后的纯云 Bootstrap。
+
 ## 明确不进入本路线
 
 - ResumeDraft/checkpoint 和原始文件云端同步；

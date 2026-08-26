@@ -11,6 +11,9 @@
       <span class="library-sync-badge" :class="entry.syncStatus">
         {{ syncLabel }}
       </span>
+      <span v-if="draftProgress" class="library-sync-badge local_changes">
+        {{ draftProgress }}
+      </span>
       <span class="library-row-time">{{ updatedAt }}</span>
     </div>
 
@@ -51,6 +54,8 @@
 import { computed, nextTick, ref } from "vue";
 import type { ResumeLibraryEntry } from "@desktop/types";
 import { localeCode, translate, translateFormat } from "../i18n/locale";
+import { resumeDraftProgressLabel } from
+  "../resume-workspace/resume-draft-status";
 
 const props = defineProps<{ entry: ResumeLibraryEntry }>();
 const emit = defineEmits<{
@@ -73,6 +78,9 @@ const canUnarchive = computed(() => ops.value.has("unarchive"));
 const canDelete = computed(() => ops.value.has("delete_local_draft"));
 const canHistory = computed(() => ops.value.has("restore_checkpoint"));
 const isArchived = computed(() => props.entry.cloud?.status === "archived");
+const draftProgress = computed(() =>
+  props.entry.local ? resumeDraftProgressLabel(props.entry.local) : ""
+);
 
 const syncLabel = computed(() => {
   const map: Record<string, string> = {

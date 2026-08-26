@@ -4,6 +4,7 @@ import {
   isWrappedInternalPrompt,
   isWrappedResumeGenerationFollowUp,
 } from "../../agent/internal-prompt.js";
+import { presentAssistantText } from "../../agent/user-visible-text.js";
 import type { ChatMessage, MessageAttachment } from "../shared/types.js";
 import type { StoredMessageAttachment } from "./conversation-record.js";
 
@@ -101,7 +102,7 @@ export function presentConversationContent(
     .replace(/\n*<jd_reference>[\s\S]*?<\/jd_reference>\s*$/u, "")
     .replace(/\n*<attachment_notice>[\s\S]*?<\/attachment_notice>\s*$/u, "")
     .trimEnd();
-  if (role !== "user") return stripped;
+  if (role !== "user") return presentAssistantText(stripped);
   return stripped.replace(
     /^请针对 JD「([^」]+)」（jdId:\s*[^）]+）(生成针对性简历。|匹配经历库并给出匹配结果。)$/u,
     (_match, title: string, action: string) =>

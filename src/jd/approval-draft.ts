@@ -1,6 +1,13 @@
 import type { ApprovalDraft } from "../approvals/types.js";
 import type { JdProposal, JdSaveApprovalPayload } from "./types.js";
 
+const SOURCE_LABELS = {
+  manual: "手动录入",
+  pasted: "粘贴内容",
+  browser: "浏览器页面",
+  imported: "文件导入",
+} as const;
+
 export const JD_SAVE_ACTION_TYPE = "jd.save";
 export const JD_SAVE_APPROVAL_SCOPE = "jd.save";
 
@@ -19,6 +26,10 @@ export function createJdSaveApprovalDraft(
         { label: "岗位", value: proposal.title },
         ...(proposal.company
           ? [{ label: "公司", value: proposal.company }]
+          : []),
+        { label: "来源", value: SOURCE_LABELS[proposal.sourceKind] },
+        ...(proposal.sourceUrl
+          ? [{ label: "来源 URL", value: proposal.sourceUrl }]
           : []),
         {
           label: "要求数量",
@@ -49,6 +60,8 @@ export function createJdSaveApprovalPayload(
     title: proposal.title,
     company: proposal.company,
     targetRole: proposal.targetRole,
+    sourceKind: proposal.sourceKind,
+    sourceUrl: proposal.sourceUrl,
     requirements: structuredClone(proposal.requirements),
     idempotencyKey,
   };

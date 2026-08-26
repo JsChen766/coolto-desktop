@@ -51,6 +51,19 @@ test("turn governor absolute limit cannot be reset by a phase change", () => {
   assert.equal(governor.stopReason, "maximum_total_turns");
 });
 
+test("a new user prompt receives a fresh operation budget", () => {
+  const governor = createTurnGovernor({ maxTurns: 2 });
+
+  assert.equal(governor.evaluate(turn(1)), false);
+  assert.equal(governor.evaluate(turn(2)), true);
+  assert.equal(governor.stopReason, "maximum_turns");
+
+  governor.reset();
+
+  assert.equal(governor.evaluate(turn(3)), false);
+  assert.equal(governor.stopReason, undefined);
+});
+
 function turn(
   index: number,
   phaseKey?: string,

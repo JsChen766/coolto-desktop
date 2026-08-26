@@ -16,6 +16,8 @@ import type {
 import { translate } from "../i18n/locale";
 import A4ResumeEditor from "./A4ResumeEditor.vue";
 import IconButton from "./IconButton.vue";
+import { resumeDraftProgressLabel } from
+  "../resume-workspace/resume-draft-status";
 
 const props = defineProps<{
   draft?: ResumeDraftDetail | undefined;
@@ -41,6 +43,11 @@ const localState = computed(() => {
   if (props.localSaveState === "dirty") return translate("有尚未自动保存的修改");
   if (props.localSaveState === "error") return translate("本地保存失败");
   if (!props.draft) return "";
+  const progress = resumeDraftProgressLabel({
+    workspaceStatus: props.draft.workspaceStatus,
+    generationReady: props.draft.generationReadiness.ready,
+  });
+  if (progress) return `${progress} · ${translate("已自动保存到本地")}`;
   if (props.draft.cloudState === "local_changes") {
     return translate("已自动保存到本地 · 尚未保存到简历库");
   }

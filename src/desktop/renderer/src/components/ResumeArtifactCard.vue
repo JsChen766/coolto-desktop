@@ -3,6 +3,8 @@ import { ArrowUpRight, FileText, HardDrive, RefreshCw } from "@lucide/vue";
 
 import type { ResumeDraftArtifactReference } from "../../../../resume/draft/types";
 import { translate } from "../i18n/locale";
+import { resumeDraftProgressLabel } from
+  "../resume-workspace/resume-draft-status";
 
 defineProps<{
   artifact: ResumeDraftArtifactReference;
@@ -13,7 +15,12 @@ defineEmits<{
   open: [artifactId: string];
 }>();
 
-function stateLabel(value?: "local_only" | "synced" | "local_changes") {
+function stateLabel(
+  artifact: ResumeDraftArtifactReference,
+  value?: "local_only" | "synced" | "local_changes",
+) {
+  const progress = resumeDraftProgressLabel(artifact);
+  if (progress) return progress;
   if (value === "synced") return translate("已加入简历库");
   if (value === "local_changes") return translate("本地草稿有新修改");
   return translate("本地草稿已自动保存");
@@ -47,7 +54,7 @@ function stateLabel(value?: "local_only" | "synced" | "local_changes") {
           aria-hidden="true"
         />
         <HardDrive v-else :size="12" :stroke-width="1.8" aria-hidden="true" />
-        {{ stateLabel(cloudState) }}
+        {{ stateLabel(artifact, cloudState) }}
       </span>
     </span>
     <ArrowUpRight

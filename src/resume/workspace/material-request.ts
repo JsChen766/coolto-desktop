@@ -4,6 +4,7 @@ export type ResumeMaterialRequestKind =
   | "agent_declared"
   | "critical_skill"
   | "bullet_count_insufficient"
+  | "layout_capacity_insufficient"
   | "line_rewrite_stalled"
   | "tail_repair_stalled";
 

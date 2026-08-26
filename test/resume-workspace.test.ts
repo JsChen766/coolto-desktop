@@ -10,6 +10,7 @@ import { ResumeWorkspaceError } from "../src/resume/workspace/errors.js";
 import { projectResumeWorkspace } from "../src/resume/workspace/workspace-projection.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import {
+  BASE_WORK_CONTENT,
   FixtureResumeCompiler,
   createBinding,
   createWorkspaceSnapshotBuilder,
@@ -57,7 +58,9 @@ test("needs_user_decision instruction explains the evidence gap and the relaxed 
 });
 
 test("underfilled workspace becomes terminal when all source evidence is consumed", async () => {
-  const builder = createWorkspaceSnapshotBuilder();
+  const builder = createWorkspaceSnapshotBuilder({
+    workContent: BASE_WORK_CONTENT,
+  });
   const snapshot = await buildSnapshot(builder);
   const baseCompiler = new FixtureResumeCompiler();
   const compiler = {
@@ -105,7 +108,9 @@ test("underfilled workspace becomes terminal when all source evidence is consume
 });
 
 test("tail-violation workspace with exhausted evidence is also terminal", async () => {
-  const builder = createWorkspaceSnapshotBuilder();
+  const builder = createWorkspaceSnapshotBuilder({
+    workContent: BASE_WORK_CONTENT,
+  });
   const snapshot = await buildSnapshot(builder);
   const baseCompiler = new FixtureResumeCompiler();
   const compiler = {
@@ -426,7 +431,9 @@ test("synthetic skills title dedupes tags shared across experiences", async () =
 });
 
 function createServices() {
-  const builder = createWorkspaceSnapshotBuilder();
+  const builder = createWorkspaceSnapshotBuilder({
+    workContent: BASE_WORK_CONTENT,
+  });
   const compiler = new FixtureResumeCompiler();
   const store = new ResumeWorkspaceStore();
   const preparer = new ResumeCandidatePreparer(builder, compiler, store, {

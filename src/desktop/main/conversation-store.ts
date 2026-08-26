@@ -3,7 +3,6 @@ import {
   mkdir,
   readFile,
   readdir,
-  rename,
   rm,
   unlink,
   writeFile,
@@ -16,6 +15,7 @@ import { app } from "electron";
 import { sanitizeAgentMessagesForPersistence } from "../../agent/persistence-policy.js";
 import type {
   ConversationDetail,
+  ConversationRunTerminal,
   ConversationSummary,
   MessageAttachment,
 } from "../shared/types.js";
@@ -26,6 +26,7 @@ import {
 } from "../../import/result-artifact.js";
 import { projectConversationMessages } from "./conversation-presentation.js";
 import { mergeMessageAttachments } from "./conversation-attachments.js";
+import { renameConversationFileWithRetry } from "./conversation-file-write.js";
 import {
   UNTITLED_CONVERSATION,
   assertConversationId,
@@ -72,7 +73,7 @@ export class ConversationStore {
   public async create(): Promise<ConversationDetail> {
     const now = new Date().toISOString();
     const conversation: StoredConversation = {
-      version: 3,
+      version: 4,
       id: randomUUID(),
       ownerId: this.#ownerId,
       title: UNTITLED_CONVERSATION,
@@ -108,12 +109,14 @@ export class ConversationStore {
     messages: AgentMessage[],
     pendingAttachments?: MessageAttachment[], attachTimestamp?: number,
     assistantCompletedAt?: { timestamp: number; completedAt: string },
+    terminal?: ConversationRunTerminal,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 3;
+    record.version = 4;
     record.agentMessages = sanitizeAgentMessagesForPersistence(messages);
     record.messageAttachments = mergeMessageAttachments(record.messageAttachments ?? [], pendingAttachments ?? [], messages, attachTimestamp);
     if (assistantCompletedAt) record.assistantTimings = { ...(record.assistantTimings ?? {}), [String(assistantCompletedAt.timestamp)]: assistantCompletedAt.completedAt };
+    if (terminal) record.lastRun = structuredClone(terminal);
     const visibleMessages = projectConversationMessages(record.agentMessages, record.messageAttachments, record.assistantTimings);
     record.resumeArtifacts = (record.resumeArtifacts ?? []).map((artifact) =>
       withArtifactAnchor(artifact, visibleMessages),
@@ -129,7 +132,7 @@ export class ConversationStore {
     artifact: ResumeDraftArtifactReference,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 3;
+    record.version = 4;
     const artifacts = record.resumeArtifacts ?? [];
     const existing = artifacts.findIndex(
       (candidate) => candidate.artifactId === artifact.artifactId,
@@ -156,7 +159,7 @@ export class ConversationStore {
     result: ExperienceImportResultDetails,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 3;
+    record.version = 4;
     const artifacts = record.experienceImportArtifacts ?? [];
     const index = artifacts.findIndex(
       (artifact) => artifact.proposalId === result.proposalId,
@@ -179,6 +182,18 @@ export class ConversationStore {
     record.updatedAt = new Date().toISOString();
     await this.#write(record);
     return conversationSummary(record);
+  }
+
+  public async saveRunTerminal(
+    conversationId: string,
+    terminal: ConversationRunTerminal,
+  ): Promise<ConversationDetail> {
+    const record = await this.getRecord(conversationId);
+    record.version = 4;
+    record.lastRun = structuredClone(terminal);
+    record.updatedAt = terminal.updatedAt;
+    await this.#write(record);
+    return conversationDetail(record);
   }
 
   public async delete(conversationId: string): Promise<void> {
@@ -218,30 +233,6 @@ export class ConversationStore {
     const temporary = `${destination}.${randomUUID()}.tmp`;
     const encrypted = encryptConversation(JSON.stringify(record));
     await writeFile(temporary, encrypted, { mode: 0o600 });
-    await renameWithRetry(temporary, destination);
-  }
-}
-
-const RENAME_RETRY_DELAYS_MS = [50, 200, 500] as const;
-
-/**
- * Windows can transiently lock a just-written file (real-time AV scanning) or
- * keep the destination open (stale process), failing the atomic rename with
- * EPERM. Retrying instead of surfacing the raw error keeps saves reliable.
- */
-async function renameWithRetry(
-  source: string,
-  destination: string,
-): Promise<void> {
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      await rename(source, destination);
-      return;
-    } catch (error: unknown) {
-      if (attempt >= RENAME_RETRY_DELAYS_MS.length) throw error;
-      await new Promise((resolve) =>
-        setTimeout(resolve, RENAME_RETRY_DELAYS_MS[attempt]),
-      );
-    }
+    await renameConversationFileWithRetry(temporary, destination);
   }
 }

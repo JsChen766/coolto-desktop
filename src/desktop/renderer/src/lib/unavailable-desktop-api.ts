@@ -14,6 +14,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
       verifyEmailCode: unavailable,
       logout: unavailable,
       syncNow: unavailable,
+      onSyncCompleted: () => () => undefined,
     },
     checkout: {
       plans: unavailable,

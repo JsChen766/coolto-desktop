@@ -16,6 +16,8 @@ const baseInput: JdCreateInput = {
   rawText: "We need a strong Go engineer.",
   company: "Coolto",
   targetRole: "Backend",
+  sourceKind: "browser",
+  sourceUrl: "https://jobs.example/backend",
   requirements: [
     {
       text: "5+ years Go",
@@ -66,6 +68,8 @@ test("toJdWritePayload matches backend writePayload keys and canonical enums", (
     "title",
   ].sort());
   const reqs = payload.requirements as Array<Record<string, unknown>>;
+  assert.equal(payload.sourceKind, "browser");
+  assert.equal(payload.sourceUrl, "https://jobs.example/backend");
   assert.equal(reqs[0]!.importance, "must_have");
   assert.equal(reqs[0]!.category, "technology");
   assert.equal(reqs[1]!.importance, "optional");
@@ -105,6 +109,8 @@ test("round-trip local payload maps canonical importance back to legacy", () => 
   const local = buildLocalJd("jd-1", baseInput, requirements, "2026-07-27T00:00:00Z");
   const record = toJdRecord(entity(local));
   assert.equal(record.id, "jd-1");
+  assert.equal(record.sourceKind, "browser");
+  assert.equal(record.sourceUrl, "https://jobs.example/backend");
   assert.equal(record.requirements.length, 2);
   const [req0, req1] = record.requirements;
   assert.equal(req0!.importance, "high");
@@ -130,6 +136,8 @@ function jdFixture(id: string, updatedAt: string): JdRecord {
     title: `jd-${id}`,
     company: null,
     targetRole: null,
+    sourceKind: "manual",
+    sourceUrl: null,
     rawText: "raw",
     requirements: [],
     jdHash: "hash",

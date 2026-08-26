@@ -115,7 +115,7 @@ export function registerDesktopIpc(
   window.on("close", () => {
     pendingQuitFlush = services.flushPending().catch(() => {});
   });
-  registerAuthIpc(ipcMain, auth, () => services.clear("account_changed"));
+  registerAuthIpc(ipcMain, window, auth, () => services.clear("account_changed"));
   registerCheckoutIpc(ipcMain, auth);
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
   registerMailConnectionIpc(ipcMain, servicesForCurrentUser);

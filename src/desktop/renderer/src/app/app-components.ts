@@ -4,6 +4,7 @@ export { default as ExperienceImportResultCard } from "../components/ExperienceI
 export { default as ArtifactPanel } from "../components/ArtifactPanel.vue";
 export { default as ChatHeader } from "../components/ChatHeader.vue";
 export { default as ChatMessageView } from "../components/ChatMessage.vue";
+export { default as ChatRunTerminal } from "../components/ChatRunTerminal.vue";
 export { default as Composer } from "../components/Composer.vue";
 export { default as ConversationDialog } from "../components/ConversationDialog.vue";
 export { default as EmptyState } from "../components/EmptyState.vue";

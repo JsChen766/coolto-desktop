@@ -14,6 +14,8 @@ export function repositoryJd(
     title,
     company: `Company ${id}`,
     targetRole: `Role ${id}`,
+    sourceKind: "browser",
+    sourceUrl: `https://jobs.example/${id}`,
     rawText: `Raw ${id}`,
     requirements: [],
     jdHash: null,
@@ -54,7 +56,10 @@ export function repositoryResume(
   };
 }
 
-export function localRepositoryResume(id: string): ResumeLibraryEntry {
+export function localRepositoryResume(
+  id: string,
+  jdId: string | null = null,
+): ResumeLibraryEntry {
   return {
     entryId: `local:${id}`,
     displayTitle: `Local ${id}`,
@@ -65,6 +70,10 @@ export function localRepositoryResume(id: string): ResumeLibraryEntry {
       updatedAt: AT,
       checkpointCount: 1,
       hasPendingChange: false,
+      workspaceStatus: "writing",
+      generationReady: false,
+      jdId,
+      jdTitle: jdId ? `JD ${jdId}` : null,
     },
     syncStatus: "local_only",
     availableOperations: ["open"],

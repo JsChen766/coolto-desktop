@@ -98,6 +98,7 @@ export interface DesktopApi {
     verifyEmailCode(email: string, challengeId: string, code: string): Promise<DesktopUser>;
     logout(): Promise<void>;
     syncNow(): Promise<void>;
+    onSyncCompleted(listener: () => void): () => void;
   };
   checkout: {
     plans(): Promise<CheckoutPlan[]>;

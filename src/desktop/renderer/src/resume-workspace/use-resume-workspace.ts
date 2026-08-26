@@ -4,6 +4,7 @@ import type { ResumeDraftDetail, ResumeDraftEditInput, ResumeDraftRestoreInput }
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { desktopApi } from "../lib/desktop-api";
 import { translate, translateFormat } from "../i18n/locale";
+import { desktopErrorMessage } from "../chat/desktop-error-message";
 
 export function useResumeWorkspace() {
   const drafts = ref<ResumeDraftSummary[]>([]);
@@ -208,7 +209,7 @@ export function useResumeWorkspace() {
   function markLocalSaveFailed(message: string): void {
     error.value = message; localSaveState.value = "error";
   }
-
+  function clearError(): void { error.value = undefined; }
   function markLocalSaving(): void { localSaveState.value = "saving"; }
   return {
     drafts,
@@ -233,6 +234,7 @@ export function useResumeWorkspace() {
     clear,
     markLocalSaveFailed,
     markLocalSaving,
+    clearError,
   };
 }
 
@@ -244,5 +246,5 @@ function editKey(input: ResumeDraftEditInput): string {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return desktopErrorMessage(error);
 }

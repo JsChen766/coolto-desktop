@@ -11,6 +11,7 @@ export interface ConversationAgentContext {
   resumeCompiler: ResumeCompiler;
   jdProposalStore: JdProposalStore;
   matchReportStore: MatchReportStore;
+  scopeTools: () => Promise<void>;
   artifactIdByCandidate: Map<string, string>;
   /** Host-owned provenance anchor for facts added from the current user turn. */
   currentUserMessage: { timestamp: number | undefined };

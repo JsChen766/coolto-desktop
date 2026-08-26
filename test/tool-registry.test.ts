@@ -232,6 +232,8 @@ const jdRecord = {
   title: "Product Manager",
   company: "Example",
   targetRole: "Product Manager",
+  sourceKind: "pasted" as const,
+  sourceUrl: null,
   rawText: "Full JD text",
   requirements: [
     {

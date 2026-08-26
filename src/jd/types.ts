@@ -11,6 +11,7 @@ import type {
   JdRequirementV2Category,
   JdRequirementV2Importance,
 } from "../api/types.js";
+import type { JdSourceKind } from "./source.js";
 
 // ---------------------------------------------------------------------------
 // Proposal requirement — server assigns stable `id` after creation, so the
@@ -43,6 +44,8 @@ export interface JdProposal {
   title: string;
   company: string | null;
   targetRole: string | null;
+  sourceKind: JdSourceKind;
+  sourceUrl: string | null;
   requirements: JdProposalRequirement[];
   duplicateStatus: JdDuplicateStatus;
   createdAt: string;
@@ -58,6 +61,8 @@ export interface JdSaveApprovalPayload {
   title: string;
   company: string | null;
   targetRole: string | null;
+  sourceKind: JdSourceKind;
+  sourceUrl: string | null;
   requirements: JdProposalRequirement[];
   idempotencyKey: string;
 }

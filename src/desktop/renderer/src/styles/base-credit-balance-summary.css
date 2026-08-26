@@ -50,6 +50,13 @@
   color: var(--muted);
 }
 
+.credit-unlimited-note {
+  margin: 12px 0 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .credit-plan-badge {
   padding: 4px 8px;
   border-radius: 999px;

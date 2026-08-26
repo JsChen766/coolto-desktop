@@ -107,6 +107,8 @@ export interface JdRecord {
   title: string;
   company: string | null;
   targetRole: string | null;
+  sourceKind: import("../jd/source.js").JdSourceKind;
+  sourceUrl: string | null;
   rawText: string;
   requirements: JdRequirement[];
   jdHash: string | null;
@@ -143,6 +145,8 @@ export interface JdCreateInput {
   rawText: string;
   company?: string;
   targetRole?: string;
+  sourceKind?: import("../jd/source.js").JdSourceKind;
+  sourceUrl?: string | null;
   requirements?: Array<{
     text: string;
     category: string;

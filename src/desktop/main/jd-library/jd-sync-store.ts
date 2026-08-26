@@ -95,6 +95,8 @@ function idempotencyRequest(input: JdCreateInput): Record<string, unknown> {
     rawText: input.rawText,
     company: input.company ?? null,
     targetRole: input.targetRole ?? null,
+    sourceKind: input.sourceKind ?? "pasted",
+    sourceUrl: input.sourceUrl ?? null,
     requirements: input.requirements ?? [],
   };
 }

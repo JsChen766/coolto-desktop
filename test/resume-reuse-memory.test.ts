@@ -145,6 +145,7 @@ test("workspace rejects a base whose historical evidence no longer matches", asy
 function jd(id: string, targetRole: string, keywords: string[]): JdRecord {
   return {
     id, title: targetRole, company: "Example", targetRole, rawText: targetRole,
+    sourceKind: "pasted", sourceUrl: null,
     requirements: [{
       id: `${id}-req`, text: keywords.join(" "), category: "skill",
       importance: "high", keywords, weight: 1,

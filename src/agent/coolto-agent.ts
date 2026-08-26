@@ -1,8 +1,5 @@
-import {
-  Agent,
-  type AgentEvent,
-  type AgentMessage,
-} from "@earendil-works/pi-agent-core";
+import { Agent, type AgentEvent, type AgentMessage, type AgentTool } from
+  "@earendil-works/pi-agent-core";
 
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import type {
@@ -120,7 +117,10 @@ export class CooltoAgent {
   public get toolNames(): string[] {
     return this.#agent.state.tools.map((tool) => tool.name);
   }
-
+  public setTools(tools: AgentTool[]): void {
+    if (this.isRunning) throw new Error("Agent 运行期间不能切换工具");
+    this.#agent.state.tools = tools;
+  }
   public async prompt(input: string): Promise<void> {
     const text = input.trim();
     if (text.length === 0) {
@@ -154,7 +154,6 @@ export class CooltoAgent {
       await this.#agent.continue();
     }
   }
-
   public getMessages(): AgentMessage[] {
     return structuredClone(this.#agent.state.messages);
   }
@@ -165,7 +164,6 @@ export class CooltoAgent {
     }
     this.#agent.state.messages = structuredClone(messages);
   }
-
   public getPendingApprovals(): ApprovalRequest[] {
     return this.#approvalManager?.listPending() ?? [];
   }

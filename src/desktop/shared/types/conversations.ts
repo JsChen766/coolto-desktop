@@ -87,12 +87,27 @@ export interface MessageAttachment {
   status: MessageAttachmentStatus;
 }
 
+export type ConversationRunStatus =
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "needs_user_decision";
+
+export interface ConversationRunTerminal {
+  status: ConversationRunStatus;
+  message: string | null;
+  artifactId: string | null;
+  canContinue: boolean;
+  updatedAt: string;
+}
+
 export interface ConversationSummary {
   id: string;
   title: string;
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  lastRun?: ConversationRunTerminal;
 }
 
 export interface ConversationDetail extends ConversationSummary {
