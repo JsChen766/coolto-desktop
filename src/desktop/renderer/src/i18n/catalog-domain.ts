@@ -1,4 +1,11 @@
 export const domainMessages: Record<string, string> = {
+  "来源": "Source",
+  "来源 URL": "Source URL",
+  "浏览器页面": "Browser page",
+  "文件导入": "File import",
+  "粘贴内容": "Pasted content",
+  "手动录入": "Manual entry",
+  "打开来源页面": "Open source page",
   "投递记录": "Application",
   "记录一次投递": "Record an application",
   "记录投递": "Record application",

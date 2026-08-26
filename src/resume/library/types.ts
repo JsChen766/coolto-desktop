@@ -8,6 +8,7 @@
  */
 
 import type { ResumeStatus } from "../types.js";
+import type { ResumeWorkspaceStatus } from "../workspace/types.js";
 
 // ---------------------------------------------------------------------------
 // Sync status between local draft and cloud current content.
@@ -62,6 +63,10 @@ export interface ResumeLibraryLocalSummary {
   updatedAt: string;
   checkpointCount: number;
   hasPendingChange: boolean;
+  workspaceStatus: ResumeWorkspaceStatus;
+  generationReady: boolean;
+  jdId: string | null;
+  jdTitle: string | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -16,6 +16,8 @@ function makeJdRecord(title: string): JdRecord {
     title,
     company: null,
     targetRole: null,
+    sourceKind: "pasted",
+    sourceUrl: null,
     rawText: "raw",
     requirements: [],
     jdHash: "hash-abc",
@@ -46,6 +48,7 @@ function makeProposal(store: JdProposalStore) {
         v2Category: null,
       },
     ],
+    { kind: "browser", url: "https://jobs.example/backend" },
   );
 }
 
@@ -100,6 +103,8 @@ test("accepted approval passes correct fields to writer", async () => {
 
   assert.equal(received?.rawText, "原始 JD 内容");
   assert.equal(received?.company, "字节跳动");
+  assert.equal(received?.sourceKind, "browser");
+  assert.equal(received?.sourceUrl, "https://jobs.example/backend");
   assert.equal(received?.requirements?.[0]?.text, "3年以上 Go 开发经验");
   assert.equal(received?.requirements?.[0]?.importance, "high");
 });

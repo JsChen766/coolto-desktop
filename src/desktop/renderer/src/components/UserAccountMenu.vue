@@ -88,13 +88,19 @@ function emitClose(): void {
     <div class="user-copy">
       <span class="user-email">{{ user.email }}</span>
       <span class="user-status-row">
-        <span v-if="unlimited" class="user-unlimited-badge" :title="$t('不限量用户（不扣费）')">
+        <button
+          v-if="unlimited"
+          class="user-unlimited-badge"
+          type="button"
+          :title="$t('Credit 与套餐')"
+          @click="emitClose(); $emit('openCredits')"
+        >
           <Crown :size="11" :stroke-width="2" aria-hidden="true" />
           <span>{{ $t('无限量') }}</span>
-        </span>
+        </button>
         <span v-else>{{ $t('已登录') }}</span>
         <button
-          v-if="credits !== undefined"
+          v-if="credits !== undefined && !unlimited"
           class="user-credits-chip"
           type="button"
           :title="$t('Credit 与套餐')"

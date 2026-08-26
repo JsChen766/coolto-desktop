@@ -3,6 +3,7 @@ import { ArrowUpRight, Briefcase, CheckCircle, XCircle } from "@lucide/vue";
 
 import type { JdArtifactData } from "../../../../desktop/shared/types";
 import { translate } from "../i18n/locale";
+import { jdSourceLabel } from "../job-assets/jd-source-label";
 
 defineProps<{
   artifact: JdArtifactData;
@@ -47,6 +48,7 @@ function statusLabel(status: JdArtifactData["status"]): string {
         <Briefcase v-else :size="12" :stroke-width="1.8" aria-hidden="true" />
         {{ statusLabel(artifact.status) }}
         <template v-if="artifact.company"> · {{ artifact.company }}</template>
+        · {{ jdSourceLabel(artifact.sourceKind) }}
       </span>
     </span>
     <ArrowUpRight

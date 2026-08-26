@@ -5,6 +5,7 @@ export const creditMessages: Record<string, string> = {
   "可用余额": "Available credits",
   "到期": "expires",
   "本周免费": "Weekly free",
+  "当前账号使用任务时不扣除 Credit。": "Tasks do not deduct Credits from this account.",
   "付费余额": "Paid balance",
   "选择套餐": "Choose a plan",
   "周付": "Weekly",

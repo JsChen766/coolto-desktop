@@ -12,6 +12,8 @@ import { computed } from "vue";
 
 import type { JobRepositoryJd, JobRepositoryResume } from "@desktop/types";
 import { translate } from "../i18n/locale";
+import { jdSourceLabel } from "../job-assets/jd-source-label";
+import { desktopApi } from "../lib/desktop-api";
 import { STATUS_LABELS } from "../tracker/application-labels";
 import {
   assetSyncLabel,
@@ -38,7 +40,7 @@ defineEmits<{
 const targetedResumes = computed(() => {
   const ids = new Set(props.jd.targetedResumeIds);
   return props.resumes.filter((resume) =>
-    resume.resumeId ? ids.has(resume.resumeId) : false,
+    ids.has(resume.resumeId ?? resume.entry.entryId)
   );
 });
 const recentApplications = computed(() => props.jd.applications.slice(0, 3));
@@ -101,6 +103,7 @@ function resumeEntryId(resumeId: string | null): string | undefined {
 
     <div class="repository-detail-scroll">
       <div class="repository-overview" :aria-label="$t('岗位概览')">
+        <span>{{ $t('来源') }}：{{ jdSourceLabel(jd.sourceKind) }}</span>
         <span>{{ $tf('{count} 份关联简历', { count: relatedResumeCount }) }}</span>
         <span>{{ $tf('{count} 次投递', { count: jd.applicationSummary.total }) }}</span>
         <span v-if="jd.applicationSummary.latest">
@@ -108,6 +111,15 @@ function resumeEntryId(resumeId: string | null): string | undefined {
           · {{ shortDate(jd.applicationSummary.latest.occurredAt) }}
         </span>
       </div>
+
+      <button
+        v-if="jd.sourceUrl"
+        class="repository-link-action"
+        type="button"
+        @click="desktopApi.shell.openExternal(jd.sourceUrl!)"
+      >
+        {{ $t('打开来源页面') }}
+      </button>
 
       <section class="repository-section">
         <div class="repository-section-heading">

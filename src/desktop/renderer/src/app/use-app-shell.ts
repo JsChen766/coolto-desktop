@@ -61,8 +61,8 @@ export function useAppShell() {
 
   const resumePreview = useResumeLibraryPreview({
     activeView,
-    activeArtifactType,
-    artifactOpen,
+    activeArtifactType, artifactOpen,
+    clearLocalError: resumeWorkspace.clearError,
     closeNarrowSidebar,
     draftIds: () => resumeWorkspace.drafts.value.map((draft) => draft.artifactId),
     openLocalDraft: resumeWorkspace.openDraft,

@@ -59,6 +59,8 @@ function jd(
   const timestamp = now.toISOString();
   return {
     ...input,
+    sourceKind: "pasted",
+    sourceUrl: null,
     jdHash: null,
     requirementMapId: null,
     requirementsOrigin: "app_extracted",

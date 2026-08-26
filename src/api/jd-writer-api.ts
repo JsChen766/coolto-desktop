@@ -10,6 +10,7 @@ import {
   type JdRequirementV2Importance,
   type JdWriter,
 } from "./types.js";
+import { normalizeJdSourceUrl } from "../jd/source.js";
 
 const V2_IMPORTANCE_VALUES: readonly JdRequirementV2Importance[] = [
   "must_have",
@@ -41,6 +42,8 @@ export class JdWriterApi implements JdWriter {
       raw_text: input.rawText,
       company: input.company ?? null,
       target_role: input.targetRole ?? null,
+      source_kind: input.sourceKind ?? "pasted",
+      source_url: normalizeJdSourceUrl(input.sourceUrl),
     };
     if (input.requirements) {
       body.requirements = input.requirements.map((r) => ({

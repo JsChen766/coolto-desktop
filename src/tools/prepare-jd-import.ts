@@ -9,6 +9,7 @@ import {
 } from "../jd/approval-draft.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
 import type { JdProposalRequirement } from "../jd/types.js";
+import { normalizeJdSourceUrl } from "../jd/source.js";
 
 const importanceSchema = Type.Union([
   Type.Literal("low"),
@@ -57,6 +58,13 @@ const requirementSchema = Type.Object({
   v2Category: Type.Optional(v2CategorySchema),
 });
 
+const sourceKindSchema = Type.Union([
+  Type.Literal("manual"),
+  Type.Literal("pasted"),
+  Type.Literal("browser"),
+  Type.Literal("imported"),
+]);
+
 const parameters = Type.Object({
   rawText: Type.String({
     minLength: 10,
@@ -80,6 +88,8 @@ const parameters = Type.Object({
       description: "目标角色。原文中没有时省略。",
     }),
   ),
+  sourceKind: Type.Optional(sourceKindSchema),
+  sourceUrl: Type.Optional(Type.String({ maxLength: 4096 })),
   requirements: Type.Array(requirementSchema, {
     minItems: 1,
     maxItems: 50,
@@ -98,6 +108,8 @@ export function createPrepareJdImportTool(
       "用户粘贴 JD 或要求保存岗位描述时，提取结构化信息后必须调用本工具。" +
       "本工具创建预览卡片供用户确认，不会直接写入云端。" +
       "所有 requirements 必须来自原文，禁止编造。company 和 targetRole 不确定时省略。" +
+      "粘贴内容用 sourceKind=pasted；从当前浏览器页面提取时用 browser 并逐字传入页面 HTTP(S) URL；" +
+      "文件导入用 imported。没有可靠 URL 时省略 sourceUrl。" +
       "用户要求修改时，用修正后的完整参数再调用一次本工具。",
     parameters,
     execute: async (_toolCallId, params) => {
@@ -118,6 +130,10 @@ export function createPrepareJdImportTool(
         params.company ?? null,
         params.targetRole ?? null,
         requirements,
+        {
+          kind: params.sourceKind ?? "pasted",
+          url: normalizeJdSourceUrl(params.sourceUrl),
+        },
       );
 
       const idempotencyKey = randomUUID();
@@ -130,6 +146,8 @@ export function createPrepareJdImportTool(
         proposalId: proposal.id,
         title: proposal.title,
         company: proposal.company,
+        sourceKind: proposal.sourceKind,
+        sourceUrl: proposal.sourceUrl,
         requirementsCount: proposal.requirements.length,
         approvalRequestId: approval.id,
         instruction:

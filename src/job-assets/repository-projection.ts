@@ -44,13 +44,17 @@ export function projectJobRepository(
     cloudEntries.map((entry) => [entry.cloud!.resumeId, entry]),
   );
   const resumeSummaryById = resumeSummaries(assets);
+  const localTargets = localTargetEntries(input.resumes);
 
   return {
     jds: assets.jds.map((asset) => buildJd(
       asset.jd.id,
       jdById,
       resumeById,
-      asset.resumes.map((resume) => resume.resume.id),
+      [
+        ...asset.resumes.map((resume) => resume.resume.id),
+        ...(localTargets.get(asset.jd.id) ?? []),
+      ],
       asset.applicationSummary,
       applications,
     )),
@@ -80,6 +84,8 @@ function buildJd(
     title: jd.title,
     company: jd.company,
     targetRole: jd.targetRole,
+    sourceKind: jd.sourceKind,
+    sourceUrl: jd.sourceUrl,
     rawText: jd.rawText,
     requirements: jd.requirements,
     syncStatus: jd.syncStatus ?? "clean",
@@ -110,7 +116,11 @@ function buildResume(
     resumeId,
     artifactId: entry.local?.artifactId ?? null,
     kind: resumeKind(entry, jds),
-    primaryJd: jdReference(entry.cloud?.jdId ?? null, null, jds),
+    primaryJd: jdReference(
+      entry.cloud?.jdId ?? entry.local?.jdId ?? null,
+      entry.local?.jdTitle ?? null,
+      jds,
+    ),
     appliedJds: uniqueJdReferences(applications, jds),
     applicationSummary: resumeId
       ? required(summaries.get(resumeId), `Resume summary ${resumeId} is missing`)
@@ -134,9 +144,22 @@ function resumeKind(
   entry: ResumeLibraryEntry,
   jds: ReadonlyMap<string, JdRecord>,
 ): JobRepositoryResumeKind {
-  if (!entry.cloud) return "local_only";
-  if (!entry.cloud.jdId) return "generic";
-  return jds.has(entry.cloud.jdId) ? "targeted" : "missing_jd";
+  const jdId = entry.cloud?.jdId ?? entry.local?.jdId ?? null;
+  if (!jdId) return entry.cloud ? "generic" : "local_only";
+  return jds.has(jdId) ? "targeted" : "missing_jd";
+}
+
+function localTargetEntries(
+  entries: readonly ResumeLibraryEntry[],
+): Map<string, string[]> {
+  const grouped = new Map<string, string[]>();
+  for (const entry of entries) {
+    if (entry.cloud || !entry.local?.jdId) continue;
+    const values = grouped.get(entry.local.jdId) ?? [];
+    values.push(entry.entryId);
+    grouped.set(entry.local.jdId, values);
+  }
+  return grouped;
 }
 
 function recentApplications(

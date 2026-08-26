@@ -9,6 +9,8 @@ import { parseExperienceImportResult } from "../../import/result-artifact.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import { extractInsufficientCreditsDetail } from "./insufficient-credits-detect.js";
 import { traceStopReason, traceToolMetadata } from "./agent-runtime-trace.js";
+import { shouldPublishResumeWorkspace } from
+  "./resume-drafts/draft-publication.js";
 
 export class AgentRuntimeEvents {
   public constructor(
@@ -71,7 +73,8 @@ export class AgentRuntimeEvents {
       if (
         event.type === "tool.completed" &&
         isResumeWorkspaceTool(event.name) &&
-        !event.isError
+        !event.isError &&
+        shouldPublishLatestWorkspace(context)
       ) {
         this.emit(conversationId, { type: "resume.draft.saving" });
         try {
@@ -189,6 +192,8 @@ export class AgentRuntimeEvents {
         title: proposal.title,
         company: proposal.company,
         targetRole: proposal.targetRole,
+        sourceKind: proposal.sourceKind,
+        sourceUrl: proposal.sourceUrl,
         requirements: proposal.requirements.map((requirement) => ({
           text: requirement.text,
           category: requirement.category,
@@ -215,6 +220,18 @@ export class AgentRuntimeEvents {
       this.target.send("agent:event", { conversationId, event });
     }
   }
+}
+
+function shouldPublishLatestWorkspace(
+  context: ConversationAgentContext,
+): boolean {
+  const workspace = context.workspaceStore.latest();
+  return shouldPublishResumeWorkspace(
+    workspace,
+    workspace
+      ? context.artifactIdByCandidate.has(workspace.candidateId)
+      : false,
+  );
 }
 
 function isResumeWorkspaceTool(name: string): boolean {

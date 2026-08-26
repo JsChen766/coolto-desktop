@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { JdProposal, JdProposalRequirement } from "./types.js";
+import type { JdSourceKind } from "./source.js";
 
 export class JdProposalStore {
   #active: JdProposal | undefined;
@@ -11,6 +12,7 @@ export class JdProposalStore {
     company: string | null,
     targetRole: string | null,
     requirements: JdProposalRequirement[],
+    source: { kind?: JdSourceKind; url?: string | null } = {},
   ): JdProposal {
     const id = `jd-proposal-${randomUUID()}`;
     this.#active = {
@@ -19,6 +21,8 @@ export class JdProposalStore {
       title,
       company,
       targetRole,
+      sourceKind: source.kind ?? "pasted",
+      sourceUrl: source.url ?? null,
       requirements: structuredClone(requirements),
       duplicateStatus: "none",
       createdAt: new Date().toISOString(),

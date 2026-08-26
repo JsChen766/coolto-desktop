@@ -100,11 +100,11 @@ test("tool progress labels describe factual generation milestones", () => {
   );
   assert.equal(
     startedToolProgressLabel("apply_resume_content", { lineRewrites: [{}] }),
-    "正在批量扩写 bullet 并重新排版",
+    "正在批量扩写内容要点并重新排版",
   );
   assert.equal(
     startedToolProgressLabel("apply_resume_content", { bulletRemovals: [{}] }),
-    "正在移除一条低价值 bullet 并重新排版",
+    "正在移除一条低价值内容要点并重新排版",
   );
   assert.equal(
     completedToolProgressLabel({
@@ -133,7 +133,7 @@ test("overflow progress reports one bullet removal instead of source loss", () =
   assert.equal(progress?.removedBulletCount, 1);
   assert.equal(
     completedToolProgressLabel(progress),
-    "已移除 1 条低价值 bullet 并重新排版，页面占用率 97.2%",
+    "已移除 1 条低价值内容要点并重新排版，页面占用率 97.2%",
   );
 });
 
@@ -159,7 +159,7 @@ test("depth rewrite progress is not mislabeled as page filling", () => {
   assert.equal(progress?.phase, "depth_repair");
   assert.equal(
     completedToolProgressLabel(progress),
-    "已应用 14 条 bullet 深度扩写（5 条继续叠加），页面占用率 84.0%",
+    "已应用 14 条内容要点扩写（5 条继续叠加），页面占用率 84.0%",
   );
 });
 

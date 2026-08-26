@@ -14,9 +14,11 @@ const props = defineProps<{
 
 const userRef = computed(() => props.user);
 const {
+  summary,
   totalCredits,
   unlimited,
   insufficientDetail,
+  refreshSummary,
   handleAgentEvent,
   clearInsufficient,
 } = useCreditShell(props.api, userRef);
@@ -43,7 +45,13 @@ defineExpose({ totalCredits, unlimited, open });
 </script>
 
 <template>
-  <CreditDialog v-if="creditOpen" :api="api" @close="creditOpen = false" />
+  <CreditDialog
+    v-if="creditOpen"
+    :api="api"
+    :summary="summary"
+    :refresh-summary="refreshSummary"
+    @close="creditOpen = false"
+  />
   <InsufficientCreditsDialog
     v-if="insufficientDetail"
     :detail="insufficientDetail"

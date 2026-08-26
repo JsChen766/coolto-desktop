@@ -7,6 +7,7 @@ import type {
   ResumeDraftCheckpointReason,
   ResumeDraftSummary,
 } from "./types.js";
+import { resumeDraftSummaryState } from "./summary-state.js";
 
 export function createLocalResumeDraft(input: {
   ownerId: string;
@@ -71,6 +72,7 @@ export function appendDraftCheckpoint(
 
 export function summarizeDraft(draft: LocalResumeDraft): ResumeDraftSummary {
   const syncedRevision = draft.cloudLink?.syncedRevision;
+  const state = resumeDraftSummaryState(draft.workspace);
   return {
     artifactId: draft.artifactId,
     title: draft.title,
@@ -85,6 +87,7 @@ export function summarizeDraft(draft: LocalResumeDraft): ResumeDraftSummary {
           ? "synced"
           : "local_changes",
     cloudResumeId: draft.cloudLink?.resumeId ?? null,
+    ...state,
   };
 }
 

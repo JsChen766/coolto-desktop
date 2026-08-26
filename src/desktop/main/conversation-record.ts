@@ -5,6 +5,7 @@ import { inferArtifactAnchor } from "../shared/artifact-anchor.js";
 import type {
   ChatMessage,
   ConversationDetail,
+  ConversationRunTerminal,
   ConversationSummary,
   MessageAttachment,
 } from "../shared/types.js";
@@ -21,7 +22,7 @@ export interface StoredMessageAttachment extends MessageAttachment {
 }
 
 export interface StoredConversation {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   id: string;
   ownerId: string;
   title: string;
@@ -33,6 +34,7 @@ export interface StoredConversation {
   messageAttachments?: StoredMessageAttachment[];
   /** assistant 消息完成时间：key = 消息 timestamp，value = 结束时间 ISO。 */
   assistantTimings?: Record<string, string>;
+  lastRun?: ConversationRunTerminal;
 }
 
 export const UNTITLED_CONVERSATION = "新对话";
@@ -63,6 +65,7 @@ export function conversationSummary(
       record.agentMessages,
       record.messageAttachments,
     ).length,
+    ...(record.lastRun ? { lastRun: structuredClone(record.lastRun) } : {}),
   };
 }
 
@@ -131,7 +134,8 @@ export function isStoredConversation(
   return (
     (candidate.version === 1 ||
       candidate.version === 2 ||
-      candidate.version === 3) &&
+      candidate.version === 3 ||
+      candidate.version === 4) &&
     typeof candidate.id === "string" &&
     typeof candidate.ownerId === "string" &&
     typeof candidate.title === "string" &&
@@ -148,7 +152,22 @@ export function isStoredConversation(
       (typeof candidate.assistantTimings === "object" &&
         Object.values(candidate.assistantTimings).every(
           (value) => typeof value === "string",
-        )))
+        ))) &&
+    (candidate.lastRun === undefined || isConversationRunTerminal(candidate.lastRun))
+  );
+}
+
+function isConversationRunTerminal(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const terminal = value as Partial<ConversationRunTerminal>;
+  return (
+    ["completed", "failed", "cancelled", "needs_user_decision"].includes(
+      terminal.status ?? "",
+    ) &&
+    (terminal.message === null || typeof terminal.message === "string") &&
+    (terminal.artifactId === null || typeof terminal.artifactId === "string") &&
+    typeof terminal.canContinue === "boolean" &&
+    typeof terminal.updatedAt === "string"
   );
 }
 

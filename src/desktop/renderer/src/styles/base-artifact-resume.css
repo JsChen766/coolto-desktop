@@ -136,6 +136,10 @@
   background: #b68a52;
 }
 
+.resume-draft-state.incomplete {
+  background: var(--danger);
+}
+
 /* Resume toolbar */
 .resume-header-tools {
   position: relative;

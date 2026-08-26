@@ -15,7 +15,10 @@ import {
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { retainContentAcrossSourceExpansion } from "../../resume/workspace/source-reselection.js";
 import { applyCriticalSkillGate } from "../../resume/workspace/critical-skill-gate.js";
-import { applyBulletCountMaterialGate } from "../../resume/workspace/material-request-gate.js";
+import {
+  applyBulletCountMaterialGate,
+  applyInitialMaterialFeasibilityGate,
+} from "../../resume/workspace/material-request-gate.js";
 import { overflowSourceReselectionIssue } from "../../resume/workspace/overflow-source-reselection.js";
 import {
   createWorkspaceResult,
@@ -109,7 +112,8 @@ export function createResumeWorkspaceTool(
             selectedIds.has(entry.experienceId),
           )
         : [];
-      const workspace = applyBulletCountMaterialGate(applyCriticalSkillGate({
+      const workspace = applyInitialMaterialFeasibilityGate(
+        applyBulletCountMaterialGate(applyCriticalSkillGate({
         candidateId: reselectingSameTarget
           ? existing!.candidateId
           : `resume-workspace-${randomUUID()}`,
@@ -142,7 +146,8 @@ export function createResumeWorkspaceTool(
           : {}),
         supplementalEvidence,
         awaitingUserConfirmation: retained.awaitingUserConfirmation,
-      } satisfies Parameters<ResumeWorkspaceStore["create"]>[0]));
+        } satisfies Parameters<ResumeWorkspaceStore["create"]>[0])),
+      );
       const stored = reselectingSameTarget
         ? store.replace(workspace, existing!.revision)
         : store.create(workspace);

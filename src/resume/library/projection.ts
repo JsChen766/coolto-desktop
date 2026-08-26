@@ -8,6 +8,7 @@ import type {
   ResumeLibrarySyncStatus,
 } from "./types.js";
 import { computeSyncStatus } from "./sync-status.js";
+import { resumeDraftSummaryState } from "../draft/summary-state.js";
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -142,16 +143,22 @@ function toLocalSummary(draft: ResumeDraftSummary): ResumeLibraryLocalSummary {
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpointCount,
     hasPendingChange: draft.hasPendingChange,
+    workspaceStatus: draft.workspaceStatus,
+    generationReady: draft.generationReady,
+    jdId: draft.jdId,
+    jdTitle: draft.jdTitle,
   };
 }
 
 function toLocalSummaryFromFull(draft: LocalResumeDraft): ResumeLibraryLocalSummary {
+  const state = resumeDraftSummaryState(draft.workspace);
   return {
     artifactId: draft.artifactId,
     title: draft.title,
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpoints.length,
     hasPendingChange: draft.pendingChange != null,
+    ...state,
   };
 }
 

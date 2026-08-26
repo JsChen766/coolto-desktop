@@ -68,6 +68,8 @@ export function createDemoJdArtifact(): JdArtifactData {
     title: "高级前端工程师",
     company: "字节跳动",
     targetRole: null,
+    sourceKind: "browser",
+    sourceUrl: "https://jobs.example/ai-product-manager",
     requirements: [
       { text: "5年以上前端开发经验", category: "experience", importance: "high" },
       { text: "精通 React/Vue 等主流框架", category: "skill", importance: "high" },

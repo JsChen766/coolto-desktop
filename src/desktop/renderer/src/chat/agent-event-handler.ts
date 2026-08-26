@@ -11,6 +11,7 @@ import {
   completedToolProgressLabel,
   startedToolProgressLabel,
 } from "./resume-progress-label";
+import { appendVisibleAssistantDelta } from "../../../../agent/user-visible-text";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import type { useJdArtifacts } from "./use-jd-artifacts";
 import type { useMatchReports } from "./use-match-reports";
@@ -113,7 +114,12 @@ function handleCurrentConversationEvent(
       state.runError.value = undefined;
       return;
     case "message.delta":
-      if (!suppressIntermediateText) state.streamingText.value += event.text;
+      if (!suppressIntermediateText) {
+        state.streamingText.value = appendVisibleAssistantDelta(
+          state.streamingText.value,
+          event.text,
+        );
+      }
       return;
     case "tool.started": {
       const argumentsValue = event.arguments as { label?: string } | undefined;

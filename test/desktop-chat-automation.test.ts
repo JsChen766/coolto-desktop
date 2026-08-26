@@ -69,6 +69,8 @@ test("desktop chat smoke bounds stalled CDP requests", async () => {
   assert.match(source, /preview-toggle/u);
   assert.match(source, /progressMessages: observedProgress/u);
   assert.match(source, /resume-generation-progress/u);
+  assert.match(source, /toolRunsFromEvents\(await readAgentObservation/u);
+  assert.match(source, /toolErrors = tools\.filter/u);
 });
 
 test("desktop chat smoke parses an explicit new-chat run", () => {
@@ -140,7 +142,9 @@ test("desktop chat components expose the stable smoke contract", async () => {
     "chat-composer-stop",
   ]) assert.match(composer, new RegExp(`data-testid="${selector}"`, "u"));
   assert.match(workspace, /data-testid="chat-run-error"/u);
-  assert.match(tools, /data-tool-error/u);
+  assert.doesNotMatch(tools, /data-tool-name|data-tool-call-id|data-tool-error/u);
+  assert.doesNotMatch(tools, /run\.name|run\.error|<code/u);
+  assert.match(tools, /tool-activity-summary/u);
   assert.match(tools, /data-testid="resume-generation-progress"/u);
   assert.match(navigation, /data-testid="sidebar-new-chat"/u);
   assert.match(artifactPanel, /data-testid="resume-draft-status"/u);

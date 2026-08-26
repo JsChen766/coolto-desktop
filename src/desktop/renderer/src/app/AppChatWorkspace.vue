@@ -2,9 +2,7 @@
 import { computed } from "vue";
 import type { ChatMessage } from "@desktop/types";
 import {
-  ChatHeader,
-  ChatMessageView,
-  Composer,
+  ChatHeader, ChatMessageView, ChatRunTerminal, Composer,
   EmptyState,
   ExperienceImportResultCard,
   FillProgressCard,
@@ -53,9 +51,7 @@ const {
   resumeOperationContext,
   resolveApproval,
   resumeWorkspace,
-  runError,
-  running,
-  saveResumeToCloud,
+  runError, running, saveResumeToCloud,
   scroller,
   send,
   sidebarOpen,
@@ -64,7 +60,6 @@ const {
   toggleBrowser,
   toolRuns,
 } = props.shell;
-
 /** 合并附件实时状态到消息卡片；liveVersion 保证事件到来时重渲染。 */
 const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
   void conversationAttachment.liveVersion.value;
@@ -79,6 +74,9 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
 });
 
 const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
+
+function continueLastRun(): void { void send("请继续完成刚才未完成的任务；从已保留的有效进度继续，如果缺少信息只问一个具体问题。"); }
+function restartLastRun(): void { void send("请重新开始刚才的任务，重新检查当前资料后执行；不要复用失败的中间状态。"); }
 </script>
 
 <template>
@@ -150,6 +148,7 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
                   @open="openExperienceImportResult(current.id, $event)"
                 />
               </template>
+              <ChatRunTerminal v-if="current.lastRun && current.lastRun.status !== 'completed' && !running && !runError" :terminal="current.lastRun" @continue="continueLastRun" @restart="restartLastRun" @open-draft="openResumeDraft" />
               <article
                 v-if="toolRuns.length || streamingText"
                 class="chat-message role-assistant live-response"

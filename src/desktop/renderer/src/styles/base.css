@@ -6,6 +6,7 @@
 @import "./base-sidebar-account.css";
 @import "./base-workspace-chat.css";
 @import "./base-tools-composer.css";
+@import "./base-chat-terminal.css";
 @import "./base-approvals.css";
 @import "./base-artifact-resume.css";
 @import "./base-artifact-jd.css";

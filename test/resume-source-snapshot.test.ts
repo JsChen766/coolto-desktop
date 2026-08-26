@@ -375,6 +375,8 @@ function createJd(): JdRecord {
     title: "数据产品经理",
     company: "Example",
     targetRole: "产品经理",
+    sourceKind: "pasted",
+    sourceUrl: null,
     rawText: "需要数据产品经验和跨团队协作能力。",
     requirements: [
       {

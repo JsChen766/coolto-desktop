@@ -28,9 +28,9 @@ import { ConversationStore } from "./conversation-store.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { readConfig } from "../../config.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
-import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
+import { createRunTerminalForContext } from "./agent-runtime-terminal.js";
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore;
   readonly #resumeDrafts: ResumeDraftService;
@@ -57,7 +57,7 @@ export class DesktopAgentRuntime {
     mailConnections: MailConnectionRegistry, interviews: InterviewSyncStore,
     interviewProposals: InterviewProposalService, experiences: ExperienceReader & ExperienceWriter,
     jds: JdReader & JdWriter, profiles: UserProfileReader,
-    profileProposals: ProfileProposalExecutor,
+    profileProposals: import("../../profile/types.js").ProfileProposalExecutor,
     experienceSyncProposals: ResumeExperienceSyncProposalPort,
     private readonly compactionThreshold: () => Promise<number | undefined>,
     private readonly syncNow: () => Promise<SyncNowResult>,
@@ -84,13 +84,12 @@ export class DesktopAgentRuntime {
       syncNow: this.syncNow,
     });
   }
-  public get isRunning(): boolean {
-    return this.#runningConversationId !== undefined;
-  }
+  public get isRunning(): boolean { return this.#runningConversationId !== undefined; }
   public async prompt(input: AgentPromptInput): Promise<ConversationDetail> {
     const conversationId = input.conversationId;
     const context = await this.#contextFor(conversationId);
     this.#assertCanRun(conversationId);
+    await context.scopeTools();
     if (context.agent.isRunning) {
       throw new Error("正在处理上一条消息，请稍候再试");
     }
@@ -115,9 +114,10 @@ export class DesktopAgentRuntime {
       });
       const lastAssistant = [...result.messages].reverse().find((m) => m.role === "assistant");
       const assistantCompletedAt = lastAssistant ? { timestamp: lastAssistant.timestamp, completedAt: new Date().toISOString() } : undefined;
-      return await this.#enqueuePersist(() => this.#store.saveMessages(conversationId, result.messages, pendingAttachments, result.attachTimestamp, assistantCompletedAt));
+      return await this.#enqueuePersist(() => this.#store.saveMessages(conversationId, result.messages, pendingAttachments, result.attachTimestamp, assistantCompletedAt, createRunTerminalForContext(context, this.#cancelRequested)));
     } catch (error) {
       failed = true;
+      await this.#enqueuePersist(() => this.#store.saveRunTerminal(conversationId, createRunTerminalForContext(context, this.#cancelRequested, error))).catch(() => undefined);
       throw error;
     } finally {
       unsubscribePersist();

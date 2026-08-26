@@ -40,6 +40,7 @@ import { InboxSignalApplicationService } from "./agent-task/inbox-signal-applica
 import { InboxSignalInterviewService } from "./agent-task/inbox-signal-interview-service.js";
 import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
 import type { InterviewProposalService } from "./tracker/interview-proposal-service.js";
+import { toolsForConversationRun } from "./agent-task/conversation-tool-scope.js";
 
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
@@ -191,6 +192,10 @@ export class AgentContextFactory {
       resumeCompiler,
       jdProposalStore,
       matchReportStore,
+      scopeTools: async () => agent.setTools(toolsForConversationRun(
+        tools,
+        Boolean(await deps.agentHarness.tasks.findRunningByConversation(conversationId)),
+      )),
       artifactIdByCandidate: new Map(),
       currentUserMessage,
       compaction: {

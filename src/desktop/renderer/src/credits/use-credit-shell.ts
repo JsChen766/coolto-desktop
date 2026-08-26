@@ -1,11 +1,12 @@
-import { ref, watch, type Ref } from "vue";
+import { computed, shallowRef, watch, type Ref } from "vue";
 
 import type {
   CreditBalanceDetail,
   DesktopAgentEvent,
   DesktopApi,
+  DesktopCreditSummary,
   DesktopUser,
-} from "@desktop/types";
+} from "../../../shared/types.js";
 
 /**
  * Sidebar credit chip + global insufficient-credits dialog state. The chip
@@ -16,20 +17,29 @@ export function useCreditShell(
   api: DesktopApi,
   user: Ref<DesktopUser | undefined>,
 ) {
-  const totalCredits = ref<number>();
-  const unlimited = ref(false);
-  const insufficientDetail = ref<CreditBalanceDetail>();
+  const summary = shallowRef<DesktopCreditSummary>();
+  const totalCredits = computed(() => summary.value
+    ? summary.value.weeklyFreeCredits + summary.value.creditBalance
+    : undefined);
+  const unlimited = computed(() => summary.value?.unlimited === true);
+  const insufficientDetail = shallowRef<CreditBalanceDetail>();
+
+  async function refreshSummary(): Promise<DesktopCreditSummary | undefined> {
+    if (!user.value) {
+      summary.value = undefined;
+      return undefined;
+    }
+    summary.value = await api.auth.getCredits();
+    return summary.value;
+  }
 
   async function load(): Promise<void> {
     if (!user.value) {
-      totalCredits.value = undefined;
-      unlimited.value = false;
+      summary.value = undefined;
       return;
     }
     try {
-      const summary = await api.auth.getCredits();
-      totalCredits.value = summary.weeklyFreeCredits + summary.creditBalance;
-      unlimited.value = summary.unlimited;
+      await refreshSummary();
     } catch {
       // The chip is a convenience surface; a failure must not disturb the UI.
     }
@@ -41,8 +51,7 @@ export function useCreditShell(
       if (next) {
         void load();
       } else {
-        totalCredits.value = undefined;
-        unlimited.value = false;
+        summary.value = undefined;
         insufficientDetail.value = undefined;
       }
     },
@@ -70,10 +79,12 @@ export function useCreditShell(
   }
 
   return {
+    summary,
     totalCredits,
     unlimited,
     insufficientDetail,
     load,
+    refreshSummary,
     handleAgentEvent,
     clearInsufficient,
   };

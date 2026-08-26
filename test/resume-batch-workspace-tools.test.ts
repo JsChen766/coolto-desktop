@@ -606,7 +606,7 @@ test("create_resume_workspace locks all sources and measures only the blank page
   assert.equal(payload.nextAction.requiredInput, "items");
   assert.equal(payload.nextAction.itemTargets.length, 1);
   assert.equal(payload.nextAction.itemTargets[0].missingBulletCount, 3);
-  assert.equal(payload.nextAction.itemTargets[0].availableEvidence.length, 3);
+  assert.equal(payload.nextAction.itemTargets[0].availableEvidence.length, 4);
   assert.equal(payload.nextAction.itemTargets[0].currentBullets.length, 0);
 });
 
@@ -724,7 +724,7 @@ test("apply_resume_content accepts an exact source experience id", async () => {
   assert.equal(result.operation.appliedItemIds[0], "item-work-1");
   assert.equal(value.store.latest()!.structure.sections
     .flatMap((section) => section.items)
-    .find((item) => item.id === "item-work-1")?.bullets.length, 3);
+    .find((item) => item.id === "item-work-1")?.bullets.length, 4);
 });
 
 test("apply_resume_content rejects duplicate exclusive evidence ranges", async () => {
@@ -1024,13 +1024,13 @@ test("source expansion retains user-provided facts for selected experiences", as
   const retainedItem = value.store.latest()!.structure.sections
     .flatMap((section) => section.items)
     .find((item) => item.id === "item-work-1");
-  assert.equal(retainedItem?.bullets.length, 3);
-  assert.equal(value.store.latest()!.bindings.length, 3);
-  assert.equal(value.store.latest()!.bulletProvenance?.length, 3);
+  assert.equal(retainedItem?.bullets.length, 4);
+  assert.equal(value.store.latest()!.bindings.length, 4);
+  assert.equal(value.store.latest()!.bulletProvenance?.length, 4);
   assert.equal(value.store.latest()!.contentApplyCount, 0);
   assert.equal(value.compiler.structures.at(-1)?.sections
     .flatMap((section) => section.items)
-    .find((item) => item.id === "item-work-1")?.bullets.length, 3);
+    .find((item) => item.id === "item-work-1")?.bullets.length, 4);
 });
 
 test("source expansion drops bullets whose source revision changed", async () => {
@@ -1089,7 +1089,7 @@ test("apply_resume_content replaces a complete item batch and compiles once", as
   assert.deepEqual(payload.operation.appliedItemIds, ["item-work-1"]);
   assert.equal(value.store.latest()!.structure.sections.flatMap(
     (section) => section.items,
-  ).find((item) => item.id === "item-work-1")?.bullets.length, 3);
+  ).find((item) => item.id === "item-work-1")?.bullets.length, 4);
   assert.equal(payload.layout.observedRevision, 1);
   assert.equal(payload.layout.gates.bulletCountsPassed, true);
   assert.equal("resume" in payload, false);
