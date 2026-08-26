@@ -11,6 +11,10 @@ import {
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { buildAttachmentNotice } from "./conversation-attachments.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+import {
+  appendResumeRunFeedback,
+  resumeRunFeedbackState,
+} from "./resume-run-feedback.js";
 
 export interface AgentPromptExecutionInput {
   prompt: AgentPromptInput;
@@ -72,7 +76,6 @@ export async function executeAgentPrompt(
     discardFailedRunMessages(context);
     throw new Error(runStopError);
   }
-  const attachTimestamp = lastUserMessageTimestamp(context.agent.getMessages());
   const proposed = context.workspaceStore.latest();
   if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
     await input.resumeDrafts.proposeChange({
@@ -82,8 +85,15 @@ export async function executeAgentPrompt(
       summary: context.activeEdit?.summary ?? "AI 修改简历内容",
     });
   }
-  return {
+  const messagesWithFeedback = appendResumeRunFeedback({
     messages: context.agent.getMessages(),
+    userText: prompt.text,
+    state: resumeRunFeedbackState(proposed),
+  });
+  context.agent.replaceMessages(messagesWithFeedback);
+  const attachTimestamp = lastUserMessageTimestamp(messagesWithFeedback);
+  return {
+    messages: messagesWithFeedback,
     attachTimestamp,
   };
 }

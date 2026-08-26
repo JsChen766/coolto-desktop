@@ -110,6 +110,9 @@ function handleCurrentConversationEvent(
       // Model narration is an internal execution detail. The completed,
       // projected assistant message is loaded after the run settles.
       return;
+    case "assistant.notice":
+      state.current.value?.messages.push(event.message);
+      return;
     case "tool.started": {
       const argumentsValue = event.arguments as { label?: string } | undefined;
       state.toolRuns.value.push({

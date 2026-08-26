@@ -125,6 +125,21 @@ export class AgentRuntimeEvents {
       jdId,
     });
   }
+  public emitAssistantNotice(
+    conversationId: string,
+    text: string,
+    timestamp: number,
+  ): void {
+    this.emit(conversationId, {
+      type: "assistant.notice",
+      message: {
+        id: `assistant-notice-${timestamp}`,
+        role: "assistant",
+        content: text,
+        createdAt: new Date(timestamp).toISOString(),
+      },
+    });
+  }
 
   public async syncLatestWorkspace(
     conversationId: string,

@@ -6,7 +6,7 @@ import type { ApprovalDecision } from "../../approvals/types.js";
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
 import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
 import { buildBrowserWriteAccessContinuationPrompt, prepareBrowserWriteAccessContinuation } from "./browser-write-access-continuation.js";
-import { buildJdContinuationPrompt, prepareJdContinuation } from "./jd-continuation.js";
+import { announceResumeGenerationStart, buildJdContinuationPrompt, prepareJdContinuation } from "./jd-continuation.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import type { AgentPromptInput, ConversationDetail } from "../shared/types.js";
@@ -79,11 +79,9 @@ export class DesktopAgentRuntime {
       syncNow: this.syncNow,
     });
   }
-
   public get isRunning(): boolean {
     return this.#runningConversationId !== undefined;
   }
-
   public async prompt(input: AgentPromptInput): Promise<ConversationDetail> {
     const conversationId = input.conversationId;
     const context = await this.#contextFor(conversationId);
@@ -132,7 +130,6 @@ export class DesktopAgentRuntime {
       this.#runningConversationId = undefined;
     }
   }
-
   public cancel(): void {
     this.#cancelRequested = true;
     const id = this.#runningConversationId;
@@ -205,6 +202,9 @@ export class DesktopAgentRuntime {
       const savedJd = jdContinuation?.getSavedJd();
       if (savedJd && !this.#cancelRequested) {
         this.#events.emitJdSaved(conversationId, requestId, savedJd.jdId);
+        if (savedJd.resumeRequested) {
+          announceResumeGenerationStart(context.agent, this.#events, conversationId);
+        }
         await runContinuationPrompt(
           () => context.agent.prompt(buildJdContinuationPrompt(savedJd)),
         );
