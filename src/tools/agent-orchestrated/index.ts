@@ -4,6 +4,7 @@ import type { ApprovalManager } from "../../approvals/approval-manager.js";
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import type { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
+import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createApplyResumeContentTool } from "./apply-content.js";
 import { createAddResumeMaterialTool } from "./add-material.js";
@@ -17,6 +18,7 @@ export interface AgentOrchestratedDependencies {
   snapshotBuilder: ResumeSourceSnapshotBuilder;
   compiler: ResumeCompiler;
   store: ResumeWorkspaceStore;
+  resumeReader?: ResumePublicationGateway;
   currentUserMessageTimestamp?: () => number | undefined;
   approvalManager?: ApprovalManager;
   experienceSyncProposals?: ResumeExperienceSyncProposalPort;
@@ -35,6 +37,7 @@ export function createAgentOrchestratedTools(
       dependencies.snapshotBuilder,
       dependencies.compiler,
       dependencies.store,
+      dependencies.resumeReader,
     ),
     createGetResumeWorkspaceTool(dependencies.store),
     createPauseResumeForMaterialTool(dependencies.store),

@@ -193,7 +193,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | BE2 | Persistent Agent Harness | AgentTask、grant、事件邮箱、checkpoint、接管、暂停/恢复和审计 | ✅ 2026-08-23 完成；全量 669 pass/2 skip，Harness 10/10、任务 UI 11/11、BrowserBar 回归 29/29 |
 | BE3 | Managed Job Scout | App 打开期间多源搜索、去重、匹配、Shortlist 和增量巡视 | ✅ 2026-08-23 完成；Greenhouse 15×2、Lever 383×2，重复 0，673 pass/2 skip，Shortlist UI 12/12 |
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionReceipt 与 Application Proposal | ✅ 2026-08-23 机制闭环完成；685 pass/2 skip，Browser 31/31、Harness 10/10、UI 14/14；真实域名 submit 仍待 BE8 逐域验收 |
-| BE5 | Inbox Signals | 默认 Browser Webmail、可选 Gmail/Outlook 增量、Application 关联与状态/Interview Proposal | **当前阶段**；QQ 个人邮箱 candidate Site Policy 已建立并启动监督验收，尚未完成真实页面/账号与 ≥99% 关联准确率门禁；OAuth Client 只阻塞可选 API Connector；邮件发送始终由用户点击 |
+| BE5 | Inbox Signals | 默认 Browser Webmail、可选 Gmail/Outlook 增量、Application 关联与状态/Interview Proposal | **当前阶段**；QQ 个人邮箱 candidate Site Policy 已建立并启动监督验收，尚未完成真实页面/账号与 ≥99% 关联准确率门禁；Resume Reuse Memory 已通过代码/全量门禁以及真实 Electron 无候选冷启动、临时真实接口样本下的常规 prompt 正向复用工作区链路，复用后事实不足仍正确停在 `needs_user_decision`；完整生成 token/耗时/质量对照未执行；OAuth Client 只阻塞可选 API Connector；邮件发送始终由用户点击 |
 | BE6 | macOS Calendar | EventKit write-only、映射、改期/取消和去重 | 待 BE5 完成 |
 | BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | 待 BE6 完成；仅 App 打开时运行 |
 | BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |

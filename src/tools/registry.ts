@@ -125,7 +125,7 @@ export function createToolRegistry(
     businessTools.push(...createJdTools(dependencies.jdReader));
   }
   if (dependencies.resumeReader) {
-    businessTools.push(...createResumeReadTools(dependencies.resumeReader));
+    businessTools.push(...createResumeReadTools(dependencies.resumeReader, dependencies.jdReader));
   }
   if (dependencies.experienceReader) {
     businessTools.push(

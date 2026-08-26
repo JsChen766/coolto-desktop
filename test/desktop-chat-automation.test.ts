@@ -54,6 +54,7 @@ test("desktop chat smoke exposes its command-line contract", () => {
   assert.match(result.stdout, /--require-resume-ready/u);
   assert.match(result.stdout, /--accept-resume-augmentation/u);
   assert.match(result.stdout, /--open-resume-preview/u);
+  assert.match(result.stdout, /--stop-after-reuse-workspace/u);
   assert.match(result.stdout, /--file <path>/u);
 });
 
@@ -77,6 +78,9 @@ test("desktop chat smoke parses an explicit new-chat run", () => {
     "--require-resume-ready",
     "--accept-resume-augmentation",
     "--open-resume-preview",
+    "--stop-after-reuse-workspace",
+    "--jd-id",
+    "jd-1",
     "--message",
     "generate",
     "--timeout",
@@ -86,6 +90,8 @@ test("desktop chat smoke parses an explicit new-chat run", () => {
     requireResumeReady: true,
     acceptResumeAugmentation: true,
     openResumePreview: true,
+    stopAfterReuseWorkspace: true,
+    jdId: "jd-1",
     message: "generate",
     timeout: 300_000,
   });

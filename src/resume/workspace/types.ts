@@ -59,6 +59,13 @@ export interface ResumeWorkspace {
   contentApplyCount?: number;
   status: ResumeWorkspaceStatus;
   sourceSnapshot: ResumeSourceSnapshot;
+  reuseBase?: {
+    resumeId: string;
+    sourceJdId: string;
+    contentHash: string;
+    retainedBulletCount: number;
+    droppedBulletCount: number;
+  };
   structure: ResumeStructure;
   bindings: BulletEvidenceBinding[];
   compileResult: ResumeCompileResult;

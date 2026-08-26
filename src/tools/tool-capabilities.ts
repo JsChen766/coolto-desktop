@@ -133,6 +133,9 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
     concurrency: "sequential", idempotency: "request_key", evidence: "none",
     requiresFreshObservation: false, unattendedAllowed: true,
   };
+  if (tool.name === "find_resume_reuse_candidates") return metadata({
+    scope: "resume.read", read: true, fresh: false,
+  });
   const sequential = tool.executionMode === "sequential";
   return metadata({
     scope: `app.tool.${tool.name}`,

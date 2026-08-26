@@ -26,6 +26,7 @@ export function buildModelPayload(workspace: ResumeWorkspace): object {
     candidateId: workspace.candidateId,
     revision: workspace.revision,
     status: workspace.status,
+    reuseBase: workspace.reuseBase ?? null,
     continuation: continuationState(workspace),
     sourceFingerprint: workspace.sourceSnapshot.sourceFingerprint,
     structure: idIndex(workspace.structure),

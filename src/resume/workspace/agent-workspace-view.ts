@@ -124,6 +124,7 @@ export function buildAgentWorkspaceView(
     candidateId: workspace.candidateId,
     revision: workspace.revision,
     status: workspace.status,
+    reuseBase: workspace.reuseBase ?? null,
     nextAction: resumeAgentNextAction(workspace),
     ...(workspace.materialRequest
       ? { materialRequest: normalizeResumeMaterialRequest(

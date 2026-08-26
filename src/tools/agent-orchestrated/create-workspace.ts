@@ -17,6 +17,11 @@ import { retainContentAcrossSourceExpansion } from "../../resume/workspace/sourc
 import { applyCriticalSkillGate } from "../../resume/workspace/critical-skill-gate.js";
 import { applyBulletCountMaterialGate } from "../../resume/workspace/material-request-gate.js";
 import { overflowSourceReselectionIssue } from "../../resume/workspace/overflow-source-reselection.js";
+import type { ResumePublicationGateway } from "../../resume/save/types.js";
+import {
+  samePublishedResumeSeed,
+  seedFromPublishedResume,
+} from "../../resume/workspace/published-resume-seed.js";
 import {
   createWorkspaceResult,
   rejectedEducationCourseworkResult,
@@ -29,12 +34,13 @@ export function createResumeWorkspaceTool(
   snapshotBuilder: ResumeSourceSnapshotBuilder,
   compiler: ResumeCompiler,
   store: ResumeWorkspaceStore,
+  resumeReader?: ResumePublicationGateway,
 ): AgentTool<typeof createWorkspaceParameters> {
   return {
     name: "create_resume_workspace",
     label: "创建简历工作区",
     description:
-      "锁定目标 JD、Profile 和 Agent 选择的经历集合，并自动补齐经历库中全部 active 教育经历，创建简历骨架并执行一次真实 Chromium 测量。每个工作来源用 localizedPosition 提交根据 language 翻译后的单一语言职位，公司专有名词保持原文；不增加翻译调用。教育课程通过 educationCoursework 提交课程数组与逐字 sourceQuote，宿主验证原始教育经历后固定投影；不得编造、翻译或通过 apply_resume_content 改写。宿主会检查 must-have 技术要求是否有直接经历证据，缺失时立即返回 request_more_material；wholePageBudget 同时给出 main/secondary 普通 bullet 实测 2–3 行的硬预算。main/secondary/utility 由你判断；education 和已标注 skills 的来源不传 tier，旧数据里的纯语言、工具或证书行传 utility。首稿欠填可用同一 JD 和扩大的非教育经历集合再次调用并保留已有内容；溢出时只有 nextAction.requiredInput=reselectWithoutOneExperience 才可缩减集合，且一次只能移除一段非教育经历。相同选择重复调用不会修改 revision。",
+      "锁定目标 JD、Profile 和 Agent 选择的经历集合，并自动补齐经历库中全部 active 教育经历，创建简历骨架并执行一次真实 Chromium 测量。可选 baseResumeId 只能来自已核验的历史候选；宿主重新校验逐字 evidence、重算新 JD coverage，并把有效 grounded bullet 播种到新的本地候选，不覆盖历史 Resume。每个工作来源用 localizedPosition 提交根据 language 翻译后的单一语言职位，公司专有名词保持原文；不增加翻译调用。教育课程通过 educationCoursework 提交课程数组与逐字 sourceQuote，宿主验证原始教育经历后固定投影；不得编造、翻译或通过 apply_resume_content 改写。宿主会检查 must-have 技术要求是否有直接经历证据，缺失时立即返回 request_more_material；wholePageBudget 同时给出 main/secondary 普通 bullet 实测 2–3 行的硬预算。main/secondary/utility 由你判断；education 和已标注 skills 的来源不传 tier，旧数据里的纯语言、工具或证书行传 utility。首稿欠填可用同一 JD 和扩大的非教育经历集合再次调用并保留已有内容；溢出时只有 nextAction.requiredInput=reselectWithoutOneExperience 才可缩减集合，且一次只能移除一段非教育经历。相同选择重复调用不会修改 revision。",
     executionMode: "sequential",
     parameters: createWorkspaceParameters,
     execute: async (_toolCallId, params) => {
@@ -45,6 +51,12 @@ export function createResumeWorkspaceTool(
         experienceIds,
         template: STANDARD_RESUME_TEMPLATE_SNAPSHOT,
       });
+      if (params.baseResumeId && !resumeReader) {
+        throw new Error("当前运行时不支持历史 Resume 基底");
+      }
+      const baseResume = params.baseResumeId
+        ? await resumeReader!.getResume(params.baseResumeId)
+        : undefined;
       const freshStructure = buildResumeSkeleton(snapshot, experienceIds, params.language);
       applyLocalizedPositions(freshStructure, params.experiences);
       const courseworkIssue = applyEducationCoursework(
@@ -59,19 +71,34 @@ export function createResumeWorkspaceTool(
       const tierIssue = validateTierInputs(freshStructure, params.experiences);
       if (tierIssue) return rejectedTierResult(tierIssue);
       const itemTiers = tiersForStructure(freshStructure, params.experiences);
+      const baseSeed = baseResume
+        ? seedFromPublishedResume({ fresh: freshStructure, snapshot, base: baseResume })
+        : undefined;
+      const reuseBase = baseResume && baseSeed ? {
+        resumeId: baseResume.id, sourceJdId: baseResume.jdId!,
+        contentHash: baseResume.contentHash,
+        retainedBulletCount: baseSeed.retainedBulletCount,
+        droppedBulletCount: baseSeed.droppedBulletCount,
+      } : undefined;
       const existing = store.latest();
       if (
         existing &&
         existing.sourceSnapshot.sourceFingerprint === snapshot.sourceFingerprint &&
         existing.structure.language === params.language &&
+        samePublishedResumeSeed(existing.reuseBase, reuseBase) &&
         sameRecord(existing.itemTiers ?? {}, itemTiers) &&
         sameFixedPresentation(existing.structure, freshStructure)
       ) {
         return createWorkspaceResult(existing, "unchanged", []);
       }
-      const overflowIssue = existing
+      const continuingSameWorkspace = Boolean(
+        existing && existing.sourceSnapshot.jd.id === snapshot.jd.id &&
+        existing.structure.language === params.language &&
+        samePublishedResumeSeed(existing.reuseBase, reuseBase),
+      );
+      const overflowIssue = continuingSameWorkspace
         ? overflowSourceReselectionIssue(
-            existing,
+            existing!,
             snapshot,
             params.language,
             itemTiers,
@@ -80,17 +107,18 @@ export function createResumeWorkspaceTool(
       if (overflowIssue) {
         return rejectedReselectionResult(existing!, overflowIssue);
       }
-      const reselectingSameTarget = Boolean(
-        existing &&
-        existing.sourceSnapshot.jd.id === snapshot.jd.id &&
-        existing.structure.language === params.language,
-      );
-      const retained = reselectingSameTarget
+      const retained = continuingSameWorkspace
         ? retainContentAcrossSourceExpansion(
             freshStructure,
             existing!,
             snapshot,
           )
+        : baseSeed
+          ? {
+              ...baseSeed,
+              augmentedBullets: [], augmentedFragments: [],
+              awaitingUserConfirmation: null,
+            }
         : {
             structure: freshStructure,
             bindings: [],
@@ -100,24 +128,25 @@ export function createResumeWorkspaceTool(
             awaitingUserConfirmation: null,
           };
       const compileResult = await compiler.compile(retained.structure);
-      const revision = reselectingSameTarget ? existing!.revision + 1 : 0;
+      const revision = continuingSameWorkspace ? existing!.revision + 1 : 0;
       const selectedIds = new Set(
         snapshot.experiences.map((experience) => experience.id),
       );
-      const supplementalEvidence = reselectingSameTarget
+      const supplementalEvidence = continuingSameWorkspace
         ? (existing!.supplementalEvidence ?? []).filter((entry) =>
             selectedIds.has(entry.experienceId),
           )
         : [];
       const workspace = applyBulletCountMaterialGate(applyCriticalSkillGate({
-        candidateId: reselectingSameTarget
+        candidateId: continuingSameWorkspace
           ? existing!.candidateId
           : `resume-workspace-${randomUUID()}`,
         revision,
-        patchCount: reselectingSameTarget ? existing!.patchCount + 1 : 0,
+        patchCount: continuingSameWorkspace ? existing!.patchCount + 1 : 0,
         contentApplyCount: 0,
         status: "writing",
         sourceSnapshot: snapshot,
+        ...(reuseBase ? { reuseBase } : {}),
         structure: retained.structure,
         bindings: retained.bindings,
         compileResult,
@@ -143,11 +172,13 @@ export function createResumeWorkspaceTool(
         supplementalEvidence,
         awaitingUserConfirmation: retained.awaitingUserConfirmation,
       } satisfies Parameters<ResumeWorkspaceStore["create"]>[0]));
-      const stored = reselectingSameTarget
+      const stored = continuingSameWorkspace
         ? store.replace(workspace, existing!.revision)
         : store.create(workspace);
       const previousExperienceIds = new Set(
-        existing?.sourceSnapshot.experiences.map((item) => item.id) ?? [],
+        continuingSameWorkspace
+          ? existing!.sourceSnapshot.experiences.map((item) => item.id)
+          : [],
       );
       const newItemIds = stored.structure.sections.flatMap((section) =>
         section.items
@@ -160,7 +191,7 @@ export function createResumeWorkspaceTool(
       );
       return createWorkspaceResult(
         stored,
-        reselectingSameTarget ? "reselected" : "created",
+        continuingSameWorkspace ? "reselected" : "created",
         newItemIds,
       );
     },

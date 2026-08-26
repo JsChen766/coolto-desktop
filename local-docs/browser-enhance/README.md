@@ -671,7 +671,38 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
   capture_mail，明确拒绝 send/delete/move/archive/mark-read/附件下载/邮件外链/设置写入。candidate 在普通
   运行中仍 fail-closed，只有 `COOLTO_BROWSER_SITE_ACCEPTANCE_ORIGINS=https://mail.qq.com` 的监督验收
   进程可 capture；`browser_submit` 的独立测试 allowlist 不受影响。针对性 typecheck 与 8 项 QQ policy/
-  Browser Webmail/Delegation 回归通过；真实登录后的页面、全量 `npm run check` 与阶段完成结论仍待验收。
+  Browser Webmail/Delegation 回归通过；真实登录后的页面与阶段完成结论仍待验收。
+- 2026-08-26 用户优先插入 Managed Apply 的 Resume Reuse Memory：新 JD 生成前，单一 Agent 先调用
+  `find_resume_reuse_candidates`，宿主只按同目标岗位、JD keyword 重叠和更新时间缩小已发布且
+  `qualityStatus=passed`、非 archived、带来源 JD 的候选，不设“相似度超过 N%”的宿主决策阈值，
+  不新增 embedding、向量库、规则模型、第二个 Agent 或生成 loop；Agent 读取完整 source JD/Resume 后
+  自主决定是否把 `resumeId` 作为 `create_resume_workspace.baseResumeId`，没有合适候选就从零生成；
+- 历史 Resume 只播种新的本地 candidate，不建立 cloud link、不覆盖原 Resume。宿主逐 bullet 重新核验
+  当前 Experience 的 revision/contentHash/source offset/quote，丢弃已漂移或无 grounded evidence 的内容；
+  全部失效时拒绝该基底。有效 evidence 使用既有 candidate map 重新计算新 JD requirement coverage，随后
+  继续执行全库 Experience 检索、must-have、数字/事实、Chromium 单页、尾行、质量审查和保存审批门禁；
+- 自动化证据：新增候选缩圈、Agent-only 选择、当前 evidence 播种、新 JD coverage 重算、base 不可变、
+  漂移证据拒绝与重复调用幂等回归；`npm run check` 全绿，836 个源文件 ≤250 行，706 tests 中
+  704 pass、2 platform skip、0 fail，Node/Renderer typecheck、Node build 和 Electron production build
+  通过。尚未用真实模型/JD 对照测量首轮耗时、token 节省率和最终质量等价性，因此这项效率能力不作为
+  BE5 完成或实际性能提升的证明。
+- 2026-08-26 真实登录账号、Electron 43.2.0/Windows 只读决策链验收：Agent 在 10.749 秒内依次完成
+  `search_jds → get_jd → find_resume_reuse_candidates`，目标 JD 没有合格候选时明确选择“从零生成”；
+  工具均成功、未调用 `create_resume_workspace`、未创建本地草稿。随后用 `list_resumes` 检查正向样本，
+  真实账号云端 Resume 列表为空，因此“找到候选 → 读取 source JD/Resume → 选择基底”的真实正向分支
+  暂无数据可验；自动化回归已覆盖该分支，但不能替代真实账号证据。此次按用户确认不运行完整简历生成，
+  因而 token/耗时节省和最终质量等价性仍未验收。
+- 2026-08-26 用户授权通过真实接口导入临时正向样本后补验：临时 Resume 关联既有来源 JD，包含 13 条
+  绑定当前 Experience revision/hash/offset/quote 的 grounded bullet；另建一份不同 ID、同岗位与同要求的
+  相似新 JD。用户正文仅为常规提示“请根据这个 JD 生成一份中文简历”，JD 通过产品既有隐藏
+  `jdReference` 传入，提示中没有复用、候选、工具名或 `baseResumeId`。Agent 在 27.675 秒内依次执行
+  `get_jd → find_resume_reuse_candidates → search_experiences → get_jd/get_resume → 全库 Experience 检索
+  → create_resume_workspace`；创建参数中的 `baseResumeId` 与临时 Resume 完全一致，目标 ID 与新 JD
+  完全一致，工具成功。工作区已生成一页、占用率 0.71，之后仍因真实 must-have 事实不足进入
+  `needs_user_decision`，证明复用没有绕过现有事实门禁。验收按用户要求在工作区建立后由外部测试器取消，
+  未继续生成全文；临时 Resume 和新 JD 已按实际 entityVersion 通过 DELETE 接口清理，隔离登录态和本地
+  草稿目录亦已删除。至此常规 prompt 的“找到候选 → Agent 读取判断 → 建立微调工作区”正向链路通过；
+  完整生成的 token/耗时节省和最终质量等价性仍未验收。
 
 ## 9. 站点政策与产品边界
 
