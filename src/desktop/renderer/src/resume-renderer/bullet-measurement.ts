@@ -1,72 +1,17 @@
 import {
-  RESUME_BULLET_LINE_TOLERANCE_PX,
   type ResumeBulletMeasurement,
   type ResumeCompileViolation,
 } from "../../../../resume/compiler-types";
 import { passesBulletTailGate } from
   "../../../../resume/bullet-tail-gate";
-
-interface VisualLine {
-  top: number;
-  left: number;
-  right: number;
-}
-
-function finiteRect(rect: DOMRect): boolean {
-  return [
-    rect.top,
-    rect.left,
-    rect.right,
-    rect.bottom,
-    rect.width,
-    rect.height,
-  ].every(Number.isFinite);
-}
-
-function textRects(target: HTMLElement): DOMRect[] {
-  const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
-  const rectangles: DOMRect[] = [];
-  let node = walker.nextNode();
-  while (node) {
-    if ((node.textContent ?? "").trim()) {
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      rectangles.push(
-        ...Array.from(range.getClientRects()).filter(
-          (rect) => finiteRect(rect) && rect.width > 0 && rect.height > 0,
-        ),
-      );
-      range.detach();
-    }
-    node = walker.nextNode();
-  }
-  return rectangles;
-}
-
-function groupRectsIntoVisualLines(rectangles: DOMRect[]): VisualLine[] {
-  const sorted = [...rectangles].sort(
-    (left, right) => left.top - right.top || left.left - right.left,
-  );
-  const lines: VisualLine[] = [];
-  for (const rectangle of sorted) {
-    const line = lines.find(
-      (candidate) =>
-        Math.abs(candidate.top - rectangle.top) <=
-        RESUME_BULLET_LINE_TOLERANCE_PX,
-    );
-    if (line) {
-      line.left = Math.min(line.left, rectangle.left);
-      line.right = Math.max(line.right, rectangle.right);
-    } else {
-      lines.push({
-        top: rectangle.top,
-        left: rectangle.left,
-        right: rectangle.right,
-      });
-    }
-  }
-  return lines.sort((left, right) => left.top - right.top);
-}
+import type { ResumeTailPolicy } from "../../../../resume/tail-policy";
+import {
+  RESUME_TAIL_POLICY_V1,
+  RESUME_TAIL_POLICY_V2,
+} from "../../../../resume/tail-policy";
+import { measureTailBudgetProbe } from "./tail-budget-probe";
+import { measureInlineWidthPx } from "./text-width-calibration";
+import { measureVisualLines } from "./visual-line-measurement";
 
 function round(value: number): number {
   return Number(value.toFixed(4));
@@ -74,7 +19,8 @@ function round(value: number): number {
 
 export function measureResumeBullets(
   page: HTMLElement,
-  gateRatio: number,
+  policy: ResumeTailPolicy,
+  language: string,
 ): {
   bullets: ResumeBulletMeasurement[];
   violations: ResumeCompileViolation[];
@@ -118,7 +64,7 @@ export function measureResumeBullets(
       Number.parseFloat(style.paddingLeft || "0") +
       Number.parseFloat(style.paddingRight || "0");
     const availableLineWidthPx = text.clientWidth - horizontalPadding;
-    const lines = groupRectsIntoVisualLines(textRects(text));
+    const lines = measureVisualLines(text);
     if (
       !Number.isFinite(availableLineWidthPx) ||
       availableLineWidthPx <= 0 ||
@@ -135,18 +81,63 @@ export function measureResumeBullets(
     if (!lastLine) continue;
     const lastLineWidthPx = lastLine.right - lastLine.left;
     const lastLineRatio = lastLineWidthPx / availableLineWidthPx;
+    const fontSizePx = Number.parseFloat(style.fontSize || "0");
     const passed = passesBulletTailGate({
       lastLineWidthPx,
       availableLineWidthPx,
-      gateRatio,
-      glyphTolerancePx: Number.parseFloat(style.fontSize || "0"),
+      policy,
+      fontSizePx,
     });
+    let ceuPx = 0;
+    let noWrapTextWidthPx = 0;
+    let tailProbe: ResumeBulletMeasurement["tailProbe"];
+    try {
+      const result = measureTailBudgetProbe({
+        target: text,
+        language,
+        availableLineWidthPx,
+        currentLineCount: lines.length,
+        policy,
+      });
+      ceuPx = result.ceuPx;
+      noWrapTextWidthPx = measureInlineWidthPx(
+        text,
+        text.textContent ?? "",
+      );
+      tailProbe = result.probe;
+    } catch {
+      violations.push({
+        code: "text_width_calibration_failed",
+        message: `Bullet ${bulletId} could not calibrate its CJK width.`,
+        bulletId,
+      });
+    }
     bullets.push({
       bulletId,
       lineCount: lines.length,
       lastLineWidthPx: round(lastLineWidthPx),
       availableLineWidthPx: round(availableLineWidthPx),
       lastLineRatio: round(lastLineRatio),
+      fontSizePx: round(fontSizePx),
+      ceuPx: round(ceuPx),
+      noWrapTextWidthPx: round(noWrapTextWidthPx),
+      noWrapTextCjk: ceuPx > 0 ? round(noWrapTextWidthPx / ceuPx) : 0,
+      tailPolicyVersion: policy.version,
+      tailPolicyShadow: {
+        v1Passed: passesBulletTailGate({
+          lastLineWidthPx,
+          availableLineWidthPx,
+          policy: RESUME_TAIL_POLICY_V1,
+          fontSizePx,
+        }),
+        v2Passed: passesBulletTailGate({
+          lastLineWidthPx,
+          availableLineWidthPx,
+          policy: RESUME_TAIL_POLICY_V2,
+          fontSizePx,
+        }),
+      },
+      ...(tailProbe ? { tailProbe } : {}),
       passed,
     });
     if (!passed) {

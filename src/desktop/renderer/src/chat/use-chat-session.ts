@@ -1,15 +1,8 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
-import type {
-  ChatMessage,
-  ConversationDetail,
-  ConversationSummary,
-  DesktopApprovalDecision,
-  DesktopApprovalRequest,
-  JdChatReference,
-  MessageAttachment,
-  ResumeChatReference,
-} from "@desktop/types";
+import type { ChatMessage, ConversationDetail, ConversationSummary,
+  DesktopApprovalDecision, DesktopApprovalRequest, JdChatReference,
+  MessageAttachment, ResumeChatReference } from "@desktop/types";
 import type { ToolRun } from "./tool-run-state";
 import { desktopApi } from "../lib/desktop-api";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
@@ -24,6 +17,8 @@ import {
 } from "./chat-session-helpers";
 import { desktopErrorMessage } from "./desktop-error-message";
 import { useChatAuth } from "./use-chat-auth";
+import { plainJdChatReference, plainResumeChatReference } from
+  "./chat-reference-payload";
 
 type ResumeWorkspace = ReturnType<typeof useResumeWorkspace>;
 
@@ -184,8 +179,10 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       current.value = await desktopApi.agent.prompt({
         conversationId,
         text,
-        ...(resumeReference ? { resumeReference } : {}),
-        ...(jdReference ? { jdReference } : {}),
+        ...(resumeReference ? {
+          resumeReference: plainResumeChatReference(resumeReference),
+        } : {}),
+        ...(jdReference ? { jdReference: plainJdChatReference(jdReference) } : {}),
       });
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();

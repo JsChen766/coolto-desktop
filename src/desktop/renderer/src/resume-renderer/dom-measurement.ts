@@ -3,6 +3,7 @@ import {
   type ResumeBulletMeasurement,
   type ResumeCompileViolation,
 } from "../../../../resume/compiler-types";
+import type { ResumeTailPolicy } from "../../../../resume/tail-policy";
 import { measureResumeBullets } from "./bullet-measurement";
 
 export interface ResumeDomMeasurement {
@@ -34,7 +35,8 @@ function lastMeaningfulBottom(content: HTMLElement, contentTop: number): number 
 
 export function measureResumeDom(
   page: HTMLElement,
-  gateRatio: number,
+  policy: ResumeTailPolicy,
+  language: string,
 ): ResumeDomMeasurement {
   const box = page.querySelector<HTMLElement>(".resume-document-content-box");
   const content = page.querySelector<HTMLElement>(".resume-document-content");
@@ -71,7 +73,7 @@ export function measureResumeDom(
     ),
   );
   const usageRatio = availableHeightPx > 0 ? usedHeightPx / availableHeightPx : 0;
-  const bulletResult = measureResumeBullets(page, gateRatio);
+  const bulletResult = measureResumeBullets(page, policy, language);
   const violations = [...bulletResult.violations];
   if (
     ![

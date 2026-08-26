@@ -43,7 +43,10 @@ export class EvidenceLedger {
     );
   }
 
-  public reserve(binding: BulletEvidenceBinding): void {
+  public reserve(
+    binding: BulletEvidenceBinding,
+    additionalNumericEvidence = "",
+  ): void {
     const normalized = normalizeEvidenceBinding(binding);
     if (this.#bindings.has(normalized.bulletId)) {
       throw new EvidenceValidationError(
@@ -56,6 +59,7 @@ export class EvidenceLedger {
       experiences: this.#experiences,
       requirementIds: this.#requirementIds,
       reservedRanges: reservedRangesFromBindings(this.#bindings.values()),
+      ...(additionalNumericEvidence ? { additionalNumericEvidence } : {}),
     });
     this.#bindings.set(normalized.bulletId, deepFreeze(normalized));
   }

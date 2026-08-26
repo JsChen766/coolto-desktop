@@ -3,6 +3,15 @@ import type {
   BeforeToolCallResult,
 } from "@earendil-works/pi-agent-core";
 
+const DOMAIN_GOVERNED_OR_READ_ONLY_TOOLS = new Set([
+  "apply_resume_content",
+  "get_resume_workspace",
+  "search_jds",
+  "get_jd",
+  "search_experiences",
+  "get_experience",
+]);
+
 /** Blocks the second exact call unless the first result was transient. */
 export function createRepetitionGuard(limit = 2) {
   let lastKey: string | undefined;
@@ -15,8 +24,9 @@ export function createRepetitionGuard(limit = 2) {
     // returns a compact directive on a same-state repeat. Let those
     // domain-specific recoveries run; the turn governor still stops unchanged
     // outcomes.
-    if (context.toolCall.name === "apply_resume_content" ||
-      context.toolCall.name === "get_resume_workspace") return undefined;
+    if (DOMAIN_GOVERNED_OR_READ_ONLY_TOOLS.has(context.toolCall.name)) {
+      return undefined;
+    }
     const key = `${context.toolCall.name}\u0000${stableStringify(context.args)}`;
     if (key === lastKey) {
       if (!transientRetryUsed && lastToolResultWasTransient(context)) {

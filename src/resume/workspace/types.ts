@@ -11,7 +11,12 @@ import type {
 } from "../quality/types.js";
 import type { EvidenceRepairAction } from "./evidence-auto-repair.js";
 import type { TailRepairProgressState } from "./tail-repair-state.js";
-
+import type { ResumeBulletLinePlans } from "./bullet-line-plan.js";
+import type {
+  ResumeFactNeutralAuthorization,
+  ResumeFactNeutralFragment,
+} from "./fact-neutral-types.js";
+import type { ResumeMaterialRequest } from "./material-request-types.js";
 export type ResumeCandidateLanguage = "zh-CN" | "en-US";
 export type ResumeWorkspaceStatus =
   | "writing"
@@ -69,8 +74,8 @@ export interface ResumeWorkspace {
   repairHistory: RepairRoundDiagnostic[];
   qualityReport?: ResumeQualityReport;
   lastOperationReport?: ResumeOperationReport;
-  /** Maximum bullet height in lines (2 or 3); defaults to 3. */
   maxBulletLines?: 2 | 3;
+  bulletLinePlans?: ResumeBulletLinePlans;
   /** 真实版面物理预算（prepare 阶段测定），write_bullet 动态 target 的数据源。 */
   layoutBudget?: ResumeLayoutBudget;
   /** 规则 6：Agent 补充的特质内容（无证据来源，依据 JD 要求）。 */
@@ -90,18 +95,11 @@ export interface ResumeWorkspace {
   /** User-provided facts added after the immutable source snapshot was locked. */
   supplementalEvidence?: ResumeSupplementalEvidence[];
   /** Material pause declared by the Agent or a deterministic host gate. */
-  materialRequest?: {
-    kind?:
-      | "agent_declared"
-      | "critical_skill"
-      | "bullet_count_insufficient"
-      | "page_fill_stalled"
-      | "tail_repair_stalled";
-    reason: string;
-    question: string;
-    targetExperienceId?: string;
-    requestedAt: string;
-  };
+  materialRequest?: ResumeMaterialRequest;
+  /** User explicitly confirmed twice that no further facts are available. */
+  factNeutralAuthorization?: ResumeFactNeutralAuthorization;
+  /** Resume-local neutral additions; never persisted back to Experience. */
+  factNeutralFragments?: ResumeFactNeutralFragment[];
   /** Bounded no-progress state for each unresolved formal bullet. */
   tailRepairProgress?: TailRepairProgressState;
   /** Consecutive measured page-fill rounds that landed no real height growth. */

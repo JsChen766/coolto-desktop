@@ -10,7 +10,7 @@
 ### P1.1 受控文件 Registry
 
 - 把可预测序号 ID 改为随机 attachment ID；
-- 注册先完整校验类型、普通文件和 10 MB 上限，再原子写入 Registry；
+- 注册先完整校验类型、普通文件和 20 MB 上限，再原子写入 Registry；
 - 增加单项移除、整体释放和“一次一份”的原子替换；
 - 记录选择时的文件身份，读取前拒绝路径失效或选择后被替换的文件；
 - 保持 Renderer 永远拿不到绝对路径。
@@ -103,7 +103,7 @@ CLI --attach
 ### Electron 与生命周期
 
 - `showOpenDialog` 是桌面选择简历附件的唯一入口；
-- 支持 PDF、DOCX、TXT、MD，沿用 10 MB 上限；
+- 支持 PDF、DOCX、TXT、MD，附件上限为 20 MB；
 - 主进程持有绝对路径，Renderer 只拿随机 ID、名称、类型和大小；
 - Registry 按登录用户和对话隔离；移除、对话销毁、退出登录时释放；
 - DesktopAgentRuntime 必须复用已注册 Registry，不能每次运行创建不可达的新实例。
@@ -155,7 +155,7 @@ CLI --attach
   `conversationId/fileId`，也只能读取不含路径的随机 ID、名称、类型和大小；
 - `ConversationSelectedFiles` 按对话持有 Registry，并把同一实例注入
   `DesktopAgentRuntime`；替换、对话删除和退出登录都有明确释放路径；
-- Registry 已实现随机 ID、注册前完整校验、原子替换、10 MB 上限和文件身份前后校验；
+- Registry 已实现随机 ID、注册前完整校验、原子替换、20 MB 上限和文件身份前后校验；
 - Composer 已实现“仅本机”附件条、大小、移除、解析/部分写入/已保存/失败状态，并继续复用
   现有 ToolActivity、ApprovalCard、Proposal 和 Executor；
 - 自动化覆盖随机 ID、无路径元数据、原子替换、超限、文件变更、对话隔离、DOCX 解析、
@@ -165,6 +165,16 @@ CLI --attach
 - 浏览器实测通过浅色/深色、选择/移除和 940×720 最小窗口，无横向溢出；
 - 真实 Electron 使用系统选择器导入匿名 DOCX，Agent 提取 1 条经历，宿主接受后显示
   “经历已保存到云端”；随后使用 Web 共用的公开 API Client 读回同一条 active 经历；
+- 2026-08-26 用户确认附件上限由 10 MB 提升到 20 MB。回归锁定 20 MiB 可注册、20 MiB+1 byte
+  原子拒绝；真实 Electron 重新选择并提交 12,188,401 bytes（11.62 MiB）的 SiC PDF，界面依次显示
+  “已选择→解析中→已解析”，`parse_selected_file` 与 `add_resume_material` 成功，东吴证券工作区新增
+  文件中的市场测算、价值链方法与重点公司证据。旧会话 `exp_10` 短引用失效后 Agent 通过重新检索恢复；
+  后续简历尾行在 14→8 时触发模型停滞保护，属于独立生成稳定性问题，不回退附件验收结论。最终
+  `npm run check` 全绿：742 个源文件均 ≤250 行、650/650 tests、全部 typecheck/build 通过；
+- 后续同一 11.62 MiB PDF 在主进程热重启后反复重新选择，均能再次进入“已选择→解析中→已解析”。旧会话
+  顺序短引用已改为跨重启稳定派生 ID，避免补材调用在重启后指向错误经历。附件中的新证据现可由尾行改写用
+  `additionalEvidenceIds` 明确绑定到目标 bullet，不再只存入 workspace 却无法进入内容校验。完整 `npm run check` 更新为
+  744 个源文件行数门禁、656/656 tests 和全部 typecheck/build 通过。
 - 验收使用的随机账户不记录密码，App 已退出登录；临时 DOCX、渲染文件、凭据和验收脚本已删除。
 
 ## 已知边界

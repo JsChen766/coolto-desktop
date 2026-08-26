@@ -70,10 +70,21 @@ export class ResumeSourceSnapshotBuilder {
         this.#readers.experience.getExperience(experienceId, signal),
       ),
     );
+    const requestedExperienceIds = new Set(experienceIds);
     const normalizedExperiences = orderResumeSourceExperiences(
-      experiences.map((experience, index) =>
-        normalizeSourceExperience(experience, completeExperienceIds[index] ?? ""),
-      ),
+      experiences.flatMap((experience, index) => {
+        const experienceId = completeExperienceIds[index] ?? "";
+        try {
+          return [normalizeSourceExperience(experience, experienceId)];
+        } catch (error: unknown) {
+          if (
+            !requestedExperienceIds.has(experienceId) &&
+            error instanceof ResumeSourceSnapshotError &&
+            error.code === "inactive_experience"
+          ) return [];
+          throw error;
+        }
+      }),
     );
     const fingerprintPayload = {
       schemaVersion: RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION,

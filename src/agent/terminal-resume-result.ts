@@ -5,6 +5,7 @@ const RESUME_WORKSPACE_TOOLS = new Set([
   "get_resume_workspace",
   "apply_resume_content",
   "add_resume_material",
+  "confirm_no_resume_material",
 ]);
 
 /** A ready workspace is authoritative; no further model turn may rewrite it. */
@@ -26,4 +27,3 @@ function record(value: unknown): Record<string, unknown> | undefined {
     ? value as Record<string, unknown>
     : undefined;
 }
-

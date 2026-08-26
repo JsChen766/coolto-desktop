@@ -34,7 +34,8 @@ export function criticalSkillMaterialRequest(
   return {
     kind: "critical_skill",
     reason: `目标岗位的 must-have 关键技能缺少直接经历证据：${labels}`,
-    question: `目标岗位要求${labels}，但当前经历中没有可核验的直接事实。请补充你在哪段经历或项目中使用过这些技能、具体做了什么、采用了什么方法或技术栈，以及可验证的结果；如果确实没有相关经历，也请直接说明。`,
+    question: `目标岗位要求${labels}，但当前经历中没有可核验的直接事实，所以我不能安全地把这些能力写进简历。请补充你在哪段经历或项目中使用过这些技能、具体做了什么、采用了什么方法或技术栈，以及可验证的结果。你也可以上传旧简历、项目文档、报告、作品集或复盘材料；如果确实没有相关经历，也请直接说明。`,
+    discoveryStage: "guidance",
     requestedAt: new Date().toISOString(),
   };
 }

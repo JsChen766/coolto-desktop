@@ -11,12 +11,12 @@ test("streaming output guard stops an exact long-form repetition", () => {
     "这一段足够长，用于模拟真实模型在单次流式输出中反复生成同一组推理。";
   const output = `${repeated}\n${repeated}\n${repeated}\n${repeated}\n`;
 
-  let detected = false;
+  let detected: ReturnType<typeof guard.append>;
   for (let offset = 0; offset < output.length; offset += 37) {
-    detected = guard.append(output.slice(offset, offset + 37)) || detected;
+    detected = guard.append(output.slice(offset, offset + 37)) ?? detected;
   }
 
-  assert.equal(detected, true);
+  assert.equal(detected, "repeated_cycle");
 });
 
 test("streaming output guard allows long non-repeating content", () => {
@@ -28,7 +28,7 @@ test("streaming output guard allows long non-repeating content", () => {
       `需要分别判断与目标岗位的相关性和版面优先级。`,
   );
 
-  assert.equal(guard.append(sections.join("\n")), false);
+  assert.equal(guard.append(sections.join("\n")), undefined);
 });
 
 test("streaming output guard stops runaway unique narration before a tool call", () => {
@@ -39,5 +39,5 @@ test("streaming output guard stops runaway unique narration before a tool call",
       `第 ${index + 1} 次重新规划仍在展开不同措辞，但没有产生工具调用或用户结论 ${index * 31 + 7}`,
   ).join("\n");
 
-  assert.equal(guard.append(narration), true);
+  assert.equal(guard.append(narration), "narrative_limit");
 });

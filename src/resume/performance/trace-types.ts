@@ -1,4 +1,4 @@
-export const RESUME_TRACE_SCHEMA_VERSION = "resume-generation-trace-v4" as const;
+export const RESUME_TRACE_SCHEMA_VERSION = "resume-generation-trace-v5" as const;
 
 export type ResumeTraceStage =
   | "generation_started"
@@ -56,6 +56,8 @@ export type ResumeTraceErrorCategory =
 export type ResumeTraceStopReason =
   | "completed"
   | "repetition_guard"
+  | "output_repeated_cycle"
+  | "output_narrative_limit"
   | "turn_limit"
   | "turn_governor_maximum_turns"
   | "turn_governor_maximum_phase_turns"

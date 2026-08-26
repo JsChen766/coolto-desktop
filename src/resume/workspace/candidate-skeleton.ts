@@ -17,6 +17,7 @@ import {
   resumeSectionRegistry,
 } from "./section-registry.js";
 import { compareResumeExperienceRecency } from "./experience-recency.js";
+import { RESUME_TAIL_POLICY_V2 } from "../tail-policy.js";
 
 export function buildResumeSkeleton(
   snapshot: ResumeSourceSnapshot,
@@ -56,6 +57,7 @@ export function buildResumeSkeleton(
     layout_template_id: snapshot.template.templateId,
     layout_profile_version: snapshot.template.profileVersion,
     layout_profile_hash: snapshot.template.profileHash,
+    tail_policy_version: RESUME_TAIL_POLICY_V2.version,
     layout_tuning: {
       body_font_scale: 1,
       body_line_height: 1.18,

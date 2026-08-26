@@ -15,9 +15,11 @@ const screenshotPath = join(artifactDirectory, "qualified.png");
 const pdfPageImageBase = join(artifactDirectory, "qualified-pdf-page");
 const pdfPageScreenshotPath = `${pdfPageImageBase}.png`;
 const g6PdfPath = join(artifactDirectory, "g6-export.pdf");
+const qaUserDataPath = join(artifactDirectory, "user-data");
 const fixtureIds = [
   "education-details-qualified",
   "education-details-qualified",
+  "body-scale-probe",
   "en-qualified",
   "mixed-qualified",
   "markdown-qualified",
@@ -31,7 +33,7 @@ const fixtureIds = [
 await new Promise((resolve, reject) => {
   const childEnv = { ...process.env };
   delete childEnv.ELECTRON_RUN_AS_NODE;
-  const child = spawn(electron, ["."], {
+  const child = spawn(electron, [".", `--user-data-dir=${qaUserDataPath}`], {
     cwd: process.cwd(),
     stdio: ["ignore", "inherit", "inherit"],
     env: {
@@ -69,11 +71,20 @@ assert.ok(firstQualified.usageRatio >= 0.85);
 assert.ok(firstQualified.usageRatio <= 0.98);
 assert.ok(firstQualified.bullets.length > 0);
 assert.ok(firstQualified.bullets.every((bullet) => bullet.passed));
+assert.ok(firstQualified.bullets.every((bullet) =>
+  bullet.tailPolicyVersion === "resume-tail-v2" &&
+  bullet.ceuPx > 0 && bullet.noWrapTextWidthPx > 0 &&
+  bullet.tailProbe?.styleSignature &&
+  ["low", "medium", "high"].includes(bullet.tailProbe.wrapRisk)
+));
 assertObservationTimestamp(firstQualified.observedAt);
 assertObservationTimestamp(repeatedQualified.observedAt);
 assert.deepEqual(withoutObservationTime(repeatedQualified), withoutObservationTime(firstQualified));
 
 const byId = new Map(results.slice(2).map((result) => [result.fixtureId, result]));
+const scaled = byId.get("body-scale-probe");
+assert.ok(scaled.bodyFontSizePx > firstQualified.bodyFontSizePx);
+assert.ok(scaled.bullets[0].ceuPx > firstQualified.bullets[0].ceuPx);
 assert.deepEqual(byId.get("en-qualified").loadedFontFamilies, ["Times New Roman"]);
 assert.deepEqual(byId.get("mixed-qualified").loadedFontFamilies, [
   "SimSun",
@@ -88,6 +99,12 @@ assert.ok(
     .get("underfilled")
     .violations.some((violation) => violation.code === "page_underfilled"),
 );
+const failedTail = byId.get("tail-failure").bullets.find(
+  (bullet) => bullet.bulletId === "tail-short",
+);
+assert.ok(failedTail);
+assert.ok(failedTail.lastLineWidthPx + 1 <
+  failedTail.availableLineWidthPx * (2 / 3));
 assert.ok(
   byId
     .get("tail-failure")

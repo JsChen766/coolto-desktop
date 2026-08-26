@@ -52,10 +52,20 @@ export function resumeTailRepairLoopGuardKey(
         progress.zeroProgressRounds ?? 0,
       reflowAttempts: progress.reflowAttempts ?? 0,
       failureType: progress.lastFailureType ?? null,
+      workingLastLineRatio: progress.workingLastLineRatio ?? null,
     })),
   };
   const digest = createHash("sha256")
     .update(JSON.stringify(recovery))
     .digest("hex");
   return `${base}:tail_recovery:${digest}`;
+}
+
+/** Page-fill recovery advances even when a measured insertion adds no line. */
+export function resumePageFillLoopGuardKey(
+  workspace: ResumeWorkspace,
+): string {
+  const base = resumeContentProgressKey(workspace);
+  const rounds = workspace.pageFillProgress?.consecutiveZeroGrowthRounds ?? 0;
+  return `${base}:page_fill_recovery:${rounds}`;
 }

@@ -8,6 +8,8 @@ import type {
   WorkspaceBulletValidationError,
 } from "./agent-workspace-view.js";
 import type { ResumeWorkspace } from "./types.js";
+import { supplementalNumericEvidenceForBullet } from
+  "./agent-content-state.js";
 
 type ResumeItem =
   ResumeWorkspace["structure"]["sections"][number]["items"][number];
@@ -67,6 +69,10 @@ export function validateAgentItemBullets(input: {
       validateBindings(input.source, [
         ...acceptedBindings,
         ...(entry.binding ? [entry.binding] : []),
+      ], [
+        ...input.provenance,
+        ...built.map((accepted) => accepted.provenance),
+        entry.provenance,
       ]);
       built.push(entry);
       if (entry.binding) acceptedBindings.push(entry.binding);
@@ -93,9 +99,15 @@ export function validateAgentItemBullets(input: {
 function validateBindings(
   workspace: ResumeWorkspace,
   bindings: ResumeWorkspace["bindings"],
+  provenance: ResumeWorkspace["bulletProvenance"],
 ): void {
   const ledger = new EvidenceLedger(workspace.sourceSnapshot);
-  bindings.forEach((binding) => ledger.reserve(binding));
+  bindings.forEach((binding) => ledger.reserve(
+    binding,
+    supplementalNumericEvidenceForBullet(
+      workspace, provenance, binding.bulletId, binding.sourceExperienceId,
+    ),
+  ));
 }
 
 function assertSupplementalAvailable(

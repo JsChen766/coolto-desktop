@@ -132,6 +132,46 @@ test("manual edits autosave without creating history until the edit is committed
   }
 });
 
+test("manual edits preserve cited supplemental numeric evidence", async () => {
+  const workspace = await createWorkspace();
+  const bulletId = firstBulletId(workspace);
+  const item = workspace.structure.sections.flatMap((section) => section.items)
+    .find((entry) => entry.bullets.some((bullet) => bullet.id === bulletId))!;
+  const binding = workspace.bindings.find((entry) => entry.bulletId === bulletId)!;
+  const supplementalId = "supplemental:work-1:market-size";
+  const numericText = "使用 Python 清洗运营数据产品，并测算市场空间 260 亿元";
+  item.bullets.find((bullet) => bullet.id === bulletId)!.text = numericText;
+  binding.bulletText = numericText;
+  const supported = {
+    ...workspace,
+    supplementalEvidence: [{
+      evidenceId: supplementalId,
+      experienceId: "work-1",
+      text: "测算市场空间 260 亿元",
+      sourceMessageTimestamp: 200,
+      createdAt: "2026-08-26T00:00:00Z",
+    }],
+    bulletProvenance: [{
+      bulletId,
+      itemId: item.id,
+      origin: "grounded" as const,
+      evidenceIds: [
+        `${binding.excerpts[0]!.experienceId}:${binding.excerpts[0]!.sourceStart}:${binding.excerpts[0]!.sourceEnd}`,
+        supplementalId,
+      ],
+      requirementIds: [],
+      confirmation: "not_required" as const,
+    }],
+  };
+
+  const edited = await new ResumeManualEditor(new FixtureResumeCompiler()).edit(
+    supported,
+    { type: "bullet", bulletId },
+    `${numericText}，并保持原有事实口径`,
+  );
+  assert.match(firstBulletText(edited), /260 亿元/u);
+});
+
 test("AI proposals stay reversible until accepted and create local history on acceptance", async () => {
   const directory = await mkdtemp(join(tmpdir(), "coolto-resume-proposal-"));
   try {

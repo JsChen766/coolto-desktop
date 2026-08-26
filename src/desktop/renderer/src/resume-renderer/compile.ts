@@ -4,6 +4,7 @@ import {
   type ResumeCompileViolation,
 } from "../../../../resume/compiler-types";
 import type { ResumeStructure } from "../../../../resume/types";
+import { resolveTailPolicy } from "../../../../resume/tail-policy";
 import { measureResumeDom } from "./dom-measurement";
 import { waitForResumeFonts } from "./font-readiness";
 import { renderResume } from "./render-dom";
@@ -65,6 +66,7 @@ export async function compileResume(
     selectedTemplate,
     structure.layout_target_band,
   );
+  const tailPolicy = resolveTailPolicy(structure.tail_policy_version);
   const violations: ResumeCompileViolation[] = [];
   if (!template) {
     violations.push({
@@ -91,7 +93,7 @@ export async function compileResume(
   }
   await nextFrame();
   await nextFrame();
-  const measurement = measureResumeDom(page, selectedTemplate.bullet.gate_ratio);
+  const measurement = measureResumeDom(page, tailPolicy, structure.language);
   violations.push(...measurement.violations);
   appendLayoutViolations(
     violations,

@@ -11,6 +11,7 @@ import {
 import type { ResumeWorkspace } from "./types.js";
 import {
   measureTailRepairBatch,
+  tailAttemptFeedback,
   tailRepairMeasurementRejection,
   type TailRepairMeasurement,
 } from "./tail-repair-measurement.js";
@@ -27,6 +28,7 @@ export interface TailRepairFeedback {
   status: "applied" | "rejected";
   reason?: string;
   measurement?: TailRepairMeasurement;
+  attemptFeedback?: import("./tail-repair-state.js").TailAttemptFeedback;
 }
 
 export interface TailRepairDiagnostics {
@@ -71,6 +73,7 @@ export async function processTailRepairBatch(
     growthFingerprint: entry.growthFingerprint,
     rejectedGrowth: entry.rejectedGrowth,
     failureType: entry.failureType,
+    failureReason: entry.reason,
   }));
   let passedTargetCount = 0;
   let progressedTargetCount = 0;
@@ -86,6 +89,18 @@ export async function processTailRepairBatch(
   }));
   for (const { entry, rejection: measuredRejection } of evaluated) {
     const rejection = measuredRejection;
+    const attempt = rejection
+      ? tailAttemptFeedback(rejection, entry.measurement)
+      : entry.measurement.tailPassed
+        ? undefined
+        : {
+            failureType: "insufficient_growth" as const,
+            actualGrowthCjk: entry.measurement.actualGrowthCjk,
+            remainingToHardCjk: entry.measurement.remainingToHardCjk,
+            remainingToIdealCjk: entry.measurement.remainingToIdealCjk,
+            excessOverMaximumCjk: entry.measurement.excessOverMaximumCjk,
+            requiredDirection: "increase" as const,
+          };
     const applied = !rejection;
     if (applied) {
       updates.push({
@@ -104,17 +119,20 @@ export async function processTailRepairBatch(
       status: applied ? "applied" : "rejected",
       ...(rejection ? { reason: rejection.reason } : {}),
       measurement: entry.measurement,
+      ...(attempt ? { attemptFeedback: attempt } : {}),
     });
     outcomes.push({
       bulletId: entry.submission.bulletId,
       applied,
       growthFingerprint: entry.submission.growthFingerprint,
+      ...(attempt ? { attemptFeedback: attempt } : {}),
       ...(rejection
         ? {
           rejectedGrowth: entry.submission.growthText,
           failureType: rejection.kind === "line_count"
             ? "too_long" as const
             : "insufficient_growth" as const,
+          failureReason: rejection.reason,
         }
         : {}),
     });

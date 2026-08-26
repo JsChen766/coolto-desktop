@@ -132,6 +132,10 @@ test("desktop chat components expose the stable smoke contract", async () => {
     "../src/desktop/renderer/src/chat/agent-event-handler.ts",
     import.meta.url,
   ), "utf8");
+  const resumeStyle = await readFile(new URL(
+    "../src/desktop/renderer/src/resume-renderer/style.css",
+    import.meta.url,
+  ), "utf8");
 
   for (const selector of [
     "chat-composer-input",
@@ -152,4 +156,10 @@ test("desktop chat components expose the stable smoke contract", async () => {
   assert.match(approvalCard, /data-approval-action-type/u);
   assert.match(approvalCard, /data-testid="approval-accept"/u);
   assert.match(eventHandler, /case "run\.started":[\s\S]+runError\.value = undefined/u);
+  assert.match(eventHandler, /case "message\.delta":[\s\S]{0,240}?return;/u);
+  assert.doesNotMatch(eventHandler, /streamingText\.value \+= event\.text/u);
+  assert.match(
+    resumeStyle,
+    /\.resume-document-bullet-text\s*\{[^}]*text-align:\s*justify;[^}]*text-align-last:\s*auto;[^}]*text-justify:\s*inter-character;/su,
+  );
 });

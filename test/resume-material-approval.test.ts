@@ -15,10 +15,19 @@ import { createResumeExperienceSyncExecutor } from "../src/resume/material/exper
 import type { ResumeExperienceSyncProposalPort } from "../src/resume/material/experience-sync-port.js";
 import { evidenceForModel } from "../src/resume/workspace/agent-workspace-evidence.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
+import { resumeGenerationReadiness } from
+  "../src/resume/workspace/generation-readiness.js";
 import { createAddResumeMaterialTool } from "../src/tools/agent-orchestrated/add-material.js";
 import { createApplyResumeContentTool } from "../src/tools/agent-orchestrated/apply-content.js";
 import { createResumeWorkspaceTool } from "../src/tools/agent-orchestrated/create-workspace.js";
 import { createPrepareExperienceSyncTool } from "../src/tools/agent-orchestrated/prepare-experience-sync.js";
+import { createLocalResumeDraft } from "../src/resume/draft/projection.js";
+import type {
+  LocalResumeDraft,
+  ResumeDraftExperienceSyncState,
+} from "../src/resume/draft/types.js";
+import { requestDraftExperienceSyncApproval } from
+  "../src/desktop/main/resume-drafts/resume-experience-sync-service.js";
 import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
@@ -148,28 +157,25 @@ test("agent augmentation waits for tail repair before requesting approval", asyn
     }],
   }));
 
-  assert.equal(initial.nextAction.mode, "batch_tail_repair");
+  assert.equal(initial.nextAction.mode, "batch_tail_rewrite");
   assert.equal(initial.approvalRequestId, undefined);
   assert.equal(approvals.listPending().length, 0);
 
   assert.equal(initial.nextAction.bulletIds.length, 1);
-  const semanticDetails =
-    "明确会前资料准备范围参与角色议题边界会议结论责任人完成时限验收方式复盘产出";
   let repaired = initial;
   for (let round = 0;
-    round < 12 && repaired.nextAction.mode === "batch_tail_repair";
+    round < 2 && repaired.nextAction.mode === "batch_tail_rewrite";
     round += 1) {
-    const additionCharacters = 12;
-    const addition = [...semanticDetails].slice(
-      round,
-      round + additionCharacters,
-    ).join("");
+    const target = repaired.nextAction.tailRewriteTargets[0];
+    const revisedText = round === 0
+      ? "建立主动复盘和跨团队协作机制，明确会议结论与责任人"
+      : "建立主动复盘和跨团队协作机制，明确议题边界与验收方式";
     repaired = resultText(await apply.execute(`repair-before-confirm-${round}`, {
       candidateId: value.created.candidateId,
       expectedRevision: repaired.revision,
-      tailGrowths: [{
-        bulletId: repaired.nextAction.bulletIds[0],
-        growthText: addition,
+      tailRewrites: [{
+        bulletId: target.bulletId,
+        candidates: [{ strategy: "expand", revisedText }],
       }],
     }));
   }
@@ -249,6 +255,110 @@ test("prepare_experience_sync batches supplemental facts behind approval", async
   assert.equal(proposals.executed.length, 0);
   await approvals.resolve(result.approvalRequestId, { type: "accept" });
   assert.deepEqual(proposals.executed, ["proposal-work-1"]);
+});
+
+test("qualified draft automatically opens one experience sync approval", async () => {
+  const value = await workspaceHarness();
+  const apply = createApplyResumeContentTool(value.compiler, value.store);
+  await apply.execute("write-qualified", {
+    candidateId: value.created.candidateId,
+    expectedRevision: 0,
+    items: [{
+      itemId: "item-work-1",
+      bullets: [{
+        text: "使用 Python 清洗运营数据产品",
+        origin: "grounded",
+        evidenceIds: ["work-1:0:19"],
+        requirementIds: ["req-1"],
+      }, {
+        text: "为 3 个团队建立周度报表",
+        origin: "grounded",
+        evidenceIds: ["work-1:19:33"],
+        requirementIds: ["req-1"],
+      }],
+    }],
+  });
+  const add = createAddResumeMaterialTool(value.store, () => 99);
+  const added = resultText(await add.execute("add-auto-sync", {
+    candidateId: value.created.candidateId,
+    expectedRevision: 1,
+    experienceId: "work-1",
+    facts: ["补充了用户明确提供的新职责范围"],
+  }));
+  const beforeMaterialApply = value.store.latest()!;
+  const secondBullet = beforeMaterialApply.structure.sections
+    .flatMap((section) => section.items)
+    .find((item) => item.id === "item-work-1")!.bullets[1]!;
+  await apply.execute("apply-auto-sync-material", {
+    candidateId: value.created.candidateId,
+    expectedRevision: 2,
+    items: [{
+      itemId: "item-work-1",
+      bullets: [{
+        bulletId: beforeMaterialApply.structure.sections
+          .flatMap((section) => section.items)
+          .find((item) => item.id === "item-work-1")!.bullets[0]!.id,
+        text: "使用 Python 清洗运营数据产品",
+        origin: "grounded",
+        evidenceIds: ["work-1:0:19"],
+        requirementIds: ["req-1"],
+      }, {
+        bulletId: secondBullet.id,
+        text: "为 3 个团队建立周度报表，补充了用户明确提供的新职责范围",
+        origin: "grounded",
+        evidenceIds: ["work-1:19:33", added.addedEvidence[0].evidenceId],
+        requirementIds: ["req-1"],
+      }],
+    }],
+  });
+  const draft = createLocalResumeDraft({
+    ownerId: "user-1",
+    conversationId: "conversation-1",
+    workspace: value.store.latest()!,
+    artifactId: "11111111-1111-4111-8111-111111111111",
+  });
+  assert.deepEqual(resumeGenerationReadiness(draft.workspace).blockers, []);
+  const proposals = new FakeExperienceProposals();
+  proposals.currentContent = draft.workspace.sourceSnapshot.experiences
+    .find((item) => item.id === "work-1")!.content;
+  let currentDraft = draft;
+  const drafts = {
+    markExperienceSync: async (
+      _artifactId: string,
+      state: ResumeDraftExperienceSyncState,
+    ): Promise<LocalResumeDraft> => {
+      currentDraft = { ...currentDraft, experienceSync: state };
+      return currentDraft;
+    },
+  };
+  const executors = new ActionExecutorRegistry();
+  executors.register(
+    RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
+    createResumeExperienceSyncExecutor(proposals, drafts),
+  );
+  const approvals = new ApprovalManager(new ApprovalStore(), executors);
+
+  currentDraft = await requestDraftExperienceSyncApproval({
+    draft: currentDraft,
+    drafts,
+    proposals,
+    approvals,
+  });
+  assert.equal(approvals.listPending().length, 1);
+  assert.equal(currentDraft.experienceSync?.status, "pending_approval");
+  assert.equal(proposals.executed.length, 0);
+
+  await approvals.resolve(approvals.listPending()[0]!.id, { type: "accept" });
+  assert.deepEqual(proposals.executed, ["proposal-work-1"]);
+  assert.equal(currentDraft.experienceSync?.status, "accepted");
+  const repeated = await requestDraftExperienceSyncApproval({
+    draft: currentDraft,
+    drafts,
+    proposals,
+    approvals,
+  });
+  assert.equal(repeated.experienceSync?.status, "accepted");
+  assert.equal(approvals.listPending().length, 0);
 });
 
 function snapshot(id: string, content: string) {

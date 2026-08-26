@@ -8,7 +8,8 @@ import type {
   SupportedImportFileType,
 } from "./types.js";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE_MB = 20;
+const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 const FILE_TYPES = new Map<string, SupportedImportFileType>([
   [".pdf", "pdf"],
   [".docx", "docx"],
@@ -98,7 +99,9 @@ export class SelectedFileRegistry {
       throw new Error(`附件不是普通文件：${inputPath}`);
     }
     if (fileStat.size > MAX_FILE_SIZE) {
-      throw new Error(`附件超过 10MB：${basename(resolvedPath)}`);
+      throw new Error(
+        `附件超过 ${MAX_FILE_SIZE_MB}MB：${basename(resolvedPath)}`,
+      );
     }
     const type = FILE_TYPES.get(extname(resolvedPath).toLowerCase());
     if (!type) {

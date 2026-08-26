@@ -24,6 +24,8 @@ import { ResumeGenerationTraceStore } from "../../resume/performance/generation-
 import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
+import { restoreLatestInProgressResume } from "./resume-drafts/resume-conversation-restorer.js";
+
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore;
   readonly #resumeDrafts: ResumeDraftService;
@@ -32,11 +34,7 @@ export class DesktopAgentRuntime {
   readonly #traces = new ResumeGenerationTraceStore();
   readonly #contexts = new Map<string, ConversationAgentContext>();
   #runningConversationId: string | undefined;
-  /** Set by the stop button; checked before every continuation round and
-   * before follow-up prompts. Aborting alone is not enough: the agent loop
-   * settles silently after an abort and would be re-prompted immediately. */
   #cancelRequested = false;
-  /** 串行化 transcript 快照，避免并发写同一会话文件。 */
   #persistChain: Promise<void> = Promise.resolve();
   readonly #selectedFiles: ConversationSelectedFiles;
 
@@ -75,7 +73,7 @@ export class DesktopAgentRuntime {
       jds,
       profiles,
       profileProposals,
-      experienceSyncProposals,
+      experienceSyncProposals, resumeDrafts,
       events: this.#events,
       traces: this.#traces,
       syncNow: this.syncNow,
@@ -236,7 +234,9 @@ export class DesktopAgentRuntime {
     const existing = this.#contexts.get(conversationId);
     if (existing) return existing;
     const context = this.#contextFactory.create(conversationId);
-    context.agent.replaceMessages(await this.#store.loadMessages(conversationId));
+    const [messages, detail] = await Promise.all([this.#store.loadMessages(conversationId), this.#store.get(conversationId)]);
+    context.agent.replaceMessages(messages);
+    await restoreLatestInProgressResume(detail.resumeArtifacts, this.#resumeDrafts, context).catch(() => false);
     this.#contexts.set(conversationId, context);
     return context;
   }

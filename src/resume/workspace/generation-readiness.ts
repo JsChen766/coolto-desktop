@@ -2,9 +2,12 @@ import type { ResumeWorkspace, ResumeWorkspaceStatus } from "./types.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
 import { missingCriticalSkillEvidence } from "./critical-skill-gate.js";
-import { bulletDepthRewriteTargets } from "./bullet-depth-targets.js";
 import { findResumePaddingIssue } from "../planning/text-padding.js";
 import { minimumResumeBulletCount } from "./bullet-count-rules.js";
+import { matchingFactNeutralFragment } from "./fact-neutral-fragments.js";
+import { validateFactNeutralFragment } from "./fact-neutral-validation.js";
+import { supplementalIntegrationTargets } from
+  "./supplemental-integration-targets.js";
 
 export type ResumeGenerationBlockerCode =
   | "layout_not_current"
@@ -15,9 +18,9 @@ export type ResumeGenerationBlockerCode =
   | "grounded_evidence_missing"
   | "augmented_confirmation_pending"
   | "sentence_punctuation"
-  | "bullet_line_count_too_low"
   | "bullet_content_padding"
-  | "critical_skill_evidence_missing";
+  | "critical_skill_evidence_missing"
+  | "supplemental_evidence_not_integrated";
 
 export interface ResumeGenerationBlocker {
   code: ResumeGenerationBlockerCode;
@@ -36,6 +39,14 @@ export function resumeGenerationReadiness(
   workspace: ResumeWorkspace,
 ): ResumeGenerationReadiness {
   const blockers: ResumeGenerationBlocker[] = [];
+  const supplementalTargets = supplementalIntegrationTargets(workspace);
+  for (const target of supplementalTargets) {
+    blockers.push({
+      code: "supplemental_evidence_not_integrated",
+      message: "用户本轮补充事实尚未写入该经历的正式简历内容",
+      itemId: target.itemId,
+    });
+  }
   const missingCriticalSkills = missingCriticalSkillEvidence(workspace);
   if (missingCriticalSkills.length) {
     blockers.push({
@@ -74,14 +85,6 @@ export function resumeGenerationReadiness(
       message: "当前 bullet 与真实版面测量结果不一致",
     });
   }
-  for (const target of bulletDepthRewriteTargets(workspace)) {
-    blockers.push({
-      code: "bullet_line_count_too_low",
-      message: "main/secondary 经历的普通 bullet 实测必须达到 2–3 行",
-      itemId: target.itemId,
-      bulletId: target.bulletId,
-    });
-  }
   const hasCurrentProvenance = workspace.bulletProvenance !== undefined;
   const provenance = new Map(
     (workspace.bulletProvenance ?? []).map((entry) => [entry.bulletId, entry]),
@@ -116,7 +119,14 @@ export function resumeGenerationReadiness(
         });
       }
       for (const bullet of item.bullets) {
-        const paddingIssue = findResumePaddingIssue(bullet.text);
+        const neutralFragment = matchingFactNeutralFragment(
+          workspace,
+          bullet.id,
+          bullet.text,
+        );
+        const paddingIssue = findResumePaddingIssue(
+          neutralFragment?.baseText ?? bullet.text,
+        );
         if (paddingIssue) {
           blockers.push({
             code: "bullet_content_padding",
@@ -124,6 +134,21 @@ export function resumeGenerationReadiness(
             itemId: item.id,
             bulletId: bullet.id,
           });
+        }
+        if (neutralFragment) {
+          try {
+            validateFactNeutralFragment(
+              neutralFragment.fragmentText,
+              workspace.structure.language,
+            );
+          } catch (error: unknown) {
+            blockers.push({
+              code: "bullet_content_padding",
+              message: error instanceof Error ? error.message : String(error),
+              itemId: item.id,
+              bulletId: bullet.id,
+            });
+          }
         }
         const source = provenance.get(bullet.id);
         if (!source && hasCurrentProvenance) {
@@ -199,12 +224,10 @@ export function generationWorkspaceStatus(
     return "needs_user_decision";
   }
   if (resumeGenerationReadiness(workspace).ready) return "ready_for_approval";
-  if (bulletDepthRewriteTargets(workspace).length) return "needs_revision";
   return deriveWorkspaceStatus(
     workspace.compileResult,
     workspace.structure,
     { sourceSnapshot: workspace.sourceSnapshot, bindings: workspace.bindings },
-    workspace.maxBulletLines ?? 3,
   );
 }
 

@@ -152,7 +152,7 @@ test("isExportableWorkspace gates current layout and revision failures", async (
   );
 });
 
-test("one-line tiered bullets cannot be saved or exported", async () => {
+test("one-line tiered bullets can be saved when every formal gate passes", async () => {
   const { draft, workspace } = await createQualifiedDraft();
   const workItem = workspace.structure.sections
     .find((section) => section.type === "experience")?.items[0];
@@ -165,16 +165,10 @@ test("one-line tiered bullets cannot be saved or exported", async () => {
   measured.lineCount = 1;
   draft.workspace = workspace;
 
-  assert.equal(isExportableWorkspace(workspace), false);
-  assert.throws(
+  assert.equal(isExportableWorkspace(workspace), true);
+  assert.doesNotThrow(
     () => buildDraftSavePayload({ draft, expectedRevision: workspace.revision }),
-    /实测必须达到 2–3 行/u,
   );
-  const error = await rejectExport({
-    draft,
-    expectedRevision: workspace.revision,
-  });
-  assert.equal(error.code, "candidate_not_exportable");
 });
 
 test("chained abstract padding cannot be saved or exported", async () => {

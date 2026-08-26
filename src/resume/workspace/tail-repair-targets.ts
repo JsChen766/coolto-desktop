@@ -3,15 +3,26 @@ import {
   isTailRepairExhausted,
   tailRepairMode,
   type TailGrowthFailureType,
+  type TailAttemptFeedback,
   type TailRepairMode,
 } from "./tail-repair-state.js";
 import type { ResumeWorkspace } from "./types.js";
+import { resolveTailPolicy } from "../tail-policy.js";
+import {
+  buildTailLengthBudget,
+  type TailLengthBudget,
+} from "./tail-length-budget.js";
+import { availableSemanticTailEvidence, type SemanticTailEvidence } from
+  "./semantic-tail-evidence.js";
 
 export interface TailRepairTarget {
   bulletId: string;
   currentText: string;
   currentLineCount: number;
+  currentLastLineRatio: number;
+  lengthBudget?: TailLengthBudget;
   sourceQuotes: string[];
+  availableEvidence: SemanticTailEvidence[];
   growthHint: string;
   rejectedGrowths: string[];
   rejectedReflows: string[];
@@ -20,6 +31,8 @@ export interface TailRepairTarget {
   mode: TailRepairMode;
   exhausted: boolean;
   lastFailureType?: TailGrowthFailureType;
+  lastFailureReason?: string;
+  lastAttemptFeedback?: TailAttemptFeedback;
 }
 
 export interface TailRepairBatch {
@@ -44,30 +57,54 @@ export function tailRepairBatch(workspace: ResumeWorkspace): TailRepairBatch {
   const targets = workspace.compileResult.bullets.filter(
     (bullet) => !bullet.passed,
   ).flatMap((observed) => {
-    const currentText = textById.get(observed.bulletId);
-    if (!currentText) return [];
+    const formalText = textById.get(observed.bulletId);
+    if (!formalText) return [];
     const evidenceIds = provenanceById.get(observed.bulletId)?.evidenceIds ?? [];
     const progress = workspace.tailRepairProgress?.byBulletId[observed.bulletId];
+    const formalLengthBudget = buildTailLengthBudget(
+      observed,
+      resolveTailPolicy(observed.tailPolicyVersion),
+    );
+    const currentText = progress?.workingText ?? formalText;
+    const currentLineCount = progress?.workingLineCount ?? observed.lineCount;
+    const currentLastLineRatio = progress?.workingLastLineRatio ??
+      observed.lastLineRatio;
+    const lengthBudget = progress?.workingLengthBudget ?? formalLengthBudget;
     const consecutiveRejects = progress?.consecutiveRejects ??
       progress?.zeroProgressRounds ?? 0;
+    const mode = lengthBudget?.recommendedMode === "reflow"
+      ? "reflow"
+      : tailRepairMode(progress);
     return [{
       bulletId: observed.bulletId,
       currentText,
-      currentLineCount: observed.lineCount,
+      currentLineCount,
+      currentLastLineRatio,
+      ...(lengthBudget ? { lengthBudget } : {}),
       sourceQuotes: evidenceIds.flatMap((id) => {
         const quote = evidenceById.get(id);
         return quote ? [quote] : [];
       }),
-      growthHint: semanticGrowthHint(observed.lastLineRatio),
+      availableEvidence: availableSemanticTailEvidence(
+        workspace,
+        observed.bulletId,
+      ),
+      growthHint: semanticGrowthHint(observed.lastLineRatio, lengthBudget),
       rejectedGrowths: progress?.rejectedGrowths ??
         progress?.rejectedAttempts ?? [],
       rejectedReflows: progress?.rejectedReflows ?? [],
       consecutiveRejects,
       reflowAttempts: progress?.reflowAttempts ?? 0,
-      mode: tailRepairMode(progress),
+      mode,
       exhausted: isTailRepairExhausted(progress),
       ...(progress?.lastFailureType
         ? { lastFailureType: progress.lastFailureType }
+        : {}),
+      ...(progress?.lastFailureReason
+        ? { lastFailureReason: progress.lastFailureReason }
+        : {}),
+      ...(progress?.lastAttemptFeedback
+        ? { lastAttemptFeedback: progress.lastAttemptFeedback }
         : {}),
       lastLineRatio: observed.lastLineRatio,
     }];
@@ -80,7 +117,16 @@ export function tailRepairBatch(workspace: ResumeWorkspace): TailRepairBatch {
   return { targets, remainingTailCount: targets.length };
 }
 
-function semanticGrowthHint(lastLineRatio: number): string {
+function semanticGrowthHint(
+  lastLineRatio: number,
+  budget: TailLengthBudget | undefined,
+): string {
+  if (budget?.recommendedMode === "micro") return "补一个有来源的短限定语";
+  if (budget?.recommendedMode === "phrase") {
+    return "补一个有来源的具体方法、对象或范围短语";
+  }
+  if (budget?.recommendedMode === "clause") return "补一个有来源的完整分句";
+  if (budget?.recommendedMode === "reflow") return "改用保持事实的整句等价展开";
   if (lastLineRatio < 0.35) {
     return "补一个有来源的完整分句，可选择方法、范围、交付物或结果";
   }

@@ -3,6 +3,7 @@ import type { ResumeBulletOrigin } from "./types.js";
 export interface AgentBulletContentInput {
   bulletId?: string;
   text: string;
+  plannedLines?: number;
   origin: ResumeBulletOrigin;
   evidenceIds?: readonly string[];
   requirementIds?: readonly string[];

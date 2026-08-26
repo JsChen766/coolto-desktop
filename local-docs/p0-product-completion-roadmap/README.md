@@ -186,7 +186,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | E5 | 版本记录 | 在线分页历史、pending 本地版本说明和恢复为新 revision | ✅ 已完成 |
 | E6 | 经历仓库验收 | Electron + Docker、离线、冲突、日期、可访问性、跨账号与性能回归 | ✅ 已完成 |
 | S4 | Tracker 业务闭环 | 独立接入 Interview、Note、Reminder、状态历史与本地通知 | ✅ 已完成 |
-| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；H 未开始（用户决定由专职测试人员按 Section H 标准验收，见 Section G/G-1 完成记录） |
+| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；2026-08-26 自然语言生成、补材、无素材分支与经历同步审批复验通过；H 仍由专职测试人员验收，同类型岗位基础简历复用尚未实现 |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
 | R1 | 生产上线准备 | 邮件、限流、域名、备份、监控、密钥、发布与回滚 | 功能路线完成后执行 |
 
@@ -3048,6 +3048,84 @@ feed SHA-512 与独立全字节 SHA-256 校验：Windows EXE
 `87DE0D41F1F76C7E67BC511941B0AF0C13F8B0CC836A4AA38AA99FC66AE628CB`，macOS ARM64 DMG
 `5799A4A5F905A3EDD74B3F124E58771040D9705AB58764965FB6A612640AF967`。Windows 仍为 NotSigned，macOS
 仍为 ad-hoc/未 notarize；S4.5 状态不因本次反馈入口发布而改变。
+
+**S4.5.1 尾行 V2 实施与实测（2026-08-25 至 08-26，尾行独测通过、整份未完成）：**尾行质量政策已
+从 layout manifest 解耦并版本化；新工作区采用严格 `2/3 + 1px` V2，历史无版本结构保留 V1。隐藏
+Chromium 新增 computed-style CEU 标定和“水 × n”换行响应曲线，Agent 每条只提交一个 `growthText`、
+每批最多 4 条，一次数字 CEU 修正后转 ordered reflow；没有候选、多模型或静态全字符表。Renderer/PDF
+QA、722 文件行数门禁、Node/Preload/Vue typecheck、641 tests 和双 build 全绿。真实模型隔离测试分别
+完成极短尾 17→0，以及 CEU growth 15→0（首次 60%、两次内 100%、平均 1.4 次）。本地 Electron
+自然语言整份复测最终无 run error，但因真实素材在篇幅阶段连续两轮无法安全增高，停在 revision 8、
+单页 90.91% 的 `needs_user_decision`，未产生可导出的合格 revision；因此只确认尾行子链路通过，
+S4.5.1 与 S4.5 状态不变。详细证据写入 S4.5.1 阶段 38 后续记录；未 commit/push/package/发版。
+
+**S4.5.1 无素材二次确认与中性尾行补齐（2026-08-26，独立真实 Electron 通过）：**新增两段明显追问，
+两次“无可补充”必须来自不同用户消息；关键技能和最低 bullet 数不可绕过。授权后的有限中性短语只留在
+当前 Resume，禁止数字、实体、工具、结果或因果主张，原事实仍按原 evidence 校验。真实
+`deepseek-v4-flash` + Chromium 压力样本把 17 条极短尾全部清零：单页 94.61%、无溢出、最短尾行
+71.3%、revision 3→8、17 条中性片段留痕、最终 `ready_for_approval`；报告为
+`local-builds/tail-repair-eval/report-1787675960514.json`。完整 `npm run check` 通过：733 文件行数门禁、
+645/645 tests、全部 typecheck/build。开发 App 已实际启动；跨重启旧草稿因临时 candidate 与 `exp_N`
+引用失效不能续接确认，安全保留原草稿并报告失败，未把该恢复边界伪报为通过。依赖实体同时迁出 iCloud
+Desktop 至标准 `~/Library/Caches/Coolto/**/node_modules`，连续门禁后 dataless=0。未 package、commit、
+push、上传或发版；整份自然语言新建简历尚未重跑，因此 S4.5.1/S4.5 总状态暂不改为完成。
+
+**S4.5.1 最新可见 App 简历复验（2026-08-26，通过）：**用户指出隔离样本并非界面最新产物后，已在
+当前开发 App 内新建并完成真实简历 artifact `0be8b4fd-3679-4713-b590-38cb2556b0f1`。首轮重复保护
+中断时仍有 14 条短尾，没有冒充完成；同一 workspace 续跑并真实显示两段明显追问，两次“没有可补充”
+来自不同用户消息，确认工具成功后把 revision 11 的 12 条剩余短尾于 revision 16 全部清零。最终
+`generationReady=true`、`ready_for_approval`、单页 92.37%、blocker 0、最短尾行 67.65%（严格大于
+2/3），保存与导出按钮均已解锁。这次证据是用户界面中最新可见简历，而不是隔离测试报告；本地 App
+保持启动。未 commit、push、package、上传或发版。
+
+**S4.5.1 尾行完整语义改写替代中性补齐（2026-08-26，独立链路连续 3 次通过）：**用户判定固定中性
+复核/跟踪尾缀不可接受后，模型可见工具面已移除 `confirm_no_resume_material`、`fact_neutral` 与
+`tailGrowths`，改为每条最多两份完整事实等价 `tailRewrites`；允许重组语句，但事实、数字、专名、工具、
+单页、≥92% 与 V2 三分之二门槛均不放宽。宿主先拒绝机械重复，再批量 Chromium 实测并确定性择优；合法
+但尚未过线的候选只作临时工作基线，不污染正式 revision。最终同一版本连续三次真实
+`deepseek-v4-flash` + Chromium 将 17 条极短尾全部清零，耗时 76.2/62.8/79.7 秒，0 重复、0 schema/
+malformed，单页使用率均为 94.61%，报告为 `report-1787714165830.json`、
+`report-1787714243027.json`、`report-1787714335246.json`；旧机械固定尾缀未再出现。Renderer/PDF QA
+为单页 96.11%、最低尾行 76.79%；最终 `npm run check` 为 742 文件门禁、650/650 tests、全部
+typecheck/build 通过。尚未完成用户 Codex 优质简历金标对照或自然语言整份 App 新建复验，故
+S4.5.1/S4.5 状态不变；未 package、commit、push、上传或发版。
+
+**S4.5.1 补材恢复与短尾绑定修复（2026-08-26，真实 App 进展至剩 1 条）：**输出重复恢复现已区分
+`repeated_cycle` / `narrative_limit` 并强制首项输出为当前 nextAction 工具调用；Vue Resume/JD 引用在 IPC 前白名单
+去代理化。经历短 ID 由顺序 `exp_N` 改为真实 ID 派生的跨重启稳定值，恢复草稿时先重建映射。更关键的是，
+`tailRewrites` 现可从 `availableEvidence` 选择补充事实并用 `additionalEvidenceIds` 将其绑到正式 bullet；整页仍单页、
+无溢出且≥92% 时，bullet 可自然增行，不再被旧“必须保持原行数”误杀。真实 11.62 MiB SiC PDF 在 Electron 中再次
+完成选择、解析和补材，续跑期间未再出现模型输出停滞/重复或 IPC clone 错误；草稿短尾由 2 条降至 1 条并已接受为本地
+修订。最后一条仍需用户确认本人参与的测算/交付事实，保存/导出仍正确禁用；因此不标记完成。完整 `npm run check` 为
+744 个源文件、656/656 tests及全部 typecheck/build 通过。未 package、commit、push、上传或发版。
+
+**S4.5.1 最终自然语言生成、补材与审批复验（2026-08-26，本轮范围通过）：**修复测试中的工具回执
+`TextContent | ImageContent` 收窄后，审计额外发现并修复 Experience update 把本地专用
+`resumeSectionKey/resumeSectionLabel` 发给后端的问题；失败经历通过真实 UI“重新应用本地修改”恢复为
+`clean`，未另存重复实体。Agent 经历搜索不再暴露 `conflict/failed` 证据，未完成 Resume artifact 会在主进程
+重启后恢复 workspace 与稳定短引用。只有 bullet 明确引用且归属同一经历的 supplemental evidence 才能支持新增数字，
+Agent items、手动编辑与 candidate patch 均复用该门禁。
+
+- 全新 Electron 对话只输入一句自然语言生成请求；首轮 176.489 秒，JD 一次搜索/一次读取、经历两次不同查询，
+  0 tool error，单页 92.44%，在一条严格尾行缺口处正常追问。用户只补充 PDF 中可核验的两条 SiC 测算事实，
+  48.706 秒内完成 `add_resume_material` 与正式 item 整合，页面升至 95.35%；正文同时保留
+  `380/35/30/56/57` 亿元，并新增导电型 260 亿元、半绝缘型 120 亿元、新能源汽车 245 亿元、
+  `6600/6300/6000/5500` 元/片与 `0.5/0.03/0.09/0.05` 片单台需求假设。
+- 证据未进入正式正文的 revision 12 上，“保存到简历库/导出到本地文件”均真实禁用并显示对应 blocker；
+  合格 revision 上两按钮均启用。用户表示暂时无更多事实后，一次成功展示 5 个岗位场景问题，未泄露
+  `nextAction`、candidate、revision 或工具名；用户再回复“这些都没有”后才进入事实中性充实。
+- 自动草稿 revision 19 达到 `ready_for_approval`、单页 95.35%、0 blocker，并自动弹出
+  `resume.experience.sync` 卡；卡片直接提供“接受并执行/拒绝”，真实接受后 Experience 为 version 3、
+  `clean`、Outbox=0，新事实全部存在于当前 revision。Smoke 同步支持开发版 localhost URL，并把这一宿主审批卡
+  识别为合格终态，不再无意义等待 Assistant 文本。
+- 最终内容金标复核拒绝了“从相关背景……完整语境出发”等机械前缀，并纠正“基准产品范围”、错误 VC 名称和
+  超出来源的退出路径表述。事实中性候选改为在原事实分句间加入自然衔接，原字符顺序与事实不变；最终本地草稿
+  revision 28 经真实 Chromium 为一页 95.35%、overflow=0、0 violations、最低尾行 67.65%，所有上述数字仍在，
+  保存/导出真实启用。截图证据位于 `local-builds/final-e2e-20260826/`。
+- 最终 `npm run check` 全绿：752 个业务源文件均 ≤250 行、669/669 tests、Node/Preload/Vue typecheck、
+  Node build 与 Electron production build 通过。未 commit、push、package、上传或发版。用户明确列为后续的
+  “同类型岗位复用一份满意基础简历再微调”仍未实现和验证；Section H 仍由专职测试人员执行，因此不把 S4.5
+  总状态改写为全部完成。
 
 ## 明确不进入本路线
 

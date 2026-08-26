@@ -41,9 +41,16 @@ export function buildExperienceUpdate(
   });
   const writePayload = {
     revisionId,
-    ...next,
-    resumeSectionKey: section.sectionKey,
-    resumeSectionLabel: section.sectionLabel,
+    category: next.category,
+    title: next.title,
+    content: next.content,
+    organization: next.organization,
+    role: next.role,
+    location: next.location,
+    startDate: next.startDate,
+    endDate: next.endDate,
+    tags: [...next.tags],
+    status: next.status,
     source: "manual",
   };
   const localPayload: Record<string, unknown> = {

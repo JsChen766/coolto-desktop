@@ -1,5 +1,8 @@
 import type { BulletPlan, PlanningParameters, WritingPlan } from "./bullet-plan.js";
-import { RESUME_GLOBAL_MINIMUM_USAGE_RATIO } from "../compiler-types.js";
+import {
+  RESUME_BULLET_TAIL_GATE_RATIO,
+  RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
+} from "../compiler-types.js";
 
 /**
  * Shared planning constants and types for the agent-orchestrated flow.
@@ -7,7 +10,7 @@ import { RESUME_GLOBAL_MINIMUM_USAGE_RATIO } from "../compiler-types.js";
  * workspace layout context); the agent makes all layout
  * decisions, so no host-side planner remains.
  */
-export const MIN_TAIL_RATIO = 0.7;
+export const MIN_TAIL_RATIO = RESUME_BULLET_TAIL_GATE_RATIO;
 export const MINIMUM_USAGE_RATIO = RESUME_GLOBAL_MINIMUM_USAGE_RATIO;
 export const TARGET_CHARS_PER_LINE_FACTOR = 1.68;
 export const MAX_EVIDENCE_PER_BULLET = 3;

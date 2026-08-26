@@ -162,7 +162,7 @@ test("Agent can pause for one material question and resume from the user answer"
     bulletUpdates: [{ bulletId: "not-used", text: "不应写入" }],
   }));
   assert.equal(blocked.revision, paused.revision);
-  assert.match(blocked.writeRejectedReason, /等待用户补充素材/u);
+  assert.match(blocked.writeRejectedReason, /等待用户补充真实素材/u);
 
   const add = createAddResumeMaterialTool(store, () => 1234);
   const resumed = payload(await add.execute("add", {
@@ -176,6 +176,10 @@ test("Agent can pause for one material question and resume from the user answer"
   assert.equal("materialRequest" in resumed, false);
   assert.equal(store.latest()!.materialRequest, undefined);
   assert.match(JSON.stringify(resumed.addedEvidence), /缩短了 30%/u);
+  assert.equal(resumed.nextAction.mode, "integrate_supplemental_evidence");
+  assert.ok(resumeGenerationReadiness(store.latest()!).blockers.some(
+    (blocker) => blocker.code === "supplemental_evidence_not_integrated",
+  ));
 
   const originalEvidence = evidenceForModel(store.latest()!.sourceSnapshot)
     .filter((entry) => entry.experienceId === "work-1");
@@ -208,6 +212,12 @@ test("Agent can pause for one material question and resume from the user answer"
     }],
   }));
   assert.equal(supplemented.operation.status, "success");
+  assert.equal(
+    resumeGenerationReadiness(store.latest()!).blockers.some(
+      (blocker) => blocker.code === "supplemental_evidence_not_integrated",
+    ),
+    false,
+  );
   assert.equal(
     resumeGenerationReadiness(store.latest()!).blockers.some(
       (blocker) => blocker.code === "grounded_evidence_missing" &&

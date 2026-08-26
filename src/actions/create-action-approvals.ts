@@ -34,7 +34,10 @@ import {
   RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
 } from "../resume/material/experience-sync-approval.js";
 import { createResumeExperienceSyncExecutor } from "../resume/material/experience-sync-executor.js";
-import type { ResumeExperienceSyncProposalPort } from "../resume/material/experience-sync-port.js";
+import type {
+  ResumeExperienceSyncDraftPort,
+  ResumeExperienceSyncProposalPort,
+} from "../resume/material/experience-sync-port.js";
 
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
@@ -48,6 +51,7 @@ export interface ActionApprovalDependencies {
   resumeWorkspaceStore?: ResumeWorkspaceStore;
   resumeCompiler?: ResumeCompiler;
   resumeExperienceSyncProposals?: ResumeExperienceSyncProposalPort;
+  resumeDrafts?: ResumeExperienceSyncDraftPort;
 }
 
 export function createActionApprovalManager(
@@ -104,7 +108,10 @@ export function createActionApprovalManager(
   if (deps.resumeExperienceSyncProposals) {
     executors.register(
       RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
-      createResumeExperienceSyncExecutor(deps.resumeExperienceSyncProposals),
+      createResumeExperienceSyncExecutor(
+        deps.resumeExperienceSyncProposals,
+        deps.resumeDrafts,
+      ),
     );
   }
   return new ApprovalManager(new ApprovalStore(), executors);

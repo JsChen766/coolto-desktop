@@ -20,7 +20,12 @@ import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
-import { createResumeGenerationFollowUp } from "./resume-generation-follow-up.js";
+import type { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+import {
+  createResumeGenerationFollowUp,
+  createResumeOutputRepetitionRecovery,
+  createResumeTurnGovernorRecovery,
+} from "./resume-generation-follow-up.js";
 
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
@@ -34,6 +39,7 @@ export interface AgentContextFactoryDependencies {
   profiles: UserProfileReader;
   profileProposals: ProfileProposalExecutor;
   experienceSyncProposals: ResumeExperienceSyncProposalPort;
+  resumeDrafts: ResumeDraftService;
   events: AgentRuntimeEvents;
   traces: ResumeGenerationTraceStore;
   /** Immediately runs one sync round (agent sync_now tool). */
@@ -68,6 +74,7 @@ export class AgentContextFactory {
       resumeWorkspaceStore: workspaceStore,
       resumeCompiler,
       resumeExperienceSyncProposals: deps.experienceSyncProposals,
+      resumeDrafts: deps.resumeDrafts,
     });
     const sourceBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: deps.apiClient,
@@ -110,6 +117,10 @@ export class AgentContextFactory {
         syncNow: deps.syncNow,
       }),
       automaticFollowUp: createResumeGenerationFollowUp(workspaceStore),
+      outputRepetitionRecovery:
+        createResumeOutputRepetitionRecovery(workspaceStore),
+      turnGovernorRecovery:
+        createResumeTurnGovernorRecovery(workspaceStore),
     }, modelDependencies);
     const context: ConversationAgentContext = {
       agent,
@@ -117,6 +128,8 @@ export class AgentContextFactory {
       resumeCompiler,
       jdProposalStore,
       matchReportStore,
+      approvalManager,
+      experienceSyncProposals: deps.experienceSyncProposals,
       artifactIdByCandidate: new Map(),
       currentUserMessage,
       compaction: {

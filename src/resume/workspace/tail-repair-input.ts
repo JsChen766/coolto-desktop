@@ -6,10 +6,24 @@ import {
 } from "./tail-repair-state.js";
 import { tailRepairBatch } from "./tail-repair-targets.js";
 import type { ResumeWorkspace } from "./types.js";
+import { applyIncrementalText } from "./incremental-text-edit.js";
+import {
+  proposeFactNeutralFragment,
+  withFactNeutralFragments,
+} from "./fact-neutral-fragments.js";
 
+export interface ComponentExpansionInput {
+  bulletId: string;
+  component: "context" | "method" | "action" | "result";
+  placement: "prepend" | "after" | "append";
+  anchor?: string;
+  insertText: string;
+  contentMode?: "fact_neutral";
+}
 export interface TailGrowthInput {
   bulletId: string;
   growthText: string;
+  contentMode?: "fact_neutral";
 }
 
 export interface TailGrowthSubmission {
@@ -86,17 +100,30 @@ export function normalizeTailGrowthInputs(
           `bullet ${input.bulletId} 的 growthText 已经被拒绝，请更换增长方向`,
         );
       }
+      const composedText = composeTailGrowth(
+        currentText,
+        growthText,
+        workspace.structure.language,
+      );
+      if (input.contentMode === "fact_neutral") {
+        proposeFactNeutralFragment({
+          workspace,
+          bulletId: input.bulletId,
+          appliedText: composedText,
+          purpose: "tail_fill",
+        });
+      } else if (workspace.factNeutralAuthorization) {
+        throw new Error(
+          `bullet ${input.bulletId} 已进入无素材补齐阶段，必须显式传 contentMode=fact_neutral`,
+        );
+      }
       candidates.push({
         bulletId: input.bulletId,
         currentText,
         currentLineCount: observed.lineCount,
         currentLastLineRatio: observed.lastLineRatio,
         growthText,
-        composedText: composeTailGrowth(
-          currentText,
-          growthText,
-          workspace.structure.language,
-        ),
+        composedText,
         growthFingerprint,
       });
     } catch (error: unknown) {
@@ -117,8 +144,18 @@ export function normalizeTailGrowthInputs(
   ]));
   const submissions = candidates.filter((candidate) => {
     try {
+      const neutral = inputs.find((input) => input.bulletId === candidate.bulletId)
+        ?.contentMode === "fact_neutral";
+      const validationWorkspace = neutral
+        ? withFactNeutralFragments(workspace, [proposeFactNeutralFragment({
+            workspace,
+            bulletId: candidate.bulletId,
+            appliedText: candidate.composedText,
+            purpose: "tail_fill",
+          })])
+        : workspace;
       validateTailCandidateText(
-        workspace,
+        validationWorkspace,
         candidate.bulletId,
         candidate.composedText,
         candidateTexts,
@@ -148,6 +185,29 @@ export function composeTailGrowth(
   const alreadyJoined = /[，,；;:]$/u.test(base);
   const separator = alreadyJoined ? "" : language === "en-US" ? "; " : "，";
   return `${base}${separator}${growth}`;
+}
+
+/** Shared deterministic insertion used by the separate page-fill protocol. */
+export function composeTailExpansion(
+  currentText: string,
+  input: ComponentExpansionInput,
+  language: string,
+): string {
+  const insertText = input.insertText.trim();
+  if (input.placement === "append") {
+    return composeTailGrowth(currentText, insertText, language);
+  }
+  if (input.placement === "prepend") {
+    const separator = language === "en-US" ? "; " : "，";
+    return `${cleanGrowth(insertText)}${separator}${currentText.trim()}`;
+  }
+  return applyIncrementalText(currentText, {
+    op: "insert_text",
+    bulletId: input.bulletId,
+    after: input.anchor?.trim() ?? "",
+    text: insertText,
+    evidenceIds: [],
+  });
 }
 
 function currentBulletTexts(workspace: ResumeWorkspace): Map<string, string> {

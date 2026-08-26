@@ -124,6 +124,12 @@ export function educationDetailsQualified(): CurrentResumeStructure {
   return structure;
 }
 
+export function bodyScaleProbe(): CurrentResumeStructure {
+  const structure = educationDetailsQualified();
+  structure.layout_tuning.body_font_scale = 1.08;
+  return structure;
+}
+
 function removeLastExperienceBullet(structure: CurrentResumeStructure): void {
   const work = structure.sections.find(
     (candidate) => candidate.type === "experience",

@@ -19,7 +19,7 @@ export const createWorkspaceParameters = Type.Object({
   language: Type.Union([Type.Literal("zh-CN"), Type.Literal("en-US")]),
   experiences: Type.Array(Type.Object({
     experienceId: Type.String({
-      description: "原样使用 search_experiences 返回的短 id（如 exp_1）",
+      description: "原样使用 search_experiences 返回的 exp_... 短 id",
       minLength: 1,
     }),
     tier: Type.Optional(tier),
@@ -44,4 +44,3 @@ export const createWorkspaceParameters = Type.Object({
     }),
   }))),
 });
-

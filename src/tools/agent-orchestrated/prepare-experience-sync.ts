@@ -9,6 +9,8 @@ import {
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import { ResumeWorkspaceError } from "../../resume/workspace/errors.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
+import { prepareExperienceSyncProposals } from
+  "../../resume/material/experience-sync-preparer.js";
 
 const parameters = Type.Object({
   candidateId: Type.String({ minLength: 1 }),
@@ -36,35 +38,11 @@ export function createPrepareExperienceSyncTool(
           `Candidate revision changed from ${params.expectedRevision} to ${workspace.revision}.`,
         );
       }
-      const ids = [...new Set(params.experienceIds.map((id) => id.trim()))];
-      if (ids.length !== params.experienceIds.length) {
-        throw new Error("experienceIds 含重复或空值");
-      }
-      const prepared = [];
-      try {
-        for (const id of ids) {
-          const source = workspace.sourceSnapshot.experiences.find(
-            (item) => item.id === id,
-          );
-          if (!source) throw new Error(`经历 ${id} 不在当前工作区`);
-          const facts = (workspace.supplementalEvidence ?? [])
-            .filter((item) => item.experienceId === id)
-            .map((item) => item.text)
-            .filter((fact) => !source.content.includes(fact));
-          if (!facts.length) throw new Error(`经历 ${id} 没有待同步的补充事实`);
-          const proposal = await proposals.prepareUpdate(id, {
-            content: [source.content.trimEnd(), ...facts].join("\n"),
-          });
-          if (proposal.current?.content !== source.content) {
-            proposals.discard(proposal.id);
-            throw new Error(`经历 ${id} 已变化，请重新生成工作区后再同步`);
-          }
-          prepared.push(proposal);
-        }
-      } catch (error) {
-        for (const proposal of prepared) proposals.discard(proposal.id);
-        throw error;
-      }
+      const prepared = await prepareExperienceSyncProposals(
+        workspace,
+        proposals,
+        params.experienceIds,
+      );
       const approval = await approvals.request(
         createExperienceSyncApprovalDraft(prepared),
         createExperienceSyncPayload(prepared),

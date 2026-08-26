@@ -6,6 +6,10 @@ import {
 } from "../../agent/internal-prompt.js";
 import type { ChatMessage, MessageAttachment } from "../shared/types.js";
 import type { StoredMessageAttachment } from "./conversation-record.js";
+import {
+  INITIAL_MATERIAL_MARKER,
+  SCENARIO_PROBE_MARKER,
+} from "../../resume/workspace/material-question.js";
 
 export function projectConversationMessages(
   messages: AgentMessage[],
@@ -39,6 +43,7 @@ export function projectConversationMessages(
     ) return;
     const raw = extractText(message.content);
     if (isHiddenInternalPrompt(raw)) return;
+    if (message.role === "assistant" && isInternalResumeNarration(raw)) return;
     const content = presentConversationContent(raw, message.role);
     if (!content.trim()) return;
     const timestamp =
@@ -92,6 +97,18 @@ function isHiddenInternalPrompt(value: string): boolean {
   );
 }
 
+function isInternalResumeNarration(value: string): boolean {
+  const text = value.trim();
+  if (!/^(?:I (?:need|should|must|will)\b|Let me\b|My previous submission)/iu.test(text)) {
+    return false;
+  }
+  const markers = [
+    "currentText", "tailRewrites", "availableEvidence", "sourceQuotes",
+    "nextAction", "candidateId", "expectedRevision", "lengthBudget",
+  ].filter((marker) => text.includes(marker)).length;
+  return markers >= 2 && /\b(?:CJK|CEU|bulletIds?|revisedText)\b/iu.test(text);
+}
+
 export function presentConversationContent(
   value: string,
   role: "user" | "assistant",
@@ -101,7 +118,7 @@ export function presentConversationContent(
     .replace(/\n*<jd_reference>[\s\S]*?<\/jd_reference>\s*$/u, "")
     .replace(/\n*<attachment_notice>[\s\S]*?<\/attachment_notice>\s*$/u, "")
     .trimEnd();
-  if (role !== "user") return stripped;
+  if (role !== "user") return authoritativeAssistantContent(stripped);
   return stripped.replace(
     /^请针对 JD「([^」]+)」（jdId:\s*[^）]+）(生成针对性简历。|匹配经历库并给出匹配结果。)$/u,
     (_match, title: string, action: string) =>
@@ -109,6 +126,13 @@ export function presentConversationContent(
         ? action
         : "匹配经历库，并给出匹配结果。"}`,
   );
+}
+
+function authoritativeAssistantContent(value: string): string {
+  const positions = [INITIAL_MATERIAL_MARKER, SCENARIO_PROBE_MARKER]
+    .map((marker) => value.indexOf(marker))
+    .filter((position) => position >= 0);
+  return positions.length ? value.slice(Math.min(...positions)) : value;
 }
 
 export function presentConversationTitle(

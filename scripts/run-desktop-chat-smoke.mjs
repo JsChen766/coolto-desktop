@@ -102,7 +102,7 @@ async function findPage(base, waitMs) {
         target.type === "page" &&
         target.webSocketDebuggerUrl &&
         target.title === "Coolto" &&
-        /\/renderer\/index\.html$/u.test(target.url ?? ""),
+        isCooltoPageUrl(target.url),
       );
       if (page) return page;
     } catch {
@@ -111,6 +111,16 @@ async function findPage(base, waitMs) {
     await sleep(500);
   }
   fail(`No Coolto CDP page target at ${base} within ${waitMs}ms`);
+}
+
+function isCooltoPageUrl(value) {
+  try {
+    const url = new URL(value ?? "");
+    return /\/renderer\/index\.html$/u.test(url.pathname) ||
+      (url.hostname === "localhost" && url.pathname === "/");
+  } catch {
+    return false;
+  }
 }
 
 async function connect(url) {
@@ -245,6 +255,7 @@ async function installAgentObservation(session) {
         const args = event.arguments && typeof event.arguments === "object"
           ? event.arguments
           : {};
+        const rewrites = Array.isArray(args.tailRewrites) ? args.tailRewrites : [];
         const growths = Array.isArray(args.tailGrowths) ? args.tailGrowths : [];
         const reflows = Array.isArray(args.lineRewrites) ? args.lineRewrites : [];
         window.__cooltoSmokeResumeCallIds.push(event.callId);
@@ -253,9 +264,18 @@ async function installAgentObservation(session) {
           callId: event.callId,
           expectedRevision: args.expectedRevision,
           inputMode: ["items", "bulletUpdates", "bulletRemovals",
-            "bulletAdditions", "tailGrowths", "lineRewrites"]
+            "bulletAdditions", "tailRewrites", "tailGrowths", "lineRewrites"]
             .find((key) => Array.isArray(args[key]) && args[key].length),
-          targetCount: growths.length || reflows.length,
+          targetCount: rewrites.length || growths.length || reflows.length,
+          tailRewrites: rewrites.map((entry) => ({
+            bulletId: entry?.bulletId ?? "",
+            candidates: Array.isArray(entry?.candidates)
+              ? entry.candidates.map((candidate) => ({
+                  strategy: candidate?.strategy ?? "",
+                  revisedText: candidate?.revisedText ?? "",
+                }))
+              : [],
+          })),
           tailGrowths: growths.map((entry) => ({
             bulletId: entry?.bulletId ?? "",
             growthText: entry?.growthText ?? "",
@@ -326,9 +346,15 @@ async function waitForResult(
       }
       return undefined;
     }
+    const readyExperienceSync =
+      current.approvalActionType === "resume.experience.sync" &&
+      current.resumeWorkspaceStatus === "ready_for_approval" &&
+      current.resumeGenerationReady && current.resumePageCount === 1 &&
+      current.resumeUsageRatio >= 0.92;
     const finished = started && !current.running && (
-      current.assistantCount >= minimumAssistantCount || Boolean(current.runError)
-    ) && !current.approvalActionType;
+      current.assistantCount >= minimumAssistantCount ||
+      Boolean(current.runError) || readyExperienceSync
+    ) && (!current.approvalActionType || readyExperienceSync);
     return finished ? current : undefined;
   }, "the chat run to complete");
   await settleCompletedTools(session, 2_000);
@@ -354,6 +380,7 @@ async function waitForResult(
       (!requireResumeReady || resumeReady),
     finalResponse: settledState.lastAssistant,
     runError: settledState.runError,
+    approvalActionType: settledState.approvalActionType,
     tools,
     toolErrors,
     progressMessages: observedProgress,

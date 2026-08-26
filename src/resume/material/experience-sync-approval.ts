@@ -6,6 +6,8 @@ export const RESUME_EXPERIENCE_SYNC_ACTION_TYPE =
 
 export interface ResumeExperienceSyncPayload {
   proposalIds: string[];
+  artifactId?: string;
+  evidenceFingerprint?: string;
 }
 
 export function createExperienceSyncApprovalDraft(
@@ -31,8 +33,12 @@ export function createExperienceSyncApprovalDraft(
 
 export function createExperienceSyncPayload(
   proposals: readonly ExperienceWriteProposal[],
+  context?: { artifactId: string; evidenceFingerprint: string },
 ): ResumeExperienceSyncPayload {
-  return { proposalIds: proposals.map((proposal) => proposal.id) };
+  return {
+    proposalIds: proposals.map((proposal) => proposal.id),
+    ...(context ? context : {}),
+  };
 }
 
 export function readExperienceSyncPayload(
@@ -43,7 +49,23 @@ export function readExperienceSyncPayload(
   if (!Array.isArray(ids) || !ids.length || ids.some((id) => typeof id !== "string")) {
     throw new Error("经历同步审批 Payload 无效");
   }
-  return { proposalIds: [...ids] };
+  const source = payload as {
+    artifactId?: unknown;
+    evidenceFingerprint?: unknown;
+  };
+  const artifactId = typeof source.artifactId === "string"
+    ? source.artifactId : undefined;
+  const evidenceFingerprint = typeof source.evidenceFingerprint === "string"
+    ? source.evidenceFingerprint : undefined;
+  if (Boolean(artifactId) !== Boolean(evidenceFingerprint)) {
+    throw new Error("经历同步审批的草稿来源无效");
+  }
+  return {
+    proposalIds: [...ids],
+    ...(artifactId && evidenceFingerprint
+      ? { artifactId, evidenceFingerprint }
+      : {}),
+  };
 }
 
 function addedText(proposal: ExperienceWriteProposal): string {

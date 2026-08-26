@@ -48,6 +48,7 @@ const RESUME_TOOLS = new Set([
   "apply_resume_content",
   "add_resume_material",
   "pause_resume_for_material",
+  "confirm_no_resume_material",
 ]);
 
 export function projectToolProgress(
@@ -84,17 +85,29 @@ export function projectToolProgress(
       remainingTailCount(nextAction, layout, Boolean(tailDiagnostics)),
     ),
     ...(tailDiagnostics
-      ? { repairedTailCount: typeof tailDiagnostics.passedTargetCount === "number"
-          ? tailDiagnostics.passedTargetCount
+      ? { repairedTailCount: typeof tailDiagnostics.appliedTargetCount === "number"
+          ? tailDiagnostics.appliedTargetCount
           : 0 }
       : {}),
     ...numberField("progressedTailCount", tailDiagnostics?.progressedTargetCount),
-    ...numberField("measuredTailCount", tailDiagnostics?.measuredTargetCount),
+    ...numberField(
+      "measuredTailCount",
+      tailDiagnostics?.measuredCandidateCount ??
+        tailDiagnostics?.measuredTargetCount,
+    ),
     ...numberField("appliedTailCount", tailDiagnostics?.appliedTargetCount),
-    ...numberField("rejectedTailCount", tailDiagnostics?.rejectedTargetCount),
+    ...numberField(
+      "rejectedTailCount",
+      tailDiagnostics?.rejectedTargetCount ??
+        sumNumbers(
+          tailDiagnostics?.validationRejectedCandidateCount,
+          tailDiagnostics?.layoutRejectedCandidateCount,
+        ),
+    ),
     ...numberField(
       "validationRejectedTailCount",
-      tailDiagnostics?.validationRejectedTargetCount,
+      tailDiagnostics?.validationRejectedTargetCount ??
+        tailDiagnostics?.validationRejectedCandidateCount,
     ),
     ...numberField(
       "lineCountRejectedTailCount",
@@ -139,9 +152,9 @@ function validationReasonCounts(value: unknown) {
 }
 
 function nextTailTargets(action: Record<string, unknown> | undefined) {
-  const source = action?.mode === "batch_tail_repair"
-    ? action.tailRepairTargets
-    : action?.mode === "batch_tail_reflow" ? action.tailReflowTargets : undefined;
+  const source = action?.mode === "batch_tail_rewrite"
+    ? action.tailRewriteTargets
+    : undefined;
   if (!Array.isArray(source)) return {};
   const targets = source.flatMap((value) => {
     const target = objectValue(value);
@@ -186,10 +199,8 @@ function progressPhase(
   if (completedLineExpansion === "bullet_depth") return "depth_repair";
   if (completedLineExpansion) return "filling";
   switch (action?.mode) {
-    case "repair_bullet_depth": return "depth_repair";
     case "increase_usage": return "filling";
-    case "batch_tail_repair": return "tail_repair";
-    case "batch_tail_reflow": return "tail_repair";
+    case "batch_tail_rewrite": return "tail_repair";
     case "reduce_overflow": return "trimming";
     case "request_more_material": return "awaiting_material";
     case "await_augmented_confirmation": return "awaiting_confirmation";
@@ -207,4 +218,12 @@ function numberField<K extends string>(key: K, value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
     ? { [key]: value } as Record<K, number>
     : {};
+}
+
+function sumNumbers(...values: unknown[]): number | undefined {
+  const numbers = values.filter((value): value is number =>
+    typeof value === "number" && Number.isFinite(value)
+  );
+  return numbers.length ? numbers.reduce((total, value) => total + value, 0) :
+    undefined;
 }

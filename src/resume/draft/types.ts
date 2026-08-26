@@ -31,6 +31,13 @@ export interface ResumeDraftCloudLink {
   entityVersion?: number;
 }
 
+export interface ResumeDraftExperienceSyncState {
+  evidenceFingerprint: string;
+  status: "pending_approval" | "accepted" | "rejected" | "stale";
+  approvalRequestId?: string;
+  updatedAt: string;
+}
+
 export interface LocalResumeDraft {
   schemaVersion: "local-resume-draft-v1";
   artifactId: string;
@@ -43,6 +50,7 @@ export interface LocalResumeDraft {
   checkpoints: ResumeDraftCheckpoint[];
   pendingChange: ResumeDraftPendingChange | null;
   cloudLink: ResumeDraftCloudLink | null;
+  experienceSync?: ResumeDraftExperienceSyncState;
 }
 
 export interface ResumeDraftArtifactReference {

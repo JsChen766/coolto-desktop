@@ -10,7 +10,8 @@ import type { Api, Model, ThinkingLevel } from "@earendil-works/pi-ai";
 
 import type { ApprovalManager } from "../approvals/approval-manager.js";
 import type { CooltoAgentEvent } from "./events.js";
-import type { TurnGovernor } from "./turn-governor.js";
+import type { TurnGovernor, TurnGovernorStopReason } from "./turn-governor.js";
+import type { OutputRepetitionReason } from "./output-repetition-guard.js";
 
 export interface CooltoAgentOptions {
   model: Model<Api>;
@@ -32,6 +33,14 @@ export interface CooltoAgentOptions {
     signal?: AbortSignal,
   ) => boolean | Promise<boolean>;
   automaticFollowUp?: (promptSequence: number) => string | undefined;
+  outputRepetitionRecovery?: (
+    promptSequence: number,
+    reason: OutputRepetitionReason,
+  ) => string | undefined;
+  turnGovernorRecovery?: (
+    promptSequence: number,
+    reason: TurnGovernorStopReason,
+  ) => string | undefined;
   turnGovernor?: TurnGovernor;
   approvalManager?: ApprovalManager;
 }

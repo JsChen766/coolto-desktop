@@ -324,6 +324,40 @@ test("agent blocks the second consecutive tool call with identical arguments", a
   assert.match(JSON.stringify(agent.getMessages()), /detected_repetition/u);
 });
 
+test("read-only JD discovery tolerates duplicate calls within one model loop", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  const call = fauxToolCall("search_jds", { q: "投资者关系" });
+  faux.setResponses([
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage("已使用最近检索结果继续"),
+  ]);
+  const parameters = Type.Object({ q: Type.String() });
+  let executionCount = 0;
+  const search: AgentTool<typeof parameters> = {
+    name: "search_jds",
+    label: "Search JDs",
+    description: "Read-only JD search.",
+    parameters,
+    execute: async () => {
+      executionCount += 1;
+      return { content: [{ type: "text", text: "[]" }], details: null };
+    },
+  };
+  const agent = createCooltoAgent(
+    { tools: [search] },
+    {
+      model: faux.getModel(),
+      streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("查找岗位");
+
+  assert.equal(executionCount, 2);
+  assert.doesNotMatch(JSON.stringify(agent.getMessages()), /detected_repetition/u);
+});
+
 test("resume writes bypass the generic exact-call block and return workspace authority", async () => {
   const faux = fauxProvider({ tokensPerSecond: 0 });
   const call = fauxToolCall("apply_resume_content", {
@@ -648,20 +682,62 @@ test("agent transparently retries one streamed response that repeats a long cycl
   assert.doesNotMatch(JSON.stringify(agent.getMessages()), /coolto_internal_continuation/u);
 });
 
-test("agent fails when both output repetition retries also degenerate", async () => {
+test("resume repetition recovery receives the exact reason and authority", async () => {
   const faux = fauxProvider({ tokensPerSecond: 0 });
-  const unit = "模型输出进入重复循环，当前内容没有新增事实或工具进展。".repeat(4);
+  const unit = "模型正在重复展示同一段尾行计划但没有调用工具。".repeat(8);
   faux.setResponses([
     fauxAssistantMessage(unit.repeat(8)),
-    fauxAssistantMessage(unit.repeat(8)),
-    fauxAssistantMessage(unit.repeat(8)),
+    fauxAssistantMessage("已按权威 nextAction 恢复工具推进"),
   ]);
-  const events: CooltoAgentEvent[] = [];
+  const recoveries: Array<{ sequence: number; reason: string }> = [];
   const agent = createCooltoAgent(
-    { tools: [] },
+    {
+      tools: [],
+      outputRepetitionRecovery: (sequence, reason) => {
+        recoveries.push({ sequence, reason });
+        return "candidateId=resume-1 expectedRevision=8 nextAction=batch_tail_rewrite";
+      },
+    },
     {
       model: faux.getModel(),
       streamFn: faux.provider.streamSimple.bind(faux.provider),
+    },
+  );
+
+  await agent.prompt("继续修复剩余短尾");
+
+  assert.deepEqual(recoveries, [{ sequence: 1, reason: "repeated_cycle" }]);
+  assert.equal(agent.runStopError, undefined);
+  assert.doesNotMatch(JSON.stringify(agent.getMessages()), /candidateId=resume-1/u);
+});
+
+test("resume agent keeps recovering runaway narration without persisting it", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  const narration = Array.from(
+    { length: 6_101 },
+    (_, index) => String.fromCodePoint(0x4e00 + index),
+  ).join("");
+  faux.setResponses([
+    fauxAssistantMessage(narration),
+    fauxAssistantMessage(narration),
+    fauxAssistantMessage(narration),
+    fauxAssistantMessage(narration),
+    fauxAssistantMessage("简历已从最近一次有效草稿继续完成"),
+  ]);
+  const events: CooltoAgentEvent[] = [];
+  const toolChoices: unknown[] = [];
+  const agent = createCooltoAgent(
+    {
+      tools: [],
+      outputRepetitionRecovery: () =>
+        "第一项输出必须是工具调用；不要输出可见计划。",
+    },
+    {
+      model: faux.getModel(),
+      streamFn: (model, context, options) => {
+        toolChoices.push((options as { toolChoice?: unknown })?.toolChoice);
+        return faux.provider.streamSimple(model, context, options);
+      },
     },
   );
   agent.subscribe((event) => {
@@ -670,10 +746,14 @@ test("agent fails when both output repetition retries also degenerate", async ()
 
   await agent.prompt("生成内容");
 
-  assert.equal(agent.stoppedForOutputRepetition, true);
-  assert.equal(faux.state.callCount, 3);
-  assert.equal(events.some((event) => event.type === "run.failed"), true);
-  assert.equal(events.some((event) => event.type === "run.completed"), false);
+  assert.equal(agent.stoppedForOutputRepetition, false);
+  assert.equal(agent.runStopError, undefined);
+  assert.equal(faux.state.callCount, 5);
+  assert.equal(events.some((event) => event.type === "run.failed"), false);
+  assert.equal(events.some((event) => event.type === "run.completed"), true);
+  assert.deepEqual(toolChoices, [undefined, "required", "required", "required", "required"]);
+  assert.doesNotMatch(JSON.stringify(agent.getMessages()), new RegExp(narration.slice(0, 64), "u"));
+  assert.match(JSON.stringify(agent.getMessages()), /简历已从最近一次有效草稿继续完成/u);
 });
 
 test("agent transparently retries one transient model stream failure", async () => {

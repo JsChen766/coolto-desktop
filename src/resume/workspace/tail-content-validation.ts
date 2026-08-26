@@ -7,6 +7,7 @@ export function validateTailCandidateText(
   bulletId: string,
   text: string,
   candidateTexts: ReadonlyMap<string, string>,
+  evidenceIds?: readonly string[],
 ): void {
   const provenance = (workspace.bulletProvenance ?? []).find(
     (entry) => entry.bulletId === bulletId,
@@ -31,7 +32,7 @@ export function validateTailCandidateText(
           bulletId,
           text,
           origin: provenance.origin,
-          evidenceIds: provenance.evidenceIds,
+          evidenceIds: [...(evidenceIds ?? provenance.evidenceIds)],
           requirementIds: provenance.requirementIds,
         },
         index,

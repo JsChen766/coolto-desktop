@@ -23,6 +23,7 @@ export interface EvidenceValidationContext {
   experiences: ReadonlyMap<string, ResumeSourceExperienceSnapshot>;
   requirementIds: ReadonlySet<string>;
   reservedRanges: readonly ReservedEvidenceRange[];
+  additionalNumericEvidence?: string;
 }
 
 export function normalizeEvidenceBinding(
@@ -98,7 +99,7 @@ export function validateEvidenceBinding(
     for (const excerpt of binding.excerpts) {
       validateSoftExcerpt(context, binding, excerpt);
     }
-    validateNumbers(binding);
+    validateNumbers(binding, context.additionalNumericEvidence);
     return;
   }
   const currentRanges = [...context.reservedRanges];
@@ -113,7 +114,7 @@ export function validateEvidenceBinding(
     });
 
   }
-  validateNumbers(binding);
+  validateNumbers(binding, context.additionalNumericEvidence);
 }
 
 export function reservedRangesFromBindings(
@@ -152,6 +153,5 @@ function validateRequirements(
     );
   }
 }
-
 
 

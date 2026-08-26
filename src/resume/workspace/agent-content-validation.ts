@@ -5,6 +5,9 @@ import { resolveGroundedEvidence } from "./agent-workspace-evidence.js";
 import type { AgentBulletContentInput } from "./agent-content-types.js";
 import type { ResumeBulletProvenance, ResumeWorkspace } from "./types.js";
 import { minimumResumeBulletCount } from "./bullet-count-rules.js";
+import { plannedBulletLines } from "./bullet-line-plan.js";
+import { matchingFactNeutralFragment } from "./fact-neutral-fragments.js";
+import { validateFactNeutralFragment } from "./fact-neutral-validation.js";
 
 export function buildValidatedBullet(input: {
   source: ResumeWorkspace;
@@ -19,17 +22,29 @@ export function buildValidatedBullet(input: {
   if (hasTrailingPunctuation(text)) throw new Error("bullet 末尾不得有句末标点");
   const repeated = findRepeatedFragment(text);
   if (repeated) throw new Error(`bullet 包含重复片段：${repeated}`);
-  const paddingIssue = findResumePaddingIssue(text);
-  if (paddingIssue) {
-    throw new Error(
-      `bullet 包含${paddingIssue}；新增内容必须具体修饰已有动作、对象、方法或结果`,
-    );
-  }
   const previousId = input.item.bullets[input.index]?.id;
   const bulletId =
     input.bullet.bulletId?.trim() ||
     previousId ||
     `${input.item.id}-bullet-${input.index + 1}`;
+  const neutralFragment = matchingFactNeutralFragment(
+    input.source,
+    bulletId,
+    text,
+  );
+  const evidenceText = neutralFragment?.baseText ?? text;
+  if (neutralFragment) {
+    validateFactNeutralFragment(
+      neutralFragment.fragmentText,
+      input.source.structure.language,
+    );
+  }
+  const paddingIssue = findResumePaddingIssue(evidenceText);
+  if (paddingIssue) {
+    throw new Error(
+      `bullet 包含${paddingIssue}；新增内容必须具体修饰已有动作、对象、方法或结果`,
+    );
+  }
   const previousBullet = input.item.bullets.find((item) => item.id === bulletId);
   const previousProvenance = (input.source.bulletProvenance ?? []).find(
     (item) => item.bulletId === bulletId,
@@ -49,7 +64,7 @@ export function buildValidatedBullet(input: {
       supplemental: input.source.supplementalEvidence ?? [],
       item: input.item,
       bulletId,
-      text,
+      text: evidenceText,
       evidenceIds: input.bullet.evidenceIds ?? [],
       requirementIds,
     });
@@ -102,6 +117,10 @@ export function buildValidatedBullet(input: {
     },
     provenance,
     binding,
+    plannedLines: plannedBulletLines(
+      input.bullet.plannedLines ??
+        input.source.bulletLinePlans?.[bulletId]?.plannedLines,
+    ),
   };
 }
 

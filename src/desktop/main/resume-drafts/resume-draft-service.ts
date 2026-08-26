@@ -10,6 +10,7 @@ import type {
   LocalResumeDraft,
   ResumeDraftArtifactReference,
   ResumeDraftCheckpointReason,
+  ResumeDraftExperienceSyncState,
   ResumeDraftSummary,
 } from "../../../resume/draft/types.js";
 import { resumeGenerationReadiness } from "../../../resume/workspace/generation-readiness.js";
@@ -145,6 +146,20 @@ export class ResumeDraftService {
     };
     await this.repository.save(rejected);
     return rejected;
+  }
+
+  public async markExperienceSync(
+    artifactId: string,
+    state: ResumeDraftExperienceSyncState,
+  ): Promise<LocalResumeDraft> {
+    const draft = await this.repository.get(artifactId);
+    const updated: LocalResumeDraft = {
+      ...draft,
+      updatedAt: new Date().toISOString(),
+      experienceSync: structuredClone(state),
+    };
+    await this.repository.save(updated);
+    return updated;
   }
 
   public artifactReference(draft: LocalResumeDraft): ResumeDraftArtifactReference {

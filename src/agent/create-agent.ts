@@ -24,6 +24,8 @@ import { COOLTO_SYSTEM_PROMPT } from "./system-prompt.js";
 import { createTurnGovernor } from "./turn-governor.js";
 import { createRepetitionGuard } from "./repetition-guard.js";
 import { hasAuthoritativeResumeCompletion } from "./terminal-resume-result.js";
+import type { OutputRepetitionReason } from "./output-repetition-guard.js";
+import type { TurnGovernorStopReason } from "./turn-governor.js";
 
 export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
 export const DEFAULT_PROVIDER_ID = "deepseek";
@@ -48,6 +50,14 @@ export interface CreateAgentOptions {
     signal?: AbortSignal,
   ) => boolean | Promise<boolean>;
   automaticFollowUp?: (promptSequence: number) => string | undefined;
+  outputRepetitionRecovery?: (
+    promptSequence: number,
+    reason: OutputRepetitionReason,
+  ) => string | undefined;
+  turnGovernorRecovery?: (
+    promptSequence: number,
+    reason: TurnGovernorStopReason,
+  ) => string | undefined;
   approvalManager?: ApprovalManager;
 }
 export interface AgentDependencies {
@@ -183,6 +193,12 @@ export function createCooltoAgent(
     turnGovernor: defaultTurnGovernor,
     ...(options.automaticFollowUp
       ? { automaticFollowUp: options.automaticFollowUp }
+      : {}),
+    ...(options.outputRepetitionRecovery
+      ? { outputRepetitionRecovery: options.outputRepetitionRecovery }
+      : {}),
+    ...(options.turnGovernorRecovery
+      ? { turnGovernorRecovery: options.turnGovernorRecovery }
       : {}),
     ...(options.approvalManager
       ? { approvalManager: options.approvalManager }

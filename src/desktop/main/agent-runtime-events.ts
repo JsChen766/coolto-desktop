@@ -9,6 +9,8 @@ import { parseExperienceImportResult } from "../../import/result-artifact.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import { extractInsufficientCreditsDetail } from "./insufficient-credits-detect.js";
 import { traceStopReason, traceToolMetadata } from "./agent-runtime-trace.js";
+import { requestDraftExperienceSyncApproval } from
+  "./resume-drafts/resume-experience-sync-service.js";
 
 export class AgentRuntimeEvents {
   public constructor(
@@ -160,11 +162,17 @@ export class AgentRuntimeEvents {
             synced.draft.artifactId,
           )
         : synced.draft;
+    const draftWithSync = await requestDraftExperienceSyncApproval({
+      draft,
+      drafts: this.resumeDrafts,
+      proposals: context.experienceSyncProposals,
+      approvals: context.approvalManager,
+    }).catch(() => draft);
     await this.store.addResumeArtifact(
       conversationId,
-      this.resumeDrafts.artifactReference(draft),
+      this.resumeDrafts.artifactReference(draftWithSync),
     );
-    this.notifyDraftUpdated(conversationId, draft.artifactId);
+    this.notifyDraftUpdated(conversationId, draftWithSync.artifactId);
     this.traces.recordDraftSaved(conversationId);
     if (workspace.status === "ready_for_approval") {
       this.traces.recordQualifiedPreviewDelivered(conversationId);
@@ -222,5 +230,6 @@ function isResumeWorkspaceTool(name: string): boolean {
     "create_resume_workspace",
     "apply_resume_content",
     "add_resume_material",
+    "confirm_no_resume_material",
   ].includes(name);
 }

@@ -61,7 +61,10 @@ export interface ToolRegistryDependencies {
 export function createToolRegistry(
   dependencies: ToolRegistryDependencies = {},
 ): AgentTool[] {
-  const experienceReferences = new ExperienceReferenceRegistry();
+  const experienceReferences = new ExperienceReferenceRegistry(() =>
+    dependencies.agentOrchestrated?.store.latest()?.sourceSnapshot.experiences
+      .map((experience) => experience.id)
+  );
   const businessTools: AgentTool[] = [];
 
   if (dependencies.syncNow) {

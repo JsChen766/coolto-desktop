@@ -4,7 +4,6 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 
 import { applyEducationCoursework } from "../../resume/education-coursework-input.js";
 import type { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
-import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../../resume/template-contract.js";
 import { buildResumeSkeleton } from "../../resume/workspace/candidate-skeleton.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import type { ResumeItemTier } from "../../resume/workspace/types.js";
@@ -23,6 +22,7 @@ import {
   rejectedTierResult,
 } from "./create-workspace-result.js";
 import { createWorkspaceParameters } from "./create-workspace-parameters.js";
+import { buildAvailableResumeSnapshot } from "./available-source-snapshot.js";
 
 export function createResumeWorkspaceTool(
   snapshotBuilder: ResumeSourceSnapshotBuilder,
@@ -33,19 +33,26 @@ export function createResumeWorkspaceTool(
     name: "create_resume_workspace",
     label: "创建简历工作区",
     description:
-      "锁定目标 JD、Profile 和 Agent 选择的经历集合，并自动补齐经历库中全部 active 教育经历，创建简历骨架并执行一次真实 Chromium 测量。每个工作来源用 localizedPosition 提交根据 language 翻译后的单一语言职位，公司专有名词保持原文；不增加翻译调用。教育课程通过 educationCoursework 提交课程数组与逐字 sourceQuote，宿主验证原始教育经历后固定投影；不得编造、翻译或通过 apply_resume_content 改写。宿主会检查 must-have 技术要求是否有直接经历证据，缺失时立即返回 request_more_material；wholePageBudget 同时给出 main/secondary 普通 bullet 实测 2–3 行的硬预算。main/secondary/utility 由你判断；education 和已标注 skills 的来源不传 tier，旧数据里的纯语言、工具或证书行传 utility。首稿欠填可用同一 JD 和扩大的非教育经历集合再次调用并保留已有内容；溢出时只有 nextAction.requiredInput=reselectWithoutOneExperience 才可缩减集合，且一次只能移除一段非教育经历。相同选择重复调用不会修改 revision。",
+      "锁定目标 JD、Profile 和 Agent 选择的经历集合，并自动补齐经历库中全部 active 教育经历，创建简历骨架并执行一次真实 Chromium 测量。每个工作来源用 localizedPosition 提交根据 language 翻译后的单一语言职位，公司专有名词保持原文；不增加翻译调用。教育课程通过 educationCoursework 提交课程数组与逐字 sourceQuote，宿主验证原始教育经历后固定投影；不得编造、翻译或通过 apply_resume_content 改写。宿主会检查 must-have 技术要求是否有直接经历证据，缺失时立即返回 request_more_material；wholePageBudget 给出整页正文行数容量，不规定单条 bullet 为 2–3 行。每条 plannedLines 必须按 JD 匹配度、经历重要性与证据深度动态分配，允许 1 行或更多行，并让总和达到 preferredBodyLinesToAdd；不得平均分配成相同行数。main/secondary/utility 由你判断；education 和已标注 skills 的来源不传 tier，旧数据里的纯语言、工具或证书行传 utility。首稿欠填可用同一 JD 和扩大的非教育经历集合再次调用并保留已有内容；溢出时只有 nextAction.requiredInput=reselectWithoutOneExperience 才可缩减集合，且一次只能移除一段非教育经历。相同选择重复调用不会修改 revision。",
     executionMode: "sequential",
     parameters: createWorkspaceParameters,
     execute: async (_toolCallId, params) => {
       assertUniqueExperienceIds(params.experiences);
       const experienceIds = params.experiences.map((item) => item.experienceId);
-      const snapshot = await snapshotBuilder.build({
-        jdId: params.jdId,
-        experienceIds,
-        template: STANDARD_RESUME_TEMPLATE_SNAPSHOT,
-      });
-      const freshStructure = buildResumeSkeleton(snapshot, experienceIds, params.language);
-      applyLocalizedPositions(freshStructure, params.experiences);
+      const { snapshot, availableExperienceIds } =
+        await buildAvailableResumeSnapshot(
+          snapshotBuilder,
+          params.jdId,
+          experienceIds,
+        );
+      const availableIds = new Set(availableExperienceIds);
+      const availableInputs = params.experiences.filter((item) =>
+        availableIds.has(item.experienceId)
+      );
+      const freshStructure = buildResumeSkeleton(
+        snapshot, availableExperienceIds, params.language,
+      );
+      applyLocalizedPositions(freshStructure, availableInputs);
       const courseworkIssue = applyEducationCoursework(
         freshStructure,
         snapshot,
@@ -55,9 +62,9 @@ export function createResumeWorkspaceTool(
       if (courseworkIssue) {
         return rejectedEducationCourseworkResult(courseworkIssue);
       }
-      const tierIssue = validateTierInputs(freshStructure, params.experiences);
+      const tierIssue = validateTierInputs(freshStructure, availableInputs);
       if (tierIssue) return rejectedTierResult(tierIssue);
-      const itemTiers = tiersForStructure(freshStructure, params.experiences);
+      const itemTiers = tiersForStructure(freshStructure, availableInputs);
       const existing = store.latest();
       if (
         existing &&
@@ -130,7 +137,6 @@ export function createResumeWorkspaceTool(
         qualityReviewStarted: false,
         repairRound: 0,
         repairHistory: [],
-        maxBulletLines: 3,
         itemTiers,
         bulletProvenance: retained.bulletProvenance,
         ...(retained.augmentedFragments.length

@@ -2,6 +2,7 @@ import {
   RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
   RESUME_LAYOUT_TOLERANCE_PX,
 } from "../compiler-types.js";
+import { resolveTailPolicy } from "../tail-policy.js";
 import { resumeGenerationReadiness } from "./generation-readiness.js";
 import { resumeAgentNextAction } from "./agent-next-action.js";
 import type { ResumeWorkspace } from "./types.js";
@@ -47,6 +48,7 @@ export function buildAgentWorkspaceView(
       rawText: item.raw_text,
       bullets: item.bullets.map((bullet) => {
         const source = provenance.get(bullet.id);
+        const linePlan = workspace.bulletLinePlans?.[bullet.id];
         return {
           bulletId: bullet.id,
           text: bullet.text,
@@ -54,6 +56,8 @@ export function buildAgentWorkspaceView(
           evidenceIds: source?.evidenceIds ?? [],
           requirementIds: source?.requirementIds ?? [],
           confirmation: source?.confirmation ?? "not_required",
+          plannedLines: linePlan?.plannedLines ?? null,
+          lockedLines: linePlan?.lockedLines ?? null,
         };
       }),
     })),
@@ -76,21 +80,34 @@ export function buildAgentWorkspaceView(
       const observed = measurement.get(bullet.bulletId);
       const availableLineWidthPx = observed?.availableLineWidthPx ?? 0;
       const passed = observed?.passed ?? false;
+      const policy = resolveTailPolicy(observed?.tailPolicyVersion);
+      const ceuPx = observed?.ceuPx ?? 0;
+      const hardDeficitPx = Math.max(
+        0,
+        availableLineWidthPx * policy.hardMinRatio -
+          (observed?.lastLineWidthPx ?? 0),
+      );
+      const idealDeficitPx = Math.max(
+        0,
+        availableLineWidthPx * policy.repairIdealRatio -
+          (observed?.lastLineWidthPx ?? 0),
+      );
       return {
         bulletId: bullet.bulletId,
         lineCount: observed?.lineCount ?? 0,
         lastLineWidthPx: observed?.lastLineWidthPx ?? 0,
         availableLineWidthPx,
         lastLineRatio: observed?.lastLineRatio ?? 0,
-        minimumPassingTailWidthPx: round(availableLineWidthPx * 0.7),
-        tailWidthDeficitPx: round(
-          Math.max(
-            0,
-            availableLineWidthPx * 0.7 -
-              (observed?.lastLineWidthPx ?? 0) +
-              (passed ? 0 : 0.01),
-          ),
+        tailPolicyVersion: policy.version,
+        ceuPx,
+        minimumPassingTailWidthPx: round(
+          availableLineWidthPx * policy.hardMinRatio,
         ),
+        hardTailDeficitPx: round(hardDeficitPx),
+        idealTailDeficitPx: round(idealDeficitPx),
+        hardTailDeficitCjk: ceuPx > 0 ? round(hardDeficitPx / ceuPx) : 0,
+        idealTailDeficitCjk: ceuPx > 0 ? round(idealDeficitPx / ceuPx) : 0,
+        tailWidthDeficitPx: round(hardDeficitPx),
         passed,
       };
     }),
@@ -114,9 +131,6 @@ export function buildAgentWorkspaceView(
     compile.usedHeightPx + RESUME_LAYOUT_TOLERANCE_PX >=
     compile.availableHeightPx * RESUME_GLOBAL_MINIMUM_USAGE_RATIO;
   const bulletCountsPassed = itemDiagnostics.every((item) => item.passed);
-  const bulletDepthPassed = !readiness.blockers.some(
-    (blocker) => blocker.code === "bullet_line_count_too_low",
-  );
   const bulletTailsPassed = bulletDiagnostics.every((bullet) => bullet.passed);
   const pendingConfirmation = pendingAugmentedContent(workspace);
   return {
@@ -156,7 +170,6 @@ export function buildAgentWorkspaceView(
         singlePage,
         minimumUsagePassed,
         bulletCountsPassed,
-        bulletDepthPassed,
         bulletTailsPassed,
       },
       items: itemDiagnostics,
@@ -169,9 +182,6 @@ export function buildAgentWorkspaceView(
         ...itemDiagnostics
           .filter((item) => !item.passed)
           .map((item) => ({ code: "bullet_count_too_low", itemId: item.itemId })),
-        ...readiness.blockers.filter(
-          (blocker) => blocker.code === "bullet_line_count_too_low",
-        ),
         ...pendingConfirmation.map((item) => ({
           code: "pending_augmented_confirmation",
           itemId: item.itemId,

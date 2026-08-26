@@ -39,7 +39,12 @@ export async function measureLineRewrites(
     const addedLines = bullet.lineCount - target.baselineLines;
     const characterGrowth = [...target.revisedText].length -
       [...target.existing].length;
-    const withinLineLimit = bullet.lineCount <= (workspace.maxBulletLines ?? 3);
+    const linePlan = workspace.bulletLinePlans?.[target.bulletId];
+    const lineLimit = workspace.factNeutralAuthorization
+      ? undefined
+      : linePlan?.lockedLines ?? linePlan?.plannedLines;
+    const withinLineLimit = lineLimit === undefined ||
+      bullet.lineCount <= lineLimit;
     return {
       bulletId: target.bulletId,
       text: target.revisedText,

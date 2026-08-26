@@ -81,6 +81,36 @@ test("conversation projection hides a text-only plan resumed by Pi follow-up", (
   );
 });
 
+test("conversation projection hides persisted resume protocol narration", () => {
+  const messages = projectConversationMessages([
+    user("继续生成简历", 1),
+    assistant(
+      "I need to rewrite bullet-1. currentText has 63 CJK and needs 99. " +
+        "Let me inspect availableEvidence before submitting tailRewrites.",
+      2,
+    ),
+    assistant("当前事实不足，请补充一个具体交付结果。", 3),
+  ]);
+
+  assert.deepEqual(
+    messages.map((message) => message.content),
+    ["继续生成简历", "当前事实不足，请补充一个具体交付结果。"],
+  );
+});
+
+test("conversation projection keeps only the authoritative material question", () => {
+  const messages = projectConversationMessages([
+    user("继续生成简历", 1),
+    assistant(
+      "The tail repair has stalled and available evidence is exhausted. " +
+        "I need to stop and ask the user. 【需要补充事实】请补充一个具体交付结果。",
+      2,
+    ),
+  ]);
+
+  assert.equal(messages[1]?.content, "【需要补充事实】请补充一个具体交付结果。");
+});
+
 test("resume reference metadata is hidden while user text stays visible", () => {
   const messages = projectConversationMessages([
     user(

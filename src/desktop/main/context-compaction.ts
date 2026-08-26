@@ -121,6 +121,7 @@ function authoritativeResultIndexes(messages: AgentMessage[]): Set<number> {
     "get_resume_workspace",
     "apply_resume_content",
     "add_resume_material",
+    "confirm_no_resume_material",
   ]);
   let source = -1;
   let workspace = -1;

@@ -84,7 +84,7 @@ async function findPage(base, waitMs) {
       const targets = await response.json();
       const pageTarget = targets.find((target) =>
         target.type === "page" && target.webSocketDebuggerUrl &&
-        target.title === "Coolto" && /\/renderer\/index\.html$/u.test(target.url ?? ""));
+        target.title === "Coolto" && isCooltoPageUrl(target.url));
       if (pageTarget) return pageTarget;
     } catch {
       // App may still be booting.
@@ -92,6 +92,16 @@ async function findPage(base, waitMs) {
     await sleep(250);
   }
   throw new Error(`No Coolto CDP page target at ${base} within ${waitMs}ms`);
+}
+
+function isCooltoPageUrl(value) {
+  try {
+    const url = new URL(value ?? "");
+    return /\/renderer\/index\.html$/u.test(url.pathname) ||
+      (url.hostname === "localhost" && url.pathname === "/");
+  } catch {
+    return false;
+  }
 }
 
 async function connect(url) {

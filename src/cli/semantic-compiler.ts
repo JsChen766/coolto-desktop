@@ -5,6 +5,7 @@ import {
   type ResumeCompileViolation,
 } from "../resume/compiler-types.js";
 import { passesBulletTailGate } from "../resume/bullet-tail-gate.js";
+import { resolveTailPolicy } from "../resume/tail-policy.js";
 import type { ResumeStructure } from "../resume/types.js";
 import type { ResumeCompiler } from "../resume/workspace/compiler-port.js";
 
@@ -29,6 +30,7 @@ export class CliSemanticCompiler implements ResumeCompiler {
 
   public async compile(structure: ResumeStructure): Promise<ResumeCompileResult> {
     this.compileCount += 1;
+    const tailPolicy = resolveTailPolicy(structure.tail_policy_version);
     const lineHeightPx = 15.34;
     const availableHeightPx = 1054;
     const totalLines = Math.max(1, availableHeightPx / lineHeightPx);
@@ -66,8 +68,8 @@ export class CliSemanticCompiler implements ResumeCompiler {
           const passed = passesBulletTailGate({
             lastLineWidthPx,
             availableLineWidthPx: this.availableLineWidthPx,
-            gateRatio: 0.7,
-            glyphTolerancePx: this.cjkGlyphWidthPx,
+            policy: tailPolicy,
+            fontSizePx: this.cjkGlyphWidthPx,
           });
           usedLines += lineCount;
           if (!passed) {
@@ -83,6 +85,11 @@ export class CliSemanticCompiler implements ResumeCompiler {
             lastLineWidthPx: Math.round(lastLineWidthPx),
             availableLineWidthPx: this.availableLineWidthPx,
             lastLineRatio: Number(lastLineRatio.toFixed(4)),
+            fontSizePx: this.cjkGlyphWidthPx,
+            ceuPx: this.cjkGlyphWidthPx,
+            noWrapTextWidthPx: widthPx,
+            noWrapTextCjk: Number((widthPx / this.cjkGlyphWidthPx).toFixed(4)),
+            tailPolicyVersion: tailPolicy.version,
             passed,
           });
         }

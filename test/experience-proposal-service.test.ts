@@ -128,8 +128,28 @@ test("Experience update freezes a full payload and writes only after execute", a
   assert.equal(proposal.next?.organization, "Coolto");
   const result = proposals.execute(proposal.id);
   assert.equal(local.writes.length, 1);
+  assert.deepEqual(Object.keys(local.writes[0]?.payload ?? {}).sort(), [
+    "category",
+    "content",
+    "endDate",
+    "location",
+    "organization",
+    "revisionId",
+    "role",
+    "source",
+    "startDate",
+    "status",
+    "tags",
+    "title",
+  ].sort());
   assert.equal(local.writes[0]?.payload.organization, "Coolto");
   assert.equal(local.writes[0]?.payload.location, "Remote");
+  assert.equal(
+    Object.hasOwn(local.writes[0]?.localPayload ?? {}, "resumeSectionKey"),
+    true,
+  );
+  assert.equal(local.writes[0]?.localPayload?.resumeSectionKey, null);
+  assert.equal(local.writes[0]?.localPayload?.resumeSectionLabel, null);
   assert.equal(result.experience?.title, "Staff Engineer");
   assert.equal(result.experience?.currentRevisionId, "rev-1");
 });

@@ -9,8 +9,8 @@ import { createApplyResumeContentTool } from "./apply-content.js";
 import { createAddResumeMaterialTool } from "./add-material.js";
 import { createResumeWorkspaceTool } from "./create-workspace.js";
 import { createGetResumeWorkspaceTool } from "./get-workspace.js";
-import { createPrepareExperienceSyncTool } from "./prepare-experience-sync.js";
 import { createPauseResumeForMaterialTool } from "./pause-for-material.js";
+import { createConfirmNoResumeMaterialTool } from "./confirm-no-material.js";
 
 export interface AgentOrchestratedDependencies {
   snapshotBuilder: ResumeSourceSnapshotBuilder;
@@ -37,6 +37,10 @@ export function createAgentOrchestratedTools(
     ),
     createGetResumeWorkspaceTool(dependencies.store),
     createPauseResumeForMaterialTool(dependencies.store),
+    createConfirmNoResumeMaterialTool(
+      dependencies.store,
+      dependencies.currentUserMessageTimestamp ?? (() => undefined),
+    ),
     createApplyResumeContentTool(
       dependencies.compiler,
       dependencies.store,
@@ -46,14 +50,5 @@ export function createAgentOrchestratedTools(
       dependencies.store,
       dependencies.currentUserMessageTimestamp ?? (() => undefined),
     ),
-    ...(dependencies.approvalManager && dependencies.experienceSyncProposals
-      ? [
-          createPrepareExperienceSyncTool(
-            dependencies.store,
-            dependencies.experienceSyncProposals,
-            dependencies.approvalManager,
-          ),
-        ]
-      : []),
   ];
 }
