@@ -36,18 +36,13 @@ export class BrowserTab {
       onOpenUrl(url);
       return { action: "deny" };
     });
-    const events = [
-      "did-navigate",
-      "did-navigate-in-page",
-      "page-title-updated",
-      "did-start-loading",
-      "did-stop-loading",
-      "did-finish-load",
-      "did-fail-load",
-    ] as const;
-    for (const event of events) {
-      contents.on(event, () => onChange());
-    }
+    contents.on("did-navigate", onChange);
+    contents.on("did-navigate-in-page", onChange);
+    contents.on("page-title-updated", onChange);
+    contents.on("did-start-loading", onChange);
+    contents.on("did-stop-loading", onChange);
+    contents.on("did-finish-load", onChange);
+    contents.on("did-fail-load", onChange);
   }
 
   public loadUrl(url?: string): void {

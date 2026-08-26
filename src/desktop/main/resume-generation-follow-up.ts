@@ -20,11 +20,13 @@ export function createResumeGenerationFollowUp(
   let lastQueuedKey: string | undefined;
   return (promptSequence) => {
     const workspace = store.latest();
-    if (!workspace || workspace.status === "needs_user_decision") return undefined;
+    if (!workspace) return undefined;
     const action = resumeAgentNextAction(workspace);
     if (
       resumeGenerationReadiness(workspace).ready ||
       action.mode === "stop" ||
+      action.mode === "request_more_material" ||
+      action.mode === "stop_insufficient_material" ||
       action.mode === "await_augmented_confirmation"
     ) return undefined;
     const key = `${promptSequence}:${resumeContentProgressKey(workspace)}`;

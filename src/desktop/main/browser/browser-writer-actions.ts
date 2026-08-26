@@ -1,3 +1,5 @@
+import { ELEMENT_HELPERS_SCRIPT } from "./browser-element-scripts.js";
+
 /**
  * B3: 写原语注入脚本（fill/select/setChecked/click/scroll）。
  * 每段脚本严格自包含，参数经 JSON.stringify 转义避免注入。返回 { ok, reason? }。
@@ -8,26 +10,9 @@ function q(value: string): string {
   return JSON.stringify(value);
 }
 
-const HELPERS = `
-  const findEl = (fillId) => document.querySelector('[data-fill-id="' + fillId.replace(/"/g, '') + '"]');
-  const nativeSetter = (proto, prop) => {
-    const d = Object.getOwnPropertyDescriptor(proto, prop);
-    return d && d.set ? d.set : null;
-  };
-  const setInputValue = (el, value) => {
-    const proto = el instanceof HTMLTextAreaElement
-      ? HTMLTextAreaElement.prototype
-      : HTMLInputElement.prototype;
-    const set = nativeSetter(proto, 'value');
-    if (set) set.call(el, value); else el.value = value;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  };
-`;
-
 export function buildFillScript(fillId: string, value: string): string {
   return `(() => {
-  ${HELPERS}
+  ${ELEMENT_HELPERS_SCRIPT}
   const el = findEl(${q(fillId)});
   if (!el) return { ok: false, reason: 'element_not_found' };
   const readLabel = () => {
@@ -106,7 +91,7 @@ export function buildFillScript(fillId: string, value: string): string {
 
 export function buildSelectScript(fillId: string, value: string): string {
   return `(() => {
-  ${HELPERS}
+  ${ELEMENT_HELPERS_SCRIPT}
   const el = findEl(${q(fillId)});
   if (!el) return { ok: false, reason: 'element_not_found' };
   if (el.tagName !== 'SELECT') return { ok: false, reason: 'not_select' };
@@ -120,7 +105,7 @@ export function buildSelectScript(fillId: string, value: string): string {
     const opt = options.find((o) => o.value === valueBefore);
     return opt ? (opt.textContent || valueBefore) : valueBefore;
   })();
-  const set = nativeSetter(HTMLSelectElement.prototype, 'value');
+  const set = nativeSetter(viewOf(el).HTMLSelectElement.prototype, 'value');
   if (set) set.call(el, target.value); else el.value = target.value;
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -143,7 +128,7 @@ export function buildSelectScript(fillId: string, value: string): string {
 
 export function buildSetCheckedScript(fillId: string, checked: boolean): string {
   return `(() => {
-  ${HELPERS}
+  ${ELEMENT_HELPERS_SCRIPT}
   const el = findEl(${q(fillId)});
   if (!el) return { ok: false, reason: 'element_not_found' };
   if (el.tagName !== 'INPUT') return { ok: false, reason: 'not_input' };
@@ -152,7 +137,7 @@ export function buildSetCheckedScript(fillId: string, checked: boolean): string 
     return { ok: false, reason: 'not_checkable' };
   if (el.disabled) return { ok: false, reason: 'element_disabled' };
   const wasChecked = !!el.checked;
-  const set = nativeSetter(HTMLInputElement.prototype, 'checked');
+  const set = nativeSetter(viewOf(el).HTMLInputElement.prototype, 'checked');
   if (set) set.call(el, ${checked ? "true" : "false"});
   else el.checked = ${checked ? "true" : "false"};
   el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -178,7 +163,7 @@ export function buildSetCheckedScript(fillId: string, checked: boolean): string 
 
 export function buildScrollScript(fillId: string): string {
   return `(() => {
-  ${HELPERS}
+  ${ELEMENT_HELPERS_SCRIPT}
   const el = findEl(${q(fillId)});
   if (!el) return { ok: false, reason: 'element_not_found' };
   try {
@@ -199,7 +184,7 @@ export function buildScrollScript(fillId: string): string {
 export function buildClickScript(fillId: string, mode: "read" | "click"): string {
   if (mode === "read") {
     return `(() => {
-    ${HELPERS}
+    ${ELEMENT_HELPERS_SCRIPT}
     const el = findEl(${q(fillId)});
     if (!el) return null;
     const text = (el.innerText || el.textContent || '').trim().slice(0, 200);
@@ -219,7 +204,7 @@ export function buildClickScript(fillId: string, mode: "read" | "click"): string
   })();`;
   }
   return `(() => {
-  ${HELPERS}
+  ${ELEMENT_HELPERS_SCRIPT}
   const el = findEl(${q(fillId)});
   if (!el) return { ok: false, reason: 'element_not_found' };
   if (el.disabled) return { ok: false, reason: 'element_disabled' };

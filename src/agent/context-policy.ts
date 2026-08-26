@@ -7,6 +7,8 @@ const WORKSPACE_TOOLS = new Set([
   "apply_resume_content",
   "add_resume_material",
   "confirm_no_resume_material",
+  "pause_resume_for_material",
+  "decline_resume_material",
   "prepare_experience_sync",
 ]);
 const DISCOVERY_TOOLS = new Set([

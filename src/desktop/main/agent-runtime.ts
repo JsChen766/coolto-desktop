@@ -1,10 +1,17 @@
 import type { WebContents } from "electron";
-
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { ExperienceReader, ExperienceWriter, JdReader, JdWriter, UserProfileReader } from "../../api/types.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
 import type { CooltoAgent } from "../../agent/coolto-agent.js";
-import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
+import type { BrowserAgentController } from "../../browser/agent-control-types.js";
+import type { BrowserPageOperator } from "../../browser/types.js";
+import type { AgentHarnessServices } from "../../agent-task/agent-harness-services.js";
+import type { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
+import type { ApplicationProposalService } from "./application-library/application-proposal-service.js";
+import type { ApplicationSyncStore } from "./application-library/application-sync-store.js";
+import type { MailConnectionRegistry } from "../../inbox-signals/inbox-signal-types.js";
+import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
+import type { InterviewProposalService } from "./tracker/interview-proposal-service.js";
 import { buildBrowserWriteAccessContinuationPrompt, prepareBrowserWriteAccessContinuation } from "./browser-write-access-continuation.js";
 import { announceResumeGenerationStart, buildJdContinuationPrompt, prepareJdContinuation } from "./jd-continuation.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
@@ -14,7 +21,7 @@ import { AgentContextFactory } from "./agent-context-factory.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import { executeAgentPrompt, runContinuationPrompt } from "./agent-runtime-prompt.js";
-import { maybeCompactAgentContext } from "./context-compaction.js";
+import { compactBeforeAgentPrompt } from "./agent-runtime-compaction.js";
 import type { SyncNowResult } from "../../tools/sync-now.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
@@ -25,7 +32,6 @@ import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
 import { restoreLatestInProgressResume } from "./resume-drafts/resume-conversation-restorer.js";
-
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore;
   readonly #resumeDrafts: ResumeDraftService;
@@ -37,25 +43,20 @@ export class DesktopAgentRuntime {
   #cancelRequested = false;
   #persistChain: Promise<void> = Promise.resolve();
   readonly #selectedFiles: ConversationSelectedFiles;
-
   public constructor(
-    apiClient: CooltoApiClient,
-    store: ConversationStore,
-    resumeDrafts: ResumeDraftService,
-    target: WebContents,
-    resumeCompiler: ResumePdfCompiler,
-    selectedFiles: ConversationSelectedFiles,
-    browserPageReader: BrowserPageReader,
-    browserPageOperator: BrowserPageOperator,
-    resumePublications: ResumePublicationGateway,
-    experiences: ExperienceReader & ExperienceWriter,
-    jds: JdReader & JdWriter,
-    profiles: UserProfileReader,
+    apiClient: CooltoApiClient, store: ConversationStore,
+    resumeDrafts: ResumeDraftService, target: WebContents,
+    resumeCompiler: ResumePdfCompiler, selectedFiles: ConversationSelectedFiles,
+    browserAgentController: BrowserAgentController,
+    browserPageOperator: BrowserPageOperator, agentHarness: AgentHarnessServices,
+    agentTaskProposals: AgentTaskProposalService, resumePublications: ResumePublicationGateway,
+    applications: ApplicationSyncStore, applicationProposals: ApplicationProposalService,
+    mailConnections: MailConnectionRegistry, interviews: InterviewSyncStore,
+    interviewProposals: InterviewProposalService, experiences: ExperienceReader & ExperienceWriter,
+    jds: JdReader & JdWriter, profiles: UserProfileReader,
     profileProposals: ProfileProposalExecutor,
     experienceSyncProposals: ResumeExperienceSyncProposalPort,
-    /** Reads the compaction threshold (tokens) from server app-config. */
     private readonly compactionThreshold: () => Promise<number | undefined>,
-    /** Immediately runs one sync round (agent sync_now tool). */
     private readonly syncNow: () => Promise<SyncNowResult>,
   ) {
     this.#store = store;
@@ -66,8 +67,9 @@ export class DesktopAgentRuntime {
       apiClient,
       resumeCompiler,
       selectedFiles,
-      browserPageReader,
-      browserPageOperator,
+      browserAgentController, browserPageOperator, agentHarness,
+      agentTaskProposals, applications, applicationProposals, mailConnections,
+      interviews, interviewProposals,
       resumePublications,
       experiences,
       jds,
@@ -89,10 +91,7 @@ export class DesktopAgentRuntime {
     if (context.agent.isRunning) {
       throw new Error("正在处理上一条消息，请稍候再试");
     }
-    await maybeCompactAgentContext(context.agent, {
-      ...context.compaction,
-      thresholdTokens: await this.compactionThreshold().catch(() => undefined),
-    }).catch(() => false);
+    await compactBeforeAgentPrompt(context, this.compactionThreshold);
     this.#runningConversationId = conversationId;
     this.#cancelRequested = false;
     const pendingAttachments = this.#selectedFiles.list(conversationId)
@@ -126,7 +125,7 @@ export class DesktopAgentRuntime {
         workspaceStatus: context.workspaceStore.latest()?.status ?? null,
         failed,
       });
-      context.activeEdit = undefined;
+      delete context.activeEdit;
       this.#runningConversationId = undefined;
     }
   }
@@ -135,7 +134,6 @@ export class DesktopAgentRuntime {
     const id = this.#runningConversationId;
     if (id) { this.#traces.recordStopReason(id, "cancelled"); this.#contexts.get(id)?.agent.cancel(); }
   }
-
   /** Persists the in-flight transcript snapshot before the app quits. */
   public async flushPending(): Promise<void> {
     const conversationId = this.#runningConversationId;
@@ -148,7 +146,7 @@ export class DesktopAgentRuntime {
   /** 串行化持久化任务，避免并发写同一会话文件；单任务失败不阻塞后续。 */
   #enqueuePersist<T>(task: () => Promise<T>): Promise<T> {
     const next = this.#persistChain.then(task);
-    this.#persistChain = next.catch(() => undefined);
+    this.#persistChain = next.then(() => undefined, () => undefined);
     return next;
   }
 
@@ -156,7 +154,7 @@ export class DesktopAgentRuntime {
   #persistSnapshot(conversationId: string, agent: CooltoAgent): Promise<void> {
     return this.#enqueuePersist(() =>
       this.#store.saveMessages(conversationId, agent.getMessages()),
-    );
+    ).then(() => undefined);
   }
 
   public generationTrace(conversationId: string) {
@@ -192,10 +190,12 @@ export class DesktopAgentRuntime {
       }
       await context.agent.resolveApproval(requestId, decision);
       await continueAfterResumeAugmentation({
-        actionType: approval?.actionType,
+        ...(approval?.actionType ? { actionType: approval.actionType } : {}),
         decision,
         cancelled: this.#cancelRequested,
-        candidateId: context.workspaceStore.latest()?.candidateId,
+        ...(context.workspaceStore.latest()?.candidateId
+          ? { candidateId: context.workspaceStore.latest()!.candidateId }
+          : {}),
         agent: context.agent,
         syncWorkspace: () => this.#events.syncLatestWorkspace(conversationId, context),
       });

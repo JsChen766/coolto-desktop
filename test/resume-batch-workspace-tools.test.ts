@@ -632,7 +632,10 @@ test("bullet count repair pauses before retrying an evidence-poor item", async (
     ],
   }));
 
+  assert.equal(payload.status, "needs_user_decision");
   assert.equal(payload.nextAction.mode, "request_more_material");
+  assert.equal(payload.materialRequest.status, "awaiting_response");
+  assert.match(payload.materialRequest.id, /^resume-material:/u);
   assert.equal(payload.nextAction.targetExperienceId, "tiny-work-1");
   assert.match(payload.nextAction.question, /只有 1 条可独占事实/u);
   assert.match(payload.nextAction.question, /至少需要 2 条 bullet/u);
@@ -1767,12 +1770,14 @@ test("two consecutive zero-growth page-fill rounds pause for user material", asy
   const resumed = text(await add.execute("resume-after-page-stall", {
     candidateId: created.candidateId,
     expectedRevision: workspace.revision,
+    requestId: second.nextAction.requestId,
     experienceId: "work-1",
     facts: ["补充完成 5 场需求评审并记录关键决策"],
   }));
   assert.equal(resumed.status, "writing");
   assert.equal("materialRequest" in resumed, false);
   assert.equal(value.store.latest()!.pageFillProgress, undefined);
+  assert.equal(value.store.latest()!.lineRewriteProgress, undefined);
   assert.equal(resumed.nextAction.mode, "integrate_supplemental_evidence");
   assert.equal(resumed.nextAction.requiredInput, "items");
 });

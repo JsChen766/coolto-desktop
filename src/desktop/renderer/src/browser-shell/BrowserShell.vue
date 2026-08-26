@@ -5,6 +5,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { BrowserShellState, BrowserTabState } from "@desktop/types";
 import BrowserTabStrip from "./BrowserTabStrip.vue";
 import BrowserWindowControls from "./BrowserWindowControls.vue";
+import BrowserAgentBar from "./BrowserAgentBar.vue";
 import { translate } from "../i18n/locale";
 
 const shell = window.browserShell;
@@ -15,6 +16,7 @@ const state = ref<BrowserShellState>({
   theme: "light",
   platform: shell.platform,
   isMaximized: false,
+  agentControl: null,
 });
 const chromeEl = ref<HTMLElement>();
 
@@ -165,6 +167,14 @@ function onAddressBlur(): void {
         @keydown.enter="submitAddress"
       />
     </div>
+    <BrowserAgentBar
+      v-if="state.agentControl"
+      :state="state.agentControl"
+      @pause="shell.pauseAgent()"
+      @resume="shell.resumeAgent()"
+      @takeover="shell.takeoverAgent()"
+      @stop="shell.stopAgent()"
+    />
   </div>
 </template>
 

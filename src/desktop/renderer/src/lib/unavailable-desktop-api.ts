@@ -23,6 +23,10 @@ export function createUnavailableDesktopApi(): DesktopApi {
     shell: {
       openExternal: unavailable,
     },
+    mailConnections: {
+      providers: unavailable, list: unavailable,
+      connect: unavailable, disconnect: unavailable,
+    },
     conversations: {
       list: unavailable,
       create: unavailable,
@@ -59,6 +63,18 @@ export function createUnavailableDesktopApi(): DesktopApi {
       cancel: unavailable,
       resolveApproval: unavailable,
       onEvent: () => () => undefined,
+    },
+    agentTasks: {
+      list: unavailable,
+      get: unavailable,
+      prepare: unavailable,
+      executeProposal: unavailable,
+      start: unavailable,
+      resume: unavailable,
+      pause: unavailable,
+      cancel: unavailable,
+      revoke: unavailable,
+      submissionReceipt: unavailable,
     },
     library: {
       list: unavailable,

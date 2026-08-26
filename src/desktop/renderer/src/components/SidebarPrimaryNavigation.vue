@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import {
   BriefcaseBusiness,
+  Bot,
   FolderOpen,
   Library,
   SquarePen,
 } from "@lucide/vue";
 
 defineProps<{
-  activeView: "chat" | "experiences" | "library" | "tracker";
+  activeView: "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
   generating: boolean;
 }>();
 defineEmits<{
   create: [];
+  openAgentTasks: [];
   openExperiences: [];
   openLibrary: [];
   openTracker: [];
@@ -30,6 +32,17 @@ defineEmits<{
     >
       <SquarePen :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span>{{ $t('新对话') }}</span>
+    </button>
+    <button
+      class="new-chat-button icon-label"
+      :class="{ active: activeView === 'agent_tasks' }"
+      type="button"
+      :disabled="generating"
+      :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"
+      @click="$emit('openAgentTasks')"
+    >
+      <Bot :size="16" :stroke-width="1.8" aria-hidden="true" />
+      <span>{{ $t('Agent 任务') }}</span>
     </button>
     <button
       class="new-chat-button icon-label"

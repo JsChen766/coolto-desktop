@@ -76,6 +76,7 @@ export function deriveShellState(
   tabs: BrowserTabManager | undefined,
   theme: "light" | "dark",
   isMaximized: boolean,
+  agentControl: BrowserShellState["agentControl"] = null,
 ): BrowserShellState {
   const base = tabs?.shellState() ?? { tabs: [], activeTabId: null };
   return {
@@ -83,5 +84,6 @@ export function deriveShellState(
     theme,
     platform: process.platform as DesktopPlatform,
     isMaximized,
+    agentControl,
   };
 }

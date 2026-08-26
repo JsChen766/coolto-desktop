@@ -38,6 +38,18 @@ import type {
   ResumeExperienceSyncDraftPort,
   ResumeExperienceSyncProposalPort,
 } from "../resume/material/experience-sync-port.js";
+import type { AgentTaskProposalService } from "../desktop/main/agent-task/agent-task-proposal-service.js";
+import { AGENT_TASK_PROVISION_ACTION } from "../desktop/main/agent-task/agent-task-approval.js";
+import { createAgentTaskApprovalExecutor } from "../desktop/main/agent-task/agent-task-approval-executor.js";
+import type { AnswerVaultStore } from "../agent-task/answer-vault-store.js";
+import { ANSWER_VAULT_UPSERT_ACTION } from "../agent-task/answer-vault-approval.js";
+import { createAnswerVaultApprovalExecutor } from "../agent-task/answer-vault-approval-executor.js";
+import type { InboxSignalApplicationService } from "../desktop/main/agent-task/inbox-signal-application-service.js";
+import { INBOX_APPLICATION_UPDATE_ACTION } from "../inbox-signals/inbox-action-approval.js";
+import { createInboxApplicationApprovalExecutor } from "../inbox-signals/inbox-action-approval-executor.js";
+import type { InboxSignalInterviewService } from "../desktop/main/agent-task/inbox-signal-interview-service.js";
+import { INBOX_INTERVIEW_UPDATE_ACTION } from "../inbox-signals/inbox-action-approval.js";
+import { createInboxInterviewApprovalExecutor } from "../inbox-signals/inbox-action-approval-executor.js";
 
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
@@ -52,6 +64,10 @@ export interface ActionApprovalDependencies {
   resumeCompiler?: ResumeCompiler;
   resumeExperienceSyncProposals?: ResumeExperienceSyncProposalPort;
   resumeDrafts?: ResumeExperienceSyncDraftPort;
+  agentTaskProposals?: AgentTaskProposalService;
+  answerVault?: AnswerVaultStore;
+  inboxApplicationProposals?: InboxSignalApplicationService;
+  inboxInterviewProposals?: InboxSignalInterviewService;
 }
 
 export function createActionApprovalManager(
@@ -112,6 +128,30 @@ export function createActionApprovalManager(
         deps.resumeExperienceSyncProposals,
         deps.resumeDrafts,
       ),
+    );
+  }
+  if (deps.agentTaskProposals) {
+    executors.register(
+      AGENT_TASK_PROVISION_ACTION,
+      createAgentTaskApprovalExecutor(deps.agentTaskProposals),
+    );
+  }
+  if (deps.answerVault) {
+    executors.register(
+      ANSWER_VAULT_UPSERT_ACTION,
+      createAnswerVaultApprovalExecutor(deps.answerVault),
+    );
+  }
+  if (deps.inboxApplicationProposals) {
+    executors.register(
+      INBOX_APPLICATION_UPDATE_ACTION,
+      createInboxApplicationApprovalExecutor(deps.inboxApplicationProposals),
+    );
+  }
+  if (deps.inboxInterviewProposals) {
+    executors.register(
+      INBOX_INTERVIEW_UPDATE_ACTION,
+      createInboxInterviewApprovalExecutor(deps.inboxInterviewProposals),
     );
   }
   return new ApprovalManager(new ApprovalStore(), executors);

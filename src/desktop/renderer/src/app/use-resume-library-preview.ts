@@ -8,11 +8,12 @@ import type {
 } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
 import { localeCode, translate } from "../i18n/locale";
+import type { AppView } from "./use-app-shell";
 
 type PreviewSource = "local" | "cloud";
 
 interface ResumeLibraryPreviewOptions {
-  activeView: Ref<"chat" | "experiences" | "library" | "tracker">;
+  activeView: Ref<AppView>;
   activeArtifactType: Ref<"resume" | "jd" | "match">;
   artifactOpen: Ref<boolean>;
   closeNarrowSidebar(): void;

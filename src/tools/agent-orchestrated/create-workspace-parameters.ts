@@ -16,6 +16,10 @@ const tier = Type.Union([
 
 export const createWorkspaceParameters = Type.Object({
   jdId: Type.String({ minLength: 1 }),
+  baseResumeId: Type.Optional(Type.String({
+    minLength: 1,
+    description: "仅使用 find_resume_reuse_candidates/get_resume 核验后由 Agent 选择的历史 Resume ID",
+  })),
   language: Type.Union([Type.Literal("zh-CN"), Type.Literal("en-US")]),
   experiences: Type.Array(Type.Object({
     experienceId: Type.String({

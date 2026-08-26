@@ -1,12 +1,15 @@
 import type {
   AgentMessage,
   AgentTool,
+  AfterToolCallContext,
+  AfterToolCallResult,
   BeforeToolCallContext,
   BeforeToolCallResult,
   ShouldStopAfterTurnContext,
   StreamFn,
+  ThinkingLevel,
 } from "@earendil-works/pi-agent-core";
-import type { Api, Model, ThinkingLevel } from "@earendil-works/pi-ai";
+import type { Api, Model } from "@earendil-works/pi-ai";
 
 import type { ApprovalManager } from "../approvals/approval-manager.js";
 import type { CooltoAgentEvent } from "./events.js";
@@ -24,6 +27,10 @@ export interface CooltoAgentOptions {
     context: BeforeToolCallContext,
     signal?: AbortSignal,
   ) => Promise<BeforeToolCallResult | undefined>;
+  afterToolCall?: (
+    context: AfterToolCallContext,
+    signal?: AbortSignal,
+  ) => Promise<AfterToolCallResult | undefined>;
   transformContext?: (
     messages: AgentMessage[],
     signal?: AbortSignal,

@@ -1,16 +1,7 @@
-import {
-  RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
-  RESUME_LAYOUT_TOLERANCE_PX,
-} from "../compiler-types.js";
+import { RESUME_GLOBAL_MINIMUM_USAGE_RATIO, RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
 import { resumeGenerationReadiness } from "./generation-readiness.js";
-import {
-  groundedAdditionTargets,
-  type GroundedAdditionTarget,
-} from "./grounded-addition-targets.js";
-import {
-  lineExpansionTargets,
-  type LineExpansionTarget,
-} from "./line-expansion-targets.js";
+import { groundedAdditionTargets, type GroundedAdditionTarget } from "./grounded-addition-targets.js";
+import { lineExpansionTargets, type LineExpansionTarget } from "./line-expansion-targets.js";
 import { tailRepairBatch } from "./tail-repair-targets.js";
 import type { TailLengthBudget } from "./tail-length-budget.js";
 import type { ResumeWorkspace } from "./types.js";
@@ -36,6 +27,8 @@ import {
   bulletCountRepairPlan,
   type BulletCountRepairTarget,
 } from "./bullet-count-repair.js";
+import type { ResumeMaterialNextAction } from "./material-next-action.js";
+import { normalizeResumeMaterialRequest } from "./material-request.js";
 const MIN_GROUNDED_ADDITION_OPTIONS = 12;
 const MAX_MODEL_TAIL_REWRITE_TARGETS = 4;
 
@@ -55,11 +48,7 @@ interface AgentSemanticTailRewriteTarget {
 
 export type ResumeAgentNextAction =
   | { mode: "stop" }
-  | {
-    mode: "request_more_material";
-    question?: string;
-    targetExperienceId?: string;
-  }
+  | ResumeMaterialNextAction
   | { mode: "await_augmented_confirmation" }
   | {
     mode: "integrate_supplemental_evidence";
@@ -100,14 +89,40 @@ export function resumeAgentNextAction(
 ): ResumeAgentNextAction {
   const criticalSkillRequest = criticalSkillMaterialRequest(workspace);
   if (criticalSkillRequest) {
+    const request = normalizeResumeMaterialRequest(
+      workspace.candidateId,
+      criticalSkillRequest,
+    );
+    if (request.status === "declined") {
+      return {
+        mode: "stop_insufficient_material",
+        requestId: request.id,
+        reason: request.reason,
+      };
+    }
     return {
       mode: "request_more_material",
+      requestId: request.id,
       question: initialMaterialQuestion(criticalSkillRequest.question),
     };
   }
   if (workspace.status === "needs_user_decision") {
+    const request = workspace.materialRequest
+      ? normalizeResumeMaterialRequest(
+          workspace.candidateId,
+          workspace.materialRequest,
+        )
+      : undefined;
+    if (request?.status === "declined") {
+      return {
+        mode: "stop_insufficient_material",
+        requestId: request.id,
+        reason: request.reason,
+      };
+    }
     return {
       mode: "request_more_material",
+      ...(request ? { requestId: request.id } : {}),
       ...(workspace.materialRequest?.question
         ? { question: workspace.materialRequest.discoveryStage ===
             "scenario_probe"

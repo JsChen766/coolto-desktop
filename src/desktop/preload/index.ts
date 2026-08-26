@@ -161,6 +161,26 @@ const api: DesktopApi = {
       return () => ipcRenderer.removeListener("agent:event", handler);
     },
   },
+  mailConnections: {
+    providers: () => ipcRenderer.invoke("mail-connections:providers"),
+    list: () => ipcRenderer.invoke("mail-connections:list"),
+    connect: (provider) => ipcRenderer.invoke("mail-connections:connect", provider),
+    disconnect: (connectionId) =>
+      ipcRenderer.invoke("mail-connections:disconnect", connectionId),
+  },
+  agentTasks: {
+    list: () => ipcRenderer.invoke("agent-tasks:list"),
+    get: (taskId) => ipcRenderer.invoke("agent-tasks:get", taskId),
+    prepare: (input) => ipcRenderer.invoke("agent-tasks:prepare", input),
+    executeProposal: (id) => ipcRenderer.invoke("agent-tasks:execute-proposal", id),
+    start: (id) => ipcRenderer.invoke("agent-tasks:start", id),
+    resume: (id) => ipcRenderer.invoke("agent-tasks:resume", id),
+    pause: (id) => ipcRenderer.invoke("agent-tasks:pause", id),
+    cancel: (id) => ipcRenderer.invoke("agent-tasks:cancel", id),
+    revoke: (id) => ipcRenderer.invoke("agent-tasks:revoke", id),
+    submissionReceipt: (id) =>
+      ipcRenderer.invoke("agent-tasks:submission-receipt", id),
+  },
   window: {
     minimize: () => ipcRenderer.invoke("window:minimize"),
     toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),

@@ -6,9 +6,9 @@ import { resolveTailPolicy } from "../tail-policy.js";
 import { resumeGenerationReadiness } from "./generation-readiness.js";
 import { resumeAgentNextAction } from "./agent-next-action.js";
 import type { ResumeWorkspace } from "./types.js";
+import { normalizeResumeMaterialRequest } from "./material-request.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
 import { minimumResumeBulletCount } from "./bullet-count-rules.js";
-
 export interface WorkspaceOperationReceipt {
   status: "success" | "partial_success" | "rejected";
   appliedItemIds: string[];
@@ -18,14 +18,12 @@ export interface WorkspaceOperationReceipt {
     errors?: WorkspaceBulletValidationError[];
   }>;
 }
-
 export interface WorkspaceBulletValidationError {
   bulletIndex: number;
   bulletId: string;
   code: string;
   message: string;
 }
-
 export function buildAgentWorkspaceView(
   workspace: ResumeWorkspace,
   operation?: WorkspaceOperationReceipt,
@@ -137,9 +135,13 @@ export function buildAgentWorkspaceView(
     candidateId: workspace.candidateId,
     revision: workspace.revision,
     status: workspace.status,
+    reuseBase: workspace.reuseBase ?? null,
     nextAction: resumeAgentNextAction(workspace),
     ...(workspace.materialRequest
-      ? { materialRequest: structuredClone(workspace.materialRequest) }
+      ? { materialRequest: normalizeResumeMaterialRequest(
+          workspace.candidateId,
+          workspace.materialRequest,
+        ) }
       : {}),
     readiness: {
       ready: readiness.ready,
@@ -192,7 +194,6 @@ export function buildAgentWorkspaceView(
     pendingConfirmation,
   };
 }
-
 /** Compact receipt; full current content is recoverable through get_resume_workspace. */
 export function buildAgentWorkspaceReceipt(
   workspace: ResumeWorkspace,

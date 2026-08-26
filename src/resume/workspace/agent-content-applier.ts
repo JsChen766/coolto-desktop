@@ -17,6 +17,7 @@ import { removeBulletLinePlans, replaceBulletLinePlans } from "./agent-line-plan
 import { assertSupplementalEvidenceUsedOnce, hasPendingAgentContent, supplementalNumericEvidenceForBullet } from "./agent-content-state.js";
 import type { ResumeFactNeutralFragment } from "./fact-neutral-types.js";
 import { reconcileFactNeutralFragments, withFactNeutralFragments } from "./fact-neutral-fragments.js";
+import { applyBulletCountMaterialGate } from "./material-request-gate.js";
 
 export async function applyAgentResumeContent(input: {
   workspace: ResumeWorkspace;
@@ -217,6 +218,7 @@ export async function applyAgentResumeContent(input: {
         source.compileResult.usedHeightPx + RESUME_LAYOUT_TOLERANCE_PX,
     );
   }
+  updated = applyBulletCountMaterialGate(updated);
   return { workspace: input.store.replace(updated, source.revision), operation };
 }
 

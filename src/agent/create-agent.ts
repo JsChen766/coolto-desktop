@@ -1,10 +1,13 @@
 import type {
   AgentMessage,
   AgentTool,
+  AfterToolCallContext,
+  AfterToolCallResult,
   BeforeToolCallContext,
   BeforeToolCallResult,
   ShouldStopAfterTurnContext,
   StreamFn,
+  ThinkingLevel,
 } from "@earendil-works/pi-agent-core";
 import { randomUUID } from "node:crypto";
 import {
@@ -36,11 +39,15 @@ export interface CreateAgentOptions {
   modelId?: string;
   systemPrompt?: string;
   tools?: AgentTool[];
-  thinkingLevel?: import("@earendil-works/pi-ai").ThinkingLevel;
+  thinkingLevel?: ThinkingLevel;
   beforeToolCall?: (
     context: BeforeToolCallContext,
     signal?: AbortSignal,
   ) => Promise<BeforeToolCallResult | undefined>;
+  afterToolCall?: (
+    context: AfterToolCallContext,
+    signal?: AbortSignal,
+  ) => Promise<AfterToolCallResult | undefined>;
   transformContext?: (
     messages: AgentMessage[],
     signal?: AbortSignal,
@@ -179,6 +186,9 @@ export function createCooltoAgent(
           },
         }
       : { beforeToolCall: repetitionGuard }),
+    ...(options.afterToolCall
+      ? { afterToolCall: options.afterToolCall }
+      : {}),
     transformContext:
       options.transformContext ??
       (async (messages: AgentMessage[]) =>

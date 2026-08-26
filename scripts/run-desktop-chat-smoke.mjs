@@ -44,9 +44,13 @@ try {
   }
 
   const baseline = await readState(session);
-  await installAgentObservation(session);
+  await installAgentObservation(session, Boolean(options.stopAfterReuseWorkspace));
   const startedAt = Date.now();
-  await submitMessage(session, options.message);
+  if (options.jdId) {
+    await submitReferencedMessage(session, options.message, options.jdId);
+  } else {
+    await submitMessage(session, options.message);
+  }
   const result = await waitForResult(
     session,
     baseline,
@@ -243,14 +247,60 @@ async function submitMessage(session, message) {
   if (!submitted) fail("Chat message could not be submitted");
 }
 
-async function installAgentObservation(session) {
+async function submitReferencedMessage(session, message, jdId) {
+  const started = await evaluate(session, `(async () => {
+    await window.coolto.auth.syncNow();
+    const assets = await window.coolto.jobAssets.get();
+    const jd = assets.jds.find((item) => item.id === ${JSON.stringify(jdId)});
+    const conversationId = (await window.coolto.conversations.list())[0]?.id;
+    if (!jd || !conversationId) return false;
+    void window.coolto.agent.prompt({
+      conversationId,
+      text: ${JSON.stringify(message)},
+      jdReference: { jdId: jd.id, title: jd.title, action: "generate" },
+    });
+    return true;
+  })()`);
+  if (!started) fail("Referenced JD prompt could not be started after sync");
+}
+
+async function installAgentObservation(session, stopAfterReuseWorkspace) {
   const installed = await evaluate(session, `(() => {
     window.__cooltoSmokeAgentUnsubscribe?.();
     window.__cooltoSmokeAgentEvents = [];
     window.__cooltoSmokeResumeCallIds = [];
+    window.__cooltoSmokeReuseCallIds = [];
+    window.__cooltoSmokeStoppedAfterReuseWorkspace = false;
     const agent = window.coolto?.agent;
     if (!agent?.onEvent) return false;
     window.__cooltoSmokeAgentUnsubscribe = agent.onEvent((_conversationId, event) => {
+      if (event.type === "tool.started" && [
+        "find_resume_reuse_candidates", "create_resume_workspace",
+      ].includes(event.name)) {
+        const args = event.arguments && typeof event.arguments === "object"
+          ? event.arguments : {};
+        window.__cooltoSmokeAgentEvents.push({
+          type: event.type, callId: event.callId, name: event.name,
+          targetJdId: args.targetJdId ?? "", jdId: args.jdId ?? "",
+          baseResumeId: args.baseResumeId ?? "",
+          experienceCount: Array.isArray(args.experiences) ? args.experiences.length : 0,
+        });
+        if (event.name === "create_resume_workspace" && args.baseResumeId) {
+          window.__cooltoSmokeReuseCallIds.push(event.callId);
+        }
+      }
+      if (event.type === "tool.completed" &&
+          event.name === "create_resume_workspace" &&
+          window.__cooltoSmokeReuseCallIds.includes(event.callId)) {
+        window.__cooltoSmokeAgentEvents.push({
+          type: event.type, callId: event.callId, name: event.name,
+          isError: event.isError, error: event.error ?? "",
+        });
+        if (!event.isError && ${stopAfterReuseWorkspace}) {
+          window.__cooltoSmokeStoppedAfterReuseWorkspace = true;
+          void agent.cancel();
+        }
+      }
       if (event.type === "tool.started" && event.name === "apply_resume_content") {
         const args = event.arguments && typeof event.arguments === "object"
           ? event.arguments
@@ -353,7 +403,8 @@ async function waitForResult(
       current.resumeUsageRatio >= 0.92;
     const finished = started && !current.running && (
       current.assistantCount >= minimumAssistantCount ||
-      Boolean(current.runError) || readyExperienceSync
+      Boolean(current.runError) || readyExperienceSync ||
+      current.stoppedAfterReuseWorkspace
     ) && (!current.approvalActionType || readyExperienceSync);
     return finished ? current : undefined;
   }, "the chat run to complete");
@@ -418,6 +469,7 @@ async function readState(session) {
       runError: document.querySelector('[data-testid="chat-run-error"]')?.textContent?.trim() ?? "",
       progressLabel: document.querySelector('[data-testid="resume-generation-progress"]')?.textContent?.trim() ?? "",
       approvalActionType: document.querySelector('[data-testid="approval-card"]')?.dataset.approvalActionType ?? "",
+      stoppedAfterReuseWorkspace: window.__cooltoSmokeStoppedAfterReuseWorkspace === true,
       attachmentName: document.querySelector('[data-testid="chat-composer-attachment"] .composer-attachment-name')?.textContent?.trim() ?? "",
       attachmentError: document.querySelector('[data-testid="chat-composer-attachment-error"]')?.textContent?.trim() ?? "",
       resumeArtifactId: resume?.dataset.artifactId ?? "",

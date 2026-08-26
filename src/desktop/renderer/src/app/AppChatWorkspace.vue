@@ -2,7 +2,6 @@
 import { computed } from "vue";
 import type { ChatMessage } from "@desktop/types";
 import {
-  ApprovalCard,
   ChatHeader,
   ChatMessageView,
   Composer,
@@ -21,6 +20,7 @@ import type { AppShell } from "./use-app-shell";
 import { useStreamingElapsed } from "../chat/use-streaming-elapsed";
 import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
+import ChatPendingAction from "./ChatPendingAction.vue";
 const props = defineProps<{ shell: AppShell }>();
 const emptyStages = useEmptyStateStages();
 const {
@@ -196,7 +196,7 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
                 @open="openExperienceImportResult(current.id, $event)"
               />
               <p v-if="runError" class="run-error" data-testid="chat-run-error">{{ runError }}</p>
-              <ApprovalCard
+              <ChatPendingAction
                 v-if="pendingApproval"
                 :request="pendingApproval"
                 :busy="approvalBusy"

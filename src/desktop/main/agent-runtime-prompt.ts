@@ -15,6 +15,8 @@ import {
   appendResumeRunFeedback,
   resumeRunFeedbackState,
 } from "./resume-run-feedback.js";
+import { canonicalizeResumeBoundaryResponse } from
+  "./resume-boundary-response.js";
 
 export interface AgentPromptExecutionInput {
   prompt: AgentPromptInput;
@@ -66,6 +68,7 @@ export async function executeAgentPrompt(
     input.pendingAttachments.length > 0
       ? buildAttachmentNotice(input.pendingAttachments)
       : "";
+  const messageStartIndex = context.agent.getMessages().length;
   // pi-agent-core owns the complete model -> tool -> model loop. A real user
   // message maps to exactly one prompt; the host never injects phase prompts
   // or re-prompts a half-finished resume workspace.
@@ -77,6 +80,12 @@ export async function executeAgentPrompt(
     throw new Error(runStopError);
   }
   const proposed = context.workspaceStore.latest();
+  const canonicalMessages = canonicalizeResumeBoundaryResponse(
+    context.agent.getMessages(),
+    proposed,
+    messageStartIndex,
+  );
+  context.agent.replaceMessages(canonicalMessages);
   if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
     await input.resumeDrafts.proposeChange({
       artifactId: editBase.artifactId,
@@ -86,7 +95,7 @@ export async function executeAgentPrompt(
     });
   }
   const messagesWithFeedback = appendResumeRunFeedback({
-    messages: context.agent.getMessages(),
+    messages: canonicalMessages,
     userText: prompt.text,
     state: resumeRunFeedbackState(proposed),
   });

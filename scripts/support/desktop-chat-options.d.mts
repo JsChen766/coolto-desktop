@@ -4,7 +4,9 @@ export interface DesktopChatOptions {
   requireResumeReady?: boolean;
   acceptResumeAugmentation?: boolean;
   openResumePreview?: boolean;
+  stopAfterReuseWorkspace?: boolean;
   message?: string;
+  jdId?: string;
   file?: string;
   screenshot?: string;
   cdp?: string;

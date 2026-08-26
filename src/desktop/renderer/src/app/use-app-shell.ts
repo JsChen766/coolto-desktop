@@ -15,7 +15,7 @@ import { useResumeLibraryPreview } from "./use-resume-library-preview";
 import { useResumeInstructionActions } from "./use-resume-instruction-actions";
 import { useWindowCloseSave } from "./use-window-close-save";
 
-export type AppView = "chat" | "experiences" | "library" | "tracker";
+export type AppView = "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
 export function useAppShell() {
   const sidebarOpen = ref(true);
   const artifactOpen = ref(false);
@@ -96,7 +96,7 @@ export function useAppShell() {
     await resumeWorkspace.openDraft(artifactId);
   }
 
-  function openPrimaryView(view: "experiences" | "library"): void {
+  function openPrimaryView(view: "agent_tasks" | "experiences" | "library"): void {
     resumePreview.resetResumePreview();
     closeNarrowSidebar();
     activeView.value = view;

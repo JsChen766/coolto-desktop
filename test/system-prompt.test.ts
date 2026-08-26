@@ -38,5 +38,15 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /repair_bullet_depth/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /tailExpansions/);
   assert.match(COOLTO_SYSTEM_PROMPT, /保存和导出不是 Agent 行为/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /find_resume_reuse_candidates/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /baseResumeId/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /requestId/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /decline_resume_material/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_start_review/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_list_tabs/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_snapshot/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_download/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /prepare_agent_task/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /SubmissionReceipt/u);
   assert.match(SYSTEM_PROMPT_VERSION, /^coolto-local-agent\/v\d+$/);
 });

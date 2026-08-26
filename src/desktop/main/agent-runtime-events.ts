@@ -236,5 +236,7 @@ function isResumeWorkspaceTool(name: string): boolean {
     "apply_resume_content",
     "add_resume_material",
     "confirm_no_resume_material",
+    "pause_resume_for_material",
+    "decline_resume_material",
   ].includes(name);
 }

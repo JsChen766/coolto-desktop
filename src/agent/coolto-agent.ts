@@ -10,7 +10,6 @@ import { recoverFromOutputRepetition, recoverFromTurnGovernor,
 import { wrapResumeGenerationFollowUp } from "./internal-prompt.js";
 import { StreamingOutputRepetitionGuard, type OutputRepetitionReason } from "./output-repetition-guard.js";
 import type { TurnGovernor } from "./turn-governor.js";
-
 export class CooltoAgent {
   readonly #agent: Agent;
   readonly #approvalManager: ApprovalManager | undefined;
@@ -25,7 +24,6 @@ export class CooltoAgent {
   #modelErrorMessage: string | undefined;
   #transientRecoveryRemaining = 0;
   #promptSequence = 0;
-
   public constructor(options: CooltoAgentOptions) {
     this.#approvalManager = options.approvalManager;
     this.#turnGovernor = options.turnGovernor;
@@ -47,6 +45,9 @@ export class CooltoAgent {
       toolExecution: "parallel",
       ...(options.getApiKey ? { getApiKey: options.getApiKey } : {}),
       ...(options.beforeToolCall ? { beforeToolCall: options.beforeToolCall } : {}),
+      ...(options.afterToolCall
+        ? { afterToolCall: options.afterToolCall }
+        : {}),
       ...(options.transformContext ? { transformContext: options.transformContext } : {}),
       ...(options.shouldStopAfterTurn
         ? { shouldStopAfterTurn: options.shouldStopAfterTurn } : {}),
@@ -90,7 +91,6 @@ export class CooltoAgent {
       }
     });
   }
-
   public get isRunning(): boolean { return this.#agent.state.isStreaming; }
   /** Total assistant model calls across all prompts since construction. */
   public get modelCallCount(): number { return this.#modelCallCount; }

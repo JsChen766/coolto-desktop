@@ -19,7 +19,7 @@ defineProps<{
   dark: boolean;
   resumeDrafts: ResumeDraftSummary[];
   currentDraftId: string | undefined;
-  activeView: "chat" | "experiences" | "library" | "tracker";
+  activeView: "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
   generating: boolean;
   updateState: AppUpdateState;
   updateChecking: boolean;
@@ -31,6 +31,7 @@ defineProps<{
 const emit = defineEmits<{
   create: [];
   openExperiences: [];
+  openAgentTasks: [];
   select: [conversationId: string];
   selectDraft: [artifactId: string];
   openLibrary: [];
@@ -90,6 +91,7 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
       :generating="generating"
       @create="$emit('create')"
       @open-experiences="$emit('openExperiences')"
+      @open-agent-tasks="$emit('openAgentTasks')"
       @open-library="$emit('openLibrary')"
       @open-tracker="$emit('openTracker')"
     />

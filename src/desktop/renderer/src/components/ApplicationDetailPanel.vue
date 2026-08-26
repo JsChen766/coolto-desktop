@@ -11,6 +11,7 @@ import type {
   ApplicationUpdateInput,
   InterviewRound,
   Reminder,
+  SubmissionReceiptView,
 } from "@desktop/types";
 import {
   applicationFormOf,
@@ -34,6 +35,7 @@ const props = defineProps<{
   error?: string | undefined;
   detail: ApplicationTrackerDetail;
   detailLoading?: boolean;
+  submissionReceipt: SubmissionReceiptView | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -128,6 +130,17 @@ function save(): void {
           <dd>{{ application.resumeContentHashSnapshot
             ? `${application.resumeContentHashSnapshot.slice(0, 12)}…`
             : $t('历史记录未锁定版本') }}</dd>
+        </div>
+        <div v-if="submissionReceipt">
+          <dt>{{ $t('投递证据') }}</dt>
+          <dd>
+            {{ $t(submissionReceipt.status === 'confirmed' ? '已确认提交' : '提交结果待核验') }} ·
+            {{ new Date(submissionReceipt.createdAt).toLocaleString($locale()) }} ·
+            {{ submissionReceipt.resumeContentHash.slice(0, 12) }}…
+          </dd>
+        </div>
+        <div v-else-if="application.source === 'browser'">
+          <dt>{{ $t('投递证据') }}</dt><dd>{{ $t('本地投递证据已清除或不可用') }}</dd>
         </div>
         <div><dt>{{ $t('公司业务') }}</dt><dd>{{ application.companyBusiness ?? '—' }}</dd></div>
         <div><dt>{{ $t('岗位摘要') }}</dt><dd>{{ application.roleSummary ?? '—' }}</dd></div>

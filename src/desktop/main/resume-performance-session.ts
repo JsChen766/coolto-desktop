@@ -21,6 +21,7 @@ import {
   type PerformanceRun,
 } from "./resume-performance-quality.js";
 import type { ElectronResumeCompilerService } from "./resume-compiler-service.js";
+import { createResumeInteractionStop } from "./resume-interaction-stop.js";
 
 const MAX_MODEL_CALLS = 40;
 export interface PerformanceManifest {
@@ -73,6 +74,7 @@ export async function runPerformanceSession(
         store: workspaceStore,
       },
     }),
+    shouldStopAfterTurn: createResumeInteractionStop(workspaceStore),
   }, modelDependencies);
   traces.start(conversationId, config.modelId);
   let error: string | null = null;

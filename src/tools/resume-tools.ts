@@ -2,6 +2,8 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import type { ResumePublicationGateway } from "../resume/save/types.js";
+import type { JdReader } from "../api/types.js";
+import { createFindResumeReuseCandidatesTool } from "./find-resume-reuse-candidates.js";
 
 const listParameters = Type.Object({});
 const getParameters = Type.Object({
@@ -10,6 +12,7 @@ const getParameters = Type.Object({
 
 export function createResumeReadTools(
   reader: ResumePublicationGateway,
+  jds?: JdReader,
 ): AgentTool[] {
   const listTool: AgentTool<typeof listParameters> = {
     name: "list_resumes",
@@ -60,5 +63,9 @@ export function createResumeReadTools(
       };
     },
   };
-  return [listTool, getTool];
+  return [
+    listTool,
+    getTool,
+    ...(jds ? [createFindResumeReuseCandidatesTool(jds, reader)] : []),
+  ];
 }

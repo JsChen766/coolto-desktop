@@ -8,6 +8,8 @@ import {
   measureLineRewrites,
   type MeasuredLineRewrite,
 } from "./line-rewrite-measurement.js";
+import { duplicateNovelLineRewriteReasons } from
+  "./line-rewrite-duplication.js";
 import type { ResumeWorkspace } from "./types.js";
 
 export interface LineRewriteInput {
@@ -44,6 +46,7 @@ export interface LineRewriteFeedback {
     | "unchanged_or_shorter"
     | "line_count_decreased"
     | "capacity_not_selected"
+    | "duplicate_growth"
     | "content_validation_failed";
   reason?: string;
 }
@@ -80,7 +83,12 @@ export async function selectLineRewrites(
       revisedText: input.revisedText.trim(),
     };
   });
-  const measured = await measureLineRewrites(workspace, targets, compiler);
+  const duplicateReasons = duplicateNovelLineRewriteReasons(targets);
+  const measured = await measureLineRewrites(
+    workspace,
+    targets.filter((target) => !duplicateReasons.has(target.bulletId)),
+    compiler,
+  );
   const stacked = measured.filter((rewrite) =>
     rewrite.eligible && rewrite.addedLines === 0
   );
@@ -102,13 +110,18 @@ export async function selectLineRewrites(
   const updates = measured.filter((rewrite) =>
     stacked.includes(rewrite) || selectedGrowthIds.has(rewrite.bulletId)
   ).map((rewrite) => ({ bulletId: rewrite.bulletId, text: rewrite.text }));
-  const skipped = measured.filter((rewrite) =>
-    !updates.some((update) => update.bulletId === rewrite.bulletId)
-  );
-  const feedback = rewriteFeedback(
-    measured,
-    new Set(updates.map((update) => update.bulletId)),
-  );
+  const feedback: LineRewriteFeedback[] = [
+    ...[...duplicateReasons].map(([bulletId, reason]) => ({
+      bulletId,
+      status: "rejected" as const,
+      failureType: "duplicate_growth" as const,
+      reason,
+    })),
+    ...rewriteFeedback(
+      measured,
+      new Set(updates.map((update) => update.bulletId)),
+    ),
+  ];
   const rejectedFeedback = feedback.filter((entry) =>
     entry.status === "rejected"
   );

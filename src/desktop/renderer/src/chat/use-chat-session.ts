@@ -9,6 +9,7 @@ import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspac
 import { findReusableEmptyConversation } from "./conversation-list";
 import { useJdArtifacts } from "./use-jd-artifacts";
 import { useMatchReports } from "./use-match-reports";
+import { startApprovedAgentTask } from "./start-approved-agent-task";
 import { createAgentEventHandler } from "./agent-event-handler";
 import {
   createArtifactAnchorer,
@@ -62,18 +63,14 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     match,
     resumeWorkspace,
   });
-
   onMounted(async () => {
     unsubscribeEvents = desktopApi.agent.onEvent(handleAgentEvent);
     await auth.restore();
   });
-
   onBeforeUnmount(() => unsubscribeEvents?.());
-
   async function cancelRunning(): Promise<void> {
     if (running.value) await desktopApi.agent.cancel();
   }
-
   function clearAuthenticatedState(): void {
     current.value = undefined;
     conversations.value = [];
@@ -83,7 +80,6 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     clearRunState();
     resumeWorkspace.clear();
   }
-
   async function loadConversations(): Promise<void> {
     conversations.value = await desktopApi.conversations.list();
     await resumeWorkspace.loadDrafts();
@@ -91,7 +87,6 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     if (first) await selectConversation(first.id);
     else await createConversation();
   }
-
   async function refreshConversationList(): Promise<void> {
     conversations.value = await desktopApi.conversations.list();
   }
@@ -200,6 +195,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   ): Promise<void> {
     if (!current.value || !pendingApproval.value) return;
     const conversationId = current.value.id;
+    const actionType = pendingApproval.value.actionType;
     const previousMessageIds = new Set(
       current.value.messages.map((message) => message.id),
     );
@@ -213,6 +209,10 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();
       await refreshConversationList();
+      if (decision.type === "accept" && actionType === "agent_task.provision") {
+        current.value = await startApprovedAgentTask(desktopApi, conversationId);
+        clearLiveResponse();
+      }
     } catch (error: unknown) {
       runError.value = desktopErrorMessage(error);
     } finally {

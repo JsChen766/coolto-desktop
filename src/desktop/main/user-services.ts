@@ -1,6 +1,10 @@
 import type { BrowserWindow } from "electron";
 
-import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
+import type { CooltoApiClient } from "../../api/coolto-api-client.js";
+import type { BrowserAgentController } from "../../browser/agent-control-types.js";
+import type { BrowserPageOperator } from "../../browser/types.js";
+import type { BrowserAgentStatusBridge } from "./browser/browser-agent-status-bridge.js";
+import type { AgentHarnessServices } from "../../agent-task/agent-harness-services.js";
 import { ResumeManualEditor } from "../../resume/draft/manual-editor.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import { DesktopAgentRuntime } from "./agent-runtime.js";
@@ -33,7 +37,13 @@ import { ReminderSyncStore } from "./tracker/reminder-sync-store.js";
 import { StatusEventReader } from "./tracker/status-event-reader.js";
 import { ReminderNotificationScheduler } from "./tracker/reminder-notification-scheduler.js";
 import { TrackerRecoveryService } from "./tracker/tracker-recovery-service.js";
-
+import { createElectronAgentHarness } from "./agent-task/create-electron-agent-harness.js";
+import { createAgentTaskRuntime } from "./agent-task/create-agent-task-runner.js";
+import type { AgentTaskRunner } from "../../agent-task/agent-task-runner.js";
+import type { AgentTaskScheduler } from "../../agent-task/agent-task-scheduler.js";
+import { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
+import { clearUserServices } from "./clear-user-services.js";
+import { ElectronMailConnectionService } from "./mail-connections/electron-mail-connection-service.js";
 export interface UserServices {
   ownerId: string;
   conversations: ConversationStore;
@@ -41,6 +51,10 @@ export interface UserServices {
   resumeDraftEditing: ResumeDraftEditingService;
   resumePdfExports: ResumePdfExportService;
   agent: DesktopAgentRuntime;
+  agentHarness: AgentHarnessServices;
+  agentTasks: AgentTaskRunner;
+  agentTaskProposals: AgentTaskProposalService;
+  agentTaskScheduler: AgentTaskScheduler;
   selectedFiles: ConversationSelectedFiles;
   resumes: ResumeSyncStore;
   jds: JdSyncStore;
@@ -60,23 +74,24 @@ export interface UserServices {
   reminderProposals: ReminderProposalService;
   reminderScheduler: ReminderNotificationScheduler;
   trackerRecovery: TrackerRecoveryService;
+  mailConnections: ElectronMailConnectionService;
 }
-
 export class UserServicesResolver {
   private services: UserServices | undefined;
-
   public constructor(
     private readonly auth: DesktopAuthService,
     private readonly window: BrowserWindow,
     private readonly resumeCompiler: ResumePdfCompiler,
-    private readonly browserPageReader: BrowserPageReader,
+    private readonly browserAgentController: BrowserAgentController,
     private readonly browserPageOperator: BrowserPageOperator,
+    private readonly browserAgentStatus: BrowserAgentStatusBridge,
   ) {}
 
   public async get(): Promise<UserServices> {
     const user = this.auth.requireCurrentUser();
     if (this.services?.ownerId === user.id) return this.services;
     const conversations = new ConversationStore(user.id);
+    const agentHarness = await createElectronAgentHarness(user.id);
     const resumeDrafts = new ResumeDraftService(
       user.id,
       createElectronResumeDraftRepository(user.id),
@@ -116,7 +131,9 @@ export class UserServicesResolver {
       waitForInitialSync,
     );
     const applicationProposals = new ApplicationProposalService(syncStore, applications);
+    const mailConnections = new ElectronMailConnectionService(user.id);
     const interviews = new InterviewSyncStore(syncStore, triggerSync, waitForInitialSync);
+    const interviewProposals = new InterviewProposalService(interviews);
     const notes = new NoteSyncStore(syncStore, triggerSync, waitForInitialSync);
     const reminders = new ReminderSyncStore(syncStore, triggerSync, waitForInitialSync);
     const trackerDetail = new ApplicationTrackerDetailService(
@@ -129,6 +146,19 @@ export class UserServicesResolver {
       this.resumeCompiler,
       new ElectronResumePdfSaveDialog(this.window),
     );
+    const agentTaskProposals = new AgentTaskProposalService(agentHarness);
+    const agent = new DesktopAgentRuntime(
+      this.auth.apiClient, conversations, resumeDrafts, this.window.webContents,
+      this.resumeCompiler, selectedFiles, this.browserAgentController,
+      this.browserPageOperator, agentHarness, agentTaskProposals,
+      resumes, applications, applicationProposals, mailConnections,
+      interviews, interviewProposals, experiences, jds, profiles,
+      profileProposals, experienceProposals,
+      () => readCompactionThreshold(this.auth.apiClient),
+      () => runSyncNow(this.auth),
+    );
+    const { agentTasks, agentTaskScheduler } = await createAgentTaskRuntime(
+      agentHarness, agent, this.browserAgentStatus, this.browserPageOperator);
     this.services = {
       ownerId: user.id,
       conversations,
@@ -138,24 +168,11 @@ export class UserServicesResolver {
         new ResumeManualEditor(this.resumeCompiler),
       ),
       resumePdfExports,
-      agent: new DesktopAgentRuntime(
-        this.auth.apiClient,
-        conversations,
-        resumeDrafts,
-        this.window.webContents,
-        this.resumeCompiler,
-        selectedFiles,
-        this.browserPageReader,
-        this.browserPageOperator,
-        resumes,
-        experiences,
-        jds,
-        profiles,
-        profileProposals,
-        experienceProposals,
-        () => readCompactionThreshold(this.auth.apiClient),
-        () => runSyncNow(this.auth),
-      ),
+      agent,
+      agentHarness,
+      agentTasks,
+      agentTaskProposals,
+      agentTaskScheduler,
       selectedFiles,
       resumes,
       jds,
@@ -168,7 +185,7 @@ export class UserServicesResolver {
       experienceProposals,
       trackerDetail,
       interviews,
-      interviewProposals: new InterviewProposalService(interviews),
+      interviewProposals,
       notes,
       noteProposals: new NoteProposalService(notes),
       reminders,
@@ -177,15 +194,20 @@ export class UserServicesResolver {
       trackerRecovery: new TrackerRecoveryService(
         syncStore, triggerSync, waitForInitialSync, () => this.auth.syncNow(),
       ),
+      mailConnections,
     };
     return this.services;
   }
 
-  public clear(): void {
-    this.services?.agent.cancel();
-    this.services?.selectedFiles.clear();
-    this.services?.reminderScheduler.dispose();
+  public async clear(
+    reason: "window_closed" | "account_changed" = "window_closed",
+  ): Promise<void> {
+    const current = this.services;
     this.services = undefined;
+    await clearUserServices({
+      current, reason, browser: this.browserPageOperator,
+      status: this.browserAgentStatus,
+    });
   }
 
   /** Best-effort snapshot of the in-flight agent transcript. No-op when no
@@ -195,8 +217,6 @@ export class UserServicesResolver {
     await this.services?.agent.flushPending();
   }
 }
-
-
 /**
  * Reads the context-compaction threshold from the server app-config once and
  * caches it; any failure falls back to the client default so conversation
@@ -217,8 +237,6 @@ async function readCompactionThreshold(
   }
   return compactionThresholdCache;
 }
-
-
 /** Agent sync_now tool: runs one sync round and reports the outcome. */
 async function runSyncNow(auth: DesktopAuthService): Promise<{ ok: boolean; message: string }> {
   try {

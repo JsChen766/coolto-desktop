@@ -24,7 +24,6 @@ export type ResumeWorkspaceStatus =
   | "layout_qualified"
   | "ready_for_approval"
   | "needs_user_decision";
-
 export interface ResumeCandidateSnapshot {
   revision: number;
   structure: ResumeStructure;
@@ -32,7 +31,6 @@ export interface ResumeCandidateSnapshot {
   compileResult: ResumeCompileResult;
   qualityReport?: ResumeQualityReport;
 }
-
 export interface ResumeOperationReport {
   status: "success" | "partial_success";
   attempted: number;
@@ -40,7 +38,6 @@ export interface ResumeOperationReport {
   repairs: EvidenceRepairAction[];
   rejected: Array<{ index: number; message: string }>;
 }
-
 /**
  * 生成前由真实 Chromium 布局测量得到的物理预算：write_bullet 的默认
  * targetChars 和指令提示都以此动态给出，首稿长度不再依赖固定默认区间。
@@ -54,7 +51,6 @@ export interface ResumeLayoutBudget {
   writableBulletCapacity: number;
   maxBulletLines: 2 | 3;
 }
-
 export interface ResumeWorkspace {
   candidateId: string;
   revision: number;
@@ -63,6 +59,13 @@ export interface ResumeWorkspace {
   contentApplyCount?: number;
   status: ResumeWorkspaceStatus;
   sourceSnapshot: ResumeSourceSnapshot;
+  reuseBase?: {
+    resumeId: string;
+    sourceJdId: string;
+    contentHash: string;
+    retainedBulletCount: number;
+    droppedBulletCount: number;
+  };
   structure: ResumeStructure;
   bindings: BulletEvidenceBinding[];
   compileResult: ResumeCompileResult;
@@ -102,19 +105,22 @@ export interface ResumeWorkspace {
   factNeutralFragments?: ResumeFactNeutralFragment[];
   /** Bounded no-progress state for each unresolved formal bullet. */
   tailRepairProgress?: TailRepairProgressState;
-  /** Consecutive measured page-fill rounds that landed no real height growth. */
+  /** Consecutive line-rewrite rounds that landed no phase-relevant growth. */
+  lineRewriteProgress?: {
+    phase: "bullet_depth" | "page_fill";
+    consecutiveZeroGrowthRounds: number;
+  };
+  /** Target-branch page-fill progress used by the phase-driven writer. */
   pageFillProgress?: {
     consecutiveZeroGrowthRounds: number;
   };
 }
-
 export type ResumeItemTier = "main" | "secondary" | "utility";
 export type ResumeBulletOrigin = "grounded" | "agent_augmented";
 export type ResumeBulletConfirmation =
   | "not_required"
   | "pending"
   | "confirmed";
-
 export interface ResumeBulletProvenance {
   bulletId: string;
   itemId: string;
@@ -123,7 +129,6 @@ export interface ResumeBulletProvenance {
   requirementIds: string[];
   confirmation: ResumeBulletConfirmation;
 }
-
 export interface ResumeAugmentedFragment {
   bulletId: string;
   baseText: string;
@@ -132,7 +137,6 @@ export interface ResumeAugmentedFragment {
   requirementIds: string[];
   confirmation: Exclude<ResumeBulletConfirmation, "not_required">;
 }
-
 export interface ResumeSupplementalEvidence {
   evidenceId: string;
   experienceId: string;
@@ -140,14 +144,12 @@ export interface ResumeSupplementalEvidence {
   sourceMessageTimestamp: number;
   createdAt: string;
 }
-
 export interface PrepareResumeCandidateInput {
   jdId: string;
   experienceIds: string[];
   language: ResumeCandidateLanguage;
   initialBindings?: EvidenceBindingInput[];
 }
-
 /**
  * Model-facing binding input: the model only authors the bullet text and
  * cites stable `evidenceId` values from the latest `availableEvidence`. The
