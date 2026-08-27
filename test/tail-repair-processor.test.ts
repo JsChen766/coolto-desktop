@@ -300,6 +300,33 @@ test("stalled tail growth becomes one neutral material request", async () => {
   assert.equal(resumeAgentNextAction(stopped).mode, "request_more_material");
 });
 
+test("authorized final tail closure cannot return to a material question", async () => {
+  const compiler = new TailCompiler();
+  const workspace = await createWorkspace(compiler, ["正式基底"]);
+  workspace.factNeutralAuthorization = {
+    sourceRequestKind: "tail_repair_stalled",
+    confirmedAt: "2026-08-27T00:00:00.000Z",
+    confirmedMessageTimestamp: 100,
+  };
+  workspace.itemTiers = { "item-1": "utility" };
+  let progress = updateTailReflowProgress(undefined, [], new Set(["a"]));
+  for (let index = 0; index < MAX_TAIL_REFLOW_ATTEMPTS; index += 1) {
+    progress = updateTailReflowProgress(progress, [{
+      bulletId: "a",
+      applied: false,
+      rewriteFingerprint: `final-rewrite-${index}`,
+      rejectedRewrite: `最终改写${index}`,
+    }], new Set(["a"]));
+  }
+
+  const reopened = workspaceWithTailRepairProgress(workspace, progress);
+
+  assert.notEqual(reopened.status, "needs_user_decision");
+  assert.equal(reopened.materialRequest, undefined);
+  assert.equal(reopened.tailRepairProgress?.stalled, false);
+  assert.equal(resumeAgentNextAction(reopened).mode, "batch_tail_rewrite");
+});
+
 test("next action batches at most four semantic tail rewrite targets", async () => {
   const compiler = new TailCompiler();
   const workspace = await createWorkspace(

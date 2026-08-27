@@ -162,9 +162,7 @@ export class AgentRuntimeEvents {
         conversationId, workspace, ...(artifactId ? { artifactId } : {}),
       });
       context.artifactIdByCandidate.set(workspace.candidateId, synced.draft.artifactId);
-      draft = synced.created && workspace.status === "ready_for_approval"
-        ? await this.resumeDrafts.ensureGeneratedCheckpoint(synced.draft.artifactId)
-        : synced.draft;
+      draft = synced.draft;
     }
     const draftWithSync = await requestDraftExperienceSyncApproval({
       draft,

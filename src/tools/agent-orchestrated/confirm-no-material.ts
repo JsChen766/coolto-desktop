@@ -19,7 +19,8 @@ const parameters = Type.Object({
 });
 
 const ELIGIBLE_KINDS = new Set([
-  "agent_declared", "page_fill_stalled", "tail_repair_stalled",
+  "agent_declared", "page_fill_stalled", "line_rewrite_stalled",
+  "tail_repair_stalled",
 ]);
 
 export function createConfirmNoResumeMaterialTool(
@@ -30,7 +31,7 @@ export function createConfirmNoResumeMaterialTool(
     name: "confirm_no_resume_material",
     label: "推进简历素材引导",
     description:
-      "用户明确表示没有更多材料但希望按现有事实继续时，不传问题即可解锁仅限当前简历的事实中性表达。只有用户主动希望一起回忆时，才提交 1–3 个与目标岗位和当前经历相关的具体场景问题；用户随后表示没有时，不传问题继续，不要求二次确认。",
+      "用户对首次补充邀约说不需要，或补充完成后明确表示没有更多材料时，不传问题进入最终收尾；这不等于停止生成。只有用户主动希望一起回忆时，才提交 1–3 个具体场景问题。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {
@@ -107,7 +108,8 @@ function authorizeNeutral(
     throw new Error("场景问题发出后必须等待用户回答，不能在同一轮自行解锁");
   }
   const kind = request.kind! as
-    "agent_declared" | "page_fill_stalled" | "tail_repair_stalled";
+    "agent_declared" | "page_fill_stalled" | "line_rewrite_stalled" |
+    "tail_repair_stalled";
   const revision = workspace.revision + 1;
   const updated: ResumeWorkspace = {
     ...workspace,

@@ -20,7 +20,8 @@ export function samePublishedResumeSeed(
   left: ResumeWorkspace["reuseBase"],
   right: ResumeWorkspace["reuseBase"],
 ): boolean {
-  return left?.resumeId === right?.resumeId &&
+  return (left?.kind ?? "cloud") === (right?.kind ?? "cloud") &&
+    left?.resumeId === right?.resumeId &&
     left?.contentHash === right?.contentHash;
 }
 

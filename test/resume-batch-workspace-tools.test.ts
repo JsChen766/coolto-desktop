@@ -646,7 +646,7 @@ test("bullet count repair pauses before retrying an evidence-poor item", async (
     items: [{ itemId: "item-tiny-work-1", bullets: [] }],
   }));
   assert.equal(rejected.revision, payload.revision);
-  assert.match(rejected.writeRejectedReason, /等待用户补充真实素材/u);
+  assert.match(rejected.writeRejectedReason, /等待用户回应补充邀约/u);
 });
 
 test("bullet count repair rejects an incomplete multi-item batch", async () => {

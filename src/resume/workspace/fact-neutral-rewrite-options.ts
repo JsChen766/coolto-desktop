@@ -23,6 +23,15 @@ export function factNeutralRewriteOptions(input: {
   language: string;
   budget?: TailLengthBudget;
 }): string[] {
+  return factNeutralRewriteOptionPool(input).slice(0, 2);
+}
+
+export function factNeutralRewriteOptionPool(input: {
+  bulletId: string;
+  currentText: string;
+  language: string;
+  budget?: TailLengthBudget;
+}): string[] {
   const groups = input.language === "zh-CN" ? ZH_CONNECTORS : EN_CONNECTORS;
   const delimiter = input.language === "zh-CN" ? "，" : ",";
   const target = input.budget?.idealGrowthCjk ?? 12;
@@ -41,7 +50,20 @@ export function factNeutralRewriteOptions(input: {
       left.index, right.index, groups.length, hash(input.bulletId),
     )
   );
-  return ordered.slice(0, 2).map(({ text }) => text);
+  return ordered.map(({ text }) => text);
+}
+
+export function nextFactNeutralRewriteOptions(input: {
+  bulletId: string;
+  currentText: string;
+  language: string;
+  budget?: TailLengthBudget;
+  rejected: readonly string[];
+}): string[] {
+  const pool = factNeutralRewriteOptionPool(input);
+  const rejected = new Set(input.rejected);
+  const fresh = pool.filter((candidate) => !rejected.has(candidate));
+  return (fresh.length ? fresh : pool).slice(0, 2);
 }
 
 function insertAfterDelimiters(
@@ -49,18 +71,12 @@ function insertAfterDelimiters(
   delimiter: string,
   connectors: readonly string[],
 ): string {
-  let inserted = 0;
-  let result = "";
-  for (const character of text) {
-    result += character;
-    if (character === delimiter && inserted < connectors.length) {
-      result += `${connectors[inserted]}${delimiter === "," ? " " : ""}`;
-      inserted += 1;
-    }
-  }
-  if (inserted) return result;
   const separator = delimiter === "," ? ", " : "，";
-  return `${connectors[0]}${separator}${text}`;
+  const connectorText = connectors.join(separator);
+  const index = text.indexOf(delimiter);
+  if (index < 0) return `${connectorText}${separator}${text}`;
+  const space = delimiter === "," ? " " : "";
+  return `${text.slice(0, index + 1)}${space}${connectorText}${space}${text.slice(index + 1)}`;
 }
 
 function visualUnits(value: string): number {

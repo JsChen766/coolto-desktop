@@ -70,6 +70,7 @@ test("desktop chat smoke bounds stalled CDP requests", async () => {
   assert.match(source, /preview-toggle/u);
   assert.match(source, /progressMessages: observedProgress/u);
   assert.match(source, /resume-generation-progress/u);
+  assert.match(source, /baseDraftArtifactId/u);
 });
 
 test("desktop chat smoke parses an explicit new-chat run", () => {

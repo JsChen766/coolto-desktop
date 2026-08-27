@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v131");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v133");
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
@@ -27,12 +27,12 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /完整 revisedText/);
   assert.match(COOLTO_SYSTEM_PROMPT, /调整语序/);
   assert.match(COOLTO_SYSTEM_PROMPT, /每批最多 4 条/);
-  assert.match(COOLTO_SYSTEM_PROMPT, /1–3 个/u);
-  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /3–6 个/u);
-  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /新的消息中明确表示/u);
-  assert.match(COOLTO_SYSTEM_PROMPT, /用户补充事实时/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /用户愿意补充时/u);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /batch_tail_reflow/);
   assert.match(COOLTO_SYSTEM_PROMPT, /confirm_no_resume_material/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /先发起一次具体的补充邀约/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /补充内容写入后必须再次询问/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得再次返回材料追问/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /integrate_supplemental_evidence/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /同一查询最多调用一次/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /同名重复记录/u);
@@ -46,6 +46,8 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /保存和导出不是 Agent 行为/);
   assert.match(COOLTO_SYSTEM_PROMPT, /find_resume_reuse_candidates/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /baseResumeId/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /baseDraftArtifactId/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /同一个 JD 的最新合格本地草稿/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /requestId/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /decline_resume_material/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_start_review/u);

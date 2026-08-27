@@ -7,6 +7,8 @@ import { resumeGenerationReadiness } from "../src/resume/workspace/generation-re
 import { evidenceForModel } from "../src/resume/workspace/agent-workspace-evidence.js";
 import { createAddResumeMaterialTool } from "../src/tools/agent-orchestrated/add-material.js";
 import { createApplyResumeContentTool } from "../src/tools/agent-orchestrated/apply-content.js";
+import { createConfirmNoResumeMaterialTool } from
+  "../src/tools/agent-orchestrated/confirm-no-material.js";
 import { createResumeWorkspaceTool } from "../src/tools/agent-orchestrated/create-workspace.js";
 import { createPauseResumeForMaterialTool } from "../src/tools/agent-orchestrated/pause-for-material.js";
 import { createDeclineResumeMaterialTool } from "../src/tools/agent-orchestrated/decline-material.js";
@@ -156,6 +158,7 @@ test("Agent can pause for one material question and resume from the user answer"
   assert.equal(paused.revision, created.revision + 1);
   assert.equal(paused.nextAction.mode, "request_more_material");
   assert.match(paused.nextAction.question, /可量化成果/u);
+  assert.match(paused.nextAction.question, /如果不需要补充/u);
   assert.equal(store.latest()!.compileObservedRevision, paused.revision);
 
   const apply = createApplyResumeContentTool(compiler, store);
@@ -165,7 +168,7 @@ test("Agent can pause for one material question and resume from the user answer"
     bulletUpdates: [{ bulletId: "not-used", text: "不应写入" }],
   }));
   assert.equal(blocked.revision, paused.revision);
-  assert.match(blocked.writeRejectedReason, /等待用户补充真实素材/u);
+  assert.match(blocked.writeRejectedReason, /等待用户回应补充邀约/u);
 
   const add = createAddResumeMaterialTool(store, () => 1234);
   const resumed = payload(await add.execute("add", {
@@ -229,6 +232,21 @@ test("Agent can pause for one material question and resume from the user answer"
     ),
     false,
   );
+  assert.equal(supplemented.status, "needs_user_decision");
+  assert.equal(supplemented.nextAction.mode, "request_more_material");
+  assert.match(supplemented.nextAction.question, /^【继续补充】/u);
+  assert.match(supplemented.nextAction.question, /还有其他想补充/u);
+
+  const finalized = payload(await createConfirmNoResumeMaterialTool(
+    store,
+    () => 1_235,
+  ).execute("no-more-material", {
+    candidateId: supplemented.candidateId,
+    expectedRevision: supplemented.revision,
+  }));
+  assert.notEqual(finalized.nextAction.mode, "request_more_material");
+  assert.equal(store.latest()!.materialRequest, undefined);
+  assert.ok(store.latest()!.factNeutralAuthorization);
 });
 
 test("partial material answers narrow the gap and an explicit decline ends the request", async () => {

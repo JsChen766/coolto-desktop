@@ -9,7 +9,7 @@ export function proposeFactNeutralFragment(input: {
   purpose: ResumeFactNeutralFragment["purpose"];
 }): ResumeFactNeutralFragment {
   if (!input.workspace.factNeutralAuthorization) {
-    throw new Error("用户尚未完成岗位场景追问并明确确认没有更多事实，不能加入中性补齐");
+    throw new Error("用户尚未明确结束补充并进入最终收尾，不能加入中性补齐");
   }
   const currentText = currentBulletText(input.workspace, input.bulletId);
   const prior = input.workspace.factNeutralFragments?.find((entry) =>

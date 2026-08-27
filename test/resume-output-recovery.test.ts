@@ -50,8 +50,8 @@ test("material recovery respects a prior user refusal instead of inventing a que
       question: "请补充一个事实",
     },
   });
-  assert.match(instruction, /最近真实用户消息已拒绝追问/u);
-  assert.match(instruction, /decline_resume_material/u);
+  assert.match(instruction, /不需要补充或没有更多材料/u);
+  assert.match(instruction, /confirm_no_resume_material/u);
   assert.match(instruction, /否则只提出以下一个权威问题/u);
 });
 

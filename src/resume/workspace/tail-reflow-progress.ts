@@ -8,6 +8,8 @@ import {
 import { appendBounded, migrateTailProgress } from
   "./tail-repair-progress-helpers.js";
 
+const MAX_REFLOW_HISTORY = 12;
+
 export interface TailReflowProgressOutcome {
   bulletId: string;
   applied: boolean;
@@ -69,12 +71,12 @@ function nextProgress(
       rejectedReflowFingerprints: appendBounded(
         migrated.rejectedReflowFingerprints,
         outcome.rewriteFingerprint,
-        MAX_TAIL_REFLOW_ATTEMPTS,
+        MAX_REFLOW_HISTORY,
       ),
       rejectedReflows: appendBounded(
         migrated.rejectedReflows,
         outcome.rejectedRewrite,
-        MAX_TAIL_REFLOW_ATTEMPTS,
+        MAX_REFLOW_HISTORY,
       ),
     } : {}),
     ...retainedWorking,

@@ -18,6 +18,7 @@ import { assertSupplementalEvidenceUsedOnce, hasPendingAgentContent, supplementa
 import type { ResumeFactNeutralFragment } from "./fact-neutral-types.js";
 import { reconcileFactNeutralFragments, withFactNeutralFragments } from "./fact-neutral-fragments.js";
 import { applyBulletCountMaterialGate } from "./material-request-gate.js";
+import { applyMaterialFollowUpGate } from "./material-follow-up.js";
 
 export async function applyAgentResumeContent(input: {
   workspace: ResumeWorkspace;
@@ -219,6 +220,7 @@ export async function applyAgentResumeContent(input: {
     );
   }
   updated = applyBulletCountMaterialGate(updated);
+  updated = applyMaterialFollowUpGate(updated);
   return { workspace: input.store.replace(updated, source.revision), operation };
 }
 

@@ -10,6 +10,15 @@ export function workspaceWithTailRepairProgress(
   if (!tailRepairProgress.stalled) {
     return { ...workspace, tailRepairProgress };
   }
+  if (workspace.factNeutralAuthorization) {
+    const resumed: ResumeWorkspace = {
+      ...workspace,
+      status: "needs_revision",
+      tailRepairProgress: rearmFinalClosure(tailRepairProgress),
+    };
+    delete resumed.materialRequest;
+    return resumed;
+  }
   return {
     ...workspace,
     status: "needs_user_decision",
@@ -22,5 +31,21 @@ export function workspaceWithTailRepairProgress(
       ),
       discoveryStage: "guidance",
     }),
+  };
+}
+
+function rearmFinalClosure(
+  progress: TailRepairProgressState,
+): TailRepairProgressState {
+  return {
+    stalled: false,
+    byBulletId: Object.fromEntries(Object.entries(progress.byBulletId).map(
+      ([bulletId, value]) => [bulletId, {
+        ...value,
+        mode: "reflow" as const,
+        consecutiveRejects: 0,
+        reflowAttempts: 0,
+      }],
+    )),
   };
 }

@@ -168,6 +168,7 @@ export class AgentContextFactory {
         compiler: resumeCompiler,
         store: workspaceStore,
         resumeReader: deps.resumePublications,
+        resumeDraftReader: deps.resumeDrafts,
         currentUserMessageTimestamp: () => currentUserMessage.timestamp,
         approvalManager,
         experienceSyncProposals: deps.experienceSyncProposals,

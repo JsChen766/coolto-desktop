@@ -21,6 +21,7 @@ import {
   createBinding,
   FixtureResumeCompiler,
 } from "./support/resume-workspace-fixture.js";
+import { createReadySaveFixture } from "./support/resume-save-fixture.js";
 
 const codec: ResumeDraftCodec = {
   encode: (value) => new TextEncoder().encode(value),
@@ -56,6 +57,44 @@ test("local resume drafts survive independently of conversation references", asy
     const restored = await reopened.get(synced.draft.artifactId);
     assert.equal(restored.workspace.candidateId, workspace.candidateId);
     assert.deepEqual(restored.conversationIds, ["conversation-1"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("a draft that becomes ready after creation receives a generated checkpoint", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "coolto-ready-checkpoint-"));
+  try {
+    const service = new ResumeDraftService(
+      "user-1",
+      new ResumeDraftFileRepository("user-1", directory, codec),
+    );
+    const { ready } = await createReadySaveFixture();
+    const initial = {
+      ...ready,
+      status: "needs_revision" as const,
+      compileResult: {
+        ...ready.compileResult,
+        qualified: false,
+        violations: [{
+          code: "page_underfilled" as const,
+          message: "underfilled",
+        }],
+      },
+    };
+    const created = await service.syncWorkspace({
+      conversationId: "conversation-ready",
+      workspace: initial,
+    });
+    assert.equal(created.draft.checkpoints.length, 0);
+
+    const completed = await service.syncWorkspace({
+      conversationId: "conversation-ready",
+      artifactId: created.draft.artifactId,
+      workspace: ready,
+    });
+    assert.equal(completed.draft.checkpoints.at(-1)?.reason, "generated");
+    assert.equal(completed.draft.checkpoints.at(-1)?.workspace.revision, ready.revision);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

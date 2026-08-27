@@ -26,6 +26,14 @@ export class ResumeDraftService {
     return (await this.repository.list()).map(summarizeDraft);
   }
 
+  public listReusableDrafts(): Promise<LocalResumeDraft[]> {
+    return this.repository.list();
+  }
+
+  public getReusableDraft(artifactId: string): Promise<LocalResumeDraft> {
+    return this.repository.get(artifactId);
+  }
+
   public get(artifactId: string): Promise<LocalResumeDraft> {
     return this.repository.get(artifactId);
   }
@@ -57,7 +65,10 @@ export class ResumeDraftService {
           workspace: input.workspace,
         });
     await this.repository.save(draft);
-    return { draft, created: !existing };
+    const saved = resumeGenerationReadiness(input.workspace).ready
+      ? await this.ensureGeneratedCheckpoint(draft.artifactId)
+      : draft;
+    return { draft: saved, created: !existing };
   }
 
   public async ensureGeneratedCheckpoint(

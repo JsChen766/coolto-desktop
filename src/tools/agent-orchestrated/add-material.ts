@@ -85,11 +85,16 @@ export function createAddResumeMaterialTool(
         revision: workspace.revision + 1,
         status: "writing",
         supplementalEvidence: [...existing, ...added],
+        materialFollowUpPending: {
+          sourceRequestKind: activeRequest?.kind ?? "agent_declared",
+          targetExperienceId: params.experienceId,
+        },
       };
       delete resumedWorkspace.materialRequest;
       delete resumedWorkspace.lineRewriteProgress;
       delete resumedWorkspace.pageFillProgress;
       delete resumedWorkspace.tailRepairProgress;
+      delete resumedWorkspace.factNeutralAuthorization;
       const updated = store.replace(
         applyBulletCountMaterialGate(applyCriticalSkillGate(resumedWorkspace)),
         workspace.revision,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { JdReader, JdRecord } from "../src/api/types.js";
+import type { LocalResumeDraft } from "../src/resume/draft/types.js";
 import { allEvidenceCandidates } from "../src/resume/quality/evidence-candidates.js";
 import { findResumeReuseCandidates } from "../src/resume/reuse/candidate-retrieval.js";
 import type { ResumePublicationGateway } from "../src/resume/save/types.js";
@@ -10,6 +11,7 @@ import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js
 import { createResumeWorkspaceTool } from "../src/tools/agent-orchestrated/create-workspace.js";
 import { createResumeReadTools } from "../src/tools/resume-tools.js";
 import { cloudResumeFixture } from "./support/cloud-resume-fixture.js";
+import { createReadySaveFixture } from "./support/resume-save-fixture.js";
 import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
@@ -40,6 +42,41 @@ test("reuse retrieval narrows candidates without making the Agent decision", asy
     result.candidates[1]?.retrievalSignals.overlappingKeywords,
     ["node.js", "typescript"],
   );
+});
+
+test("reuse retrieval includes the newest ready local draft for the exact JD", async () => {
+  const target = jd("jd-1", "产品经理", ["数据产品"]);
+  const fixture = await createReadySaveFixture();
+  const ready = localDraft("local-ready", fixture.ready);
+  const result = await findResumeReuseCandidates({
+    targetJdId: target.id,
+    limit: 10,
+    jds: jdReader([target]),
+    resumes: resumeReader([]),
+    drafts: localDraftReader([ready]),
+  });
+
+  assert.equal(result.candidates[0]?.baseKind, "local");
+  assert.equal(result.candidates[0]?.artifactId, "local-ready");
+  assert.equal(result.candidates[0]?.retrievalSignals.exactSourceJd, true);
+  assert.ok(result.candidates[0]?.sourceExperienceIds.includes("work-1"));
+});
+
+test("get_resume reads a ready local candidate by artifactId", async () => {
+  const target = jd("jd-1", "产品经理", ["数据产品"]);
+  const fixture = await createReadySaveFixture();
+  const ready = localDraft("local-readable", fixture.ready);
+  const tools = createResumeReadTools(
+    resumeReader([]),
+    jdReader([target]),
+    localDraftReader([ready]),
+  );
+  const get = tools.find((tool) => tool.name === "get_resume")!;
+  const result = await get.execute("read-local", { artifactId: ready.artifactId });
+
+  assert.equal(result.details.source, "local");
+  assert.equal(result.details.id, ready.artifactId);
+  assert.equal(result.details.qualityStatus, "passed");
 });
 
 test("Resume read surface exposes reuse retrieval only with JD access", () => {
@@ -112,6 +149,35 @@ test("create_resume_workspace seeds only current grounded evidence and recalcula
   const repeated = await create.execute("reuse-2", input);
   assert.equal(repeated.details.sourceSelection.mode, "unchanged");
   assert.equal(store.latest()?.candidateId, workspace.candidateId);
+});
+
+test("create_resume_workspace seeds a ready local draft without publishing it", async () => {
+  const fixture = await createReadySaveFixture();
+  const draft = localDraft("local-ready-base", fixture.ready);
+  const store = new ResumeWorkspaceStore();
+  const create = createResumeWorkspaceTool(
+    createWorkspaceSnapshotBuilder(),
+    new FixtureResumeCompiler(),
+    store,
+    resumeReader([]),
+    localDraftReader([draft]),
+  );
+  const result = await create.execute("local-reuse", {
+    jdId: "jd-1",
+    baseDraftArtifactId: draft.artifactId,
+    language: "zh-CN",
+    experiences: [{
+      experienceId: "work-1",
+      tier: "main",
+      localizedPosition: "数据分析实习生",
+    }],
+  });
+
+  assert.equal(result.details.reuseBase.kind, "local");
+  assert.equal(result.details.reuseBase.resumeId, draft.artifactId);
+  assert.ok(result.details.reuseBase.retainedBulletCount > 0);
+  assert.equal(result.details.status, "ready_for_approval");
+  assert.equal(store.latest()?.reuseBase?.kind, "local");
 });
 
 test("workspace rejects a base whose historical evidence no longer matches", async () => {
@@ -189,5 +255,36 @@ function resumeReader(
     },
     publishNew: async () => { throw new Error("not used"); },
     publishExisting: async () => { throw new Error("not used"); },
+  };
+}
+
+function localDraft(
+  artifactId: string,
+  workspace: Awaited<ReturnType<typeof createReadySaveFixture>>["ready"],
+): LocalResumeDraft {
+  return {
+    schemaVersion: "local-resume-draft-v1",
+    artifactId,
+    ownerId: "user-1",
+    conversationIds: ["conversation-1"],
+    title: workspace.sourceSnapshot.jd.title,
+    createdAt: "2026-08-26T00:00:00Z",
+    updatedAt: "2026-08-27T00:00:00Z",
+    workspace: structuredClone(workspace),
+    checkpoints: [],
+    pendingChange: null,
+    cloudLink: null,
+  };
+}
+
+function localDraftReader(values: LocalResumeDraft[]) {
+  const byId = new Map(values.map((value) => [value.artifactId, value]));
+  return {
+    listReusableDrafts: async () => structuredClone(values),
+    getReusableDraft: async (artifactId: string) => {
+      const value = byId.get(artifactId);
+      if (!value) throw new Error(`missing local draft ${artifactId}`);
+      return structuredClone(value);
+    },
   };
 }

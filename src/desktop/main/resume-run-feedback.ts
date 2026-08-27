@@ -47,7 +47,7 @@ export function appendResumeRunFeedback(input: {
   if (!turn.length || hasAuthoritativeQuestion(turn)) return input.messages;
   const results = turn.filter(isResumeToolResult);
   const fileIntent = /文件|附件|材料|作品|报告|模型|PPT/iu.test(input.userText);
-  const noMaterialIntent = /(?:这些|全部|都).{0,8}(?:没有|没做过)|想不到|没有补充/iu
+  const noMaterialIntent = /(?:这些|全部|都).{0,8}(?:没有|没做过)|想不到|没有(?:更多|补充)|不需要补充|无需补充/iu
     .test(input.userText);
   if (!results.length && !fileIntent && !noMaterialIntent) return input.messages;
   const feedback = buildFeedback({
@@ -144,7 +144,7 @@ function latestUserIndex(messages: AgentMessage[]): number {
 function hasAuthoritativeQuestion(messages: AgentMessage[]): boolean {
   return projectConversationMessages(messages).some((message) =>
     message.role === "assistant" &&
-    /^(?:【需要补充事实】|【帮你一起回忆】)/u.test(message.content)
+    /^(?:【需要补充事实】|【帮你一起回忆】|【继续补充】)/u.test(message.content)
   );
 }
 

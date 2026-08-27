@@ -18,6 +18,11 @@ export function recordLineRewriteOutcome(
   if (consecutiveZeroGrowthRounds < MAX_ZERO_GROWTH_ROUNDS) {
     return { ...workspace, lineRewriteProgress };
   }
+  if (workspace.factNeutralAuthorization) {
+    return { ...workspace, status: "writing", lineRewriteProgress: {
+      phase, consecutiveZeroGrowthRounds: 0,
+    } };
+  }
   const depth = phase === "bullet_depth";
   return {
     ...workspace,

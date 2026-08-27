@@ -16,7 +16,7 @@ import type {
   ResumeFactNeutralAuthorization,
   ResumeFactNeutralFragment,
 } from "./fact-neutral-types.js";
-import type { ResumeMaterialRequest } from "./material-request-types.js";
+import type { ResumeMaterialFollowUpPending, ResumeMaterialRequest } from "./material-request-types.js";
 export type ResumeCandidateLanguage = "zh-CN" | "en-US";
 export type ResumeWorkspaceStatus =
   | "writing"
@@ -55,11 +55,11 @@ export interface ResumeWorkspace {
   candidateId: string;
   revision: number;
   patchCount: number;
-  /** Number of complete-content writes since the latest source selection. */
   contentApplyCount?: number;
   status: ResumeWorkspaceStatus;
   sourceSnapshot: ResumeSourceSnapshot;
   reuseBase?: {
+    kind?: "cloud" | "local";
     resumeId: string;
     sourceJdId: string;
     contentHash: string;
@@ -99,11 +99,11 @@ export interface ResumeWorkspace {
   supplementalEvidence?: ResumeSupplementalEvidence[];
   /** Material pause declared by the Agent or a deterministic host gate. */
   materialRequest?: ResumeMaterialRequest;
-  /** User explicitly confirmed twice that no further facts are available. */
+  materialFollowUpPending?: ResumeMaterialFollowUpPending;
+  /** User ended the supplement loop and authorized final closure. */
   factNeutralAuthorization?: ResumeFactNeutralAuthorization;
   /** Resume-local neutral additions; never persisted back to Experience. */
   factNeutralFragments?: ResumeFactNeutralFragment[];
-  /** Bounded no-progress state for each unresolved formal bullet. */
   tailRepairProgress?: TailRepairProgressState;
   /** Consecutive line-rewrite rounds that landed no phase-relevant growth. */
   lineRewriteProgress?: {

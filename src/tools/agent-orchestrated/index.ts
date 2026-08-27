@@ -14,12 +14,15 @@ import { createGetResumeWorkspaceTool } from "./get-workspace.js";
 import { createPrepareExperienceSyncTool } from "./prepare-experience-sync.js";
 import { createPauseResumeForMaterialTool } from "./pause-for-material.js";
 import { createConfirmNoResumeMaterialTool } from "./confirm-no-material.js";
+import type { ResumeReuseDraftSource } from
+  "../../resume/reuse/local-draft-source.js";
 
 export interface AgentOrchestratedDependencies {
   snapshotBuilder: ResumeSourceSnapshotBuilder;
   compiler: ResumeCompiler;
   store: ResumeWorkspaceStore;
   resumeReader?: ResumePublicationGateway;
+  resumeDraftReader?: ResumeReuseDraftSource;
   currentUserMessageTimestamp?: () => number | undefined;
   approvalManager?: ApprovalManager;
   experienceSyncProposals?: ResumeExperienceSyncProposalPort;
@@ -39,6 +42,7 @@ export function createAgentOrchestratedTools(
       dependencies.compiler,
       dependencies.store,
       dependencies.resumeReader,
+      dependencies.resumeDraftReader,
     ),
     createGetResumeWorkspaceTool(dependencies.store),
     createPauseResumeForMaterialTool(dependencies.store),

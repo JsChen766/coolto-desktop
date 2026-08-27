@@ -42,7 +42,7 @@ export function resumeWriteRejection(
   const neutralModeError = factNeutralModeError(workspace, params);
   if (neutralModeError) return neutralModeError;
   if (action.mode === "request_more_material") {
-    return "当前工作区正在等待用户补充真实素材；补充事实时调用 add_resume_material，或用扩大后的完整经历集合重新创建工作区。没有更多事实时停止写作并保留未达标草稿，不得用中性套话补齐";
+    return "当前工作区正在等待用户回应补充邀约；补充事实时调用 add_resume_material，不需要补充或没有更多事实时调用 confirm_no_resume_material 进入最终收尾，只有用户明确停止整份生成时才保留未达标草稿";
   }
   if (action.mode === "await_augmented_confirmation") {
     return "nextAction 是 await_augmented_confirmation；停止工具循环并等待用户处理确认卡";
@@ -159,7 +159,7 @@ function factNeutralModeError(
     ...tailCandidates,
   ].some((input) => input.contentMode === "fact_neutral");
   if (factNeutralRequested && !workspace.factNeutralAuthorization) {
-    return "用户尚未完成岗位场景追问并明确确认没有更多事实，不能使用 fact_neutral";
+    return "用户尚未明确结束补充并进入最终收尾，不能使用 fact_neutral";
   }
   if (!workspace.factNeutralAuthorization) return undefined;
   if (neutralInputs.length && neutralInputs.some(

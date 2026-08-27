@@ -283,9 +283,11 @@ async function installAgentObservation(session, stopAfterReuseWorkspace) {
           type: event.type, callId: event.callId, name: event.name,
           targetJdId: args.targetJdId ?? "", jdId: args.jdId ?? "",
           baseResumeId: args.baseResumeId ?? "",
+          baseDraftArtifactId: args.baseDraftArtifactId ?? "",
           experienceCount: Array.isArray(args.experiences) ? args.experiences.length : 0,
         });
-        if (event.name === "create_resume_workspace" && args.baseResumeId) {
+        if (event.name === "create_resume_workspace" &&
+            (args.baseResumeId || args.baseDraftArtifactId)) {
           window.__cooltoSmokeReuseCallIds.push(event.callId);
         }
       }

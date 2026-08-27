@@ -111,7 +111,7 @@ test("neutral mode is rejected before authorization and for factual claims", asy
       }],
     }],
   }));
-  assert.match(noAuthorization.writeRejectedReason, /尚未完成岗位场景追问/u);
+  assert.match(noAuthorization.writeRejectedReason, /尚未明确结束补充/u);
 
   const workspace = value.store.latest()!;
   value.store.replace({
@@ -151,6 +151,21 @@ test("long neutral candidates use natural clause transitions", () => {
   });
   assert.ok(candidates.every((candidate) => keepsCharactersInOrder(base, candidate)));
   assert.doesNotMatch(candidates.join("\n"), /相关背景|完整语境|信息关系/u);
+});
+
+test("final closure can produce a long neutral option without punctuation anchors", () => {
+  const base = "完成重点企业研究并形成投资判断";
+  const candidates = factNeutralRewriteOptions({
+    bulletId: "anchorless-neutral",
+    currentText: base,
+    language: "zh-CN",
+    budget: { idealGrowthCjk: 32 } as TailLengthBudget,
+  });
+  assert.equal(candidates.length, 2);
+  assert.ok(candidates.every((candidate) =>
+    keepsCharactersInOrder(base, candidate) &&
+    [...candidate].length - [...base].length >= 20
+  ));
 });
 
 function keepsCharactersInOrder(base: string, candidate: string): boolean {

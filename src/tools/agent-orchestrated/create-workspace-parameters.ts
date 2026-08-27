@@ -20,6 +20,10 @@ export const createWorkspaceParameters = Type.Object({
     minLength: 1,
     description: "仅使用 find_resume_reuse_candidates/get_resume 核验后由 Agent 选择的历史 Resume ID",
   })),
+  baseDraftArtifactId: Type.Optional(Type.String({
+    minLength: 1,
+    description: "仅使用 find_resume_reuse_candidates/get_resume 核验后的合格本地 ResumeDraft artifactId",
+  })),
   language: Type.Union([Type.Literal("zh-CN"), Type.Literal("en-US")]),
   experiences: Type.Array(Type.Object({
     experienceId: Type.String({

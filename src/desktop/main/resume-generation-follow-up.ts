@@ -45,7 +45,7 @@ export function createResumeGenerationFollowUp(
         ? {
             instruction: [
               "当前真实用户消息正在回答一个既有材料边界，但上一条回复没有用工具落实用户决定。",
-              "第一项输出必须根据用户原话调用且只调用一个工具：补充事实用 add_resume_material；明确无材料但要求继续用 confirm_no_resume_material；停止追问或接受当前草稿用 decline_resume_material。",
+              "第一项输出必须根据用户原话调用且只调用一个工具：补充事实用 add_resume_material；不需要补充或没有更多事实用 confirm_no_resume_material 进入最终收尾；只有明确停止整份生成或接受未达标草稿才用 decline_resume_material。",
               `candidateId=${workspace.candidateId}`,
               `expectedRevision=${workspace.revision}`,
               ...(action.requestId ? [`requestId=${action.requestId}`] : []),
@@ -128,7 +128,7 @@ export function createResumeTurnGovernorRecovery(
     if (action.mode === "request_more_material") {
       return [
         `运行保护原因=${reason}。停止工具循环。`,
-        "先检查最近真实用户消息；若用户已表示没有更多材料、停止追问、按现有信息继续或接受当前结果，第一项输出必须调用 decline_resume_material，传入当前 candidateId/expectedRevision、可用 requestId 和 resolution=user_stopped_questions，不得显示问题。否则只显示以下一个权威问题，不得补充新的问题或计划：",
+        "先检查最近真实用户消息；若用户只是不需要补充、没有更多材料或要求按现有信息继续，第一项输出必须调用 confirm_no_resume_material 且不传场景问题，进入最终收尾。只有用户明确停止整份生成或接受未达标草稿时才调用 decline_resume_material。否则只显示以下一个权威问题：",
         action.question ?? materialStallQuestion(),
       ].join("\n");
     }
@@ -162,7 +162,7 @@ export function buildResumeOutputRecoveryInstruction(
   if (action.mode === "request_more_material") {
     return [
       reason,
-      "停止工具循环。若最近真实用户消息已拒绝追问，第一项输出必须调用 decline_resume_material 并传 resolution=user_stopped_questions；否则只提出以下一个权威问题，不得补充新的问题、计划或解释：",
+      "若最近真实用户消息只是不需要补充或没有更多材料，第一项输出必须调用 confirm_no_resume_material 且不传场景问题；只有明确停止整份生成时才调用 decline_resume_material。否则只提出以下一个权威问题，不得补充新的问题、计划或解释：",
       typeof action.question === "string"
         ? action.question
         : "请补充一个尚未写入的具体事实。",

@@ -89,7 +89,7 @@ function expirationInstruction(toolName: string): string {
     return "This browser observation/action result expired when the transcript was persisted. Re-open the App browser and call browser_get_active_tab/browser_snapshot again before acting; never reuse old page state or element IDs.";
   }
   if (toolName === "get_resume") {
-    return "This cloud Resume content expired when the task was persisted. Call get_resume again with the exact resumeId before using it.";
+    return "This Resume content expired when the task was persisted. Call get_resume again with the exact resumeId or artifactId before using it.";
   }
   return "This in-memory resume workspace expired when the task was persisted. Call create_resume_workspace again to lock fresh sources; do not reuse the old candidateId or evidence IDs.";
 }

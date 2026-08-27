@@ -2,6 +2,7 @@ export interface ResumeFactNeutralAuthorization {
   sourceRequestKind:
     | "agent_declared"
     | "page_fill_stalled"
+    | "line_rewrite_stalled"
     | "tail_repair_stalled";
   confirmedAt: string;
   confirmedMessageTimestamp: number;

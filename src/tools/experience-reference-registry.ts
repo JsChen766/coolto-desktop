@@ -5,6 +5,7 @@ import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 const REFERENCE_TOOLS = new Set([
   "search_experiences",
   "get_experience",
+  "find_resume_reuse_candidates",
   "create_resume_workspace",
   "get_resume_workspace",
   "apply_resume_content",
@@ -83,6 +84,9 @@ export class ExperienceReferenceRegistry {
       if (Array.isArray(items)) items.forEach((item) => this.#captureId(item));
     }
     if (toolName === "get_experience") this.#captureId(details);
+    if (toolName === "find_resume_reuse_candidates") {
+      this.#captureExperienceIds(details);
+    }
     if (toolName === "create_resume_workspace" || toolName === "get_resume_workspace") {
       const experiences = (details as {
         source?: { experiences?: unknown };

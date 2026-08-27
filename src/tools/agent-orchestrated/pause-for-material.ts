@@ -41,6 +41,9 @@ export function createPauseResumeForMaterialTool(
       if (resumeGenerationReadiness(workspace).ready) {
         throw new Error("当前简历已经通过全部门禁，不能进入素材补充状态");
       }
+      if (workspace.factNeutralAuthorization) {
+        throw new Error("用户已结束补充并进入最终收尾，不能再次发起材料追问");
+      }
       const requestedExperienceId = params.targetExperienceId?.trim();
       const targetExperienceId = requestedExperienceId &&
           workspace.sourceSnapshot.experiences.some(

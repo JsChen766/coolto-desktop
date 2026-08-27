@@ -20,7 +20,7 @@ export interface ResumeMaterialRequest {
   question: string;
   targetExperienceId?: string;
   requestedAt: string;
-  discoveryStage?: "guidance" | "scenario_probe";
+  discoveryStage?: "guidance" | "scenario_probe" | "follow_up";
   firstUnableMessageTimestamp?: number;
   scenarioQuestions?: string[];
   /** Missing on legacy drafts and interpreted as awaiting_response. */
@@ -28,4 +28,9 @@ export interface ResumeMaterialRequest {
   respondedAt?: string;
   sourceMessageTimestamp?: number;
   resolution?: ResumeMaterialRequestResolution;
+}
+
+export interface ResumeMaterialFollowUpPending {
+  sourceRequestKind: ResumeMaterialRequestKind;
+  targetExperienceId: string;
 }

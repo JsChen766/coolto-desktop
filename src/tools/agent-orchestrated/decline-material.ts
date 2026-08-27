@@ -27,7 +27,7 @@ export function createDeclineResumeMaterialTool(
     name: "decline_resume_material",
     label: "结束本轮简历生成",
     description:
-      "用户明确表示停止追问、接受当前草稿或没有更多事实时调用 resolution=user_stopped_questions；自动写作因运行保护确认无法继续改善时调用 resolution=best_effort_stalled。当前 nextAction 有 requestId 时原样传回；没有材料请求时可省略。保留未达标草稿，不降低质量门槛，并结束本轮自动生成。",
+      "只有用户明确要求停止整份生成或接受当前未达标草稿时，才调用 resolution=user_stopped_questions；用户只说不需要补充或没有更多事实时必须改用 confirm_no_resume_material 进入最终收尾。运行保护无法继续时可用 best_effort_stalled。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {

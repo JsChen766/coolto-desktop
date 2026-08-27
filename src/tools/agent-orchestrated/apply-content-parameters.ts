@@ -150,7 +150,7 @@ const runtimeApplyContentParameters: TSchema = {
         },
       )),
       contentMode: Type.Optional(Type.Literal("fact_neutral", {
-        description: "仅在用户完成岗位场景追问并确认没有更多事实后使用；不得加入新事实",
+        description: "仅在用户结束补充并进入最终收尾后使用；不得加入新事实",
       })),
     }), {
       minItems: 1,

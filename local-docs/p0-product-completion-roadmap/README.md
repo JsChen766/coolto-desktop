@@ -197,7 +197,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | BE6 | macOS Calendar | EventKit write-only、映射、改期/取消和去重 | 待 BE5 完成 |
 | BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | 待 BE6 完成；仅 App 打开时运行 |
 | BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |
-| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；2026-08-26 自然语言生成、补材、无素材分支与经历同步审批复验通过；H 仍由专职测试人员验收；同类型岗位基础简历复用实现已从 Browser Enhance 合入，完整生成 token/耗时/质量对照仍待验收 |
+| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；2026-08-27 材料邀约→补充→再次确认→最终尾行收尾已通过自动门禁，真实 Electron 待验收；H 仍由专职测试人员验收；同类型岗位基础简历复用实现已从 Browser Enhance 合入，完整生成 token/耗时/质量对照仍待验收 |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
 | R1 | 生产上线准备 | 邮件、限流、域名、备份、监控、密钥、发布与回滚 | 功能路线完成后执行 |
 
@@ -3221,6 +3221,51 @@ typecheck/build 通过；本轮没有新的待确认 JD 做真实接受回放，
   与 Electron production build 通过，`git diff --check` 通过。用户已批准但依赖内容/交付策略的真实性覆盖、
   关键技能与 bullet 数放宽、任务级补写授权、缺失 Profile 继续、用户接受版本保存/导出仍保留为第二批，
   尚未开始。未 package、commit、push、上传或发版，阶段总状态不变。
+
+**S4.5.1 材料三段闭环与最终尾行收尾（2026-08-27，自动门禁通过、真实 Electron 待验收）：**材料不足
+不再直接进入重复追问或停止：Agent 必须先结合 JD、经历和短尾位置发起一次具体补充邀约；用户愿意时先
+加入并正式整合全部新事实，整合后宿主固定显示 `【继续补充】` 再问一次；用户首次拒绝邀约或补充后表示
+没有更多材料，均调用 `confirm_no_resume_material` 进入最终收尾，只有明确停止整份生成才使用
+`decline_resume_material`。最终收尾保留 V2 三分之二门槛和 1px 几何容差，事实中性授权后尾行/篇幅/
+深度尝试耗尽只轮换候选并继续真实 Chromium 校验，禁止重新生成材料问题，`pause_resume_for_material`
+同时硬拒绝回问。候选池扩展为可轮换的多长度自然连接方案，无标点锚点时也能覆盖较大缺口；事实、数字、
+专名、单页与 ≥92% 门禁不变。新增/更新回归覆盖首次邀约、补充后再次确认、无材料直接收尾、收尾耗尽后
+不得回问、候选长度覆盖及既有 1px 门禁。`npm run check` 全绿：890 个源文件均 ≤250 行、766/766 tests、
+全部 typecheck 与 Node/Electron build 通过。未做真实模型/Electron 端到端收尾，未 package/commit/push/
+上传或发版，阶段总状态不变。
+
+**S4.5.1 AI Builder 无补材三次真实回归（2026-08-27，0/3 未通过）：**用户明确排除一轮直接 JD reference
+测试后，使用真实已登录账号和同一自然输入“请为岗位「AI Builder」生成针对性简历。”执行三次独立新
+对话，并在首次材料边界统一回复“我没有任何要补充的，直接进入最后一个环节。”。第 1 次 47.077 秒在
+邀约前因 workspace 后连续 12 次 `get_experience` 触发 governor，无 artifact；第 2 次先于 31.803 秒
+给出具体 bullet 数量邀约，回复后 `confirm_no_resume_material` 被 `bullet_count_insufficient` 安全门拒绝，
+续跑 106.164 秒后停在 revision 3、单页 78.10%、17 条短尾、最低 3.66%；第 3 次首轮 109.372 秒自行
+best-effort 停止，回复后无素材授权成功，但 56.915 秒内 8 次 apply 只把页面从 72.14% 推到 76.51%，
+随后 governor 中止，终态 revision 5、3 条短尾、最低 7.31%。三次均未达到 92%，没有真正进入最终尾行
+批次，故不能把自动回归表述为真实收尾保证。根因收敛为：bullet 数量不足分支不能跳过补材、最终篇幅阶段
+仍受通用无进展保护提前结束，以及一次创建后重复读取经历的 Agent 编排退化。截图与哈希记录在 S4.5.1
+执行细则；未操作审批、保存或导出，未 package/commit/push/上传/发版，阶段总状态不变。
+
+同日只读排查确认“历史好稿未复用”的直接根因不在 Agent 相似度判断：三次均调用了
+`find_resume_reuse_candidates`，但真实账号当前有 46 条 `local_only` ResumeDraft、0 条 cloud Resume；
+Reuse Memory 只读取已发布且 `qualityStatus=passed`、带来源 JD 的 cloud Resume，因此候选集合恒为空，
+后续也从未调用 `get_resume` 或向 workspace 传 `baseResumeId`。成功的 AI Builder 本地稿
+`07e029b8-d502-400a-b0f4-4c853b2e5e3f` 本身确为 revision 17、单页 92.78%、0 短尾、最低尾行
+67.65%，但 `cloudState=local_only`、无 cloud link；同时 local draft 列表不投影来源 JD、generation
+readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关联 JD”。因此 UI 中“位于简历仓库”的
+本地好稿并不属于当前 Reuse Memory 的候选域，每个新对话仍从空 skeleton 重新选择经历和写作，造成来源
+集合漂移与模型结果波动。本轮未修改代码或用户资产，详细证据写入 S4.5.1，阶段状态不变。
+
+问题已按同一 Reuse Memory 路径修复：候选现在同时包含 cloud passed Resume 与 local ready ResumeDraft；
+本地候选要求全部门禁通过且没有 pending change，并带来源 JD/Experience 和内容指纹。Agent 用
+`get_resume(artifactId)` 核验，同一 JD 默认选择最新合格本地稿，`create_resume_workspace` 通过新增的
+`baseDraftArtifactId` 播种；宿主继续逐字重核当前 evidence、重算 coverage，不覆盖原稿。相同 JD 复用时
+保留历史 item tier，新增经历才重新分级；合格 revision 现在也会幂等生成 generated checkpoint。完整
+`npm run check` 全绿：893 个源文件、770/770 tests、全部 typecheck/build。真实 AI Builder 自然请求
+25.534 秒内复用 `07e029b8-d502-400a-b0f4-4c853b2e5e3f` 的 7 条经历，新 artifact
+`27b22c79-592a-4465-92b5-fc257c958e3d` 直接达到单页 92.78%、0 短尾、最低 67.65%、0 blocker 和
+`ready_for_approval`；原 revision 17 基底不变。未 cloud write/保存/导出/package/commit/push/上传/发版，
+阶段状态不变。
 
 ## 明确不进入本路线
 

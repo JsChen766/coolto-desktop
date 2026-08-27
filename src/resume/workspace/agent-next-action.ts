@@ -17,7 +17,7 @@ import {
 } from "./overflow-reduction-plan.js";
 import { FACT_NEUTRAL_REWRITE_INSTRUCTION } from
   "./fact-neutral-rewrite-instruction.js";
-import { factNeutralRewriteOptions } from
+import { nextFactNeutralRewriteOptions } from
   "./fact-neutral-rewrite-options.js";
 import {
   supplementalIntegrationTargets,
@@ -124,8 +124,8 @@ export function resumeAgentNextAction(
       mode: "request_more_material",
       ...(request ? { requestId: request.id } : {}),
       ...(workspace.materialRequest?.question
-        ? { question: workspace.materialRequest.discoveryStage ===
-            "scenario_probe"
+        ? { question: workspace.materialRequest.discoveryStage &&
+            workspace.materialRequest.discoveryStage !== "guidance"
             ? workspace.materialRequest.question
             : initialMaterialQuestion(workspace.materialRequest.question) }
         : {}),
@@ -225,10 +225,11 @@ export function resumeAgentNextAction(
           ...(workspace.factNeutralAuthorization
             ? {
                 contentMode: "fact_neutral" as const,
-                suggestedNeutralCandidates: factNeutralRewriteOptions({
+                suggestedNeutralCandidates: nextFactNeutralRewriteOptions({
                   bulletId: target.bulletId,
                   currentText: target.currentText,
                   language: workspace.structure.language,
+                  rejected: target.rejectedReflows,
                   ...(target.lengthBudget
                     ? { budget: target.lengthBudget } : {}),
                 }),

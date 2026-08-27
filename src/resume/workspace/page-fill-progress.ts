@@ -13,6 +13,11 @@ export function recordPageFillOutcome(
   if (consecutiveZeroGrowthRounds < MAX_ZERO_GROWTH_ROUNDS) {
     return { ...workspace, pageFillProgress: { consecutiveZeroGrowthRounds } };
   }
+  if (workspace.factNeutralAuthorization) {
+    return { ...workspace, status: "writing", pageFillProgress: {
+      consecutiveZeroGrowthRounds: 0,
+    } };
+  }
   return {
     ...workspace,
     status: "needs_user_decision",
