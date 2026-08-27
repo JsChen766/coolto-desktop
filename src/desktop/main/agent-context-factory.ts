@@ -191,7 +191,10 @@ export class AgentContextFactory {
       beforeToolCall: taskPolicy.beforeToolCall,
       afterToolCall: taskPolicy.afterToolCall,
       shouldStopAfterTurn: createResumeInteractionStop(workspaceStore),
-      automaticFollowUp: createResumeGenerationFollowUp(workspaceStore),
+      automaticFollowUp: createResumeGenerationFollowUp(
+        workspaceStore,
+        () => currentUserMessage.timestamp,
+      ),
       outputRepetitionRecovery:
         createResumeOutputRepetitionRecovery(workspaceStore),
       turnGovernorRecovery:

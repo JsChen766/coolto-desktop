@@ -2,6 +2,7 @@ import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-
 import { resumeAgentNextAction } from "../../resume/workspace/agent-next-action.js";
 import { resumeGenerationReadiness } from "../../resume/workspace/generation-readiness.js";
 import type { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { OutputRepetitionReason } from
   "../../agent/output-repetition-guard.js";
 import type { TurnGovernorStopReason } from "../../agent/turn-governor.js";
@@ -16,29 +17,71 @@ export interface ResumeOutputRecoveryInput {
 /** Lets Pi resume once after a text-only planning turn at each measured state. */
 export function createResumeGenerationFollowUp(
   store: ResumeWorkspaceStore,
-): (promptSequence: number) => string | undefined {
+  currentUserMessageTimestamp: () => number | undefined = () => undefined,
+): (promptSequence: number, message: AgentMessage) =>
+  string | { instruction: string; requireToolCall: boolean } | undefined {
   let lastQueuedKey: string | undefined;
-  return (promptSequence) => {
+  return (promptSequence, message) => {
     const workspace = store.latest();
     if (!workspace) return undefined;
     const action = resumeAgentNextAction(workspace);
     if (
       resumeGenerationReadiness(workspace).ready ||
       action.mode === "stop" ||
-      action.mode === "request_more_material" ||
       action.mode === "stop_insufficient_material" ||
       action.mode === "await_augmented_confirmation"
     ) return undefined;
+    if (action.mode === "request_more_material") {
+      if (assistantText(message).includes(action.question ?? "\u0000")) {
+        return undefined;
+      }
+      const request = workspace.materialRequest;
+      const userTimestamp = currentUserMessageTimestamp();
+      const requestPredatesUser = Boolean(
+        request && userTimestamp &&
+        Date.parse(request.requestedAt) <= userTimestamp,
+      );
+      return requestPredatesUser
+        ? {
+            instruction: [
+              "当前真实用户消息正在回答一个既有材料边界，但上一条回复没有用工具落实用户决定。",
+              "第一项输出必须根据用户原话调用且只调用一个工具：补充事实用 add_resume_material；明确无材料但要求继续用 confirm_no_resume_material；停止追问或接受当前草稿用 decline_resume_material。",
+              `candidateId=${workspace.candidateId}`,
+              `expectedRevision=${workspace.revision}`,
+              ...(action.requestId ? [`requestId=${action.requestId}`] : []),
+              "不得再次输出纯文本确认，也不得换一种说法追问。",
+            ].join("\n"),
+            requireToolCall: true,
+          }
+        : {
+            instruction: [
+              "当前材料边界刚在本轮产生，上一条回复没有向用户显示权威问题。",
+              "只显示以下一个问题，不调用工具，不补充第二个问题或内部说明：",
+              action.question ?? "请补充一个尚未写入的具体事实。",
+            ].join("\n"),
+            requireToolCall: false,
+          };
+    }
     const key = `${promptSequence}:${resumeContentProgressKey(workspace)}`;
     if (key === lastQueuedKey) return undefined;
     lastQueuedKey = key;
     return [
       "上一条回复只是未执行的中间计划，当前简历工作区仍未达到机械完成条件。",
       `最新 nextAction.mode=${action.mode}。`,
-      "不要重复或展示计划；立即按最近回执的 nextAction 发起一次最合适的批量工具调用继续。",
-      "如果没有任何安全的工具操作且确实缺少用户事实，则直接向用户提出一个具体问题。",
+      "不要重复或展示计划；仅当最近回执仍与用户当前指令一致时，立即发起一次最合适的批量工具调用继续。",
+      "如果没有任何安全工具操作，第一项输出必须调用 decline_resume_material：" +
+        `candidateId=${workspace.candidateId}; expectedRevision=${workspace.revision}; ` +
+        "resolution=best_effort_stalled。自动 follow-up 本身不得产生新的材料问题。",
     ].join("\n");
   };
+}
+
+function assistantText(message: AgentMessage): string {
+  return message.role === "assistant"
+    ? message.content.flatMap((part) =>
+        part.type === "text" ? [part.text] : []
+      ).join("\n")
+    : "";
 }
 
 export function createResumeOutputRepetitionRecovery(
@@ -85,18 +128,17 @@ export function createResumeTurnGovernorRecovery(
     if (action.mode === "request_more_material") {
       return [
         `运行保护原因=${reason}。停止工具循环。`,
-        "只向用户显示以下权威素材问题，不得输出内部状态或计划：",
+        "先检查最近真实用户消息；若用户已表示没有更多材料、停止追问、按现有信息继续或接受当前结果，第一项输出必须调用 decline_resume_material，传入当前 candidateId/expectedRevision、可用 requestId 和 resolution=user_stopped_questions，不得显示问题。否则只显示以下一个权威问题，不得补充新的问题或计划：",
         action.question ?? materialStallQuestion(),
       ].join("\n");
     }
     return [
       `运行保护原因=${reason}。现有自动写作已连续没有可靠进展，不要重试原工具。`,
-      "第一项输出必须调用 pause_resume_for_material，参数如下：",
+      "运行保护本身不得向用户索取材料。第一项输出必须调用 decline_resume_material，参数如下：",
       `candidateId=${workspace.candidateId}`,
       `expectedRevision=${workspace.revision}`,
-      "reason=自动写作连续没有可靠进展，现有事实不足以安全完成当前篇幅或版面修复",
-      `question=${materialStallQuestion()}`,
-      "工具成功后只向用户显示 question；不得要求用户理解或指定任何内部工具。",
+      "resolution=best_effort_stalled",
+      "工具成功后只说明自动写作已停止、当前最好草稿已保留且尚未达到交付门槛；不得提出新的材料问题。",
     ].join("\n");
   };
 }
@@ -120,7 +162,7 @@ export function buildResumeOutputRecoveryInstruction(
   if (action.mode === "request_more_material") {
     return [
       reason,
-      "停止工具循环，只向用户提出以下权威问题，不得补充计划或解释：",
+      "停止工具循环。若最近真实用户消息已拒绝追问，第一项输出必须调用 decline_resume_material 并传 resolution=user_stopped_questions；否则只提出以下一个权威问题，不得补充新的问题、计划或解释：",
       typeof action.question === "string"
         ? action.question
         : "请补充一个尚未写入的具体事实。",

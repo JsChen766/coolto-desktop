@@ -82,11 +82,12 @@ export class CooltoAgent {
         event.message.stopReason !== "error" &&
         event.message.stopReason !== "aborted"
       ) {
-        const followUp = options.automaticFollowUp?.(this.#promptSequence);
+        const followUp = options.automaticFollowUp?.(this.#promptSequence, event.message);
         if (followUp) {
-          this.#requireToolCall = true;
+          const instruction = typeof followUp === "string" ? followUp : followUp.instruction;
+          this.#requireToolCall = typeof followUp === "string" ? true : followUp.requireToolCall;
           this.#agent.followUp({ role: "user",
-            content: wrapResumeGenerationFollowUp(followUp), timestamp: Date.now() });
+            content: wrapResumeGenerationFollowUp(instruction), timestamp: Date.now() });
         }
       }
     });
@@ -108,7 +109,6 @@ export class CooltoAgent {
       ? MODEL_TRANSIENT_ERROR
       : this.#modelErrorMessage;
   }
-
   public get toolNames(): string[] {
     return this.#agent.state.tools.map((tool) => tool.name);
   }

@@ -56,7 +56,13 @@ export interface CreateAgentOptions {
     context: ShouldStopAfterTurnContext,
     signal?: AbortSignal,
   ) => boolean | Promise<boolean>;
-  automaticFollowUp?: (promptSequence: number) => string | undefined;
+  automaticFollowUp?: (
+    promptSequence: number,
+    message: AgentMessage,
+  ) => string | {
+    instruction: string;
+    requireToolCall: boolean;
+  } | undefined;
   outputRepetitionRecovery?: (
     promptSequence: number,
     reason: OutputRepetitionReason,

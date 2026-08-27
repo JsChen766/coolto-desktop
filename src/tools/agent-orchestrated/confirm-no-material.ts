@@ -15,7 +15,7 @@ const parameters = Type.Object({
   scenarioQuestions: Type.Optional(Type.Array(Type.String({
     minLength: 8,
     maxLength: 240,
-  }), { minItems: 3, maxItems: 6 })),
+  }), { minItems: 1, maxItems: 3 })),
 });
 
 const ELIGIBLE_KINDS = new Set([
@@ -30,7 +30,7 @@ export function createConfirmNoResumeMaterialTool(
     name: "confirm_no_resume_material",
     label: "推进简历素材引导",
     description:
-      "用户第一次表示想不到或暂时没有材料时，提交 3–6 个与目标岗位和当前经历相关的具体场景问题，帮助用户回忆；用户在新的消息中明确表示这些场景也都没有做过时，再次调用且不传问题，才解锁仅限当前简历的事实中性表达。不要重复询问同一个确认问题。",
+      "用户明确表示没有更多材料但希望按现有事实继续时，不传问题即可解锁仅限当前简历的事实中性表达。只有用户主动希望一起回忆时，才提交 1–3 个与目标岗位和当前经历相关的具体场景问题；用户随后表示没有时，不传问题继续，不要求二次确认。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {
@@ -48,7 +48,8 @@ export function createConfirmNoResumeMaterialTool(
       }
       const messageTimestamp = currentUserMessageTimestamp();
       if (!messageTimestamp) throw new Error("当前用户消息来源不可用，不能确认无补充事实");
-      const updated = request.discoveryStage === "scenario_probe"
+      const updated = request.discoveryStage === "scenario_probe" ||
+          !params.scenarioQuestions?.length
         ? authorizeNeutral(workspace, messageTimestamp, params.scenarioQuestions)
         : requestScenarioProbe(
             workspace,
@@ -74,7 +75,7 @@ function requestScenarioProbe(
   scenarioQuestions: readonly string[] | undefined,
 ): ResumeWorkspace {
   if (!scenarioQuestions) {
-    throw new Error("首次表示无法补充后，必须先提交 3–6 个岗位场景问题");
+    throw new Error("用户希望一起回忆时，必须提交 1–3 个岗位场景问题");
   }
   const revision = workspace.revision + 1;
   return {
@@ -101,8 +102,9 @@ function authorizeNeutral(
   if (scenarioQuestions?.length) {
     throw new Error("场景追问后只有用户明确表示全部没有时才能授权，第二次调用不要再传问题");
   }
-  if (request.firstUnableMessageTimestamp === messageTimestamp) {
-    throw new Error("场景回答必须来自用户的新消息，不能在同一轮连续解锁");
+  if (request.discoveryStage === "scenario_probe" &&
+    request.firstUnableMessageTimestamp === messageTimestamp) {
+    throw new Error("场景问题发出后必须等待用户回答，不能在同一轮自行解锁");
   }
   const kind = request.kind! as
     "agent_declared" | "page_fill_stalled" | "tail_repair_stalled";

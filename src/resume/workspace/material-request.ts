@@ -1,5 +1,6 @@
 import type {
   ResumeMaterialRequest,
+  ResumeMaterialRequestResolution,
   ResumeMaterialRequestStatus,
 } from "./material-request-types.js";
 import type { ResumeWorkspace } from "./types.js";
@@ -7,6 +8,7 @@ import type { ResumeWorkspace } from "./types.js";
 export type {
   ResumeMaterialRequest,
   ResumeMaterialRequestKind,
+  ResumeMaterialRequestResolution,
   ResumeMaterialRequestStatus,
 } from "./material-request-types.js";
 

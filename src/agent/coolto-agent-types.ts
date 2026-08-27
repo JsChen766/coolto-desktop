@@ -39,7 +39,10 @@ export interface CooltoAgentOptions {
     context: ShouldStopAfterTurnContext,
     signal?: AbortSignal,
   ) => boolean | Promise<boolean>;
-  automaticFollowUp?: (promptSequence: number) => string | undefined;
+  automaticFollowUp?: (
+    promptSequence: number,
+    message: AgentMessage,
+  ) => string | AutomaticFollowUpInstruction | undefined;
   outputRepetitionRecovery?: (
     promptSequence: number,
     reason: OutputRepetitionReason,
@@ -50,6 +53,11 @@ export interface CooltoAgentOptions {
   ) => string | undefined;
   turnGovernor?: TurnGovernor;
   approvalManager?: ApprovalManager;
+}
+
+export interface AutomaticFollowUpInstruction {
+  instruction: string;
+  requireToolCall: boolean;
 }
 
 export type CooltoAgentListener = (

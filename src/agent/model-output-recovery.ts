@@ -6,7 +6,7 @@ import type { CooltoAgentOptions } from "./coolto-agent-types.js";
 import type { TurnGovernor } from "./turn-governor.js";
 
 const BASE_RECOVERY =
-  "上一条模型响应因长时间没有工具推进而被中止。不要复述已删除的分析。你的第一项输出必须是依据下方权威状态的一次批量工具调用，禁止先输出任何可见文本、计划、比较或解释；若没有可忠实写入的事实，只用不超过100字询问用户一个必要问题。";
+  "上一条模型响应因长时间没有工具推进而被中止。不要复述已删除的分析。若下方权威状态仍给出与用户当前指令一致的安全工具动作，第一项输出必须是一次批量工具调用，禁止先输出可见计划；若没有安全动作，保留当前最好结果并结束恢复。运行保护本身不得产生新的用户问题；只有原任务无法执行、用户未拒绝追问且缺失信息无法合理判断时，才提出一个不超过100字的必要问题。";
 
 export function recoveryRequiresToolCall(authority?: string): boolean {
   return Boolean(authority?.includes("第一项输出必须是工具调用"));

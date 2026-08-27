@@ -3199,6 +3199,29 @@ typecheck/build 通过；本轮没有新的待确认 JD 做真实接受回放，
 ≤250 行、688/688 tests、Node/Preload/Vue typecheck、Node build 与 Electron production build 通过。
 本轮未执行真实附件 + Electron 人工接受/拒绝验收，未 package/commit/push/上传/发版，阶段总状态不变。
 
+**S4.5.1 用户指令优先与材料追问终止第一批（2026-08-27，真实 Electron 通过）：**主 system prompt
+升级为 `coolto-local-agent/v131`，明确安全、权限、执行事实和运行保护范围内以用户当前明确指令为先；
+可逆信息不足时自行判断，用户表示没有材料、停止追问、按现有信息继续或接受当前草稿后不得换一种说法
+继续索取。场景回忆改为用户主动选择的 1–3 个问题；明确无材料可在同一消息解锁事实中性表达，不再要求
+第二次确认。JD、浏览器写权限、AgentTask、补写审批、输出重复和 turn governor 的内部 continuation/recovery
+提示同步收口，自动恢复本身不再制造材料问题。
+
+- 复用现有 `decline_resume_material` 表达 `user_stopped_questions` / `best_effort_stalled`，没有既有
+  material request 时也能保留当前最好草稿并进入 `stop_insufficient_material`；用户停止与运行保护停机
+  使用不同可见回执，不冒充合格。首次真实实测发现模型会用纯文本口头确认停止却不调用工具，留下旧材料
+  边界；随后基于 Pi Agent Core 原生 follow-up 和 `shouldStopAfterTurn` 修复：新产生的问题必须原样显示，
+  既有材料边界的用户回答若未使用 add/confirm/decline 落地，会追加一次 `tool_choice=required` 内部续接，
+  禁止纯文本假停机，没有增加第二套 Agent loop。
+- 真实开发 Electron 重启后，新对话引用历史未完成“投行项目实习生”草稿，输入“没有任何补充，不要再问，
+  也不要修改简历；请停止并保留当前草稿”。最终真实出现 2 项工具调用，并由宿主规范化为“已停止追问并
+  保留当前草稿。由于现有事实不足，这份简历尚未达到交付门槛。”；继续等待 5 秒无自动 follow-up、无新问题，
+  导航恢复可用，简历正文未修改。另一次场景实测命中历史草稿里持久化的旧 `scenario_probe` 与旧同步卡，
+  已明确排除为污染样本且未操作审批，不作为通过证据。
+- 最终 `npm run check` 全绿：889 个源文件均 ≤250 行、764/764 tests、Node/Preload/Vue typecheck、Node build
+  与 Electron production build 通过，`git diff --check` 通过。用户已批准但依赖内容/交付策略的真实性覆盖、
+  关键技能与 bullet 数放宽、任务级补写授权、缺失 Profile 继续、用户接受版本保存/导出仍保留为第二批，
+  尚未开始。未 package、commit、push、上传或发版，阶段总状态不变。
+
 ## 明确不进入本路线
 
 - ResumeDraft/checkpoint 和原始文件云端同步；

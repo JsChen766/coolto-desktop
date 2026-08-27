@@ -69,6 +69,34 @@ test("decline response is canonical but a later no-tool reply stays untouched", 
   assert.equal(assistantText(unchanged.at(-1)), "已停止。");
 });
 
+test("best-effort guard stop reports the preserved draft without a new question", async () => {
+  const store = new ResumeWorkspaceStore();
+  const created = result(await createResumeWorkspaceTool(
+    createWorkspaceSnapshotBuilder(), new FixtureResumeCompiler(), store,
+  ).execute("create", {
+    jdId: "jd-1", language: "zh-CN",
+    experiences: [{ experienceId: "work-1", tier: "main" }],
+  }));
+  const decline = createDeclineResumeMaterialTool(store, () => undefined);
+  await decline.execute("guard-stop", {
+    candidateId: created.candidateId,
+    expectedRevision: created.revision,
+    resolution: "best_effort_stalled",
+  });
+  const stopped = store.latest()!;
+  const messages = [
+    user("继续生成", 1),
+    toolResult("decline_resume_material", 2),
+    assistant("请再补充一项材料。", 3),
+  ];
+  const canonical = canonicalizeResumeBoundaryResponse(messages, stopped, 0);
+  assert.equal(
+    assistantText(canonical.at(-1)),
+    "自动写作已停止并保留当前最好草稿。这份简历尚未达到交付门槛。",
+  );
+  assert.doesNotMatch(assistantText(canonical.at(-1)), /请/u);
+});
+
 async function pausedWorkspace() {
   const store = new ResumeWorkspaceStore();
   const create = createResumeWorkspaceTool(

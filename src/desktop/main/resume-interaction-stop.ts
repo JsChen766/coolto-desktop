@@ -4,7 +4,6 @@ import { resumeAgentNextAction } from "../../resume/workspace/agent-next-action.
 import type { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 
 const USER_BOUNDARY_MODES = new Set([
-  "request_more_material",
   "stop_insufficient_material",
   "await_augmented_confirmation",
 ]);
@@ -16,8 +15,20 @@ export function createResumeInteractionStop(
   return (context) => {
     if (context.toolResults.length) return false;
     const workspace = store.latest();
-    return workspace
-      ? USER_BOUNDARY_MODES.has(resumeAgentNextAction(workspace).mode)
-      : false;
+    if (!workspace) return false;
+    const action = resumeAgentNextAction(workspace);
+    if (action.mode !== "request_more_material") {
+      return USER_BOUNDARY_MODES.has(action.mode);
+    }
+    return typeof action.question === "string" &&
+      assistantText(context.message).includes(action.question);
   };
+}
+
+function assistantText(
+  message: ShouldStopAfterTurnContext["message"],
+): string {
+  return message.content.flatMap((part) =>
+    part.type === "text" ? [part.text] : []
+  ).join("\n");
 }

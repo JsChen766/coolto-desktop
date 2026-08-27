@@ -5,6 +5,8 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import { resumeGenerationWasRequested } from
   "../src/desktop/main/jd-continuation.js";
+import { buildJdContinuationPrompt } from
+  "../src/desktop/main/jd-continuation.js";
 
 test("latest user request explicitly asks to generate a resume", () => {
   assert.equal(resumeGenerationWasRequested([
@@ -36,6 +38,12 @@ test("a neutral confirmation keeps the preceding resume intent", () => {
     user("保存这个 JD，然后为我生成简历", 1),
     user("确认", 2),
   ]), true);
+});
+
+test("JD continuation follows the latest intent instead of reviving an old goal", () => {
+  const prompt = buildJdContinuationPrompt({ jdId: "jd-1", title: "测试岗位" });
+  assert.match(prompt, /当前最新、明确的意图/u);
+  assert.match(prompt, /不得继续旧目标/u);
 });
 
 function user(content: string, timestamp: number): AgentMessage {

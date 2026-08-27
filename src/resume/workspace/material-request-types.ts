@@ -8,6 +8,10 @@ export type ResumeMaterialRequestKind =
 
 export type ResumeMaterialRequestStatus = "awaiting_response" | "declined";
 
+export type ResumeMaterialRequestResolution =
+  | "user_stopped_questions"
+  | "best_effort_stalled";
+
 export interface ResumeMaterialRequest {
   /** Optional only for drafts created before request identities existed. */
   id?: string;
@@ -23,4 +27,5 @@ export interface ResumeMaterialRequest {
   status?: ResumeMaterialRequestStatus;
   respondedAt?: string;
   sourceMessageTimestamp?: number;
+  resolution?: ResumeMaterialRequestResolution;
 }

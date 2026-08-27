@@ -86,7 +86,7 @@ export function announceResumeGenerationStart(
 export function buildJdContinuationPrompt(jd: { jdId: string; title: string }): string {
   return wrapInternalPrompt(
     `JD「${jd.title}」已保存到本地同步队列（jdId: ${jd.jdId}）。` +
-    `请根据对话历史中用户的原始意图继续下一步操作。` +
+    `请根据对话历史中用户当前最新、明确的意图继续下一步操作；若用户已修改或取消原始目标，不得继续旧目标。` +
     `如果用户原本要求根据此 JD 生成简历，请使用 jdId 继续执行；` +
     `否则简要确认 JD 已保存并等待同步即可。`,
   );

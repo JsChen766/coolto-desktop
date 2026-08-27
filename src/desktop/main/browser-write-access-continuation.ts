@@ -50,7 +50,7 @@ export function buildBrowserWriteAccessContinuationPrompt(
 ): string {
   return wrapInternalPrompt(
     `浏览器写权限已授予（意图：${reason}）。` +
-    `请立即按用户之前的请求继续操作页面：` +
+    `先检查对话中是否有更新的取消、暂停或目标变更指令；只有此前写入目标仍与用户当前最新指令一致时，才继续操作页面：` +
     `先用 browser_tag_elements 打标可操作元素，再按需调用 browser_fill_field/` +
     `browser_select_option/browser_set_checked/browser_click_element/browser_scroll_to。` +
     `完成本轮写入后，必须调用 browser_start_review 进入用户逐字段审核阶段——` +

@@ -7,6 +7,10 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v131");
+  assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /所有语义判断/);
   assert.match(COOLTO_SYSTEM_PROMPT, /create_resume_workspace/);
   assert.match(COOLTO_SYSTEM_PROMPT, /apply_resume_content/);
@@ -23,8 +27,10 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /完整 revisedText/);
   assert.match(COOLTO_SYSTEM_PROMPT, /调整语序/);
   assert.match(COOLTO_SYSTEM_PROMPT, /每批最多 4 条/);
-  assert.match(COOLTO_SYSTEM_PROMPT, /具体场景问题/u);
-  assert.match(COOLTO_SYSTEM_PROMPT, /用户只需提供真实事实或附件/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /1–3 个/u);
+  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /3–6 个/u);
+  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /新的消息中明确表示/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /用户补充事实时/u);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /batch_tail_reflow/);
   assert.match(COOLTO_SYSTEM_PROMPT, /confirm_no_resume_material/);
   assert.match(COOLTO_SYSTEM_PROMPT, /integrate_supplemental_evidence/u);
@@ -47,6 +53,8 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_snapshot/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_download/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /prepare_agent_task/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /优先从当前消息和对话上下文推导/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /用户明确要求假设、模拟或合理补充/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /SubmissionReceipt/u);
   assert.match(SYSTEM_PROMPT_VERSION, /^coolto-local-agent\/v\d+$/);
 });

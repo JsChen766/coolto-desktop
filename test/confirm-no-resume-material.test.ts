@@ -31,7 +31,7 @@ async function harness() {
   return { store, created };
 }
 
-test("no-material flow probes concrete job scenarios before neutral unlock", async () => {
+test("a clear no-material decision unlocks neutral wording without a second message", async () => {
   const value = await harness();
   const pause = createPauseResumeForMaterialTool(value.store);
   const paused = resultText(await pause.execute("pause", {
@@ -42,23 +42,42 @@ test("no-material flow probes concrete job scenarios before neutral unlock", asy
   }));
   assert.match(paused.nextAction.question, /^【需要补充事实】/u);
 
+  const userMessageTimestamp = 100;
+  const confirm = createConfirmNoResumeMaterialTool(
+    value.store,
+    () => userMessageTimestamp,
+  );
+  const authorized = resultText(await confirm.execute("first-no", {
+    candidateId: paused.candidateId,
+    expectedRevision: paused.revision,
+  }));
+  assert.equal(authorized.status, "writing");
+  assert.notEqual(authorized.nextAction.mode, "request_more_material");
+  assert.equal(
+    value.store.latest()?.factNeutralAuthorization?.sourceRequestKind,
+    "agent_declared",
+  );
+  assert.equal(value.store.latest()?.materialRequest, undefined);
+});
+
+test("scenario probes are optional but must wait for the user's answer", async () => {
+  const value = await harness();
+  const pause = createPauseResumeForMaterialTool(value.store);
+  const paused = resultText(await pause.execute("pause", {
+    candidateId: value.created.candidateId,
+    expectedRevision: value.created.revision,
+    reason: "事实不足以继续补齐篇幅",
+    question: "还有哪些可验证的职责或结果？",
+  }));
   let userMessageTimestamp = 100;
   const confirm = createConfirmNoResumeMaterialTool(
     value.store,
     () => userMessageTimestamp,
   );
-  await assert.rejects(confirm.execute("missing-probes", {
+  const probed = resultText(await confirm.execute("probe", {
     candidateId: paused.candidateId,
     expectedRevision: paused.revision,
-  }), /必须先提交 3–6 个岗位场景问题/u);
-  const probed = resultText(await confirm.execute("first-no", {
-    candidateId: paused.candidateId,
-    expectedRevision: paused.revision,
-    scenarioQuestions: [
-      "你是否整理过面向管理层或客户的研究结论？",
-      "你是否做过同业对比、数据分析或模型测算？",
-      "你是否参与过跨团队核对信息或准备汇报材料？",
-    ],
+    scenarioQuestions: ["你是否做过同业对比、数据分析或模型测算？"],
   }));
   assert.equal(probed.status, "needs_user_decision");
   assert.match(probed.nextAction.question, /^【帮你一起回忆】/u);
@@ -67,16 +86,12 @@ test("no-material flow probes concrete job scenarios before neutral unlock", asy
   assert.match(probed.terminalInstruction, /同业对比/u);
   assert.equal(value.store.latest()?.factNeutralAuthorization, undefined);
 
-  await assert.rejects(
-    confirm.execute("same-message-no", {
-      candidateId: probed.candidateId,
-      expectedRevision: probed.revision,
-    }),
-    /场景回答必须来自用户的新消息/u,
-  );
-
+  await assert.rejects(confirm.execute("same-message-no", {
+    candidateId: probed.candidateId,
+    expectedRevision: probed.revision,
+  }), /必须等待用户回答/u);
   userMessageTimestamp = 200;
-  const authorized = resultText(await confirm.execute("second-no", {
+  const authorized = resultText(await confirm.execute("answered-no", {
     candidateId: probed.candidateId,
     expectedRevision: probed.revision,
   }));

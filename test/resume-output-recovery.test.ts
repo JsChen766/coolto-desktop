@@ -40,7 +40,22 @@ test("resume output recovery injects the exact pending tail action", () => {
   assert.match(instruction, /第一项输出必须是工具调用/u);
 });
 
-test("turn governor recovery routes a stalled resume to material guidance", async () => {
+test("material recovery respects a prior user refusal instead of inventing a question", () => {
+  const instruction = buildResumeOutputRecoveryInstruction({
+    reason: "repeated_cycle",
+    candidateId: "candidate-1",
+    revision: 3,
+    nextAction: {
+      mode: "request_more_material",
+      question: "请补充一个事实",
+    },
+  });
+  assert.match(instruction, /最近真实用户消息已拒绝追问/u);
+  assert.match(instruction, /decline_resume_material/u);
+  assert.match(instruction, /否则只提出以下一个权威问题/u);
+});
+
+test("turn governor recovery stops at the best draft instead of asking for material", async () => {
   const store = new ResumeWorkspaceStore();
   const create = createResumeWorkspaceTool(
     createWorkspaceSnapshotBuilder(),
@@ -57,8 +72,9 @@ test("turn governor recovery routes a stalled resume to material guidance", asyn
     "same_tool_sequence",
   );
 
-  assert.match(instruction ?? "", /pause_resume_for_material/u);
-  assert.match(instruction ?? "", /旧简历、工作总结、项目文档/u);
+  assert.match(instruction ?? "", /decline_resume_material/u);
+  assert.match(instruction ?? "", /resolution=best_effort_stalled/u);
+  assert.doesNotMatch(instruction ?? "", /旧简历、工作总结、项目文档/u);
   assert.match(instruction ?? "", /不要重试原工具/u);
 });
 

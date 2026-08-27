@@ -13,6 +13,8 @@ const MATERIAL_REQUEST_TOOLS = new Set([
 ]);
 const DECLINED_RESPONSE =
   "已停止追问并保留当前草稿。由于现有事实不足，这份简历尚未达到交付门槛。";
+const STALLED_RESPONSE =
+  "自动写作已停止并保留当前最好草稿。这份简历尚未达到交付门槛。";
 
 /** Replaces model process narration only when this run crossed a material boundary. */
 export function canonicalizeResumeBoundaryResponse(
@@ -33,7 +35,8 @@ export function canonicalizeResumeBoundaryResponse(
       "请补充一个尚未写入的具体事实；如果没有更多事实，也请直接说明。";
   } else if (action.mode === "stop_insufficient_material" &&
     toolNames.has("decline_resume_material")) {
-    response = DECLINED_RESPONSE;
+    response = workspace.materialRequest?.resolution === "best_effort_stalled"
+      ? STALLED_RESPONSE : DECLINED_RESPONSE;
   }
   if (!response) return messages;
   const assistantIndex = messages.findLastIndex((message, index) =>
