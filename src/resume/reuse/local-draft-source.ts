@@ -81,7 +81,7 @@ export function localDraftContentHash(draft: LocalResumeDraft): string {
 }
 
 export function sourceExperienceIds(draft: LocalResumeDraft): string[] {
-  return [...new Set(draft.workspace.sourceSnapshot.experiences.map(
-    (experience) => experience.id,
+  return [...new Set(draft.workspace.structure.sections.flatMap((section) =>
+    section.items.flatMap((item) => item.source_experience_id ?? [])
   ))];
 }

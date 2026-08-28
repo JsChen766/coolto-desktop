@@ -17,6 +17,8 @@ import { tailRepairBatch } from
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import { createApplyResumeContentTool } from "../src/tools/agent-orchestrated/apply-content.js";
 import { createAddResumeMaterialTool } from "../src/tools/agent-orchestrated/add-material.js";
+import { createConfirmNoResumeMaterialTool } from
+  "../src/tools/agent-orchestrated/confirm-no-material.js";
 import { createResumeWorkspaceTool } from "../src/tools/agent-orchestrated/create-workspace.js";
 import { createGetResumeWorkspaceTool } from "../src/tools/agent-orchestrated/get-workspace.js";
 import { applyContentParameters } from "../src/tools/agent-orchestrated/apply-content-parameters.js";
@@ -275,6 +277,36 @@ class StablePageCompiler extends FixtureResumeCompiler {
       availableHeightPx: 1000,
       usageRatio: 0.95,
       violations: [],
+    };
+  }
+}
+
+class AdditionIdCompiler extends FixtureResumeCompiler {
+  public override async compile(
+    structure: Parameters<FixtureResumeCompiler["compile"]>[0],
+  ) {
+    const result = await super.compile(structure);
+    const count = structure.sections.flatMap((section) =>
+      section.items.flatMap((item) => item.bullets)
+    ).length;
+    const usageRatio = count >= 4 ? 0.96 : count >= 3 ? 0.94 : 0.8;
+    return {
+      ...result,
+      qualified: count >= 4,
+      pageCount: 1,
+      overflowPx: 0,
+      usedHeightPx: usageRatio * 1000,
+      availableHeightPx: 1000,
+      usageRatio,
+      bullets: result.bullets.map((bullet) => ({
+        ...bullet,
+        passed: true,
+        lastLineWidthPx: 480,
+        lastLineRatio: 0.8,
+      })),
+      violations: count >= 4
+        ? []
+        : [{ code: "page_underfilled" as const, message: "underfilled" }],
     };
   }
 }
@@ -542,6 +574,66 @@ test("grounded addition count does not truncate the Agent candidate pool", async
   assert.ok(options.length > one.length);
 });
 
+test("bullet addition allocates after the highest suffix when existing ids have a gap", async () => {
+  const builder = createWorkspaceSnapshotBuilder({
+    workContent: `${WORK_CONTENT}补充访谈 8 名业务用户并整理需求优先级。`,
+  });
+  const compiler = new AdditionIdCompiler();
+  const store = new ResumeWorkspaceStore();
+  const create = createResumeWorkspaceTool(builder, compiler, store);
+  const apply = createApplyResumeContentTool(compiler, store);
+  const created = text(await create.execute("create-id-gap", {
+    jdId: "jd-1",
+    language: "zh-CN",
+    experiences: [{ experienceId: "work-1", tier: "main" }],
+  }));
+  const evidence = evidenceForModel(store.latest()!.sourceSnapshot)
+    .filter((entry) => entry.experienceId === "work-1");
+  const initial = text(await apply.execute("write-id-gap", {
+    candidateId: created.candidateId,
+    expectedRevision: created.revision,
+    items: [{
+      itemId: "item-work-1",
+      bullets: evidence.slice(0, 3).map((entry, index) => ({
+        bulletId: `item-work-1-bullet-${index + 2}`,
+        text: entry.text.replace(/。$/u, ""),
+        plannedLines: 2,
+        origin: "grounded",
+        evidenceIds: [entry.evidenceId],
+        requirementIds: ["req-1"],
+      })),
+    }],
+  }));
+  assert.equal(initial.nextAction.mode, "increase_usage");
+  assert.equal(initial.nextAction.requiredInput, "bulletAdditions");
+
+  const added = text(await apply.execute("append-after-gap", {
+    candidateId: created.candidateId,
+    expectedRevision: initial.revision,
+    bulletAdditions: [{
+      itemId: "item-work-1",
+      text: evidence[3]!.text.replace(/。$/u, ""),
+      origin: "grounded",
+      evidenceIds: [evidence[3]!.evidenceId],
+      requirementIds: ["req-1"],
+    }],
+  }));
+
+  assert.equal(added.revision, initial.revision + 1);
+  assert.equal(added.operation.status, "success");
+  assert.deepEqual(
+    store.latest()!.structure.sections.flatMap((section) =>
+      section.items.find((item) => item.id === "item-work-1")?.bullets ?? []
+    ).map((bullet) => bullet.id),
+    [
+      "item-work-1-bullet-2",
+      "item-work-1-bullet-3",
+      "item-work-1-bullet-4",
+      "item-work-1-bullet-5",
+    ],
+  );
+});
+
 async function createWorkspace(value: ReturnType<typeof harness>) {
   return text(
     await value.create.execute("create", {
@@ -621,8 +713,8 @@ test("create_resume_workspace locks all sources and measures only the blank page
   assert.equal(payload.nextAction.itemTargets[0].currentBullets.length, 0);
 });
 
-test("bullet count repair pauses before retrying an evidence-poor item", async () => {
-  const value = harness();
+test("first generation writes every available fact before asking for more", async () => {
+  const value = harness(new StablePageCompiler());
   const payload = text(await value.create.execute("insufficient-count-evidence", {
     jdId: "jd-1",
     language: "zh-CN",
@@ -632,21 +724,50 @@ test("bullet count repair pauses before retrying an evidence-poor item", async (
     ],
   }));
 
-  assert.equal(payload.status, "needs_user_decision");
-  assert.equal(payload.nextAction.mode, "request_more_material");
-  assert.equal(payload.materialRequest.status, "awaiting_response");
-  assert.match(payload.materialRequest.id, /^resume-material:/u);
-  assert.equal(payload.nextAction.targetExperienceId, "tiny-work-1");
-  assert.match(payload.nextAction.question, /只有 1 条可独占事实/u);
-  assert.match(payload.nextAction.question, /至少需要 2 条 bullet/u);
+  assert.equal(payload.status, "writing");
+  assert.equal(payload.nextAction.mode, "repair_bullet_counts");
+  assert.deepEqual(payload.nextAction.itemIds, [
+    "item-tiny-work-1",
+    "item-work-1",
+  ]);
+  assert.equal(payload.nextAction.itemTargets[0].allowPartialDraft, true);
 
-  const rejected = text(await value.apply.execute("do-not-retry-count", {
+  const drafted = text(await value.apply.execute("write-grounded-body-first", {
     candidateId: payload.candidateId,
     expectedRevision: payload.revision,
-    items: [{ itemId: "item-tiny-work-1", bullets: [] }],
+    items: [
+      { itemId: "item-tiny-work-1", bullets: tinyWorkBullets(value) },
+      { itemId: "item-work-1", bullets: workBullets(value) },
+    ],
   }));
-  assert.equal(rejected.revision, payload.revision);
-  assert.match(rejected.writeRejectedReason, /等待用户回应补充邀约/u);
+  assert.equal(drafted.revision, payload.revision + 1);
+  assert.equal(drafted.operation.status, "success");
+  assert.equal(drafted.status, "needs_user_decision");
+  assert.equal(drafted.nextAction.mode, "request_more_material");
+  assert.equal(drafted.nextAction.targetExperienceId, "tiny-work-1");
+  assert.match(drafted.nextAction.question, /只有 1 条可独占事实/u);
+  assert.match(drafted.nextAction.question, /至少需要 2 条 bullet/u);
+  assert.equal(
+    value.store.latest()!.structure.sections.flatMap((section) =>
+      section.items.flatMap((item) => item.bullets)
+    ).length,
+    4,
+  );
+
+  const finalized = text(await createConfirmNoResumeMaterialTool(
+    value.store,
+    () => 100,
+    value.compiler,
+  ).execute("skip-insufficient-item", {
+    candidateId: drafted.candidateId,
+    expectedRevision: drafted.revision,
+  }));
+  assert.equal(finalized.status, "ready_for_approval");
+  assert.equal(finalized.readiness.ready, true);
+  assert.equal(finalized.nextAction.mode, "stop");
+  assert.equal(value.store.latest()!.structure.sections.some((section) =>
+    section.items.some((item) => item.id === "item-tiny-work-1")
+  ), false);
 });
 
 test("bullet count repair rejects an incomplete multi-item batch", async () => {
@@ -738,7 +859,7 @@ test("apply_resume_content accepts an exact source experience id", async () => {
     .find((item) => item.id === "item-work-1")?.bullets.length, 3);
 });
 
-test("apply_resume_content rejects duplicate exclusive evidence ranges", async () => {
+test("count repair rejects a duplicate range but keeps other valid bullets", async () => {
   const value = harness();
   const workspace = await createWorkspace(value);
   const bullets = workBullets(value);
@@ -755,10 +876,11 @@ test("apply_resume_content rejects duplicate exclusive evidence ranges", async (
     }],
   }));
 
-  assert.equal(result.operation.status, "rejected");
+  assert.equal(result.operation.status, "partial_success");
   assert.match(result.operation.rejectedItems[0].reason, /reuses.*reserved/u);
-  assert.equal(value.store.latest()!.revision, workspace.revision);
-  assert.equal(value.store.latest()!.bindings.length, 0);
+  assert.equal(value.store.latest()!.revision, workspace.revision + 1);
+  assert.equal(value.store.latest()!.bindings.length, 2);
+  assert.equal(result.nextAction.mode, "repair_bullet_counts");
 });
 
 test("apply_resume_content reports every invalid bullet in one item", async () => {
@@ -797,11 +919,47 @@ test("apply_resume_content reports every invalid bullet in one item", async () =
   assert.equal(value.store.latest()!.revision, workspace.revision);
 });
 
-test("item retry progress follows the remaining error set, not revision alone", async () => {
+test("first-generation count repair keeps individually valid bullets", async () => {
   const value = harness();
   const workspace = await createWorkspace(value);
   const bullets = workBullets(value);
-  const execute = (punctuation: boolean, unsupportedNumber: number) =>
+  const result = text(await value.apply.execute("partial-count-repair", {
+    candidateId: workspace.candidateId,
+    expectedRevision: workspace.revision,
+    items: [{
+      itemId: "item-work-1",
+      bullets: [
+        bullets[0]!,
+        bullets[1]!,
+        {
+          ...bullets[2]!,
+          text: `${bullets[2]!.text}并虚构 999 个项目结果`,
+        },
+      ],
+    }],
+  }));
+
+  assert.equal(result.operation.status, "partial_success");
+  assert.equal(result.operation.appliedItemIds[0], "item-work-1");
+  assert.equal(result.operation.rejectedItems[0].errors[0].code,
+    "unsupported_numeric_claim");
+  assert.equal(result.revision, workspace.revision + 1);
+  const item = value.store.latest()!.structure.sections.flatMap(
+    (section) => section.items,
+  ).find((candidate) => candidate.id === "item-work-1")!;
+  assert.equal(item.bullets.length, 2);
+  assert.equal(result.nextAction.mode, "repair_bullet_counts");
+});
+
+test("item retry progress requires formal resume progress, not a changing error set", async () => {
+  const value = harness();
+  const workspace = await createWorkspace(value);
+  const bullets = workBullets(value);
+  const execute = (
+    punctuation: boolean,
+    unsupportedNumber: number,
+    firstEvidenceMissing = false,
+  ) =>
     value.apply.execute("item-retry-progress", {
       candidateId: workspace.candidateId,
       expectedRevision: workspace.revision,
@@ -810,6 +968,7 @@ test("item retry progress follows the remaining error set, not revision alone", 
         bullets: [{
           ...bullets[0]!,
           text: `${bullets[0]!.text}${punctuation ? "。" : ""}`,
+          ...(firstEvidenceMissing ? { evidenceIds: [] } : {}),
         }, {
           ...bullets[1]!,
           evidenceIds: [],
@@ -821,12 +980,16 @@ test("item retry progress follows the remaining error set, not revision alone", 
     });
 
   const first = await execute(true, 999);
-  const second = await execute(false, 999);
-  const sameFailures = await execute(false, 998);
+  const second = await execute(false, 999, true);
+  const sameFailures = await execute(false, 998, true);
   const key = (result: typeof first) =>
     (result.details as { loopGuardKey: string }).loopGuardKey;
 
-  assert.notEqual(key(first), key(second), "fixing one error is progress");
+  assert.equal(
+    key(first),
+    key(second),
+    "changing rejection codes without landing content is not product progress",
+  );
   assert.equal(
     key(second),
     key(sameFailures),
@@ -990,6 +1153,8 @@ test("create_resume_workspace expands one JD in place without duplicating its dr
   assert.equal(unchanged.candidateId, first.candidateId);
   assert.equal(unchanged.revision, 1);
   assert.equal(unchanged.sourceSelection.mode, "unchanged");
+  assert.equal(unchanged.recovery.repeated, true);
+  assert.match(unchanged.recovery.instruction, /禁止再次调用 create_resume_workspace/u);
   assert.equal(value.compiler.structures.length, 2);
 });
 
@@ -1513,7 +1678,7 @@ test("underfill lands exact extra lines before the final tail-repair phase", asy
   assert.equal(rejected.revision, written.revision);
   assert.equal(rejected.nextAction.mode, "increase_usage");
   assert.equal(rejected.nextAction.requiredInput, "lineExpansions");
-  assert.equal(rejected.nextAction.additionalBodyLinesToMinimum, 3);
+  assert.equal(rejected.nextAction.additionalBodyLinesToMinimum, 5);
   assert.ok(Array.isArray(rejected.nextAction.groundedAdditionTargets));
   assert.ok(rejected.nextAction.lineExpansionTargets.length <= 8);
   assert.ok(rejected.nextAction.lineExpansionTargets.every(
@@ -1574,7 +1739,7 @@ test("underfill lands exact extra lines before the final tail-repair phase", asy
   assert.match(fullerText, /增加一行短尾，补充处理方法$/u);
 });
 
-test("underfill exposes unused grounded facts without blocking line expansion", async () => {
+test("first-generation underfill consumes unused grounded facts before expansion", async () => {
   const builder = createWorkspaceSnapshotBuilder({
     workContent: `${WORK_CONTENT}补充访谈 8 名业务用户并整理需求优先级。`,
   });
@@ -1600,7 +1765,7 @@ test("underfill exposes unused grounded facts without blocking line expansion", 
   const action = resumeAgentNextAction(workspace);
   assert.equal(action.mode, "increase_usage");
   if (action.mode !== "increase_usage") return;
-  assert.equal(action.requiredInput, "bulletAdditionsOrLineExpansions");
+  assert.equal(action.requiredInput, "bulletAdditions");
   assert.ok(action.groundedAdditionTargets.some(
     (target) => target.sourceQuote.includes("访谈 8 名业务用户"),
   ));
@@ -1837,7 +2002,18 @@ test("one-line bullets are valid when the formal layout passes", async () => {
   assert.equal(resumeGenerationReadiness(measured).blockers.some(
     (blocker) => blocker.code.includes("line_count"),
   ), false);
-  assert.notEqual(resumeAgentNextAction(measured).mode, "increase_usage");
+  const reused = {
+    ...measured,
+    reuseBase: {
+      kind: "local" as const,
+      resumeId: "existing-resume",
+      sourceJdId: "jd-old",
+      contentHash: "hash-old",
+      retainedBulletCount: measured.compileResult.bullets.length,
+      droppedBulletCount: 0,
+    },
+  };
+  assert.notEqual(resumeAgentNextAction(reused).mode, "increase_usage");
 });
 
 test("planned lines persist and real Chromium lines lock after page fit", async () => {

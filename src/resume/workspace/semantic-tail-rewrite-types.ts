@@ -7,7 +7,7 @@ export interface SemanticTailRewriteCandidateInput {
   strategy: SemanticTailRewriteStrategy;
   revisedText: string;
   additionalEvidenceIds?: string[];
-  contentMode?: "fact_neutral";
+  contentMode?: "fact_neutral" | "fact_equivalent";
 }
 
 export interface SemanticTailRewriteInput {

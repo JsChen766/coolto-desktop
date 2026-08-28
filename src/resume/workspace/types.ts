@@ -17,6 +17,9 @@ import type {
   ResumeFactNeutralFragment,
 } from "./fact-neutral-types.js";
 import type { ResumeMaterialFollowUpPending, ResumeMaterialRequest } from "./material-request-types.js";
+import type { ResumeReuseAdaptation, ResumeReuseBase } from "./reuse-adaptation-types.js";
+import type { ResumeEvidenceAssessmentState } from
+  "./evidence-assessment-types.js";
 export type ResumeCandidateLanguage = "zh-CN" | "en-US";
 export type ResumeWorkspaceStatus =
   | "writing"
@@ -58,14 +61,8 @@ export interface ResumeWorkspace {
   contentApplyCount?: number;
   status: ResumeWorkspaceStatus;
   sourceSnapshot: ResumeSourceSnapshot;
-  reuseBase?: {
-    kind?: "cloud" | "local";
-    resumeId: string;
-    sourceJdId: string;
-    contentHash: string;
-    retainedBulletCount: number;
-    droppedBulletCount: number;
-  };
+  reuseBase?: ResumeReuseBase;
+  reuseAdaptation?: ResumeReuseAdaptation;
   structure: ResumeStructure;
   bindings: BulletEvidenceBinding[];
   compileResult: ResumeCompileResult;
@@ -102,6 +99,8 @@ export interface ResumeWorkspace {
   materialFollowUpPending?: ResumeMaterialFollowUpPending;
   /** User ended the supplement loop and authorized final closure. */
   factNeutralAuthorization?: ResumeFactNeutralAuthorization;
+  /** Two bounded, progressively relaxed evidence reassessment rounds. */
+  evidenceAssessment?: ResumeEvidenceAssessmentState;
   /** Resume-local neutral additions; never persisted back to Experience. */
   factNeutralFragments?: ResumeFactNeutralFragment[];
   tailRepairProgress?: TailRepairProgressState;

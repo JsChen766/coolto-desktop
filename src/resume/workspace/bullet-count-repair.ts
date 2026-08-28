@@ -23,6 +23,7 @@ export interface BulletCountRepairTarget {
     evidenceIds: string[];
   }>;
   availableEvidence: BulletCountRepairEvidence[];
+  allowPartialDraft?: boolean;
   requiredEdit: string;
 }
 
@@ -32,6 +33,7 @@ export type BulletCountRepairPlan =
     mode: "request_more_material";
     targetExperienceId: string;
     question: string;
+    initialDraftTargets: BulletCountRepairTarget[];
   };
 
 export function bulletCountRepairPlan(
@@ -42,6 +44,11 @@ export function bulletCountRepairPlan(
   );
   const sourceEvidence = writableEvidenceCandidates(workspace.sourceSnapshot);
   const targets: BulletCountRepairTarget[] = [];
+  const initialDraftTargets: BulletCountRepairTarget[] = [];
+  let materialRequest: Omit<
+    Extract<BulletCountRepairPlan, { mode: "request_more_material" }>,
+    "mode" | "initialDraftTargets"
+  > | undefined;
   for (const section of workspace.structure.sections) {
     for (const item of section.items) {
       const tier = workspace.itemTiers?.[item.id];
@@ -71,20 +78,34 @@ export function bulletCountRepairPlan(
             text: entry.text,
           })),
       ]);
-      if (availableEvidence.length < minimum) {
-        const missingFacts = minimum - availableEvidence.length;
-        return {
-          mode: "request_more_material",
-          targetExperienceId: experienceId,
-          question: `经历「${item.organization || item.title || experienceId}」目前只有 ${availableEvidence.length} 条可独占事实，${targetTier} 内容至少需要 ${minimum} 条 bullet。请再补充至少 ${missingFacts} 条不同的真实事实，优先说明具体任务、方法、协作对象、规模或结果。`,
-        };
-      }
       const currentBullets = item.bullets.map((bullet) => ({
         bulletId: bullet.id,
         text: bullet.text,
         evidenceIds: [...(provenance.get(bullet.id)?.evidenceIds ?? [])],
       }));
-      targets.push({
+      if (availableEvidence.length < minimum) {
+        const missingFacts = minimum - availableEvidence.length;
+        materialRequest ??= {
+          targetExperienceId: experienceId,
+          question: `经历「${item.organization || item.title || experienceId}」目前只有 ${availableEvidence.length} 条可独占事实，${targetTier} 内容至少需要 ${minimum} 条 bullet。请再补充至少 ${missingFacts} 条不同的真实事实，优先说明具体任务、方法、协作对象、规模或结果。`,
+        };
+        if (availableEvidence.length > item.bullets.length) {
+          initialDraftTargets.push({
+            itemId: item.id,
+            sourceExperienceId: experienceId,
+            tier: targetTier,
+            currentBulletCount: item.bullets.length,
+            minimumBulletCount: minimum,
+            missingBulletCount: minimum - item.bullets.length,
+            currentBullets,
+            availableEvidence,
+            allowPartialDraft: true,
+            requiredEdit: `先提交该 item 当前可核验的全部 ${availableEvidence.length} 条 grounded bullet 作为有正文的中间草稿；不得编造缺少的事实，写入后宿主才会询问用户`,
+          });
+        }
+        continue;
+      }
+      const target: BulletCountRepairTarget = {
         itemId: item.id,
         sourceExperienceId: experienceId,
         tier: targetTier,
@@ -94,8 +115,13 @@ export function bulletCountRepairPlan(
         currentBullets,
         availableEvidence,
         requiredEdit: `一次提交该 item 的完整 ${minimum} 条或更多 bullet；保留可用 currentBullets，并从 availableEvidence 中为每条 grounded bullet 引用不同的 evidenceId，不得输出候选版本`,
-      });
+      };
+      targets.push(target);
+      initialDraftTargets.push(target);
     }
+  }
+  if (materialRequest) {
+    return { mode: "request_more_material", ...materialRequest, initialDraftTargets };
   }
   return { mode: "repair", targets };
 }

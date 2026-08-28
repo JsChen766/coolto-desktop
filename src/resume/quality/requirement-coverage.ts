@@ -54,7 +54,11 @@ export function textSupportsRequirement(
   text: string,
 ): boolean {
   const haystack = text.toLocaleLowerCase();
-  return requirementTerms(requirement).some((term) => haystack.includes(term));
+  return requirementTerms(requirement).some((term) =>
+    haystack.includes(term) || equivalentTerms(term).some((equivalent) =>
+      haystack.includes(equivalent)
+    )
+  );
 }
 
 export function matchedRequirementIdsForText(
@@ -64,9 +68,24 @@ export function matchedRequirementIdsForText(
   const haystack = text.toLocaleLowerCase();
   return snapshot.jd.requirements
     .filter((requirement) =>
-      requirementTerms(requirement).some((term) => haystack.includes(term)),
+      requirementTerms(requirement).some((term) =>
+        haystack.includes(term) || equivalentTerms(term).some((equivalent) =>
+          haystack.includes(equivalent)
+        )
+      ),
     )
     .map((requirement) => requirement.id);
+}
+
+const EQUIVALENT_TERM_GROUPS = [
+  ["金融建模", "财务建模", "财务模型", "金融模型", "financial modeling", "financial model"],
+  ["办公常用工具", "办公工具", "microsoft office", "office", "excel", "word", "powerpoint", "powerbi", "ppt"],
+] as const;
+
+function equivalentTerms(term: string): readonly string[] {
+  return EQUIVALENT_TERM_GROUPS.find((group) =>
+    group.some((anchor) => term.includes(anchor))
+  ) ?? [];
 }
 
 function requirementTerms(requirement: ResumeSourceRequirementSnapshot): string[] {

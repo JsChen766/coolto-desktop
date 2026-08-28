@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v133");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v140");
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
@@ -22,6 +22,8 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /最后一行约 82%/);
   assert.match(COOLTO_SYSTEM_PROMPT, /lineExpansions/);
   assert.match(COOLTO_SYSTEM_PROMPT, /三分之二实测门槛/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /背景与能力、能力与行动、行动与结果/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /三分之二只是排版验收条件/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /batch_tail_rewrite/);
   assert.match(COOLTO_SYSTEM_PROMPT, /一次 tailRewrites/);
   assert.match(COOLTO_SYSTEM_PROMPT, /完整 revisedText/);
@@ -30,12 +32,22 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /用户愿意补充时/u);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /batch_tail_reflow/);
   assert.match(COOLTO_SYSTEM_PROMPT, /confirm_no_resume_material/);
-  assert.match(COOLTO_SYSTEM_PROMPT, /先发起一次具体的补充邀约/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /可确认跳过的警告/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不再阻止合格版本保存和导出/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /首次生成时，以 95% 为写满目标/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /两轮有限证据复评/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /threshold=transferable/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /threshold=truthful/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /第 2 轮标准必须低于第 1 轮/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /assess_resume_evidence/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /nextAction.mode=request_more_material 时立即停止工具循环/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /补充内容写入后必须再次询问/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得再次返回材料追问/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /宿主会按 materialRequest.id 直接且只显示一次/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /integrate_supplemental_evidence/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /同一查询最多调用一次/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /同名重复记录/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /绝不能用 __pending__/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /contentMode=fact_neutral/);
   assert.match(COOLTO_SYSTEM_PROMPT, /不要先询问用户是否同步/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /全部可核验的具体事实/u);
@@ -48,6 +60,8 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /baseResumeId/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /baseDraftArtifactId/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /同一个 JD 的最新合格本地草稿/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /nextAction 固定为 adapt_reused_content/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /适配完成前不得进入篇幅、溢出或尾行收尾/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /requestId/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /decline_resume_material/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_start_review/u);

@@ -1,11 +1,12 @@
 import { resumeAgentNextAction } from "./agent-next-action.js";
 import type { ResumeWorkspace } from "./types.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
 
 interface ResumeWriteParams {
   items?: readonly { itemId?: string }[];
   bulletUpdates?: readonly { bulletId: string }[];
   bulletRemovals?: readonly { bulletId: string }[];
-  bulletAdditions?: readonly { itemId: string }[];
+  bulletAdditions?: readonly { itemId: string; evidenceIds?: readonly string[] }[];
   tailGrowths?: readonly {
     bulletId: string;
     growthText?: string;
@@ -41,8 +42,30 @@ export function resumeWriteRejection(
   const action = resumeAgentNextAction(workspace);
   const neutralModeError = factNeutralModeError(workspace, params);
   if (neutralModeError) return neutralModeError;
+  if (action.mode === "adapt_reused_content") {
+    const supplied = new Set(params.items?.flatMap((item) =>
+      item.itemId ? [item.itemId] : []
+    ) ?? []);
+    const hasOtherMode = Boolean(
+      params.bulletUpdates?.length || params.bulletRemovals?.length ||
+        params.bulletAdditions?.length || params.tailGrowths?.length ||
+        params.lineExpansions?.length || params.lineRewrites?.length ||
+        params.tailRewrites?.length,
+    );
+    const missing = action.itemIds.filter((itemId) => !supplied.has(itemId));
+    const extra = [...supplied].filter((itemId) =>
+      !action.itemIds.includes(itemId)
+    );
+    return params.items?.length === action.itemIds.length && !hasOtherMode &&
+        !missing.length && !extra.length
+      ? undefined
+      : `nextAction 是 adapt_reused_content；必须用一次 items 完整覆盖 itemTargets；missing=${missing.join(",") || "none"}；extra=${extra.join(",") || "none"}`;
+  }
   if (action.mode === "request_more_material") {
     return "当前工作区正在等待用户回应补充邀约；补充事实时调用 add_resume_material，不需要补充或没有更多事实时调用 confirm_no_resume_material 进入最终收尾，只有用户明确停止整份生成时才保留未达标草稿";
+  }
+  if (action.mode === "assess_evidence") {
+    return `nextAction 是 assess_evidence 第 ${action.round} 轮；必须先调用 assess_resume_evidence 完整覆盖当前 evidenceIds`;
   }
   if (action.mode === "await_augmented_confirmation") {
     return "nextAction 是 await_augmented_confirmation；停止工具循环并等待用户处理确认卡";
@@ -94,6 +117,15 @@ export function resumeWriteRejection(
     if (params.bulletAdditions?.length &&
       params.bulletAdditions.length > action.maximumAddedBullets) {
       return `bulletAdditions 最多新增 ${action.maximumAddedBullets} 条 bullet`;
+    }
+    const allowedEvidence = new Set(
+      action.groundedAdditionTargets.map((target) => target.evidenceId),
+    );
+    const extraEvidence = (params.bulletAdditions ?? []).flatMap(
+      (addition) => addition.evidenceIds ?? [],
+    ).filter((evidenceId) => !allowedEvidence.has(evidenceId));
+    if (extraEvidence.length) {
+      return `bulletAdditions 只能使用 groundedAdditionTargets：extra=${extraEvidence.join(",")}`;
     }
     const expansions = params.lineExpansions ?? params.lineRewrites;
     if (expansions?.length &&
@@ -158,10 +190,13 @@ function factNeutralModeError(
     ...neutralInputs,
     ...tailCandidates,
   ].some((input) => input.contentMode === "fact_neutral");
-  if (factNeutralRequested && !workspace.factNeutralAuthorization) {
-    return "用户尚未明确结束补充并进入最终收尾，不能使用 fact_neutral";
+  const neutralActive = factNeutralClosureActive(workspace);
+  if (factNeutralRequested && !neutralActive) {
+    return workspace.factNeutralAuthorization
+      ? "首次生成仍有可写的真实证据或最低 bullet 数缺口；必须先完成 grounded 写入，不能提前使用 fact_neutral"
+      : "用户尚未明确结束补充并进入最终收尾，不能使用 fact_neutral";
   }
-  if (!workspace.factNeutralAuthorization) return undefined;
+  if (!neutralActive) return undefined;
   if (neutralInputs.length && neutralInputs.some(
     (input) => input.contentMode !== "fact_neutral"
   )) {

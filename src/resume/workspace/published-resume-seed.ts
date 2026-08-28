@@ -32,6 +32,12 @@ export function seedFromPublishedResume(input: {
 }): PublishedResumeSeedResult {
   assertEligibleBase(input.base, input.fresh.language);
   const structure = structuredClone(input.fresh);
+  if (sameLayoutTemplate(structure, input.base.structured) &&
+    input.base.structured.layout_tuning) {
+    structure.layout_tuning = structuredClone(
+      input.base.structured.layout_tuning,
+    );
+  }
   const priorItems = new Map(input.base.structured.sections.flatMap((section) =>
     section.items.flatMap((item) => item.source_experience_id
       ? [[itemKey(section.type, item.source_experience_id), item] as const]
@@ -142,6 +148,12 @@ function sameEvidence(
 
 function itemKey(type: string, experienceId: string): string {
   return `${type}:${experienceId}`;
+}
+
+function sameLayoutTemplate(left: ResumeStructure, right: ResumeStructure) {
+  return left.layout_template_id === right.layout_template_id &&
+    left.layout_profile_version === right.layout_profile_version &&
+    left.layout_profile_hash === right.layout_profile_hash;
 }
 
 function assertEligibleBase(base: ResumeFull, language: string): void {

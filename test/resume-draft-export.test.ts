@@ -175,6 +175,45 @@ test("one-line tiered bullets can be saved when every formal gate passes", async
   );
 });
 
+test("acknowledged critical-skill warning no longer blocks save or export", async () => {
+  const { draft, workspace } = await createQualifiedDraft();
+  const requirement = workspace.sourceSnapshot.jd.requirements[0]!;
+  workspace.sourceSnapshot = {
+    ...workspace.sourceSnapshot,
+    jd: {
+      ...workspace.sourceSnapshot.jd,
+      requirements: [{
+        ...requirement,
+        id: "req-k8s",
+        text: "Kubernetes 生产部署",
+        keywords: ["Kubernetes"],
+        category: "technical",
+        v2Category: "technology",
+        importance: "high",
+        v2Importance: "must_have",
+      }],
+    },
+  };
+  draft.workspace = workspace;
+  assert.equal(isExportableWorkspace(workspace), false);
+
+  workspace.factNeutralAuthorization = {
+    sourceRequestKind: "critical_skill",
+    confirmedAt: "2026-08-28T00:00:00.000Z",
+    confirmedMessageTimestamp: 100,
+  };
+  draft.workspace = workspace;
+  assert.equal(isExportableWorkspace(workspace), true);
+  assert.doesNotThrow(() => buildDraftSavePayload({
+    draft,
+    expectedRevision: workspace.revision,
+  }));
+  assert.doesNotThrow(() => buildDraftPdfExportPayload({
+    draft,
+    expectedRevision: workspace.revision,
+  }));
+});
+
 test("chained abstract padding cannot be saved or exported", async () => {
   const { draft, workspace } = await createQualifiedDraft();
   const bullet = workspace.structure.sections

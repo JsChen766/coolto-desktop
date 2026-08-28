@@ -50,7 +50,7 @@ export const detailMessages: Record<string, string> = {
   "页面占比": "Page coverage",
   "目标 92%": "Target 92%",
   "最低尾行": "Shortest final line",
-  "目标 ≥ 75%": "Target ≥ 75%",
+  "目标": "Target",
   "事实完整性": "Fact completeness",
   "JD 覆盖": "JD coverage",
   "未关联 JD": "No linked JD",

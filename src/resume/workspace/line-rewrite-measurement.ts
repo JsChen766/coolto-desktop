@@ -1,5 +1,6 @@
 import type { ResumeCompiler } from "./compiler-port.js";
 import type { ResumeWorkspace } from "./types.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
 
 export interface LineRewriteTarget {
   bulletId: string;
@@ -40,7 +41,7 @@ export async function measureLineRewrites(
     const characterGrowth = [...target.revisedText].length -
       [...target.existing].length;
     const linePlan = workspace.bulletLinePlans?.[target.bulletId];
-    const lineLimit = workspace.factNeutralAuthorization
+    const lineLimit = factNeutralClosureActive(workspace)
       ? undefined
       : linePlan?.lockedLines ?? linePlan?.plannedLines;
     const withinLineLimit = lineLimit === undefined ||

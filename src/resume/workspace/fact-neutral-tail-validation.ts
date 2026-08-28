@@ -3,6 +3,7 @@ import {
   withFactNeutralFragments,
 } from "./fact-neutral-fragments.js";
 import type { ResumeWorkspace } from "./types.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
 
 export function validateFactNeutralTailEdit(
   workspace: ResumeWorkspace,
@@ -21,7 +22,7 @@ export function validateFactNeutralTailEdit(
     });
     return withFactNeutralFragments(workspace, [proposal]);
   }
-  if (workspace.factNeutralAuthorization) {
+  if (factNeutralClosureActive(workspace)) {
     throw new Error(
       `bullet ${input.bulletId} 已进入无素材补齐阶段，必须显式传 contentMode=fact_neutral`,
     );

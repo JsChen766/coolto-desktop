@@ -1,14 +1,13 @@
 import type { ResumeWorkspace, ResumeWorkspaceStatus } from "./types.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
-import { missingCriticalSkillEvidence } from "./critical-skill-gate.js";
+import { criticalSkillWarning } from "./critical-skill-gate.js";
 import { findResumePaddingIssue } from "../planning/text-padding.js";
 import { minimumResumeBulletCount } from "./bullet-count-rules.js";
 import { matchingFactNeutralFragment } from "./fact-neutral-fragments.js";
 import { validateFactNeutralFragment } from "./fact-neutral-validation.js";
 import { supplementalIntegrationTargets } from
   "./supplemental-integration-targets.js";
-
 export type ResumeGenerationBlockerCode =
   | "layout_not_current"
   | "layout_not_qualified"
@@ -20,6 +19,7 @@ export type ResumeGenerationBlockerCode =
   | "sentence_punctuation"
   | "bullet_content_padding"
   | "critical_skill_evidence_missing"
+  | "reuse_adaptation_pending"
   | "supplemental_evidence_not_integrated";
 
 export interface ResumeGenerationBlocker {
@@ -32,6 +32,7 @@ export interface ResumeGenerationBlocker {
 export interface ResumeGenerationReadiness {
   ready: boolean;
   blockers: ResumeGenerationBlocker[];
+  warnings: ResumeGenerationBlocker[];
 }
 
 /** Deterministic host gate shared by preview, save and export. */
@@ -39,6 +40,12 @@ export function resumeGenerationReadiness(
   workspace: ResumeWorkspace,
 ): ResumeGenerationReadiness {
   const blockers: ResumeGenerationBlocker[] = [];
+  const criticalWarning = criticalSkillWarning(workspace);
+  const warnings = criticalWarning ? [criticalWarning] : [];
+  if (workspace.reuseAdaptation?.status === "pending") blockers.push({
+    code: "reuse_adaptation_pending",
+    message: "历史简历基底尚未完成针对当前 JD 的内容适配",
+  });
   const supplementalTargets = supplementalIntegrationTargets(workspace);
   for (const target of supplementalTargets) {
     blockers.push({
@@ -47,13 +54,8 @@ export function resumeGenerationReadiness(
       itemId: target.itemId,
     });
   }
-  const missingCriticalSkills = missingCriticalSkillEvidence(workspace);
-  if (missingCriticalSkills.length) {
-    blockers.push({
-      code: "critical_skill_evidence_missing",
-      message: `关键技能缺少直接经历证据：${missingCriticalSkills
-        .map((requirement) => requirement.text).join("、")}`,
-    });
+  if (criticalWarning && !workspace.factNeutralAuthorization) {
+    blockers.push(criticalWarning);
   }
   if (
     workspace.compileObservedRevision !== undefined &&
@@ -214,15 +216,16 @@ export function resumeGenerationReadiness(
       bulletId: pending.bulletId,
     });
   }
-  return { ready: blockers.length === 0, blockers };
+  return { ready: blockers.length === 0, blockers, warnings };
 }
 
 export function generationWorkspaceStatus(
   workspace: ResumeWorkspace,
 ): ResumeWorkspaceStatus {
-  if (missingCriticalSkillEvidence(workspace).length) {
+  if (criticalSkillWarning(workspace) && !workspace.factNeutralAuthorization) {
     return "needs_user_decision";
   }
+  if (workspace.reuseAdaptation?.status === "pending") return "writing";
   if (resumeGenerationReadiness(workspace).ready) return "ready_for_approval";
   return deriveWorkspaceStatus(
     workspace.compileResult,

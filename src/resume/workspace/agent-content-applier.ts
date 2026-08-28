@@ -19,7 +19,11 @@ import type { ResumeFactNeutralFragment } from "./fact-neutral-types.js";
 import { reconcileFactNeutralFragments, withFactNeutralFragments } from "./fact-neutral-fragments.js";
 import { applyBulletCountMaterialGate } from "./material-request-gate.js";
 import { applyMaterialFollowUpGate } from "./material-follow-up.js";
-
+import { applyCriticalSkillGate } from "./critical-skill-gate.js";
+import { reconcileReuseAdaptation } from "./reuse-adaptation.js";
+import { syncEvidenceAssessment } from "./evidence-assessment.js";
+import { persistRejectedSelectedEvidence } from "./evidence-write-rejection.js";
+import { workspaceOperationReceipt } from "./agent-operation-receipt.js";
 export async function applyAgentResumeContent(input: {
   workspace: ResumeWorkspace;
   items: readonly AgentItemContentInput[];
@@ -28,6 +32,7 @@ export async function applyAgentResumeContent(input: {
   pageFillAttempt?: boolean;
   pageFillProgressMade?: boolean;
   factNeutralFragments?: readonly ResumeFactNeutralFragment[];
+  allowPartialItemProgress?: boolean;
   compiler: ResumeCompiler;
   store: ResumeWorkspaceStore;
 }): Promise<{ workspace: ResumeWorkspace; operation: WorkspaceOperationReceipt }> {
@@ -44,7 +49,6 @@ export async function applyAgentResumeContent(input: {
   const appliedItemIds: string[] = [];
   const rejectedItems: WorkspaceOperationReceipt["rejectedItems"] = [];
   const seenItems = new Set<string>();
-
   for (const rawItem of input.items) {
     const itemId = rawItem.itemId.trim();
     if (!itemId || seenItems.has(itemId)) {
@@ -61,7 +65,11 @@ export async function applyAgentResumeContent(input: {
       if (located.section.type === "education") {
         throw new Error("教育信息由经历库固定展示，不能在简历生成中改写或删除");
       }
-      assertMinimumBulletCount(source, itemId, rawItem.bullets.length);
+      const partialDraftGrowth = input.allowPartialItemProgress &&
+        rawItem.bullets.length > located.item.bullets.length;
+      if (!partialDraftGrowth) {
+        assertMinimumBulletCount(source, itemId, rawItem.bullets.length);
+      }
       if (rawItem.bullets.length === 0) {
         located.section.items.splice(located.index, 1);
         bindings = bindings.filter((binding) =>
@@ -105,7 +113,8 @@ export async function applyAgentResumeContent(input: {
           ).join("；"),
           errors: validation.errors,
         });
-        continue;
+        if (!input.allowPartialItemProgress ||
+          validation.built.length <= located.item.bullets.length) continue;
       }
       const built = validation.built;
       const oldIds = new Set(located.item.bullets.map((bullet) => bullet.id));
@@ -141,14 +150,14 @@ export async function applyAgentResumeContent(input: {
       });
     }
   }
-  const operation = receipt(appliedItemIds, rejectedItems);
+  const operation = workspaceOperationReceipt(appliedItemIds, rejectedItems);
   if (!appliedItemIds.length) {
     const workspace = input.tailRepairProgress
       ? input.store.replace(
           workspaceWithTailRepairProgress(source, input.tailRepairProgress),
           source.revision,
         )
-      : source;
+      : persistRejectedSelectedEvidence(input.store, source, input.items, rejectedItems);
     return { workspace, operation };
   }
   structure.sections = structure.sections.filter((section) => section.items.length > 0);
@@ -201,6 +210,7 @@ export async function applyAgentResumeContent(input: {
       compileResult: structuredClone(compileResult),
     },
   };
+  updated = reconcileReuseAdaptation(source, updated, appliedItemIds);
   updated.status = generationWorkspaceStatus(updated);
   if (input.tailRepairProgress) {
     const failedIds = new Set(compileResult.bullets
@@ -219,11 +229,12 @@ export async function applyAgentResumeContent(input: {
         source.compileResult.usedHeightPx + RESUME_LAYOUT_TOLERANCE_PX,
     );
   }
-  updated = applyBulletCountMaterialGate(updated);
-  updated = applyMaterialFollowUpGate(updated);
+  updated = applyMaterialFollowUpGate(applyBulletCountMaterialGate(
+    applyCriticalSkillGate(updated),
+  ));
+  updated = syncEvidenceAssessment(updated);
   return { workspace: input.store.replace(updated, source.revision), operation };
 }
-
 function locateItem(structure: ResumeWorkspace["structure"], itemId: string) {
   for (const section of structure.sections) {
     const index = section.items.findIndex((item) => item.id === itemId);
@@ -231,20 +242,6 @@ function locateItem(structure: ResumeWorkspace["structure"], itemId: string) {
   }
   return undefined;
 }
-
 function normalized(value: string): string {
   return value.normalize("NFKC").trim().toLocaleLowerCase();
-}
-
-function receipt(
-  appliedItemIds: string[],
-  rejectedItems: WorkspaceOperationReceipt["rejectedItems"],
-): WorkspaceOperationReceipt {
-  return {
-    status: appliedItemIds.length
-      ? rejectedItems.length ? "partial_success" : "success"
-      : "rejected",
-    appliedItemIds,
-    rejectedItems,
-  };
 }

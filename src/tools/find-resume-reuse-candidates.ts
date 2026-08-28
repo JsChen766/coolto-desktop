@@ -6,6 +6,8 @@ import { findResumeReuseCandidates } from "../resume/reuse/candidate-retrieval.j
 import type { ResumePublicationGateway } from "../resume/save/types.js";
 import type { ResumeReuseDraftSource } from
   "../resume/reuse/local-draft-source.js";
+import { deferredJdDependencyResult } from
+  "../agent/tool-dependency-recovery.js";
 
 const parameters = Type.Object({
   targetJdId: Type.String({ minLength: 1 }),
@@ -26,6 +28,8 @@ export function createFindResumeReuseCandidatesTool(
       "你必须读取候选的完整 JD/Resume 后自行判断。没有合适候选时从零生成。",
     parameters,
     execute: async (_id, input, signal) => {
+      const deferred = deferredJdDependencyResult(input.targetJdId);
+      if (deferred) return deferred;
       const result = await findResumeReuseCandidates({
         targetJdId: input.targetJdId,
         limit: input.limit ?? 10,

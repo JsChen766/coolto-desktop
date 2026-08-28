@@ -6,9 +6,11 @@ import { resumeGenerationReadiness } from
   "../../resume/workspace/generation-readiness.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
 import { projectConversationMessages } from "./conversation-presentation.js";
+import { hasNoMoreResumeMaterialIntent } from "./no-material-intent.js";
 
 const RESUME_RESULT_TOOLS = new Set([
   "create_resume_workspace",
+  "assess_resume_evidence",
   "apply_resume_content",
   "add_resume_material",
   "confirm_no_resume_material",
@@ -16,8 +18,10 @@ const RESUME_RESULT_TOOLS = new Set([
 
 export interface ResumeRunFeedbackState {
   ready: boolean;
+  targetingQuality?: "standard" | "limited";
   violationCodes: string[];
   blockerCodes: string[];
+  warningCodes?: string[];
   materialQuestion?: string;
 }
 
@@ -28,8 +32,16 @@ export function resumeRunFeedbackState(
   const readiness = resumeGenerationReadiness(workspace);
   return {
     ready: readiness.ready,
+    ...(readiness.warnings.some((warning) =>
+        warning.code === "critical_skill_evidence_missing"
+      ) && workspace.factNeutralAuthorization
+      ? { targetingQuality: "limited" as const }
+      : workspace.evidenceAssessment?.targetingQuality
+        ? { targetingQuality: workspace.evidenceAssessment.targetingQuality }
+        : {}),
     violationCodes: workspace.compileResult.violations.map((item) => item.code),
     blockerCodes: readiness.blockers.map((item) => item.code),
+    warningCodes: readiness.warnings.map((item) => item.code),
     ...(workspace.materialRequest?.question
       ? { materialQuestion: workspace.materialRequest.question }
       : {}),
@@ -46,9 +58,9 @@ export function appendResumeRunFeedback(input: {
   const turn = turnStart >= 0 ? input.messages.slice(turnStart) : [];
   if (!turn.length || hasAuthoritativeQuestion(turn)) return input.messages;
   const results = turn.filter(isResumeToolResult);
-  const fileIntent = /文件|附件|材料|作品|报告|模型|PPT/iu.test(input.userText);
-  const noMaterialIntent = /(?:这些|全部|都).{0,8}(?:没有|没做过)|想不到|没有(?:更多|补充)|不需要补充|无需补充/iu
-    .test(input.userText);
+  const noMaterialIntent = hasNoMoreResumeMaterialIntent(input.userText);
+  const fileIntent = !noMaterialIntent &&
+    /文件|附件|材料|作品|报告|模型|PPT/iu.test(input.userText);
   if (!results.length && !fileIntent && !noMaterialIntent) return input.messages;
   const feedback = buildFeedback({
     state: input.state,
@@ -94,7 +106,12 @@ function buildFeedback(input: {
       ? "收到，我不会补写不存在的经历。已仅基于现有内容完成修改。"
       : "本轮修改已完成。";
   if (input.state.ready) {
-    return `${prefix}当前简历已全部达标，可以预览、保存和导出。`;
+    if (input.state.warningCodes?.includes("critical_skill_evidence_missing")) {
+      return `${prefix}当前简历已通过机械与事实门槛；警告：目标岗位的关键能力仍缺少可核验的经历支持，你已选择跳过该警告。可以预览、保存和导出。`;
+    }
+    return input.state.targetingQuality === "limited"
+      ? `${prefix}当前简历已通过机械与事实门槛；由于使用了低相关但真实的内容完成篇幅，岗位定向证据有限。可以预览、保存和导出。`
+      : `${prefix}当前简历已全部达标，可以预览、保存和导出。`;
   }
   return `${prefix.replace(/。$/u, "")}，但当前简历尚未达标。\n` +
     `缺口：${gapDescription(input.state)}`;

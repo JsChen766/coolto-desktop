@@ -2,6 +2,8 @@ import type { TailRepairProgressState } from "./tail-repair-state.js";
 import type { ResumeWorkspace } from "./types.js";
 import { initialMaterialQuestion } from "./material-question.js";
 import { createResumeMaterialRequest } from "./material-request.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
+import { stopFactNeutralClosure } from "./fact-neutral-stall.js";
 
 export function workspaceWithTailRepairProgress(
   workspace: ResumeWorkspace,
@@ -10,14 +12,12 @@ export function workspaceWithTailRepairProgress(
   if (!tailRepairProgress.stalled) {
     return { ...workspace, tailRepairProgress };
   }
-  if (workspace.factNeutralAuthorization) {
-    const resumed: ResumeWorkspace = {
-      ...workspace,
-      status: "needs_revision",
-      tailRepairProgress: rearmFinalClosure(tailRepairProgress),
-    };
-    delete resumed.materialRequest;
-    return resumed;
+  if (factNeutralClosureActive(workspace)) {
+    return stopFactNeutralClosure({
+      workspace: { ...workspace, tailRepairProgress },
+      kind: "tail_repair_stalled",
+      reason: "事实中性尾行收尾已用尽安全改写仍未能达到门槛",
+    });
   }
   return {
     ...workspace,
@@ -31,21 +31,5 @@ export function workspaceWithTailRepairProgress(
       ),
       discoveryStage: "guidance",
     }),
-  };
-}
-
-function rearmFinalClosure(
-  progress: TailRepairProgressState,
-): TailRepairProgressState {
-  return {
-    stalled: false,
-    byBulletId: Object.fromEntries(Object.entries(progress.byBulletId).map(
-      ([bulletId, value]) => [bulletId, {
-        ...value,
-        mode: "reflow" as const,
-        consecutiveRejects: 0,
-        reflowAttempts: 0,
-      }],
-    )),
   };
 }

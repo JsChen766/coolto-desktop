@@ -75,7 +75,13 @@ export class AgentRuntimeEvents {
         isResumeWorkspaceTool(event.name) &&
         !event.isError
       ) {
-        this.emit(conversationId, { type: "resume.draft.saving" });
+        const workspace = context.workspaceStore.latest();
+        this.emit(conversationId, {
+          type: "resume.draft.saving",
+          replacePreview: event.name === "create_resume_workspace" && Boolean(
+            workspace && !context.artifactIdByCandidate.has(workspace.candidateId),
+          ),
+        });
         try {
           await this.syncLatestWorkspace(conversationId, context);
         } catch (error: unknown) {
@@ -83,6 +89,7 @@ export class AgentRuntimeEvents {
             type: "resume.draft.save-failed",
             message: error instanceof Error ? error.message : String(error),
           });
+          throw error;
         }
       }
       if (

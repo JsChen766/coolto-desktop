@@ -49,6 +49,10 @@ test("local resume drafts survive independently of conversation references", asy
     assert.equal(checkpointed.title, "产品经理");
     assert.equal(checkpointed.checkpoints.length, 1);
     assert.equal((await service.list()).length, 1);
+    assert.equal(
+      toResumeDraftDetail(checkpointed).quality.minimumBulletTailTargetRatio,
+      2 / 3,
+    );
 
     const reopened = new ResumeDraftService(
       "user-1",

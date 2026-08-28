@@ -6,6 +6,7 @@ import type { ResumeWorkspace } from "./types.js";
 export function applyBulletCountMaterialGate(
   workspace: ResumeWorkspace,
 ): ResumeWorkspace {
+  if (workspace.reuseAdaptation?.status === "pending") return workspace;
   if (
     workspace.status === "needs_user_decision" &&
     workspace.materialRequest?.kind !== "bullet_count_insufficient"
@@ -17,6 +18,9 @@ export function applyBulletCountMaterialGate(
 
   const plan = bulletCountRepairPlan(workspace);
   if (plan.mode === "request_more_material") {
+    if (!workspace.reuseBase && plan.initialDraftTargets.length) {
+      return clearBulletCountRequest(workspace);
+    }
     return {
       ...workspace,
       status: "needs_user_decision",

@@ -300,7 +300,7 @@ test("stalled tail growth becomes one neutral material request", async () => {
   assert.equal(resumeAgentNextAction(stopped).mode, "request_more_material");
 });
 
-test("authorized final tail closure cannot return to a material question", async () => {
+test("authorized final tail closure stops after bounded neutral attempts", async () => {
   const compiler = new TailCompiler();
   const workspace = await createWorkspace(compiler, ["正式基底"]);
   workspace.factNeutralAuthorization = {
@@ -319,12 +319,13 @@ test("authorized final tail closure cannot return to a material question", async
     }], new Set(["a"]));
   }
 
-  const reopened = workspaceWithTailRepairProgress(workspace, progress);
+  const stopped = workspaceWithTailRepairProgress(workspace, progress);
 
-  assert.notEqual(reopened.status, "needs_user_decision");
-  assert.equal(reopened.materialRequest, undefined);
-  assert.equal(reopened.tailRepairProgress?.stalled, false);
-  assert.equal(resumeAgentNextAction(reopened).mode, "batch_tail_rewrite");
+  assert.equal(stopped.status, "needs_user_decision");
+  assert.equal(stopped.materialRequest?.status, "declined");
+  assert.equal(stopped.materialRequest?.resolution, "best_effort_stalled");
+  assert.equal(stopped.tailRepairProgress?.stalled, true);
+  assert.equal(resumeAgentNextAction(stopped).mode, "stop_insufficient_material");
 });
 
 test("next action batches at most four semantic tail rewrite targets", async () => {

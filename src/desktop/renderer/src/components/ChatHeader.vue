@@ -149,7 +149,9 @@ function resumeActionLabel(action: "保存到简历库" | "导出到本地文件
           <div class="resume-detail-row">
             <span>{{ $t('最低尾行') }}</span>
             <strong>{{ percent(resumeDraft.quality.minimumBulletTailRatio) }}</strong>
-            <small>{{ $t('目标 ≥ 75%') }}</small>
+            <small>
+              {{ $t('目标') }} ≥ {{ percent(resumeDraft.quality.minimumBulletTailTargetRatio) }}
+            </small>
           </div>
           <div class="resume-detail-row">
             <span>{{ $t('事实完整性') }}</span>

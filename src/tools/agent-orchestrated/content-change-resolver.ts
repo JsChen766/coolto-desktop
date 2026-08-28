@@ -1,5 +1,7 @@
 import { applyAgentResumeContent } from "../../resume/workspace/agent-content-applier.js";
 import { workspaceEvidenceRecords } from "../../resume/workspace/agent-workspace-evidence.js";
+import { allocateResumeBulletId } from
+  "../../resume/workspace/bullet-id-allocation.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 
 type Workspace = ReturnType<ResumeWorkspaceStore["get"]>;
@@ -102,7 +104,13 @@ function expandBulletAdditions(
     );
     if (item.length !== 1) throw new Error(`item ${addition.itemId} 不在当前工作区`);
     const current = byItem.get(addition.itemId) ?? [];
+    const bulletId = allocateResumeBulletId(
+      addition.itemId,
+      [...item[0]!.bullets.map((bullet) => bullet.id),
+        ...current.flatMap((bullet) => bullet.bulletId ? [bullet.bulletId] : [])],
+    );
     current.push({
+      bulletId,
       text: addition.text,
       origin: addition.origin,
       ...(addition.evidenceIds ? { evidenceIds: addition.evidenceIds } : {}),

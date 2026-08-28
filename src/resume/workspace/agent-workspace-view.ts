@@ -150,6 +150,7 @@ export function buildAgentWorkspaceView(
         ...(blocker.itemId ? { itemId: blocker.itemId } : {}),
         ...(blocker.bulletId ? { bulletId: blocker.bulletId } : {}),
       })),
+      warnings: readiness.warnings.map((warning) => ({ code: warning.code })),
     },
     ...(operation ? { operation } : {}),
     resume: { items },
@@ -244,7 +245,6 @@ export function buildAgentWorkspaceReceipt(
     recovery: "需要完整当前简历时调用 get_resume_workspace；正常循环直接按 nextAction 批量继续",
   };
 }
-
 function round(value: number): number {
   return Number(value.toFixed(2));
 }

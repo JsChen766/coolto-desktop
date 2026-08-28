@@ -18,7 +18,7 @@ export interface ConversationAgentContext {
   experienceSyncProposals: ResumeExperienceSyncProposalPort;
   artifactIdByCandidate: Map<string, string>;
   /** Host-owned provenance anchor for facts added from the current user turn. */
-  currentUserMessage: { timestamp: number | undefined };
+  currentUserMessage: { timestamp: number | undefined; text?: string };
   /** Model plumbing for context compaction (summary generation). */
   compaction?: CompactionDependencies;
   activeEdit?: {

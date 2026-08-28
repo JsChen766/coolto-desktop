@@ -1,6 +1,8 @@
 export interface ResumeFactNeutralAuthorization {
   sourceRequestKind:
     | "agent_declared"
+    | "critical_skill"
+    | "bullet_count_insufficient"
     | "page_fill_stalled"
     | "line_rewrite_stalled"
     | "tail_repair_stalled";

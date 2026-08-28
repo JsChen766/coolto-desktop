@@ -1,5 +1,6 @@
 import { rankAvailableEvidence } from "../quality/evidence-candidates.js";
 import type { ResumeWorkspace } from "./types.js";
+import { selectedEvidenceIds } from "./evidence-assessment.js";
 
 export interface GroundedAdditionTarget {
   itemId: string;
@@ -45,5 +46,11 @@ export function groundedAdditionTargets(
       }] : [];
     },
   );
-  return [...snapshotTargets, ...supplementalTargets].slice(0, maximum);
+  const selected = selectedEvidenceIds(workspace);
+  const eligible = selected
+    ? [...snapshotTargets, ...supplementalTargets].filter((target) =>
+        selected.has(target.evidenceId)
+      )
+    : [...snapshotTargets, ...supplementalTargets];
+  return eligible.slice(0, maximum);
 }

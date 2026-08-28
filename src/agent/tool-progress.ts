@@ -45,6 +45,7 @@ export interface ResumeToolProgress {
 const RESUME_TOOLS = new Set([
   "create_resume_workspace",
   "get_resume_workspace",
+  "assess_resume_evidence",
   "apply_resume_content",
   "add_resume_material",
   "pause_resume_for_material",

@@ -7,6 +7,8 @@ import { buildAgentWorkspaceReceipt } from "../../resume/workspace/agent-workspa
 import { resumeGenerationReadiness } from "../../resume/workspace/generation-readiness.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { initialMaterialQuestion } from "../../resume/workspace/material-question.js";
+import { hasPendingFirstGenerationGroundedWork } from
+  "../../resume/workspace/first-generation-policy.js";
 
 const parameters = Type.Object({
   candidateId: Type.String({ minLength: 1 }),
@@ -43,6 +45,11 @@ export function createPauseResumeForMaterialTool(
       }
       if (workspace.factNeutralAuthorization) {
         throw new Error("用户已结束补充并进入最终收尾，不能再次发起材料追问");
+      }
+      if (hasPendingFirstGenerationGroundedWork(workspace)) {
+        throw new Error(
+          "首次生成仍有可写的真实证据；必须先按当前 nextAction 写入全部可用 grounded bullet，不能提前向用户追问材料",
+        );
       }
       const requestedExperienceId = params.targetExperienceId?.trim();
       const targetExperienceId = requestedExperienceId &&

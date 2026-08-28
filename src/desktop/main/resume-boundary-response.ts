@@ -3,14 +3,10 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { resumeAgentNextAction } from
   "../../resume/workspace/agent-next-action.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
+import { appendControlledAssistantMessage } from "./resume-run-feedback.js";
+import { crossedResumeMaterialBoundary } from
+  "./resume-material-boundary.js";
 
-const MATERIAL_REQUEST_TOOLS = new Set([
-  "create_resume_workspace",
-  "apply_resume_content",
-  "add_resume_material",
-  "pause_resume_for_material",
-  "get_resume_workspace",
-]);
 const DECLINED_RESPONSE =
   "已停止追问并保留当前草稿。由于现有事实不足，这份简历尚未达到交付门槛。";
 const STALLED_RESPONSE =
@@ -30,7 +26,9 @@ export function canonicalizeResumeBoundaryResponse(
   const action = resumeAgentNextAction(workspace);
   let response: string | undefined;
   if (action.mode === "request_more_material" &&
-    [...toolNames].some((name) => MATERIAL_REQUEST_TOOLS.has(name))) {
+    crossedResumeMaterialBoundary(currentRun.flatMap((message) =>
+      message.role === "toolResult" ? [message] : []
+    ))) {
     response = action.question ?? workspace.materialRequest?.question ??
       "请补充一个尚未写入的具体事实；如果没有更多事实，也请直接说明。";
   } else if (action.mode === "stop_insufficient_material" &&
@@ -43,7 +41,10 @@ export function canonicalizeResumeBoundaryResponse(
     index >= startIndex && message.role === "assistant" &&
     !message.content.some((part) => part.type === "toolCall")
   );
-  if (assistantIndex < 0) return messages;
+  if (assistantIndex < 0) {
+    const timestamp = Math.max(0, ...messages.map((message) => message.timestamp)) + 1;
+    return appendControlledAssistantMessage(messages, response, timestamp);
+  }
   const assistant = messages[assistantIndex]!;
   if (assistant.role !== "assistant") return messages;
   const canonical = [...messages];

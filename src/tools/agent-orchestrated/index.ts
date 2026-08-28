@@ -7,6 +7,7 @@ import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createApplyResumeContentTool } from "./apply-content.js";
+import { createAssessResumeEvidenceTool } from "./assess-evidence.js";
 import { createAddResumeMaterialTool } from "./add-material.js";
 import { createDeclineResumeMaterialTool } from "./decline-material.js";
 import { createResumeWorkspaceTool } from "./create-workspace.js";
@@ -45,10 +46,12 @@ export function createAgentOrchestratedTools(
       dependencies.resumeDraftReader,
     ),
     createGetResumeWorkspaceTool(dependencies.store),
+    createAssessResumeEvidenceTool(dependencies.store),
     createPauseResumeForMaterialTool(dependencies.store),
     createConfirmNoResumeMaterialTool(
       dependencies.store,
       dependencies.currentUserMessageTimestamp ?? (() => undefined),
+      dependencies.compiler,
     ),
     createApplyResumeContentTool(
       dependencies.compiler,

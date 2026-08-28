@@ -73,6 +73,7 @@ export async function executeAgentPrompt(
   // message maps to exactly one prompt; the host never injects phase prompts
   // or re-prompts a half-finished resume workspace.
   context.currentUserMessage.timestamp = Date.now();
+  context.currentUserMessage.text = prompt.text;
   await context.agent.prompt(promptText + attachmentNotice);
   const runStopError = context.agent.runStopError;
   if (runStopError) {

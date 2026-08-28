@@ -1,7 +1,5 @@
-import { RESUME_GLOBAL_MINIMUM_USAGE_RATIO, RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
+import { RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
 import { resumeGenerationReadiness } from "./generation-readiness.js";
-import { groundedAdditionTargets, type GroundedAdditionTarget } from "./grounded-addition-targets.js";
-import { lineExpansionTargets, type LineExpansionTarget } from "./line-expansion-targets.js";
 import { tailRepairBatch } from "./tail-repair-targets.js";
 import type { TailLengthBudget } from "./tail-length-budget.js";
 import type { ResumeWorkspace } from "./types.js";
@@ -29,9 +27,22 @@ import {
 } from "./bullet-count-repair.js";
 import type { ResumeMaterialNextAction } from "./material-next-action.js";
 import { normalizeResumeMaterialRequest } from "./material-request.js";
-const MIN_GROUNDED_ADDITION_OPTIONS = 12;
+import { reuseAdaptationNextAction, type ResumeReuseAdaptationAction } from
+  "./reuse-adaptation-next-action.js";
+import {
+  factNeutralClosureActive,
+  hasPendingFirstGenerationGroundedWork,
+  isFirstResumeGeneration,
+} from "./first-generation-policy.js";
+import {
+  evidenceAssessmentNextAction,
+  type ResumeEvidenceAssessmentAction,
+} from "./evidence-assessment.js";
+import {
+  resumeUsageNextAction,
+  type ResumeUsageNextAction,
+} from "./usage-next-action.js";
 const MAX_MODEL_TAIL_REWRITE_TARGETS = 4;
-
 interface AgentSemanticTailRewriteTarget {
   requiredEdit: string;
   bulletId: string;
@@ -45,10 +56,10 @@ interface AgentSemanticTailRewriteTarget {
   contentMode?: "fact_neutral";
   suggestedNeutralCandidates?: string[];
 }
-
 export type ResumeAgentNextAction =
   | { mode: "stop" }
-  | ResumeMaterialNextAction
+  | ResumeReuseAdaptationAction | ResumeMaterialNextAction
+  | ResumeEvidenceAssessmentAction
   | { mode: "await_augmented_confirmation" }
   | {
     mode: "integrate_supplemental_evidence";
@@ -63,18 +74,7 @@ export type ResumeAgentNextAction =
     itemIds: string[];
     itemTargets: BulletCountRepairTarget[];
   }
-  | {
-    mode: "increase_usage";
-    additionalBodyLinesToMinimum: number;
-    requiredInput:
-      | "bulletAdditions"
-      | "lineExpansions"
-      | "bulletAdditionsOrLineExpansions";
-    maximumAddedBullets: number;
-    targetExpandedBullets: number;
-    groundedAdditionTargets: GroundedAdditionTarget[];
-    lineExpansionTargets: LineExpansionTarget[];
-  }
+  | ResumeUsageNextAction
   | {
     mode: "batch_tail_rewrite";
     bulletIds: string[];
@@ -87,8 +87,11 @@ export type ResumeAgentNextAction =
 export function resumeAgentNextAction(
   workspace: ResumeWorkspace,
 ): ResumeAgentNextAction {
+  const reuseAction = reuseAdaptationNextAction(workspace);
+  if (reuseAction) return reuseAction;
   const criticalSkillRequest = criticalSkillMaterialRequest(workspace);
-  if (criticalSkillRequest) {
+  if (criticalSkillRequest &&
+    !hasPendingFirstGenerationGroundedWork(workspace)) {
     const request = normalizeResumeMaterialRequest(
       workspace.candidateId,
       criticalSkillRequest,
@@ -143,7 +146,13 @@ export function resumeAgentNextAction(
       itemTargets: supplementalTargets,
     };
   }
-  if (resumeGenerationReadiness(workspace).ready) return { mode: "stop" };
+  const evidenceAction = evidenceAssessmentNextAction(workspace);
+  if (evidenceAction) return evidenceAction;
+  const usageAction = resumeUsageNextAction(workspace);
+  if (
+    resumeGenerationReadiness(workspace).ready &&
+    !(isFirstResumeGeneration(workspace) && usageAction)
+  ) return { mode: "stop" };
 
   const compile = workspace.compileResult;
   if (
@@ -153,6 +162,10 @@ export function resumeAgentNextAction(
 
   const countPlan = bulletCountRepairPlan(workspace);
   if (countPlan.mode === "request_more_material") {
+    if (isFirstResumeGeneration(workspace) &&
+      countPlan.initialDraftTargets.length) {
+      return countRepairAction(countPlan.initialDraftTargets);
+    }
     return {
       mode: "request_more_material",
       question: initialMaterialQuestion(countPlan.question),
@@ -160,44 +173,10 @@ export function resumeAgentNextAction(
     };
   }
   if (countPlan.targets.length) {
-    return {
-      mode: "repair_bullet_counts",
-      requiredInput: "items",
-      itemIds: countPlan.targets.map((target) => target.itemId),
-      itemTargets: countPlan.targets,
-    };
+    return countRepairAction(countPlan.targets);
   }
 
-  const heightDeficitPx = Math.max(
-    0,
-    compile.availableHeightPx * RESUME_GLOBAL_MINIMUM_USAGE_RATIO -
-      compile.usedHeightPx - RESUME_LAYOUT_TOLERANCE_PX,
-  );
-  if (heightDeficitPx > 0) {
-    const targetBodyLines = Math.ceil(
-      heightDeficitPx / Math.max(1, compile.bodyLineHeightPx),
-    );
-    const targets = lineExpansionTargets(workspace);
-    const tieredItemIds = new Set(Object.keys(workspace.itemTiers ?? {}));
-    const additionTargets = groundedAdditionTargets(
-      workspace,
-      Math.max(MIN_GROUNDED_ADDITION_OPTIONS, targetBodyLines * 4),
-    ).filter((target) => tieredItemIds.has(target.itemId));
-    const neutralAuthorized = Boolean(workspace.factNeutralAuthorization);
-    return {
-      mode: "increase_usage",
-      additionalBodyLinesToMinimum: targetBodyLines,
-      requiredInput: !neutralAuthorized && additionTargets.length && targets.length
-        ? "bulletAdditionsOrLineExpansions"
-        : !neutralAuthorized && additionTargets.length
-          ? "bulletAdditions" : "lineExpansions",
-      maximumAddedBullets: neutralAuthorized
-        ? 0 : Math.min(targetBodyLines, additionTargets.length),
-      groundedAdditionTargets: neutralAuthorized ? [] : additionTargets,
-      targetExpandedBullets: targets.length,
-      lineExpansionTargets: targets,
-    };
-  }
+  if (usageAction) return usageAction;
 
   const tailBatch = tailRepairBatch(workspace);
   if (tailBatch.remainingTailCount) {
@@ -209,7 +188,7 @@ export function resumeAgentNextAction(
         mode: "batch_tail_rewrite",
         bulletIds: activeTargets.map((target) => target.bulletId),
         tailRewriteTargets: activeTargets.map((target) => ({
-          requiredEdit: workspace.factNeutralAuthorization
+          requiredEdit: factNeutralClosureActive(workspace)
             ? FACT_NEUTRAL_REWRITE_INSTRUCTION
             : semanticTailRewriteInstruction(target.lengthBudget),
           bulletId: target.bulletId,
@@ -222,7 +201,7 @@ export function resumeAgentNextAction(
           sourceQuotes: target.sourceQuotes,
           availableEvidence: target.availableEvidence,
           rejectedCandidates: target.rejectedReflows,
-          ...(workspace.factNeutralAuthorization
+          ...(factNeutralClosureActive(workspace)
             ? {
                 contentMode: "fact_neutral" as const,
                 suggestedNeutralCandidates: nextFactNeutralRewriteOptions({
@@ -245,4 +224,13 @@ export function resumeAgentNextAction(
     return { mode: "await_augmented_confirmation" };
   }
   return { mode: "inspect_blockers" };
+}
+
+function countRepairAction(targets: BulletCountRepairTarget[]) {
+  return {
+    mode: "repair_bullet_counts" as const,
+    requiredInput: "items" as const,
+    itemIds: targets.map((target) => target.itemId),
+    itemTargets: targets,
+  };
 }

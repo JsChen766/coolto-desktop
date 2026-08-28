@@ -22,9 +22,8 @@ import { resumeWriteResultForModel } from "./resume-write-result-for-model.js";
 import { resumeWriteLoopGuardKey } from "../../resume/workspace/resume-write-loop-key.js";
 import { syncAugmentedApproval } from "./sync-augmented-approval.js";
 import { mergeFactNeutralFragments, safeFactNeutralFragmentsForWrite } from "./fact-neutral-write.js";
-export function createApplyResumeContentTool(compiler: ResumeCompiler, store: ResumeWorkspaceStore,
-  approvalManager?: ApprovalManager,
-): AgentTool<typeof parameters> {
+import { isFirstResumeGeneration } from "../../resume/workspace/first-generation-policy.js";
+export function createApplyResumeContentTool(compiler: ResumeCompiler, store: ResumeWorkspaceStore, approvalManager?: ApprovalManager): AgentTool<typeof parameters> {
   return {
     name: "apply_resume_content",
     label: "批量写入简历内容",
@@ -191,6 +190,7 @@ export function createApplyResumeContentTool(compiler: ResumeCompiler, store: Re
           : { pageFillProgressMade }),
         ...(factNeutralFragments.length
           ? { factNeutralFragments } : {}),
+        allowPartialItemProgress: isFirstResumeGeneration(workspace) && (action.mode === "repair_bullet_counts" || action.mode === "integrate_supplemental_evidence"),
       });
       if ((params.lineExpansions || params.lineRewrites) &&
         lineRewriteDiagnostics) {

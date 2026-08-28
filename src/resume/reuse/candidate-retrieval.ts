@@ -25,6 +25,8 @@ export interface ResumeReuseCandidateView {
   retrievalSignals: {
     exactSourceJd: boolean;
     sameTargetRole: boolean;
+    abilityOverlap: number;
+    mustHaveOverlap: number;
     overlappingKeywords: string[];
   };
 }
@@ -60,7 +62,8 @@ export async function findResumeReuseCandidates(input: {
     const overlappingKeywords = [...keywordSet(source)]
       .filter((value) => targetKeywords.has(value)).sort();
     const sameTargetRole = Boolean(targetRole && targetRole === roleKey(source));
-    if (!sameTargetRole && overlappingKeywords.length === 0) return [];
+    const overlap = capabilityOverlap(target, source);
+    if (!sameTargetRole && overlap.abilityOverlap === 0) return [];
     return [{
       baseKind: "cloud", resumeId: resume.id, title: resume.title,
       contentHash: resume.contentHash, updatedAt: resume.updatedAt,
@@ -72,6 +75,7 @@ export async function findResumeReuseCandidates(input: {
       retrievalSignals: {
         exactSourceJd: source.id === target.id,
         sameTargetRole,
+        ...overlap,
         overlappingKeywords,
       },
     }];
@@ -83,7 +87,9 @@ export async function findResumeReuseCandidates(input: {
       const overlappingKeywords = [...keywordSet(source)]
         .filter((value) => targetKeywords.has(value)).sort();
       const sameTargetRole = Boolean(targetRole && targetRole === roleKey(source));
-      if (source.id !== target.id && !sameTargetRole && !overlappingKeywords.length) {
+      const overlap = capabilityOverlap(target, source);
+      if (source.id !== target.id && !sameTargetRole &&
+        overlap.abilityOverlap === 0) {
         return [];
       }
       return [{
@@ -100,6 +106,7 @@ export async function findResumeReuseCandidates(input: {
         retrievalSignals: {
           exactSourceJd: source.id === target.id,
           sameTargetRole,
+          ...overlap,
           overlappingKeywords,
         },
       }];
@@ -107,6 +114,10 @@ export async function findResumeReuseCandidates(input: {
   const candidates = [...cloudCandidates, ...localCandidates].sort((left, right) =>
     Number(right.retrievalSignals.exactSourceJd) -
       Number(left.retrievalSignals.exactSourceJd) ||
+    right.retrievalSignals.mustHaveOverlap -
+      left.retrievalSignals.mustHaveOverlap ||
+    right.retrievalSignals.abilityOverlap -
+      left.retrievalSignals.abilityOverlap ||
     Number(right.retrievalSignals.sameTargetRole) -
       Number(left.retrievalSignals.sameTargetRole) ||
     right.retrievalSignals.overlappingKeywords.length -
@@ -132,6 +143,60 @@ function keywordSet(jd: {
   return new Set(jd.requirements.flatMap((requirement) =>
     requirement.keywords.map(normalize).filter(Boolean),
   ));
+}
+
+function capabilityOverlap(
+  target: CapabilityJd,
+  source: CapabilityJd,
+): { abilityOverlap: number; mustHaveOverlap: number } {
+  const sourceTerms = keywordSet(source);
+  const matched = (requirement: CapabilityRequirement) =>
+    requirementTerms(requirement).some((term) => sourceTerms.has(term));
+  const totalWeight = target.requirements.reduce(
+    (sum, requirement) => sum + requirementWeight(requirement), 0,
+  );
+  const matchedWeight = target.requirements.filter(matched).reduce(
+    (sum, requirement) => sum + requirementWeight(requirement), 0,
+  );
+  const mustHave = target.requirements.filter((requirement) =>
+    requirement.v2Importance === "must_have" ||
+    (!requirement.v2Importance && requirement.importance === "high")
+  );
+  return {
+    abilityOverlap: ratio(matchedWeight, totalWeight),
+    mustHaveOverlap: ratio(mustHave.filter(matched).length, mustHave.length),
+  };
+}
+
+function requirementTerms(
+  requirement: CapabilityRequirement,
+): string[] {
+  const keywords = requirement.keywords.map(normalize).filter(Boolean);
+  return keywords.length ? keywords : requirement.text.split(/[^\p{L}\p{N}+#.]+/u)
+    .map(normalize).filter((term) => term.length >= 2);
+}
+
+function requirementWeight(
+  requirement: CapabilityRequirement,
+): number {
+  return requirement.weight ?? (requirement.importance === "high" ? 1 :
+    requirement.importance === "medium" ? 0.6 : 0.3);
+}
+
+function ratio(numerator: number, denominator: number): number {
+  return denominator ? Number((numerator / denominator).toFixed(4)) : 1;
+}
+
+interface CapabilityJd {
+  requirements: readonly CapabilityRequirement[];
+}
+
+interface CapabilityRequirement {
+  text: string;
+  keywords: readonly string[];
+  weight: number | null;
+  importance: string;
+  v2Importance?: string | null;
 }
 
 function resumeExperienceIds(

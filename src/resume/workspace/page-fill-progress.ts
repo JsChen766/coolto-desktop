@@ -1,5 +1,7 @@
 import type { ResumeWorkspace } from "./types.js";
 import { initialMaterialQuestion } from "./material-question.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
+import { stopFactNeutralClosure } from "./fact-neutral-stall.js";
 
 export const MAX_ZERO_GROWTH_ROUNDS = 2;
 
@@ -13,10 +15,14 @@ export function recordPageFillOutcome(
   if (consecutiveZeroGrowthRounds < MAX_ZERO_GROWTH_ROUNDS) {
     return { ...workspace, pageFillProgress: { consecutiveZeroGrowthRounds } };
   }
-  if (workspace.factNeutralAuthorization) {
-    return { ...workspace, status: "writing", pageFillProgress: {
-      consecutiveZeroGrowthRounds: 0,
-    } };
+  if (factNeutralClosureActive(workspace)) {
+    return stopFactNeutralClosure({
+      workspace: { ...workspace, pageFillProgress: {
+        consecutiveZeroGrowthRounds,
+      } },
+      kind: "page_fill_stalled",
+      reason: "事实中性篇幅收尾连续两轮没有真实页面增高",
+    });
   }
   return {
     ...workspace,

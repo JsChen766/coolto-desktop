@@ -2,8 +2,15 @@ import { workspaceEvidenceRecords } from "./agent-workspace-evidence.js";
 import { SEMANTIC_LINE_EXPANSION_REQUIRED_EDIT } from "./semantic-line-expansion-instruction.js";
 import type { ResumeWorkspace } from "./types.js";
 import {
-  RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
   RESUME_LAYOUT_TOLERANCE_PX,
+} from "../compiler-types.js";
+import {
+  factNeutralClosureActive,
+  isFirstResumeGeneration,
+} from "./first-generation-policy.js";
+import {
+  RESUME_DEFAULT_TARGET_USAGE_RATIO,
+  RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
 } from "../compiler-types.js";
 
 const MAX_LINE_EXPANSIONS_PER_BATCH = 12;
@@ -50,7 +57,7 @@ export function lineExpansionTargets(
       return quote ? [quote] : [];
     });
     if (sourceQuotes.length === 0) return [];
-    const authorizedNeutral = Boolean(workspace.factNeutralAuthorization);
+    const authorizedNeutral = factNeutralClosureActive(workspace);
     const plannedLines = authorizedNeutral
       ? Math.max(
           bullet.lineCount + 1,
@@ -63,7 +70,7 @@ export function lineExpansionTargets(
     return [{
       target: {
         requiredEdit: authorizedNeutral
-          ? "用户已确认没有更多事实。完整保留 currentText，只插入一段不新增职责、方法、对象、交付物、结果或因果的自然结构表达；不得使用重复固定尾缀，并传 contentMode=fact_neutral"
+          ? "用户已确认没有更多事实。完整保留 currentText，优先在背景、能力或方法、行动与结果之间插入不新增事实的自然连接；没有清晰内部边界时才放在句首或句尾。三分之二只用于排版验收，不得默认追加固定尾缀；传 contentMode=fact_neutral"
           : SEMANTIC_LINE_EXPANSION_REQUIRED_EDIT,
         bulletId: bullet.bulletId,
         currentText,
@@ -97,7 +104,9 @@ function pageFillRequiredLines(workspace: ResumeWorkspace): number {
   const compile = workspace.compileResult;
   const deficit = Math.max(
     0,
-    compile.availableHeightPx * RESUME_GLOBAL_MINIMUM_USAGE_RATIO -
+    compile.availableHeightPx * (isFirstResumeGeneration(workspace)
+      ? RESUME_DEFAULT_TARGET_USAGE_RATIO
+      : RESUME_GLOBAL_MINIMUM_USAGE_RATIO) -
       compile.usedHeightPx - RESUME_LAYOUT_TOLERANCE_PX,
   );
   return Math.max(

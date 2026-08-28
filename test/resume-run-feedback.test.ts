@@ -37,6 +37,32 @@ test("file-backed update reports only the successful user outcome", () => {
   assert.doesNotMatch(text(messages.at(-1)), /页面|事实校验|JD|revision|%/u);
 });
 
+test("a mechanically ready fallback resume discloses limited targeting", () => {
+  const messages = appendResumeRunFeedback({
+    messages: turn("我没有更多材料了", "apply_resume_content", {}),
+    userText: "我没有更多材料了",
+    state: { ...readyState(), targetingQuality: "limited" },
+  });
+
+  assert.match(text(messages.at(-1)), /岗位定向证据有限/u);
+  assert.match(text(messages.at(-1)), /可以预览、保存和导出/u);
+});
+
+test("a skipped critical-skill warning stays visible on an exportable resume", () => {
+  const messages = appendResumeRunFeedback({
+    messages: turn("我没有相关经历，跳过这个警告", "confirm_no_resume_material", {}),
+    userText: "我没有相关经历，跳过这个警告",
+    state: {
+      ...readyState(),
+      targetingQuality: "limited",
+      warningCodes: ["critical_skill_evidence_missing"],
+    },
+  });
+
+  assert.match(text(messages.at(-1)), /关键能力仍缺少可核验的经历支持/u);
+  assert.match(text(messages.at(-1)), /可以预览、保存和导出/u);
+});
+
 test("file-backed update explains natural-language gaps without metrics", () => {
   const messages = appendResumeRunFeedback({
     messages: turn("这是我的 LongBridge 作品", "add_resume_material", {

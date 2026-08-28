@@ -1,6 +1,7 @@
 import { validateFactNeutralFragment } from "./fact-neutral-validation.js";
 import type { ResumeFactNeutralFragment } from "./fact-neutral-types.js";
 import type { ResumeWorkspace } from "./types.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
 
 export function proposeFactNeutralFragment(input: {
   workspace: ResumeWorkspace;
@@ -8,7 +9,7 @@ export function proposeFactNeutralFragment(input: {
   appliedText: string;
   purpose: ResumeFactNeutralFragment["purpose"];
 }): ResumeFactNeutralFragment {
-  if (!input.workspace.factNeutralAuthorization) {
+  if (!factNeutralClosureActive(input.workspace)) {
     throw new Error("用户尚未明确结束补充并进入最终收尾，不能加入中性补齐");
   }
   const currentText = currentBulletText(input.workspace, input.bulletId);

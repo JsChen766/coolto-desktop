@@ -1,6 +1,7 @@
 import { factNeutralPhraseOptions } from "./fact-neutral-phrases.js";
 import type { TailLengthBudget } from "./tail-length-budget.js";
 import type { ResumeWorkspace } from "./types.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
 
 export function factNeutralTailTargetFields(
   workspace: ResumeWorkspace,
@@ -8,7 +9,7 @@ export function factNeutralTailTargetFields(
   mode: "growth" | "reflow",
   groundedRequiredEdit: string,
 ) {
-  if (!workspace.factNeutralAuthorization) {
+  if (!factNeutralClosureActive(workspace)) {
     return { requiredEdit: groundedRequiredEdit };
   }
   return {

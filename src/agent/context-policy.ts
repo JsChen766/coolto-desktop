@@ -4,6 +4,7 @@ const SOURCE_TOOLS = new Set(["create_resume_workspace"]);
 const WORKSPACE_TOOLS = new Set([
   "create_resume_workspace",
   "get_resume_workspace",
+  "assess_resume_evidence",
   "apply_resume_content",
   "add_resume_material",
   "confirm_no_resume_material",
@@ -124,7 +125,9 @@ function isResumeContinuationAuthority(
   const nextAction = (message.details as { nextAction?: unknown }).nextAction;
   if (!nextAction || typeof nextAction !== "object") return false;
   const mode = (nextAction as { mode?: unknown }).mode;
-  return mode === "increase_usage" || mode === "batch_tail_rewrite" ||
+  return mode === "adapt_reused_content" || mode === "increase_usage" ||
+    mode === "assess_evidence" ||
+    mode === "batch_tail_rewrite" ||
     mode === "reduce_overflow" || mode === "repair_bullet_counts";
 }
 

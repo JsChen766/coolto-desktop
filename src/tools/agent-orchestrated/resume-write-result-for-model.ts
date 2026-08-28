@@ -50,7 +50,7 @@ export function resumeWriteResultForModel(
     ...authoritative,
     ...(rejected.length ? { tailRepairFeedback: rejected } : {}),
     tailRepairReminder: neutralTailMode
-      ? "batch_tail_rewrite 必须一次覆盖最新全部 bulletIds，并优先逐字复制各目标的 suggestedNeutralCandidates 作为 revisedText，不要自行分析或改写；这些候选已逐字保留 currentText。每个候选都传 contentMode=fact_neutral，禁止传 additionalEvidenceIds；不得先输出解释，也不得给所有 bullet 追加同一固定尾缀"
+      ? "batch_tail_rewrite 必须一次覆盖最新全部 bulletIds，并优先逐字复制各目标的 suggestedNeutralCandidates 作为 revisedText；这些候选已逐字保留 currentText，并优先把连接放在背景、能力或方法、行动与结果之间。每个候选都传 contentMode=fact_neutral，禁止传 additionalEvidenceIds；三分之二只用于排版验收，不得默认在句尾填充或跨 bullet 重复同类中性表述"
       : "batch_tail_rewrite 用一次 tailRewrites 覆盖最新 bulletIds；每条提交 1–2 份完整事实等价改写，可吸收 availableEvidence，但必须附对应 additionalEvidenceIds。保留事实、数字、专名、工具、对象和结果，不得追加固定尾缀或重交已拒绝候选",
   };
 }

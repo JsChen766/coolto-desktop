@@ -95,6 +95,7 @@ export function createAddResumeMaterialTool(
       delete resumedWorkspace.pageFillProgress;
       delete resumedWorkspace.tailRepairProgress;
       delete resumedWorkspace.factNeutralAuthorization;
+      delete resumedWorkspace.evidenceAssessment;
       const updated = store.replace(
         applyBulletCountMaterialGate(applyCriticalSkillGate(resumedWorkspace)),
         workspace.revision,

@@ -1,5 +1,4 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-
 import type { JdChatReference, ResumeChatReference } from "@desktop/types";
 import { toMessageAttachment } from "../attachments/attachment-formatters";
 import { useConversationAttachment } from "../attachments/use-conversation-attachment";
@@ -14,7 +13,6 @@ import { useExperienceImportNavigation } from "./use-experience-import-navigatio
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
 import { useResumeInstructionActions } from "./use-resume-instruction-actions";
 import { useWindowCloseSave } from "./use-window-close-save";
-
 export type AppView = "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
 export function useAppShell() {
   const sidebarOpen = ref(true);
@@ -58,7 +56,6 @@ export function useAppShell() {
     ],
     () => void nextTick(scrollToBottom),
   );
-
   const resumePreview = useResumeLibraryPreview({
     activeView,
     activeArtifactType,
@@ -71,10 +68,14 @@ export function useAppShell() {
   watch(
     () => resumeWorkspace.activeDraft.value,
     (draft) => {
-      if (draft) resumePreview.adoptCreatedLocalDraft(draft);
+      if (!draft) return;
+      resumePreview.adoptCreatedLocalDraft(draft);
+      activeView.value = "chat";
+      activeArtifactType.value = "resume";
+      artifactOpen.value = true;
+      closeNarrowSidebar();
     },
   );
-
   async function send(
     text: string,
     resumeReference?: ResumeChatReference,
@@ -95,7 +96,6 @@ export function useAppShell() {
     artifactOpen.value = true;
     await resumeWorkspace.openDraft(artifactId);
   }
-
   function openPrimaryView(view: "agent_tasks" | "experiences" | "library"): void {
     resumePreview.resetResumePreview();
     closeNarrowSidebar();

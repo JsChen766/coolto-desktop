@@ -3,9 +3,20 @@ import { Type } from "@earendil-works/pi-ai";
 
 import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
 import { buildAgentWorkspaceReceipt } from "../../resume/workspace/agent-workspace-view.js";
+import { bulletCountRepairPlan } from
+  "../../resume/workspace/bullet-count-repair.js";
 import { ResumeWorkspaceError } from "../../resume/workspace/errors.js";
+import { isFirstResumeGeneration } from
+  "../../resume/workspace/first-generation-policy.js";
+import { startEvidenceReassessment } from
+  "../../resume/workspace/evidence-assessment.js";
+import { resumeGenerationReadiness } from
+  "../../resume/workspace/generation-readiness.js";
 import { scenarioMaterialQuestion } from "../../resume/workspace/material-question.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
+import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
+import { pruneUnderSupportedFirstGenerationItems } from
+  "../../resume/workspace/first-generation-closure.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { resumeWriteResultForModel } from "./resume-write-result-for-model.js";
 
@@ -19,13 +30,14 @@ const parameters = Type.Object({
 });
 
 const ELIGIBLE_KINDS = new Set([
-  "agent_declared", "page_fill_stalled", "line_rewrite_stalled",
-  "tail_repair_stalled",
+  "agent_declared", "critical_skill", "bullet_count_insufficient", "page_fill_stalled",
+  "line_rewrite_stalled", "tail_repair_stalled",
 ]);
 
 export function createConfirmNoResumeMaterialTool(
   store: ResumeWorkspaceStore,
   currentUserMessageTimestamp: () => number | undefined,
+  compiler?: ResumeCompiler,
 ): AgentTool<typeof parameters> {
   return {
     name: "confirm_no_resume_material",
@@ -43,17 +55,38 @@ export function createConfirmNoResumeMaterialTool(
         );
       }
       const request = workspace.materialRequest;
-      if (workspace.status !== "needs_user_decision" ||
+      const reopeningStalledClosure = Boolean(
+        request?.status === "declined" &&
+        request.resolution === "best_effort_stalled" &&
+        workspace.factNeutralAuthorization,
+      );
+      if ((workspace.status !== "needs_user_decision" &&
+        !reopeningStalledClosure) ||
         !request?.kind || !ELIGIBLE_KINDS.has(request.kind)) {
         throw new Error("当前暂停原因不允许用中性内容代替真实事实");
       }
       const messageTimestamp = currentUserMessageTimestamp();
       if (!messageTimestamp) throw new Error("当前用户消息来源不可用，不能确认无补充事实");
+      let closureWorkspace = prepareFirstGenerationClosure(workspace);
+      if (bulletCountRepairPlan(closureWorkspace).mode ===
+        "request_more_material") {
+        if (!compiler) {
+          throw new Error("首次生成收尾缺少真实版面编译器，不能安全移除证据不足的经历");
+        }
+        closureWorkspace = await pruneUnderSupportedFirstGenerationItems(
+          closureWorkspace,
+          compiler,
+        );
+      }
       const updated = request.discoveryStage === "scenario_probe" ||
           !params.scenarioQuestions?.length
-        ? authorizeNeutral(workspace, messageTimestamp, params.scenarioQuestions)
+        ? authorizeNeutral(
+            closureWorkspace,
+            messageTimestamp,
+            params.scenarioQuestions,
+          )
         : requestScenarioProbe(
-            workspace,
+            closureWorkspace,
             messageTimestamp,
             params.scenarioQuestions,
           );
@@ -108,8 +141,8 @@ function authorizeNeutral(
     throw new Error("场景问题发出后必须等待用户回答，不能在同一轮自行解锁");
   }
   const kind = request.kind! as
-    "agent_declared" | "page_fill_stalled" | "line_rewrite_stalled" |
-    "tail_repair_stalled";
+    "agent_declared" | "critical_skill" | "bullet_count_insufficient" |
+    "page_fill_stalled" | "line_rewrite_stalled" | "tail_repair_stalled";
   const revision = workspace.revision + 1;
   const updated: ResumeWorkspace = {
     ...workspace,
@@ -125,6 +158,33 @@ function authorizeNeutral(
   };
   delete updated.materialRequest;
   delete updated.pageFillProgress;
+  delete updated.lineRewriteProgress;
   delete updated.tailRepairProgress;
-  return updated;
+  const reassessed = startEvidenceReassessment(updated);
+  return resumeGenerationReadiness(reassessed).ready
+    ? { ...reassessed, status: "ready_for_approval" }
+    : reassessed;
+}
+
+/** Keeps truthful bullets by demoting evidence-poor main items after opt-out. */
+function prepareFirstGenerationClosure(
+  workspace: ResumeWorkspace,
+): ResumeWorkspace {
+  if (!isFirstResumeGeneration(workspace)) {
+    if (workspace.materialRequest?.kind === "bullet_count_insufficient") {
+      throw new Error("历史简历的 main 经历数量门槛不能自动降级");
+    }
+    return workspace;
+  }
+  const itemTiers = { ...workspace.itemTiers };
+  let demoted = 0;
+  for (const item of workspace.structure.sections.flatMap(
+    (section) => section.items,
+  )) {
+    if (itemTiers[item.id] === "main" && item.bullets.length === 2) {
+      itemTiers[item.id] = "secondary";
+      demoted += 1;
+    }
+  }
+  return demoted ? { ...workspace, itemTiers } : workspace;
 }

@@ -68,7 +68,7 @@ export type DesktopAgentEvent =
   | { type: "run.completed" }
   | { type: "turn.completed" }
   | { type: "resume.draft.updated"; artifactId: string }
-  | { type: "resume.draft.saving" }
+  | { type: "resume.draft.saving"; replacePreview?: boolean }
   | { type: "resume.draft.save-failed"; message: string }
   | { type: "approval.required"; request: DesktopApprovalRequest }
   | {

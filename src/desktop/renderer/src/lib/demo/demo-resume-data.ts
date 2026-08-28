@@ -132,10 +132,11 @@ export function createDemoDraft(now: Date): ResumeDraftDetail {
     quality: {
       pageUsageRatio: 0.923,
       minimumBulletTailRatio: 470 / 600,
+      minimumBulletTailTargetRatio: 2 / 3,
       factIntegrity: "passed",
       jdCoverage: { covered: 7, total: 8, ratio: 0.875 },
     },
-    generationReadiness: { ready: true, blockers: [] },
+    generationReadiness: { ready: true, blockers: [], warnings: [] },
     checkpoints: [
       {
         id: "4514605d-b3f6-4cad-ab22-c99782aee0ad",

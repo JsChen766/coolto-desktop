@@ -87,6 +87,7 @@ test("one Agent prompt creates and batch-writes a resume workspace", async () =>
     ["create_resume_workspace", "get_resume_workspace", "apply_resume_content"],
   );
   assert.equal(agent.toolNames.includes("pause_resume_for_material"), true);
+  assert.equal(agent.toolNames.includes("assess_resume_evidence"), true);
   for (const retired of [
     "prepare_resume_draft",
     "write_bullet",

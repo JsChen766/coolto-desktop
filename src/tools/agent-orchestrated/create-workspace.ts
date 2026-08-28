@@ -38,6 +38,8 @@ import {
 import { resolveWorkspaceBase } from "./create-workspace-base.js";
 import { generationWorkspaceStatus } from
   "../../resume/workspace/generation-readiness.js";
+import { createReuseAdaptation } from
+  "../../resume/workspace/reuse-adaptation.js";
 
 export function createResumeWorkspaceTool(
   snapshotBuilder: ResumeSourceSnapshotBuilder,
@@ -197,6 +199,8 @@ export function createResumeWorkspaceTool(
         supplementalEvidence,
         awaitingUserConfirmation: retained.awaitingUserConfirmation,
       };
+      const reuseAdaptation = createReuseAdaptation(workspace);
+      if (reuseAdaptation) workspace = { ...workspace, reuseAdaptation };
       workspace.status = generationWorkspaceStatus(workspace);
       workspace = applyBulletCountMaterialGate(applyCriticalSkillGate(workspace));
       const stored = continuingSameWorkspace

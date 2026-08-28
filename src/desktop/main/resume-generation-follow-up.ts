@@ -6,6 +6,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { OutputRepetitionReason } from
   "../../agent/output-repetition-guard.js";
 import type { TurnGovernorStopReason } from "../../agent/turn-governor.js";
+import { hasNoMoreResumeMaterialIntent } from "./no-material-intent.js";
 
 export interface ResumeOutputRecoveryInput {
   reason: OutputRepetitionReason;
@@ -18,6 +19,7 @@ export interface ResumeOutputRecoveryInput {
 export function createResumeGenerationFollowUp(
   store: ResumeWorkspaceStore,
   currentUserMessageTimestamp: () => number | undefined = () => undefined,
+  currentUserMessageText: () => string | undefined = () => undefined,
 ): (promptSequence: number, message: AgentMessage) =>
   string | { instruction: string; requireToolCall: boolean } | undefined {
   let lastQueuedKey: string | undefined;
@@ -25,26 +27,45 @@ export function createResumeGenerationFollowUp(
     const workspace = store.latest();
     if (!workspace) return undefined;
     const action = resumeAgentNextAction(workspace);
+    const noMoreMaterial = hasNoMoreResumeMaterialIntent(
+      currentUserMessageText(),
+    );
     if (
       resumeGenerationReadiness(workspace).ready ||
       action.mode === "stop" ||
-      action.mode === "stop_insufficient_material" ||
       action.mode === "await_augmented_confirmation"
     ) return undefined;
+    const reopenStalledClosure = noMoreMaterial &&
+      workspace.materialRequest?.status === "declined" &&
+      workspace.materialRequest.resolution === "best_effort_stalled";
+    if (action.mode === "stop_insufficient_material" ||
+      (action.mode === "inspect_blockers" && reopenStalledClosure)) {
+      if (!reopenStalledClosure) return undefined;
+      const key = `${promptSequence}:${resumeContentProgressKey(workspace)}:reopen`;
+      if (key === lastQueuedKey) return undefined;
+      lastQueuedKey = key;
+      return {
+        instruction: [
+          "当前真实用户消息明确没有更多材料并要求继续完成；既有 best_effort_stalled 不能吞掉这次继续指令。",
+          "第一项输出必须调用且只调用 confirm_no_resume_material，不传 scenarioQuestions，以重新开放最终收尾；不得创建新工作区、再次 decline 或输出纯文本解释。",
+          `candidateId=${workspace.candidateId}`,
+          `expectedRevision=${workspace.revision}`,
+        ].join("\n"),
+        requireToolCall: true,
+      };
+    }
     if (action.mode === "request_more_material") {
-      if (assistantText(message).includes(action.question ?? "\u0000")) {
-        return undefined;
-      }
       const request = workspace.materialRequest;
       const userTimestamp = currentUserMessageTimestamp();
       const requestPredatesUser = Boolean(
         request && userTimestamp &&
         Date.parse(request.requestedAt) <= userTimestamp,
       );
-      return requestPredatesUser
-        ? {
+      return noMoreMaterial || requestPredatesUser ? {
             instruction: [
-              "当前真实用户消息正在回答一个既有材料边界，但上一条回复没有用工具落实用户决定。",
+              noMoreMaterial
+                ? "当前真实用户消息已明确没有更多材料，不能再次显示或改写材料问题。"
+                : "当前真实用户消息正在回答一个既有材料边界，但上一条回复没有用工具落实用户决定。",
               "第一项输出必须根据用户原话调用且只调用一个工具：补充事实用 add_resume_material；不需要补充或没有更多事实用 confirm_no_resume_material 进入最终收尾；只有明确停止整份生成或接受未达标草稿才用 decline_resume_material。",
               `candidateId=${workspace.candidateId}`,
               `expectedRevision=${workspace.revision}`,
@@ -52,15 +73,7 @@ export function createResumeGenerationFollowUp(
               "不得再次输出纯文本确认，也不得换一种说法追问。",
             ].join("\n"),
             requireToolCall: true,
-          }
-        : {
-            instruction: [
-              "当前材料边界刚在本轮产生，上一条回复没有向用户显示权威问题。",
-              "只显示以下一个问题，不调用工具，不补充第二个问题或内部说明：",
-              action.question ?? "请补充一个尚未写入的具体事实。",
-            ].join("\n"),
-            requireToolCall: false,
-          };
+          } : undefined;
     }
     const key = `${promptSequence}:${resumeContentProgressKey(workspace)}`;
     if (key === lastQueuedKey) return undefined;
@@ -74,14 +87,6 @@ export function createResumeGenerationFollowUp(
         "resolution=best_effort_stalled。自动 follow-up 本身不得产生新的材料问题。",
     ].join("\n");
   };
-}
-
-function assistantText(message: AgentMessage): string {
-  return message.role === "assistant"
-    ? message.content.flatMap((part) =>
-        part.type === "text" ? [part.text] : []
-      ).join("\n")
-    : "";
 }
 
 export function createResumeOutputRepetitionRecovery(
@@ -116,15 +121,6 @@ export function createResumeTurnGovernorRecovery(
       return undefined;
     }
     const action = resumeAgentNextAction(workspace);
-    if (workspace.factNeutralAuthorization) {
-      return [
-        `运行保护原因=${reason}。用户已经完成场景追问并确认没有更多事实，禁止再次调用 pause_resume_for_material 或重复追问素材。`,
-        `candidateId=${workspace.candidateId}`,
-        `expectedRevision=${workspace.revision}`,
-        `权威 nextAction.mode=${action.mode}`,
-        "第一项输出必须是依据最近工具回执的批量工具调用。若为 batch_tail_rewrite，逐字复制每个目标的 suggestedNeutralCandidates，一次覆盖全部 bulletIds，并继续服从后续 nextAction，直到合格或宿主返回明确错误；不得输出可见计划或逐字分析。",
-      ].join("\n");
-    }
     if (action.mode === "request_more_material") {
       return [
         `运行保护原因=${reason}。停止工具循环。`,

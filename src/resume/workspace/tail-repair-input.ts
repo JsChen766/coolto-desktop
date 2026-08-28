@@ -11,6 +11,7 @@ import {
   proposeFactNeutralFragment,
   withFactNeutralFragments,
 } from "./fact-neutral-fragments.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
 
 export interface ComponentExpansionInput {
   bulletId: string;
@@ -112,7 +113,7 @@ export function normalizeTailGrowthInputs(
           appliedText: composedText,
           purpose: "tail_fill",
         });
-      } else if (workspace.factNeutralAuthorization) {
+      } else if (factNeutralClosureActive(workspace)) {
         throw new Error(
           `bullet ${input.bulletId} 已进入无素材补齐阶段，必须显式传 contentMode=fact_neutral`,
         );

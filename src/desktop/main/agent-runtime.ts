@@ -32,6 +32,7 @@ import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
 import { restoreLatestInProgressResume } from "./resume-drafts/resume-conversation-restorer.js";
+import { ConversationRunGate } from "./conversation-run-gate.js";
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore;
   readonly #resumeDrafts: ResumeDraftService;
@@ -39,7 +40,7 @@ export class DesktopAgentRuntime {
   readonly #contextFactory: AgentContextFactory;
   readonly #traces = new ResumeGenerationTraceStore();
   readonly #contexts = new Map<string, ConversationAgentContext>();
-  #runningConversationId: string | undefined;
+  readonly #runGate = new ConversationRunGate();
   #cancelRequested = false;
   #persistChain: Promise<void> = Promise.resolve();
   readonly #selectedFiles: ConversationSelectedFiles;
@@ -82,28 +83,28 @@ export class DesktopAgentRuntime {
     });
   }
   public get isRunning(): boolean {
-    return this.#runningConversationId !== undefined;
+    return this.#runGate.isRunning;
   }
   public async prompt(input: AgentPromptInput): Promise<ConversationDetail> {
     const conversationId = input.conversationId;
     const context = await this.#contextFor(conversationId);
-    this.#assertCanRun(conversationId);
     if (context.agent.isRunning) {
       throw new Error("正在处理上一条消息，请稍候再试");
     }
-    await compactBeforeAgentPrompt(context, this.compactionThreshold);
-    this.#runningConversationId = conversationId;
+    this.#runGate.begin(conversationId);
     this.#cancelRequested = false;
     const pendingAttachments = this.#selectedFiles.list(conversationId)
       .map((f) => ({ ...f, fileId: f.id, status: "pending" as const }));
     this.#traces.start(conversationId, readConfig().modelId);
     let failed = false;
-    const unsubscribePersist = context.agent.subscribe((event) => {
-      if (event.type === "turn.completed") {
-        void this.#persistSnapshot(conversationId, context.agent).catch(() => {});
-      }
-    });
+    let unsubscribePersist = () => {};
     try {
+      await compactBeforeAgentPrompt(context, this.compactionThreshold);
+      unsubscribePersist = context.agent.subscribe((event) => {
+        if (event.type === "turn.completed") {
+          void this.#persistSnapshot(conversationId, context.agent).catch(() => {});
+        }
+      });
       const result = await executeAgentPrompt({
         prompt: input,
         context,
@@ -126,17 +127,17 @@ export class DesktopAgentRuntime {
         failed,
       });
       delete context.activeEdit;
-      this.#runningConversationId = undefined;
+      this.#runGate.finish(conversationId);
     }
   }
   public cancel(): void {
     this.#cancelRequested = true;
-    const id = this.#runningConversationId;
+    const id = this.#runGate.currentConversationId;
     if (id) { this.#traces.recordStopReason(id, "cancelled"); this.#contexts.get(id)?.agent.cancel(); }
   }
   /** Persists the in-flight transcript snapshot before the app quits. */
   public async flushPending(): Promise<void> {
-    const conversationId = this.#runningConversationId;
+    const conversationId = this.#runGate.currentConversationId;
     if (!conversationId) return;
     const context = this.#contexts.get(conversationId);
     if (!context) return;
@@ -167,8 +168,7 @@ export class DesktopAgentRuntime {
     decision: ApprovalDecision,
   ): Promise<ConversationDetail> {
     const context = await this.#contextFor(conversationId);
-    this.#assertCanRun(conversationId);
-    this.#runningConversationId = conversationId;
+    await this.#runGate.beginAfterCurrent(conversationId);
     this.#cancelRequested = false;
     let failed = false;
     try {
@@ -187,6 +187,7 @@ export class DesktopAgentRuntime {
       );
       if (decision.type === "custom") {
         context.currentUserMessage.timestamp = Date.now();
+        context.currentUserMessage.text = decision.text;
       }
       await context.agent.resolveApproval(requestId, decision);
       await continueAfterResumeAugmentation({
@@ -227,7 +228,7 @@ export class DesktopAgentRuntime {
       if (failed) {
         await this.#persistSnapshot(conversationId, context.agent).catch(() => {});
       }
-      this.#runningConversationId = undefined;
+      this.#runGate.finish(conversationId);
     }
   }
   async #contextFor(conversationId: string): Promise<ConversationAgentContext> {
@@ -241,10 +242,4 @@ export class DesktopAgentRuntime {
     return context;
   }
 
-  #assertCanRun(conversationId: string): void {
-    const running = this.#runningConversationId;
-    if (running && running !== conversationId) {
-      throw new Error("另一个对话正在回复，请等待完成或先停止");
-    }
-  }
 }

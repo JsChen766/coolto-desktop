@@ -135,7 +135,7 @@ function handleCurrentConversationEvent(
       void state.resumeWorkspace.openDraft(event.artifactId);
       return;
     case "resume.draft.saving":
-      state.resumeWorkspace.markLocalSaving();
+      state.resumeWorkspace.markLocalSaving(event.replacePreview);
       return;
     case "resume.draft.save-failed":
       state.resumeWorkspace.markLocalSaveFailed(event.message);

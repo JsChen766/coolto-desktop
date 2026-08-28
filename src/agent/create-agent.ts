@@ -29,6 +29,8 @@ import { createRepetitionGuard } from "./repetition-guard.js";
 import { hasAuthoritativeResumeCompletion } from "./terminal-resume-result.js";
 import type { OutputRepetitionReason } from "./output-repetition-guard.js";
 import type { TurnGovernorStopReason } from "./turn-governor.js";
+import { recoverDeferredToolDependency } from
+  "./tool-dependency-recovery.js";
 
 export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
 export const DEFAULT_PROVIDER_ID = "deepseek";
@@ -192,9 +194,16 @@ export function createCooltoAgent(
           },
         }
       : { beforeToolCall: repetitionGuard }),
-    ...(options.afterToolCall
-      ? { afterToolCall: options.afterToolCall }
-      : {}),
+    afterToolCall: async (
+      context: AfterToolCallContext,
+      signal?: AbortSignal,
+    ): Promise<AfterToolCallResult | undefined> => {
+      const configured = await options.afterToolCall?.(context, signal);
+      const recovered = recoverDeferredToolDependency(context);
+      return configured || recovered
+        ? { ...configured, ...recovered }
+        : undefined;
+    },
     transformContext:
       options.transformContext ??
       (async (messages: AgentMessage[]) =>
@@ -204,8 +213,8 @@ export function createCooltoAgent(
       signal?: AbortSignal,
     ) =>
       hasAuthoritativeResumeCompletion(context) ||
-      defaultTurnGovernor.evaluate(context) ||
-      Boolean(await options.shouldStopAfterTurn?.(context, signal)),
+      Boolean(await options.shouldStopAfterTurn?.(context, signal)) ||
+      defaultTurnGovernor.evaluate(context),
     turnGovernor: defaultTurnGovernor,
     ...(options.automaticFollowUp
       ? { automaticFollowUp: options.automaticFollowUp }

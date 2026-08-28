@@ -88,7 +88,7 @@ test("turn governor recovery advances before a resume workspace exists", () => {
   assert.match(instruction ?? "", /调用 get_jd/u);
 });
 
-test("turn governor recovery never re-asks for material after neutral authorization", async () => {
+test("turn governor recovery stops after neutral closure makes no progress", async () => {
   const store = new ResumeWorkspaceStore();
   const create = createResumeWorkspaceTool(
     createWorkspaceSnapshotBuilder(),
@@ -115,7 +115,8 @@ test("turn governor recovery never re-asks for material after neutral authorizat
     "same_tool_sequence",
   );
 
-  assert.match(instruction ?? "", /禁止再次调用 pause_resume_for_material/u);
-  assert.match(instruction ?? "", /批量工具调用/u);
+  assert.match(instruction ?? "", /decline_resume_material/u);
+  assert.match(instruction ?? "", /resolution=best_effort_stalled/u);
+  assert.doesNotMatch(instruction ?? "", /批量工具调用/u);
   assert.doesNotMatch(instruction ?? "", /旧简历、工作总结、项目文档/u);
 });

@@ -150,6 +150,49 @@ test("a sourced rewrite may add one line when the whole page stays safe", async 
   assert.equal(result.feedback.find((entry) => entry.status === "applied")?.lineCount, 3);
 });
 
+test("host fact-equivalent closure survives the complete provenance validator", async () => {
+  const current =
+    "Quantified the verified SiC market; modeled the documented demand range";
+  const equivalent =
+    "Quantified the verified SiC market; also modeled the documented demand range";
+  const compiler = new RewriteCompiler(new Map([
+    [current, 0.619],
+    [equivalent, 0.72],
+  ]));
+  const workspace = await createWorkspace(compiler);
+  workspace.structure.language = "en-US";
+  workspace.structure.sections[0]!.items[0]!.bullets[0]!.text = current;
+  workspace.supplementalEvidence![0]!.text = current;
+  workspace.compileResult = await compiler.compile(workspace.structure);
+  workspace.compileObservedRevision = workspace.revision;
+  workspace.factNeutralAuthorization = {
+    sourceRequestKind: "tail_repair_stalled",
+    confirmedAt: "2026-08-28T00:00:00.000Z",
+    confirmedMessageTimestamp: 200,
+  };
+  workspace.reuseBase = {
+    kind: "local",
+    resumeId: "existing-resume",
+    sourceJdId: "jd-old",
+    contentHash: "hash-old",
+    retainedBulletCount: 2,
+    droppedBulletCount: 0,
+  };
+
+  const result = await processSemanticTailRewriteBatch(workspace, [{
+    bulletId: "a",
+    candidates: [{
+      strategy: "expand",
+      revisedText: `${current}, in context`,
+      contentMode: "fact_neutral",
+    }],
+  }], compiler);
+
+  assert.equal(result.updates[0]?.text, equivalent, JSON.stringify(result.feedback));
+  assert.equal(result.factNeutralFragments?.[0]?.baseText, current);
+  assert.equal(result.factNeutralFragments?.[0]?.fragmentText, "also");
+});
+
 class RewriteCompiler implements ResumeCompiler {
   public compileCount = 0;
 

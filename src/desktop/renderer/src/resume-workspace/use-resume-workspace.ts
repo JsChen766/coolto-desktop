@@ -207,7 +207,11 @@ export function useResumeWorkspace() {
   function markLocalSaveFailed(message: string): void {
     error.value = message; localSaveState.value = "error";
   }
-  function markLocalSaving(): void { localSaveState.value = "saving"; }
+  function markLocalSaving(replacePreview = false): void {
+    if (replacePreview) activeDraft.value = undefined;
+    error.value = undefined;
+    localSaveState.value = "saving";
+  }
   return {
     drafts,
     activeDraft,

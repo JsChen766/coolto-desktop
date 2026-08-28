@@ -119,7 +119,10 @@ export class AgentContextFactory {
       jd: deps.jds,
       experience: deps.experiences,
     });
-    const currentUserMessage = { timestamp: undefined as number | undefined };
+    const currentUserMessage: {
+      timestamp: number | undefined;
+      text?: string;
+    } = { timestamp: undefined };
     const modelDependencies = createConfiguredModelDependencies(
       config,
       () => deps.apiClient.getSessionToken(),
@@ -191,10 +194,14 @@ export class AgentContextFactory {
       tools,
       beforeToolCall: taskPolicy.beforeToolCall,
       afterToolCall: taskPolicy.afterToolCall,
-      shouldStopAfterTurn: createResumeInteractionStop(workspaceStore),
+      shouldStopAfterTurn: createResumeInteractionStop(
+        workspaceStore,
+        () => currentUserMessage.text,
+      ),
       automaticFollowUp: createResumeGenerationFollowUp(
         workspaceStore,
         () => currentUserMessage.timestamp,
+        () => currentUserMessage.text,
       ),
       outputRepetitionRecovery:
         createResumeOutputRepetitionRecovery(workspaceStore),

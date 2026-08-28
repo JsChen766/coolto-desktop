@@ -2,7 +2,7 @@ import { Agent, type AgentEvent, type AgentMessage } from "@earendil-works/pi-ag
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import type { ApprovalDecision, ApprovalRequest } from "../approvals/types.js";
 import { isTransientModelError, MODEL_TRANSIENT_ERROR, OUTPUT_REPETITION_ERROR,
-  TURN_GOVERNOR_ERROR, outputRepetitionError } from "./agent-errors.js";
+  outputRepetitionError, turnGovernorError } from "./agent-errors.js";
 import type { CooltoAgentListener, CooltoAgentOptions } from "./coolto-agent-types.js";
 import { guardFailureEvent, mapPiEvent } from "./events.js";
 import { recoverFromOutputRepetition, recoverFromTurnGovernor,
@@ -237,12 +237,12 @@ export class CooltoAgent {
     this.#agent.state.messages = messages.slice(0, -1);
     return true;
   }
-
   get #guardStopError(): string | undefined {
     if (this.#stoppedForOutputRepetition) {
       return outputRepetitionError(this.#outputRepetitionReason);
     }
-    return this.#turnGovernor?.stopReason ? TURN_GOVERNOR_ERROR : undefined;
+    const reason = this.#turnGovernor?.stopReason;
+    return reason ? turnGovernorError(reason) : undefined;
   }
 }
 

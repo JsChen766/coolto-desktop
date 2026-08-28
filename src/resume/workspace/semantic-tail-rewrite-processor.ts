@@ -29,6 +29,10 @@ import {
   neutralTailValidationWorkspace,
   selectedNeutralTailFragments,
 } from "./semantic-tail-neutral.js";
+import {
+  expandFactNeutralTailCandidates,
+  semanticCandidateTextMaps,
+} from "./semantic-tail-neutral-candidates.js";
 
 export type { SemanticTailRewriteInput } from
   "./semantic-tail-rewrite-types.js";
@@ -45,23 +49,27 @@ export async function processSemanticTailRewriteBatch(
   const prepared: PreparedSemanticTailCandidate[] = [];
   const seenTargets = new Set<string>();
   let repetitionRejectedCandidateCount = 0;
-  const candidateMaps = candidateTextMaps(inputs);
+  if (inputs.some((input) =>
+    !input.candidates.length || input.candidates.length > 2
+  )) throw new Error("每个 bullet 必须提交 1–2 份完整改写");
+  const effectiveInputs = expandFactNeutralTailCandidates(
+    workspace, inputs, targets,
+  );
+  const candidateMaps = semanticCandidateTextMaps(effectiveInputs);
 
-  for (const input of inputs) {
+  for (const input of effectiveInputs) {
     const target = targets.get(input.bulletId);
     if (seenTargets.has(input.bulletId)) {
       throw new Error(`bullet ${input.bulletId} 在语义尾行批次中重复`);
     }
     seenTargets.add(input.bulletId);
     if (!target) throw new Error(`bullet ${input.bulletId} 不在当前尾行目标中`);
-    if (!input.candidates.length || input.candidates.length > 2) {
-      throw new Error(`bullet ${input.bulletId} 必须提交 1–2 份完整改写`);
-    }
     const seenTexts = new Set<string>();
     input.candidates.forEach((candidate, candidateIndex) => {
       const revisedText = candidate.revisedText.trim();
       try {
-        const neutral = candidate.contentMode === "fact_neutral";
+        const neutral = candidate.contentMode === "fact_neutral" ||
+          candidate.contentMode === "fact_equivalent";
         const evidence = resolveSemanticTailEvidence({
           workspace,
           bulletId: input.bulletId,
@@ -191,7 +199,7 @@ export async function processSemanticTailRewriteBatch(
     progress,
     diagnostics: {
       requestedTargetCount: inputs.length,
-      requestedCandidateCount: inputs.reduce(
+      requestedCandidateCount: effectiveInputs.reduce(
         (total, input) => total + input.candidates.length,
         0,
       ),
@@ -228,15 +236,6 @@ async function verifySelection(
     compile.bullets.find((bullet) => bullet.bulletId === candidate.bulletId)
       ?.passed === true
   );
-}
-
-function candidateTextMaps(
-  inputs: readonly SemanticTailRewriteInput[],
-): Array<Map<string, string>> {
-  return [0, 1].map((candidateIndex) => new Map(inputs.flatMap((input) => {
-    const text = input.candidates[candidateIndex]?.revisedText.trim();
-    return text ? [[input.bulletId, text] as const] : [];
-  })));
 }
 
 function compareFeedback(

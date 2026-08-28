@@ -4,6 +4,7 @@ const TRANSIENT_TOOL_NAMES = new Set([
   "get_resume",
   "create_resume_workspace",
   "get_resume_workspace",
+  "assess_resume_evidence",
   "apply_resume_content",
   "add_resume_material",
   "confirm_no_resume_material",

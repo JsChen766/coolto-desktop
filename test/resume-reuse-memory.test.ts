@@ -7,9 +7,16 @@ import { allEvidenceCandidates } from "../src/resume/quality/evidence-candidates
 import { findResumeReuseCandidates } from "../src/resume/reuse/candidate-retrieval.js";
 import type { ResumePublicationGateway } from "../src/resume/save/types.js";
 import { buildResumeSkeleton } from "../src/resume/workspace/candidate-skeleton.js";
+import { resumeAgentNextAction } from "../src/resume/workspace/agent-next-action.js";
+import { reconcileReuseAdaptation } from
+  "../src/resume/workspace/reuse-adaptation.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import { createResumeWorkspaceTool } from "../src/tools/agent-orchestrated/create-workspace.js";
+import { createApplyResumeContentTool } from
+  "../src/tools/agent-orchestrated/apply-content.js";
 import { createResumeReadTools } from "../src/tools/resume-tools.js";
+import { createFindResumeReuseCandidatesTool } from
+  "../src/tools/find-resume-reuse-candidates.js";
 import { cloudResumeFixture } from "./support/cloud-resume-fixture.js";
 import { createReadySaveFixture } from "./support/resume-save-fixture.js";
 import {
@@ -38,15 +45,47 @@ test("reuse retrieval narrows candidates without making the Agent decision", asy
     "resume-same", "resume-overlap",
   ]);
   assert.equal(result.candidates[0]?.retrievalSignals.sameTargetRole, true);
+  assert.ok((result.candidates[0]?.retrievalSignals.abilityOverlap ?? 0) > 0);
+  assert.ok((result.candidates[1]?.retrievalSignals.mustHaveOverlap ?? 0) > 0);
   assert.deepEqual(
     result.candidates[1]?.retrievalSignals.overlappingKeywords,
     ["node.js", "typescript"],
   );
 });
 
+test("placeholder JD dependency never reaches the JD reader", async () => {
+  let jdReads = 0;
+  const jds: JdReader = {
+    listJds: async () => ({ items: [], nextCursor: null }),
+    getJd: async (id) => {
+      jdReads += 1;
+      throw new Error(`JD ${id} 不存在`);
+    },
+  };
+  const tool = createFindResumeReuseCandidatesTool(jds, resumeReader([]));
+  const result = await tool.execute("defer-pending-jd", {
+    targetJdId: "__pending__",
+  });
+
+  assert.equal(jdReads, 0);
+  assert.equal((result.details as { status?: string }).status,
+    "deferred_dependency");
+  assert.match(JSON.stringify(result.content), /search_jds/u);
+});
+
 test("reuse retrieval includes the newest ready local draft for the exact JD", async () => {
   const target = jd("jd-1", "产品经理", ["数据产品"]);
   const fixture = await createReadySaveFixture();
+  const hidden = fixture.ready.sourceSnapshot.experiences.find(
+    (experience) => experience.id === "work-1",
+  )!;
+  fixture.ready.sourceSnapshot = {
+    ...fixture.ready.sourceSnapshot,
+    experiences: [
+      ...fixture.ready.sourceSnapshot.experiences,
+      { ...hidden, id: "removed-work" },
+    ],
+  };
   const ready = localDraft("local-ready", fixture.ready);
   const result = await findResumeReuseCandidates({
     targetJdId: target.id,
@@ -60,6 +99,7 @@ test("reuse retrieval includes the newest ready local draft for the exact JD", a
   assert.equal(result.candidates[0]?.artifactId, "local-ready");
   assert.equal(result.candidates[0]?.retrievalSignals.exactSourceJd, true);
   assert.ok(result.candidates[0]?.sourceExperienceIds.includes("work-1"));
+  assert.equal(result.candidates[0]?.sourceExperienceIds.includes("removed-work"), false);
 });
 
 test("get_resume reads a ready local candidate by artifactId", async () => {
@@ -139,6 +179,31 @@ test("create_resume_workspace seeds only current grounded evidence and recalcula
   const workspace = store.latest()!;
   assert.equal(first.details.reuseBase.retainedBulletCount, 1);
   assert.equal(workspace.reuseBase?.resumeId, "resume-base");
+  assert.equal(workspace.reuseAdaptation?.status, "pending");
+  assert.equal(workspace.reuseAdaptation?.sourceJdId, "jd-old");
+  assert.equal(workspace.reuseAdaptation?.targetJdId, "jd-1");
+  assert.deepEqual(workspace.reuseAdaptation?.targetItemIds, ["item-work-1"]);
+  assert.equal(resumeAgentNextAction(workspace).mode, "adapt_reused_content");
+  const withMissingCriticalSkill = {
+    ...structuredClone(workspace),
+    sourceSnapshot: {
+      ...structuredClone(workspace.sourceSnapshot),
+      jd: {
+        ...structuredClone(workspace.sourceSnapshot.jd),
+        requirements: [...workspace.sourceSnapshot.jd.requirements, {
+          id: "req-k8s", text: "Kubernetes 生产部署", category: "technical",
+          importance: "high" as const, keywords: ["Kubernetes"], weight: 1,
+          v2Importance: "must_have" as const, v2Category: "technology" as const,
+        }],
+      },
+    },
+  };
+  assert.equal(
+    resumeAgentNextAction(withMissingCriticalSkill).mode,
+    "adapt_reused_content",
+    "cross-JD reuse must adapt before a later missing-material question",
+  );
+  assert.equal(workspace.status, "writing");
   assert.equal(workspace.bindings[0]?.bulletId, "historical-bullet");
   assert.deepEqual(workspace.bindings[0]?.matchedRequirementIds, ["req-new"]);
   assert.deepEqual(
@@ -146,8 +211,28 @@ test("create_resume_workspace seeds only current grounded evidence and recalcula
     ["old-requirement"],
     "published base must remain immutable",
   );
+  const unchanged = reconcileReuseAdaptation(
+    workspace,
+    { ...structuredClone(workspace), revision: workspace.revision + 1 },
+    ["item-work-1"],
+  );
+  assert.equal(unchanged.reuseAdaptation?.status, "pending");
+  const adaptedDraft = structuredClone(workspace);
+  adaptedDraft.revision += 1;
+  adaptedDraft.structure.sections.find((section) => section.type === "experience")!
+    .items[0]!.bullets[0]!.text = "使用 Python 清洗运营数据并突出数据产品判断";
+  const adapted = reconcileReuseAdaptation(
+    workspace,
+    adaptedDraft,
+    ["item-work-1"],
+  );
+  assert.equal(adapted.reuseAdaptation?.status, "completed");
+  assert.equal(adapted.reuseAdaptation?.completedRevision, 1);
   const repeated = await create.execute("reuse-2", input);
   assert.equal(repeated.details.sourceSelection.mode, "unchanged");
+  assert.equal(repeated.details.recovery.repeated, true);
+  assert.match(repeated.details.recovery.instruction,
+    /nextAction\.mode=adapt_reused_content/u);
   assert.equal(store.latest()?.candidateId, workspace.candidateId);
 });
 
@@ -177,7 +262,85 @@ test("create_resume_workspace seeds a ready local draft without publishing it", 
   assert.equal(result.details.reuseBase.resumeId, draft.artifactId);
   assert.ok(result.details.reuseBase.retainedBulletCount > 0);
   assert.equal(result.details.status, "ready_for_approval");
+  assert.equal(store.latest()?.reuseAdaptation, undefined);
+  assert.deepEqual(
+    store.latest()?.structure.layout_tuning,
+    draft.workspace.structure.layout_tuning,
+  );
   assert.equal(store.latest()?.reuseBase?.kind, "local");
+});
+
+test("cross-JD reuse completes adaptation only after a real batch content change", async () => {
+  const fixture = await createReadySaveFixture();
+  const base = localDraft("cross-jd-base", fixture.ready);
+  base.workspace = {
+    ...base.workspace,
+    sourceSnapshot: {
+      ...base.workspace.sourceSnapshot,
+      jd: { ...base.workspace.sourceSnapshot.jd, id: "jd-old" },
+    },
+  };
+  const store = new ResumeWorkspaceStore();
+  const compiler = new FixtureResumeCompiler();
+  const targetBuilder = createWorkspaceSnapshotBuilder({
+    jdRequirements: [{
+      id: "req-1", text: "具备数据产品经验", category: "domain",
+      importance: "high", keywords: ["数据产品"], weight: 0.9,
+      v2Importance: "must_have", v2Category: "domain",
+    }, {
+      id: "req-uncovered", text: "了解法律尽调", category: "domain",
+      importance: "medium", keywords: ["法律尽调"], weight: 0.6,
+      v2Importance: "preferred", v2Category: "domain",
+    }],
+  });
+  const create = createResumeWorkspaceTool(
+    targetBuilder, compiler, store, resumeReader([]),
+    localDraftReader([base]),
+  );
+  await create.execute("cross-jd", {
+    jdId: "jd-1",
+    baseDraftArtifactId: base.artifactId,
+    language: "zh-CN",
+    experiences: [{
+      experienceId: "work-1",
+      tier: "secondary",
+      localizedPosition: "数据产品实习生",
+    }],
+  });
+  const pending = store.latest()!;
+  const work = pending.structure.sections
+    .find((section) => section.type === "experience")!.items[0]!;
+  const provenance = new Map(pending.bulletProvenance!.map((entry) => [
+    entry.bulletId, entry,
+  ]));
+  const apply = createApplyResumeContentTool(compiler, store);
+  await apply.execute("adapt", {
+    candidateId: pending.candidateId,
+    expectedRevision: pending.revision,
+    items: [{
+      itemId: work.id,
+      bullets: [...work.bullets].reverse().map((bullet) => ({
+        bulletId: bullet.id,
+        text: bullet.text,
+        origin: "grounded" as const,
+        evidenceIds: provenance.get(bullet.id)!.evidenceIds,
+        requirementIds: provenance.get(bullet.id)!.requirementIds,
+      })),
+    }],
+  });
+
+  assert.equal(store.latest()?.reuseAdaptation?.status, "completed");
+  assert.deepEqual(
+    store.latest()?.reuseAdaptation?.uncoveredRequirementIds,
+    ["req-uncovered"],
+  );
+  assert.notEqual(resumeAgentNextAction(store.latest()!).mode,
+    "adapt_reused_content");
+  assert.equal(store.latest()?.status, "ready_for_approval");
+  assert.equal(base.workspace.structure.sections.find((section) =>
+    section.type === "experience")?.items[0]?.bullets[0]?.id,
+  fixture.ready.structure.sections.find((section) =>
+    section.type === "experience")?.items[0]?.bullets[0]?.id);
 });
 
 test("workspace rejects a base whose historical evidence no longer matches", async () => {
