@@ -2,7 +2,6 @@
 import {
   ArrowRight,
   ClipboardPaste,
-  FilePlus2,
   FileText,
   FileUp,
   Globe,
@@ -24,29 +23,65 @@ const emit = defineEmits<{
   openTracker: [];
   openBrowser: [];
   importResume: [];
+  saveDeliveryResume: [];
 }>();
 
 type Suggestion = {
   icon: typeof FileText;
   title: string;
   prompt?: string;
-  action?: "experiences" | "library" | "tracker" | "browser" | "import";
+  action?: "experiences" | "library" | "tracker" | "browser" | "import" | "delivery";
+  primary?: boolean;
 };
 
 const stageSuggestions: Record<EmptyStateStage, Suggestion[]> = {
-  1: [
+  experience_intake: [
     {
-      icon: FilePlus2,
-      title: "添加你的第一条工作经历",
-      action: "experiences",
+      icon: FileUp,
+      title: "保存现有简历用于投递",
+      action: "delivery",
+      primary: true,
+    },
+    {
+      icon: FileText,
+      title: "导入现有简历中的经历",
+      action: "import",
+    },
+    {
+      icon: MessageSquareText,
+      title: "直接告诉我一段经历",
+      prompt: "我想先告诉你一段经历，请引导我补充职责、方法、成果和可核验事实，并帮我写进经历仓库。",
+    },
+    {
+      icon: ArrowRight,
+      title: "稍后再说",
+      prompt: "我想稍后再整理经历和生成通用简历。",
+    },
+  ],
+  general_resume: [
+    {
+      icon: Sparkles,
+      title: "生成通用简历",
+      prompt: "请基于我的全部经历生成一份不关联任何 JD 的高质量一页通用简历。",
+      primary: true,
+    },
+    {
+      icon: MessageSquareText,
+      title: "继续补充经历成果",
+      prompt: "我想继续补充一段经历中的职责、方法、交付物或成果，请引导我并帮我保存到经历仓库。",
     },
     {
       icon: FileUp,
-      title: "导入简历文件",
+      title: "继续上传经历材料",
       action: "import",
     },
+    {
+      icon: ArrowRight,
+      title: "稍后再说",
+      prompt: "我想稍后再生成通用简历。",
+    },
   ],
-  2: [
+  job_target: [
     {
       icon: ClipboardPaste,
       title: "粘贴目标岗位 JD",
@@ -58,10 +93,10 @@ const stageSuggestions: Record<EmptyStateStage, Suggestion[]> = {
       action: "browser",
     },
   ],
-  3: [
+  application: [
     {
       icon: FileText,
-      title: "生成针对性简历",
+      title: "选择简历并开始投递",
       action: "library",
     },
     {
@@ -70,7 +105,7 @@ const stageSuggestions: Record<EmptyStateStage, Suggestion[]> = {
       action: "tracker",
     },
   ],
-  4: [
+  active_search: [
     {
       icon: ListChecks,
       title: "查看投递进度",
@@ -99,8 +134,34 @@ const genericSuggestions: Suggestion[] = [
 
 const suggestions = computed(() => [
   ...stageSuggestions[props.stage],
-  ...genericSuggestions,
+  ...(["experience_intake", "general_resume"].includes(props.stage)
+    ? [] : genericSuggestions),
 ]);
+
+const stageCopy: Record<EmptyStateStage, { title: string; description: string }> = {
+  experience_intake: {
+    title: "先建立你的专属经历仓库",
+    description:
+      "已有满意简历时，可以原样保存在本机用于任意岗位投递；需要写简历时，再单独导入经历或告诉我真实成果。",
+  },
+  general_resume: {
+    title: "把真实经历整理成通用简历",
+    description:
+      "你可以继续补充成果或上传材料；准备好后，我会从经历仓库中选择最能体现能力和影响力的内容，生成一份不关联任何 JD 的一页通用简历。",
+  },
+  job_target: {
+    title: "添加你的目标岗位",
+    description: "粘贴目标岗位 JD，或先浏览求职网站，我会继续帮你准备针对性材料。",
+  },
+  application: {
+    title: "选择投递材料并开始投递",
+    description: "可以使用用户源文件、通用简历或针对性简历；用户源文件不受岗位相关性限制。",
+  },
+  active_search: {
+    title: "今天想完成什么？",
+    description: "我可以读取你的经历，并帮助你准备求职材料。",
+  },
+};
 
 function run(item: Suggestion): void {
   if (item.prompt) {
@@ -112,6 +173,7 @@ function run(item: Suggestion): void {
   else if (item.action === "tracker") emit("openTracker");
   else if (item.action === "browser") emit("openBrowser");
   else if (item.action === "import") emit("importResume");
+  else if (item.action === "delivery") emit("saveDeliveryResume");
 }
 </script>
 
@@ -120,13 +182,14 @@ function run(item: Suggestion): void {
     <div class="empty-symbol" aria-hidden="true">
       <Sparkles :size="25" :stroke-width="1.55" />
     </div>
-    <h1>{{ $t('今天想完成什么？') }}</h1>
-    <p>{{ $t('我可以读取你的经历，并帮助你准备求职材料。') }}</p>
+    <h1>{{ $t(stageCopy[stage].title) }}</h1>
+    <p>{{ $t(stageCopy[stage].description) }}</p>
     <div class="suggestion-list">
       <button
         v-for="item in suggestions"
         :key="item.title"
         class="suggestion-card"
+        :class="{ 'is-primary': item.primary }"
         type="button"
         @click="run(item)"
       >

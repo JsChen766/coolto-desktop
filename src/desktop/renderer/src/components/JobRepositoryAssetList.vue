@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { BriefcaseBusiness, FileText, Link } from "@lucide/vue";
+import { BriefcaseBusiness, FileText, Link, Star } from "@lucide/vue";
 
-import type { JobRepositoryJd, JobRepositoryResume } from "@desktop/types";
+import type {
+  DeliveryResumeFile,
+  JobRepositoryJd,
+  JobRepositoryResume,
+} from "@desktop/types";
 import { STATUS_LABELS } from "../tracker/application-labels";
 import {
   assetSyncLabel,
@@ -15,6 +19,7 @@ defineProps<{
   view: "jobs" | "resumes";
   jds: readonly JobRepositoryJd[];
   resumes: readonly JobRepositoryResume[];
+  deliveryResumeFiles: readonly DeliveryResumeFile[];
   selectedId: string | undefined;
   emptyLabel: string;
 }>();
@@ -22,6 +27,7 @@ defineProps<{
 defineEmits<{
   selectJd: [id: string];
   selectResume: [entryId: string];
+  selectDeliveryFile: [entryId: string];
 }>();
 </script>
 
@@ -60,6 +66,9 @@ defineEmits<{
     </template>
 
     <template v-else>
+      <p v-if="resumes.length && deliveryResumeFiles.length" class="repository-list-group-label">
+        {{ $t('可编辑简历') }}
+      </p>
       <button
         v-for="resume in resumes"
         :key="resume.entry.entryId"
@@ -86,9 +95,32 @@ defineEmits<{
         {{ resumeSyncLabel(resume.entry.syncStatus) }}
       </span>
       </button>
+      <p v-if="deliveryResumeFiles.length" class="repository-list-group-label">
+        {{ $t('投递文件') }}
+      </p>
+      <button
+        v-for="file in deliveryResumeFiles"
+        :key="`delivery:${file.id}`"
+        class="repository-asset-row delivery-resume-file-row"
+        :class="{ active: selectedId === `delivery:${file.id}` }"
+        type="button"
+        @click="$emit('selectDeliveryFile', `delivery:${file.id}`)"
+      >
+        <Star :size="17" :fill="file.preferred ? 'currentColor' : 'none'" aria-hidden="true" />
+        <span class="repository-asset-copy">
+          <strong>{{ file.title }}</strong>
+          <small>{{ file.originalFilename }}</small>
+          <span class="repository-row-facts">
+            <span>{{ $t('用户源文件') }}</span>
+            <span>{{ $t('仅本机') }}</span>
+            <span>{{ $t('适用于任何岗位') }}</span>
+          </span>
+        </span>
+        <span v-if="file.preferred" class="library-sync-badge">{{ $t('默认') }}</span>
+      </button>
     </template>
 
-    <p v-if="view === 'jobs' ? !jds.length : !resumes.length" class="repository-list-empty">
+    <p v-if="view === 'jobs' ? !jds.length : !resumes.length && !deliveryResumeFiles.length" class="repository-list-empty">
       {{ emptyLabel }}
     </p>
   </div>

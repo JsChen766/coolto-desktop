@@ -4,6 +4,7 @@ import {
   textSupportsRequirement,
 } from "../quality/requirement-coverage.js";
 import type { ResumeSourceRequirementSnapshot } from "../source-types.js";
+import { resumeSourceRequirements } from "../source-strategy.js";
 import type { ResumeWorkspace } from "./types.js";
 import { createResumeMaterialRequest } from "./material-request.js";
 import { hasPendingFirstGenerationGroundedWork } from
@@ -16,7 +17,7 @@ const SKILL_CATEGORIES = new Set([
 export function missingCriticalSkillEvidence(
   workspace: Pick<ResumeWorkspace, "sourceSnapshot" | "supplementalEvidence">,
 ): ResumeSourceRequirementSnapshot[] {
-  return workspace.sourceSnapshot.jd.requirements
+  return resumeSourceRequirements(workspace.sourceSnapshot)
     .filter(isCriticalSkill)
     .filter((requirement) =>
       !sourceSupportsRequirement(workspace.sourceSnapshot, requirement) &&
@@ -30,10 +31,11 @@ export function criticalSkillMaterialRequest(
   workspace: Pick<
     ResumeWorkspace,
     "candidateId" | "sourceSnapshot" | "supplementalEvidence" |
-    "materialRequest" | "factNeutralAuthorization"
+    "materialRequest" | "factNeutralAuthorization" | "selectionPolicy"
   >,
 ): ResumeWorkspace["materialRequest"] | undefined {
   if (workspace.factNeutralAuthorization) return undefined;
+  if (workspace.selectionPolicy === "user_directed") return undefined;
   const missing = missingCriticalSkillEvidence(workspace);
   if (!missing.length) return undefined;
   const labels = missing.slice(0, 3).map((requirement) =>

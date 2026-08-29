@@ -44,7 +44,7 @@ const {
   openMatchPanel,
   openPrimaryView,
   openResumeDraft,
-  openTracker,
+  openTracker, importDeliveryResumeFile,
   pendingApproval,
   cloudCopyRequested,
   clearResumeOperationContext,
@@ -63,7 +63,6 @@ const {
   toggleBrowser,
   toolRuns,
 } = props.shell;
-
 /** 合并附件实时状态到消息卡片；liveVersion 保证事件到来时重渲染。 */
 const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
   void conversationAttachment.liveVersion.value;
@@ -76,8 +75,9 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
     },
   );
 });
-
 const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
+const GENERAL_RESUME_PROMPT =
+  "请基于我的全部经历生成一份不关联任何 JD 的高质量一页通用简历。";
 </script>
 <template>
       <ChatHeader
@@ -99,7 +99,6 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
         @preview-line-spacing="resumeWorkspace.lineSpacing.preview" @commit-line-spacing="resumeWorkspace.lineSpacing.commit"
         @rename="current && openDialog('rename', { id: current.id, title: current.title, createdAt: current.createdAt, updatedAt: current.updatedAt, messageCount: current.messageCount })"
       />
-
       <div class="workspace-body">
         <section class="chat-pane">
           <div ref="scroller" class="message-scroller">
@@ -112,7 +111,7 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
                 @open-library="openPrimaryView('library')"
                 @open-tracker="openTracker"
                 @open-browser="toggleBrowser"
-                @import-resume="conversationAttachment.select"
+                @import-resume="conversationAttachment.select" @save-delivery-resume="importDeliveryResumeFile"
               />
               <template v-for="message in messagesWithLiveStatus" :key="message.id">
                 <ChatMessageView :message="message" />
@@ -148,6 +147,7 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
                   :key="artifact.proposalId"
                   :artifact="artifact"
                   @open="openExperienceImportResult(current.id, $event)"
+                  @generate-general="send(GENERAL_RESUME_PROMPT)"
                 />
               </template>
               <article
@@ -194,6 +194,7 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
                 :key="artifact.proposalId"
                 :artifact="artifact"
                 @open="openExperienceImportResult(current.id, $event)"
+                @generate-general="send(GENERAL_RESUME_PROMPT)"
               />
               <p v-if="runError" class="run-error" data-testid="chat-run-error">{{ runError }}</p>
               <ChatPendingAction
@@ -233,7 +234,6 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
             @request-local-copy="requestCloudResumeCopy"
           />
         </section>
-
         <ResumePreviewOutlet
           v-if="artifactOpen && activeArtifactType === 'resume'"
           :shell="shell"

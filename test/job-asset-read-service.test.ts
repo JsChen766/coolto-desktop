@@ -29,6 +29,7 @@ test("reads every JD and Application page before projecting", async () => {
           : { items: [repositoryApplication("app-a", "a", "resume")], nextCursor: "app-page-2" };
       },
     },
+    { list: async () => [] },
   );
 
   const snapshot = await service.get();
@@ -44,6 +45,7 @@ test("rejects a repeated pagination cursor instead of looping", async () => {
     { listJds: async () => ({ items: [], nextCursor: "repeat" }) },
     { list: async () => [] },
     { listApplications: async () => ({ items: [], nextCursor: null }) },
+    { list: async () => [] },
   );
 
   await assert.rejects(service.get(), /本地分页游标重复/);

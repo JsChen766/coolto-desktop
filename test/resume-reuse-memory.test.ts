@@ -3,8 +3,11 @@ import test from "node:test";
 
 import type { JdReader, JdRecord } from "../src/api/types.js";
 import type { LocalResumeDraft } from "../src/resume/draft/types.js";
+import type { ResumeSourceSnapshot } from "../src/resume/source-types.js";
 import { allEvidenceCandidates } from "../src/resume/quality/evidence-candidates.js";
 import { findResumeReuseCandidates } from "../src/resume/reuse/candidate-retrieval.js";
+import { selectUserDirectedExperienceHistory } from
+  "../src/resume/reuse/user-directed-history.js";
 import type { ResumePublicationGateway } from "../src/resume/save/types.js";
 import { buildResumeSkeleton } from "../src/resume/workspace/candidate-skeleton.js";
 import { resumeAgentNextAction } from "../src/resume/workspace/agent-next-action.js";
@@ -51,6 +54,41 @@ test("reuse retrieval narrows candidates without making the Agent decision", asy
     result.candidates[1]?.retrievalSignals.overlappingKeywords,
     ["node.js", "typescript"],
   );
+});
+
+test("user-directed history prefers the base resume per Experience, then its newest other use", () => {
+  const base = resumeWithExperiences(
+    "general-base",
+    null,
+    "2026-08-01T00:00:00Z",
+    ["work-1"],
+  );
+  const newerTargeted = resumeWithExperiences(
+    "newer-targeted",
+    "jd-newer",
+    "2026-08-20T00:00:00Z",
+    ["work-1", "work-2"],
+  );
+  const newestForWork2 = resumeWithExperiences(
+    "newest-work-2",
+    "jd-latest",
+    "2026-08-25T00:00:00Z",
+    ["work-2"],
+  );
+
+  const selected = selectUserDirectedExperienceHistory({
+    experienceIds: ["work-1", "work-2"],
+    resumes: [newerTargeted, base, newestForWork2],
+    language: "zh-CN",
+  });
+
+  assert.deepEqual(selected.map((item) => [
+    item.experienceId,
+    item.resume.id,
+  ]), [
+    ["work-1", "general-base"],
+    ["work-2", "newest-work-2"],
+  ]);
 });
 
 test("placeholder JD dependency never reaches the JD reader", async () => {
@@ -189,8 +227,8 @@ test("create_resume_workspace seeds only current grounded evidence and recalcula
     sourceSnapshot: {
       ...structuredClone(workspace.sourceSnapshot),
       jd: {
-        ...structuredClone(workspace.sourceSnapshot.jd),
-        requirements: [...workspace.sourceSnapshot.jd.requirements, {
+        ...structuredClone(workspace.sourceSnapshot.jd!),
+        requirements: [...workspace.sourceSnapshot.jd!.requirements, {
           id: "req-k8s", text: "Kubernetes 生产部署", category: "technical",
           importance: "high" as const, keywords: ["Kubernetes"], weight: 1,
           v2Importance: "must_have" as const, v2Category: "technology" as const,
@@ -236,6 +274,112 @@ test("create_resume_workspace seeds only current grounded evidence and recalcula
   assert.equal(store.latest()?.candidateId, workspace.candidateId);
 });
 
+test("user_directed composes specified Experiences from base-first history without JD adaptation", async () => {
+  const builder = createWorkspaceSnapshotBuilder();
+  const snapshot = await builder.build({
+    jdId: "jd-1",
+    experienceIds: ["work-1", "tiny-work-1"],
+    template: (await import("../src/resume/template-contract.js"))
+      .STANDARD_RESUME_TEMPLATE_SNAPSHOT,
+  });
+  const general = historicalResume(
+    snapshot,
+    "general-base",
+    null,
+    "2026-08-01T00:00:00Z",
+    "work-1",
+  );
+  const latestTiny = historicalResume(
+    snapshot,
+    "latest-tiny",
+    "jd-old",
+    "2026-08-25T00:00:00Z",
+    "tiny-work-1",
+  );
+  const store = new ResumeWorkspaceStore();
+  const create = createResumeWorkspaceTool(
+    builder,
+    new FixtureResumeCompiler(),
+    store,
+    resumeReader([general, latestTiny]),
+  );
+
+  const result = await create.execute("user-directed", {
+    generationStrategy: "tailored",
+    selectionPolicy: "user_directed",
+    jdId: "jd-1",
+    language: "zh-CN",
+    experiences: [
+      { experienceId: "work-1", tier: "main" },
+      { experienceId: "tiny-work-1", tier: "main" },
+    ],
+  });
+  const workspace = store.latest()!;
+  const workItems = workspace.structure.sections.flatMap((section) =>
+    ["experience", "project"].includes(section.type) ? section.items : []
+  );
+
+  assert.equal(workspace.selectionPolicy, "user_directed");
+  assert.equal(result.details.selectionPolicy, "user_directed");
+  assert.deepEqual(result.details.userDirectedSelection, {
+    experienceIds: ["work-1", "tiny-work-1"],
+    focusExperienceId: null,
+  });
+  assert.equal(workspace.reuseBase?.kind, "composite");
+  assert.deepEqual(workspace.reuseBase?.sources?.map((source) => [
+    source.experienceId,
+    source.sourceId,
+  ]), [
+    ["work-1", "general-base"],
+    ["tiny-work-1", "latest-tiny"],
+  ]);
+  assert.equal(workspace.reuseAdaptation, undefined);
+  assert.deepEqual(Object.values(workspace.itemTiers ?? {}), [
+    "secondary",
+    "secondary",
+  ]);
+  assert.ok(workItems.every((item) => item.bullets.length === 1));
+  assert.match(
+    workItems.find((item) => item.source_experience_id === "work-1")!
+      .bullets[0]!.id,
+    /^general-base-/u,
+  );
+  assert.match(
+    workItems.find((item) => item.source_experience_id === "tiny-work-1")!
+      .bullets[0]!.id,
+    /^latest-tiny-/u,
+  );
+});
+
+test("user_directed gives one explicitly focused Experience more lines", async () => {
+  const store = new ResumeWorkspaceStore();
+  const create = createResumeWorkspaceTool(
+    createWorkspaceSnapshotBuilder(),
+    new FixtureResumeCompiler(),
+    store,
+    resumeReader([]),
+  );
+
+  await create.execute("user-directed-focus", {
+    generationStrategy: "tailored",
+    selectionPolicy: "user_directed",
+    focusExperienceId: "work-1",
+    jdId: "jd-1",
+    language: "zh-CN",
+    experiences: [
+      { experienceId: "work-1", tier: "secondary" },
+      { experienceId: "tiny-work-1", tier: "main" },
+    ],
+  });
+  const workspace = store.latest()!;
+  const focused = workspace.itemLineBudgets?.["item-work-1"];
+  const other = workspace.itemLineBudgets?.["item-tiny-work-1"];
+
+  assert.equal(workspace.itemTiers?.["item-work-1"], "main");
+  assert.equal(workspace.itemTiers?.["item-tiny-work-1"], "secondary");
+  assert.ok((focused?.targetLines ?? 0) > (other?.targetLines ?? 0));
+});
+
 test("create_resume_workspace seeds a ready local draft without publishing it", async () => {
   const fixture = await createReadySaveFixture();
   const draft = localDraft("local-ready-base", fixture.ready);
@@ -277,7 +421,7 @@ test("cross-JD reuse completes adaptation only after a real batch content change
     ...base.workspace,
     sourceSnapshot: {
       ...base.workspace.sourceSnapshot,
-      jd: { ...base.workspace.sourceSnapshot.jd, id: "jd-old" },
+      jd: { ...base.workspace.sourceSnapshot.jd!, id: "jd-old" },
     },
   };
   const store = new ResumeWorkspaceStore();
@@ -405,6 +549,81 @@ function resume(id: string, jdId: string, updatedAt: string) {
   };
 }
 
+function resumeWithExperiences(
+  id: string,
+  jdId: string | null,
+  updatedAt: string,
+  experienceIds: string[],
+) {
+  const value = cloudResumeFixture({
+    language: "zh-CN",
+    contact: null,
+    sections: [{
+      id: "experience",
+      type: "experience",
+      heading: "工作经历",
+      items: experienceIds.map((experienceId) => ({
+        id: `item-${experienceId}`,
+        title: experienceId,
+        organization: null,
+        role: null,
+        start_date: null,
+        end_date: null,
+        source_experience_id: experienceId,
+        bullets: [],
+        raw_text: null,
+      })),
+    }],
+  });
+  return { ...value, id, jdId, updatedAt, title: id };
+}
+
+function historicalResume(
+  snapshot: ResumeSourceSnapshot,
+  id: string,
+  jdId: string | null,
+  updatedAt: string,
+  experienceId: string,
+) {
+  const structure = buildResumeSkeleton(
+    snapshot,
+    ["work-1", "tiny-work-1"],
+    "zh-CN",
+  );
+  const evidence = allEvidenceCandidates(snapshot).find((candidate) =>
+    candidate.experienceId === experienceId
+  )!;
+  for (const section of structure.sections) {
+    section.items = section.items.filter((item) =>
+      item.source_experience_id === experienceId || section.type === "education"
+    );
+  }
+  const item = structure.sections.flatMap((section) => section.items).find(
+    (candidate) => candidate.source_experience_id === experienceId,
+  )!;
+  item.bullets = [{
+    id: `${id}-${experienceId}-bullet`,
+    text: evidence.sourceQuote.replace(/[。.]$/u, ""),
+    matched_jd_requirement_ids: [],
+    source_evidence: [{
+      experience_id: evidence.experienceId,
+      revision_id: evidence.revisionId,
+      revision_content_hash: evidence.revisionContentHash,
+      source_start: evidence.sourceStart,
+      source_end: evidence.sourceEnd,
+      source_quote: evidence.sourceQuote,
+    }],
+  }];
+  return {
+    ...cloudResumeFixture(structure),
+    id,
+    title: id,
+    jdId,
+    updatedAt,
+    contentHash: `${id}-hash`,
+  };
+}
+
 function resumeReader(
   values: ReturnType<typeof cloudResumeFixture>[],
 ): ResumePublicationGateway {
@@ -430,7 +649,7 @@ function localDraft(
     artifactId,
     ownerId: "user-1",
     conversationIds: ["conversation-1"],
-    title: workspace.sourceSnapshot.jd.title,
+    title: workspace.sourceSnapshot.jd!.title,
     createdAt: "2026-08-26T00:00:00Z",
     updatedAt: "2026-08-27T00:00:00Z",
     workspace: structuredClone(workspace),

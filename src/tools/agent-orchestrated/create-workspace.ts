@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { applyEducationCoursework } from "../../resume/education-coursework-input.js";
 import type { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
-import { buildResumeSkeleton } from "../../resume/workspace/candidate-skeleton.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import {
   tiersForStructure,
@@ -16,10 +15,8 @@ import { overflowSourceReselectionIssue } from "../../resume/workspace/overflow-
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import type { ResumeReuseDraftSource } from
   "../../resume/reuse/local-draft-source.js";
-import {
-  samePublishedResumeSeed,
-  seedFromPublishedResume,
-} from "../../resume/workspace/published-resume-seed.js";
+import { samePublishedResumeSeed } from
+  "../../resume/workspace/published-resume-seed.js";
 import {
   createWorkspaceResult,
   rejectedEducationCourseworkResult,
@@ -27,15 +24,11 @@ import {
   rejectedTierResult,
 } from "./create-workspace-result.js";
 import { createWorkspaceParameters } from "./create-workspace-parameters.js";
-import { buildAvailableResumeSnapshot } from "./available-source-snapshot.js";
 import {
-  applyLocalizedPositions,
-  assertUniqueExperienceIds,
   mergeBaseItemTiers,
   sameFixedPresentation,
   sameRecord,
 } from "./create-workspace-structure.js";
-import { resolveWorkspaceBase } from "./create-workspace-base.js";
 import { generationWorkspaceStatus } from
   "../../resume/workspace/generation-readiness.js";
 import { createReuseAdaptation } from
@@ -44,7 +37,13 @@ import { createItemLineBudgets } from
   "../../resume/workspace/item-line-budget.js";
 import { pendingResumeWorkUnitMap } from
   "../../resume/workspace/work-unit-map.js";
-
+import { sameResumeGenerationTarget } from
+  "../../resume/source-strategy.js";
+import { resolveWorkspaceSeed } from "./create-workspace-seed.js";
+import { sameSelectionPolicy } from
+  "../../resume/workspace/selection-policy.js";
+import { prepareWorkspaceSelection } from
+  "./create-workspace-selection.js";
 export function createResumeWorkspaceTool(
   snapshotBuilder: ResumeSourceSnapshotBuilder,
   compiler: ResumeCompiler,
@@ -56,34 +55,26 @@ export function createResumeWorkspaceTool(
     name: "create_resume_workspace",
     label: "创建简历工作区",
     description:
-      "锁定目标 JD、Profile 和 Agent 选择的经历集合，并创建真实 Chromium 工作区。baseResumeId/baseDraftArtifactId 只能来自已核验候选且只能提供一个；宿主重核 evidence、重算新 JD coverage，将有效 grounded bullet 播种到新候选，不覆盖历史资产。教育自动纳入且不能改写；每个工作来源提交 localizedPosition。新空白工作区先做 WorkUnit 语义分组；宿主继续执行 must-have、Experience 行数、整页容量、单页、尾行和事实门禁。",
+      "创建真实 Chromium 简历工作区。针对性简历使用 generationStrategy=tailored 并提供 jdId；通用简历使用 generationStrategy=general 且不得提供 jdId。用户坚持为不匹配岗位写指定经历时使用 selectionPolicy=user_directed：宿主按 Experience 优先复用基础简历、否则复用最近历史写法；有唯一明显相关经历才传 focusExperienceId。baseResumeId/baseDraftArtifactId 仅供普通 relevance 模式。教育自动纳入且不能改写；宿主始终重核 evidence，并执行 Experience 行数、整页容量、单页、尾行和事实门禁。",
     executionMode: "sequential",
     parameters: createWorkspaceParameters,
     execute: async (_toolCallId, params) => {
-      assertUniqueExperienceIds(params.experiences);
-      const experienceIds = params.experiences.map((item) => item.experienceId);
-      const { snapshot, availableExperienceIds } =
-        await buildAvailableResumeSnapshot(
-          snapshotBuilder,
-          params.jdId,
-          experienceIds,
-        );
-      const availableIds = new Set(availableExperienceIds);
-      const availableInputs = params.experiences.filter((item) =>
-        availableIds.has(item.experienceId)
-      );
-      const freshStructure = buildResumeSkeleton(
-        snapshot, availableExperienceIds, params.language,
-      );
-      applyLocalizedPositions(freshStructure, availableInputs);
-      const resolvedBase = await resolveWorkspaceBase({
-        ...(params.baseResumeId ? { baseResumeId: params.baseResumeId } : {}),
-        ...(params.baseDraftArtifactId
-          ? { baseDraftArtifactId: params.baseDraftArtifactId } : {}),
-        ...(resumeReader ? { resumeReader } : {}),
-        ...(resumeDraftReader ? { draftReader: resumeDraftReader } : {}),
+      const {
+        selectionPolicy, snapshot, availableExperienceIds,
+        tierInputs, freshStructure,
+      } = await prepareWorkspaceSelection({
+        snapshotBuilder,
+        ...(params.generationStrategy
+          ? { generationStrategy: params.generationStrategy } : {}),
+        ...(params.selectionPolicy
+          ? { selectionPolicy: params.selectionPolicy } : {}),
+        ...(params.jdId ? { jdId: params.jdId } : {}),
+        language: params.language,
+        experiences: params.experiences,
+        ...(params.focusExperienceId
+          ? { focusExperienceId: params.focusExperienceId } : {}),
+        hasBase: Boolean(params.baseResumeId || params.baseDraftArtifactId),
       });
-      const baseResume = resolvedBase?.resume;
       const courseworkIssue = applyEducationCoursework(
         freshStructure,
         snapshot,
@@ -93,30 +84,35 @@ export function createResumeWorkspaceTool(
       if (courseworkIssue) {
         return rejectedEducationCourseworkResult(courseworkIssue);
       }
-      const tierIssue = validateTierInputs(freshStructure, availableInputs);
+      const history = await resolveWorkspaceSeed({
+        selectionPolicy,
+        ...(params.baseResumeId ? { baseResumeId: params.baseResumeId } : {}),
+        ...(params.baseDraftArtifactId
+          ? { baseDraftArtifactId: params.baseDraftArtifactId } : {}),
+        fresh: freshStructure,
+        snapshot,
+        experienceIds: availableExperienceIds,
+        ...(resumeReader ? { resumeReader } : {}),
+        ...(resumeDraftReader ? { draftReader: resumeDraftReader } : {}),
+      });
+      const tierIssue = validateTierInputs(freshStructure, tierInputs);
       if (tierIssue) return rejectedTierResult(tierIssue);
-      const agentItemTiers = tiersForStructure(freshStructure, availableInputs);
+      const agentItemTiers = tiersForStructure(freshStructure, tierInputs);
       const itemTiers = mergeBaseItemTiers(
         freshStructure,
         agentItemTiers,
-        resolvedBase?.kind === "local" && resolvedBase.resume.jdId === snapshot.jd.id
-          ? resolvedBase.itemTiers : undefined,
+        history.baseItemTiers,
       );
-      const baseSeed = baseResume
-        ? seedFromPublishedResume({ fresh: freshStructure, snapshot, base: baseResume })
-        : undefined;
-      const reuseBase = resolvedBase && baseSeed ? {
-        kind: resolvedBase.kind,
-        resumeId: resolvedBase.sourceId, sourceJdId: baseResume!.jdId!,
-        contentHash: baseResume!.contentHash,
-        retainedBulletCount: baseSeed.retainedBulletCount,
-        droppedBulletCount: baseSeed.droppedBulletCount,
-      } : undefined;
+      const baseSeed = history.seed;
+      const reuseBase = history.reuseBase;
       const existing = store.latest();
       if (
         existing &&
         existing.sourceSnapshot.sourceFingerprint === snapshot.sourceFingerprint &&
         existing.structure.language === params.language &&
+        sameSelectionPolicy(
+          existing, selectionPolicy, params.focusExperienceId,
+        ) &&
         samePublishedResumeSeed(existing.reuseBase, reuseBase) &&
         existing.lineBudgetVersion === "item-lines-v1" &&
         sameRecord(existing.itemTiers ?? {}, itemTiers) &&
@@ -125,8 +121,11 @@ export function createResumeWorkspaceTool(
         return createWorkspaceResult(existing, "unchanged", []);
       }
       const continuingSameWorkspace = Boolean(
-        existing && existing.sourceSnapshot.jd.id === snapshot.jd.id &&
+        existing && sameResumeGenerationTarget(existing.sourceSnapshot, snapshot) &&
         existing.structure.language === params.language &&
+        sameSelectionPolicy(
+          existing, selectionPolicy, params.focusExperienceId,
+        ) &&
         samePublishedResumeSeed(existing.reuseBase, reuseBase),
       );
       const overflowIssue = continuingSameWorkspace
@@ -179,6 +178,13 @@ export function createResumeWorkspaceTool(
         contentApplyCount: 0,
         status: "writing",
         sourceSnapshot: snapshot,
+        selectionPolicy,
+        ...(selectionPolicy === "user_directed" ? {
+          userDirectedSelection: {
+            experienceIds: [...availableExperienceIds],
+            focusExperienceId: params.focusExperienceId?.trim() ?? null,
+          },
+        } : {}),
         ...(reuseBase ? { reuseBase } : {}),
         structure: retained.structure,
         bindings: retained.bindings,
@@ -200,7 +206,7 @@ export function createResumeWorkspaceTool(
           itemTiers,
           compileResult,
         }),
-        ...(!baseResume ? { workUnitMap: pendingResumeWorkUnitMap(
+        ...(!baseSeed ? { workUnitMap: pendingResumeWorkUnitMap(
           snapshot.sourceFingerprint,
         ) } : {}),
         bulletProvenance: retained.bulletProvenance,

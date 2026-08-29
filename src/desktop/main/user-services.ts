@@ -11,7 +11,6 @@ import { DesktopAgentRuntime } from "./agent-runtime.js";
 import { ApplicationSyncStore } from "./application-library/application-sync-store.js";
 import { ApplicationProposalService } from "./application-library/application-proposal-service.js";
 import { DesktopAuthService } from "./auth-service.js";
-import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
 import { ElectronResumePdfSaveDialog } from "./electron-pdf-save-dialog.js";
 import { ExperienceSyncStore } from "./experience-library/experience-sync-store.js";
@@ -44,7 +43,8 @@ import type { AgentTaskScheduler } from "../../agent-task/agent-task-scheduler.j
 import { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
 import { clearUserServices } from "./clear-user-services.js";
 import { ElectronMailConnectionService } from "./mail-connections/electron-mail-connection-service.js";
-export interface UserServices {
+import { createUserFileServices, type UserFileServices } from "./user-file-services.js";
+export interface UserServices extends UserFileServices {
   ownerId: string;
   conversations: ConversationStore;
   resumeDrafts: ResumeDraftService;
@@ -55,7 +55,6 @@ export interface UserServices {
   agentTasks: AgentTaskRunner;
   agentTaskProposals: AgentTaskProposalService;
   agentTaskScheduler: AgentTaskScheduler;
-  selectedFiles: ConversationSelectedFiles;
   resumes: ResumeSyncStore;
   jds: JdSyncStore;
   applications: ApplicationSyncStore;
@@ -96,7 +95,7 @@ export class UserServicesResolver {
       user.id,
       createElectronResumeDraftRepository(user.id),
     );
-    const selectedFiles = new ConversationSelectedFiles();
+    const { selectedFiles, deliveryResumeFiles } = createUserFileServices(user.id);
     const draftRepository = createElectronResumeDraftRepository(user.id);
     const draftLinker = new ResumeDraftCloudLinker(draftRepository);
     const syncStore = this.auth.requireSyncStore();
@@ -151,7 +150,7 @@ export class UserServicesResolver {
       this.auth.apiClient, conversations, resumeDrafts, this.window.webContents,
       this.resumeCompiler, selectedFiles, this.browserAgentController,
       this.browserPageOperator, agentHarness, agentTaskProposals,
-      resumes, applications, applicationProposals, mailConnections,
+      resumes, applications, applicationProposals, deliveryResumeFiles, mailConnections,
       interviews, interviewProposals, experiences, jds, profiles,
       profileProposals, experienceProposals,
       () => readCompactionThreshold(this.auth.apiClient),
@@ -174,6 +173,7 @@ export class UserServicesResolver {
       agentTaskProposals,
       agentTaskScheduler,
       selectedFiles,
+      deliveryResumeFiles,
       resumes,
       jds,
       applications,

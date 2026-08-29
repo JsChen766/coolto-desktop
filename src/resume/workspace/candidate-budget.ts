@@ -1,5 +1,6 @@
 import type { ResumeCompileResult } from "../compiler-types.js";
 import type { BulletEvidenceBinding, ResumeSourceSnapshot } from "../source-types.js";
+import { resumeSourceRequirements } from "../source-strategy.js";
 import type { ResumeBudgetDiagnostic } from "./types.js";
 
 export function calculateResumeBudget(
@@ -40,7 +41,7 @@ export function requirementCoverage(
   const coveredSet = new Set(
     bindings.flatMap((binding) => [...binding.matchedRequirementIds]),
   );
-  const all = snapshot.jd.requirements.map((requirement) => requirement.id);
+  const all = resumeSourceRequirements(snapshot).map((requirement) => requirement.id);
   return {
     covered: all.filter((id) => coveredSet.has(id)),
     uncovered: all.filter((id) => !coveredSet.has(id)),

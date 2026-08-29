@@ -5,6 +5,7 @@
 @import "./base-sidebar-conversations.css";
 @import "./base-sidebar-account.css";
 @import "./base-workspace-chat.css";
+@import "./onboarding-empty-state.css";
 @import "./base-tools-composer.css";
 @import "./base-approvals.css";
 @import "./base-artifact-resume.css";

@@ -6,7 +6,6 @@ import type {
   UserProfileReader,
 } from "../api/types.js";
 import { ApprovalManager } from "../approvals/approval-manager.js";
-import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
 import type { ResumePublicationGateway } from "../resume/save/types.js";
@@ -25,7 +24,6 @@ import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
 import { createSearchExperiencesTool } from "./search-experiences.js";
 import { createSyncNowTool, type SyncNowResult } from "./sync-now.js";
-import { createSelectedFileTools } from "./selected-files.js";
 import { createResumeReadTools } from "./resume-tools.js";
 import { MatchReportStore } from "../match/report-store.js";
 import { createPrepareMatchAnalysisTool } from "./prepare-match-analysis.js";
@@ -56,7 +54,11 @@ import type { InboxSignalApplicationService } from "../desktop/main/agent-task/i
 import { createPrepareInboxApplicationTool } from "./inbox-action-tools.js";
 import type { InboxSignalInterviewService } from "../desktop/main/agent-task/inbox-signal-interview-service.js";
 import { createPrepareInboxInterviewTool } from "./inbox-interview-tools.js";
-export interface ToolRegistryDependencies {
+import {
+  createLocalFileTools,
+  type LocalFileToolDependencies,
+} from "./local-file-tools.js";
+export interface ToolRegistryDependencies extends LocalFileToolDependencies {
   currentUserReader?: CurrentUserReader;
   userProfileReader?: UserProfileReader;
   profileProposals?: ProfileProposalExecutor;
@@ -66,7 +68,6 @@ export interface ToolRegistryDependencies {
   importProposalStore?: ExperienceImportProposalStore;
   jdProposalStore?: JdProposalStore;
   approvalManager?: ApprovalManager;
-  selectedFileRegistry?: SelectedFileRegistry;
   matchReportStore?: MatchReportStore;
   browserPageReader?: BrowserPageReader;
   browserAgentController?: BrowserAgentController;
@@ -155,11 +156,7 @@ export function createToolRegistry(
       ),
     );
   }
-  if (dependencies.selectedFileRegistry) {
-    businessTools.push(
-      ...createSelectedFileTools(dependencies.selectedFileRegistry),
-    );
-  }
+  businessTools.push(...createLocalFileTools(dependencies));
   if (
     dependencies.jdReader &&
     dependencies.experienceReader &&

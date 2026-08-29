@@ -1,8 +1,12 @@
-import type { JobRepositoryJd, JobRepositoryResume } from "@desktop/types";
+import type { DeliveryResumeFile } from
+  "../../../../delivery-resume-files/types.js";
+import type { JobRepositoryJd, JobRepositoryResume } from
+  "../../../../job-assets/repository-types.js";
 
 export type RepositoryView = "jobs" | "resumes";
 export type JobFilter = "" | "with_resumes" | "without_resumes" | "applied" | "conflict";
-export type ResumeFilter = "" | "targeted" | "generic" | "archived" | "local_only" | "conflict";
+export type ResumeFilter = "" | "targeted" | "generic" | "archived" |
+  "local_only" | "user_original" | "conflict";
 
 export function filterJds(
   jds: readonly JobRepositoryJd[],
@@ -22,6 +26,20 @@ export function filterJds(
   });
 }
 
+export function filterDeliveryResumeFiles(
+  files: readonly DeliveryResumeFile[],
+  query: string,
+  filter: ResumeFilter,
+): DeliveryResumeFile[] {
+  if (filter && filter !== "user_original" && filter !== "local_only") return [];
+  const needle = normalize(query);
+  return files.filter((file) => !needle || normalize([
+    file.title,
+    file.originalFilename,
+    "用户源文件",
+  ].join(" ")).includes(needle));
+}
+
 export function filterResumes(
   resumes: readonly JobRepositoryResume[],
   query: string,
@@ -29,6 +47,7 @@ export function filterResumes(
 ): JobRepositoryResume[] {
   const needle = normalize(query);
   return resumes.filter((resume) => {
+    if (filter === "user_original") return false;
     const cloud = resume.entry.cloud;
     if (needle && !normalize([
       resume.entry.displayTitle,

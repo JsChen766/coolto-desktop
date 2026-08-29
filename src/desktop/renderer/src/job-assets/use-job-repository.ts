@@ -5,7 +5,9 @@ import { desktopApi } from "../lib/desktop-api";
 import { translate } from "../i18n/locale";
 
 export function useJobRepository() {
-  const snapshot = ref<JobRepositorySnapshot>({ jds: [], resumes: [] });
+  const snapshot = ref<JobRepositorySnapshot>({
+    jds: [], resumes: [], deliveryResumeFiles: [],
+  });
   const loading = ref(false);
   const error = ref<string>();
 

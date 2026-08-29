@@ -7,10 +7,15 @@ import {
   Link2Off,
   Send,
   Sparkles,
+  Star,
 } from "@lucide/vue";
 import { computed } from "vue";
 
-import type { JobRepositoryJd, JobRepositoryResume } from "@desktop/types";
+import type {
+  DeliveryResumeFile,
+  JobRepositoryJd,
+  JobRepositoryResume,
+} from "@desktop/types";
 import { translate } from "../i18n/locale";
 import { STATUS_LABELS } from "../tracker/application-labels";
 import {
@@ -24,6 +29,7 @@ import JobRepositoryApplicationList from "./JobRepositoryApplicationList.vue";
 const props = defineProps<{
   jd: JobRepositoryJd;
   resumes: readonly JobRepositoryResume[];
+  deliveryResumeFiles: readonly DeliveryResumeFile[];
 }>();
 
 defineEmits<{
@@ -33,6 +39,7 @@ defineEmits<{
   record: [];
   tracker: [];
   resume: [entryId: string];
+  deliveryFile: [file: DeliveryResumeFile];
 }>();
 
 const targetedResumes = computed(() => {
@@ -162,6 +169,31 @@ function resumeEntryId(resumeId: string | null): string | undefined {
         <p v-else class="repository-section-empty">
           {{ $t('暂无关联简历，可先生成针对性简历。') }}
         </p>
+      </section>
+
+      <section v-if="deliveryResumeFiles.length" class="repository-section">
+        <div class="repository-section-heading">
+          <h3>{{ $t('可直接用于此岗位的投递文件') }}</h3>
+          <span>{{ deliveryResumeFiles.length }}</span>
+        </div>
+        <p class="delivery-resume-section-copy">
+          {{ $t('用户源文件不参与相关性判断；你可以指定其中任何一份用于这个岗位。') }}
+        </p>
+        <div class="repository-reference-list">
+          <button
+            v-for="file in deliveryResumeFiles"
+            :key="file.id"
+            type="button"
+            @click="$emit('deliveryFile', file)"
+          >
+            <Star :size="15" :fill="file.preferred ? 'currentColor' : 'none'" aria-hidden="true" />
+            <span>
+              <strong>{{ file.title }}</strong>
+              <small>{{ file.originalFilename }} · {{ $t('仅本机') }}</small>
+            </span>
+            <span class="repository-relation-badge">{{ $t('用于投递') }}</span>
+          </button>
+        </div>
       </section>
 
       <section class="repository-section">

@@ -90,6 +90,9 @@ export function buildAgentWorkspaceView(
     candidateId: workspace.candidateId,
     revision: workspace.revision,
     status: workspace.status,
+    selectionPolicy: workspace.selectionPolicy ?? "relevance",
+    ...(workspace.userDirectedSelection
+      ? { userDirectedSelection: workspace.userDirectedSelection } : {}),
     reuseBase: workspace.reuseBase ?? null,
     nextAction: resumeAgentNextAction(workspace),
     ...(workspace.materialRequest

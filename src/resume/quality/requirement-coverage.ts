@@ -3,6 +3,7 @@ import type {
   ResumeSourceRequirementSnapshot,
   ResumeSourceSnapshot,
 } from "../source-types.js";
+import { resumeSourceRequirements } from "../source-strategy.js";
 
 export function isMustHave(
   requirement: ResumeSourceRequirementSnapshot,
@@ -20,7 +21,7 @@ export function calculateRequirementQuality(
   const covered = new Set(
     bindings.flatMap((binding) => [...binding.matchedRequirementIds]),
   );
-  const requirements = snapshot.jd.requirements;
+  const requirements = resumeSourceRequirements(snapshot);
   const mustHave = requirements.filter(isMustHave);
   const totalWeight = requirements.reduce((sum, requirement) => sum + weight(requirement), 0);
   const coveredWeight = requirements
@@ -66,7 +67,7 @@ export function matchedRequirementIdsForText(
   text: string,
 ): string[] {
   const haystack = text.toLocaleLowerCase();
-  return snapshot.jd.requirements
+  return resumeSourceRequirements(snapshot)
     .filter((requirement) =>
       requirementTerms(requirement).some((term) =>
         haystack.includes(term) || equivalentTerms(term).some((equivalent) =>

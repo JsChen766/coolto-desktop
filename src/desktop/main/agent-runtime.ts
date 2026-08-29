@@ -33,6 +33,7 @@ import type { ResumeExperienceSyncProposalPort } from "../../resume/material/exp
 import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
 import { restoreLatestInProgressResume } from "./resume-drafts/resume-conversation-restorer.js";
 import { ConversationRunGate } from "./conversation-run-gate.js";
+import { continueAfterResumeStrategyChoice, pendingResumeStrategyChoice } from "./resume-strategy-continuation.js";
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore;
   readonly #resumeDrafts: ResumeDraftService;
@@ -52,6 +53,7 @@ export class DesktopAgentRuntime {
     browserPageOperator: BrowserPageOperator, agentHarness: AgentHarnessServices,
     agentTaskProposals: AgentTaskProposalService, resumePublications: ResumePublicationGateway,
     applications: ApplicationSyncStore, applicationProposals: ApplicationProposalService,
+    deliveryResumeFiles: import("../../delivery-resume-files/types.js").DeliveryResumeFileSource,
     mailConnections: MailConnectionRegistry, interviews: InterviewSyncStore,
     interviewProposals: InterviewProposalService, experiences: ExperienceReader & ExperienceWriter,
     jds: JdReader & JdWriter, profiles: UserProfileReader,
@@ -70,7 +72,7 @@ export class DesktopAgentRuntime {
       selectedFiles,
       browserAgentController, browserPageOperator, agentHarness,
       agentTaskProposals, applications, applicationProposals, mailConnections,
-      interviews, interviewProposals,
+      deliveryResumeFiles, interviews, interviewProposals,
       resumePublications,
       experiences,
       jds,
@@ -185,6 +187,7 @@ export class DesktopAgentRuntime {
         requestId,
         decision,
       );
+      const resumeStrategyChoice = pendingResumeStrategyChoice(context.agent, requestId, decision);
       if (decision.type === "custom") {
         context.currentUserMessage.timestamp = Date.now();
         context.currentUserMessage.text = decision.text;
@@ -218,6 +221,9 @@ export class DesktopAgentRuntime {
           ),
         );
       }
+      await continueAfterResumeStrategyChoice({ choice: resumeStrategyChoice,
+        cancelled: this.#cancelRequested, agent: context.agent,
+        events: this.#events, conversationId });
       return await this.#enqueuePersist(() =>
         this.#store.saveMessages(conversationId, context.agent.getMessages()),
       );
@@ -241,5 +247,4 @@ export class DesktopAgentRuntime {
     this.#contexts.set(conversationId, context);
     return context;
   }
-
 }

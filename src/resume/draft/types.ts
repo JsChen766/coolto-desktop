@@ -1,4 +1,5 @@
 import type { ResumeWorkspace } from "../workspace/types.js";
+import type { ResumeGenerationStrategy } from "../source-strategy.js";
 
 export type ResumeDraftCheckpointReason =
   | "generated"
@@ -74,6 +75,8 @@ export interface ResumeDraftSummary {
   updatedAt: string;
   checkpointCount: number;
   hasPendingChange: boolean;
+  generationStrategy: ResumeGenerationStrategy;
+  generationReady: boolean;
   cloudState: "local_only" | "synced" | "local_changes";
   cloudResumeId?: string | null;
 }

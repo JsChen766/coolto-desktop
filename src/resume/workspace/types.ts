@@ -20,6 +20,7 @@ import type { ResumeMaterialFollowUpPending, ResumeMaterialRequest } from "./mat
 import type { ResumeReuseAdaptation, ResumeReuseBase } from "./reuse-adaptation-types.js";
 import type { ResumeEvidenceAssessmentState } from "./evidence-assessment-types.js";
 import type { ResumeWorkUnitMap } from "./work-unit-types.js";
+import type { ResumeSelectionPolicy, UserDirectedResumeSelection } from "./selection-policy.js";
 import type {
   ResumeBulletConfirmation,
   ResumeBulletOrigin,
@@ -72,6 +73,8 @@ export interface ResumeWorkspace {
   contentApplyCount?: number;
   status: ResumeWorkspaceStatus;
   sourceSnapshot: ResumeSourceSnapshot;
+  selectionPolicy?: ResumeSelectionPolicy;
+  userDirectedSelection?: UserDirectedResumeSelection;
   reuseBase?: ResumeReuseBase;
   reuseAdaptation?: ResumeReuseAdaptation;
   structure: ResumeStructure;
@@ -206,7 +209,6 @@ export type ResumePatchOperationInput =
       evidenceIds: readonly string[];
     }
   | { op: "trim_text"; bulletId: string; keepChars: number };
-
 export type ResumePatchOperation =
   | {
       op: "add_bullet";
@@ -225,13 +227,11 @@ export type ResumePatchOperation =
       bulletId: string;
       afterBulletId?: string | null;
     };
-
 export interface PatchResumeCandidateInput {
   candidateId: string;
   expectedRevision: number;
   operations: ResumePatchOperationInput[];
 }
-
 export interface RepairResumeCandidateInput {
   candidateId: string;
   expectedRevision: number;

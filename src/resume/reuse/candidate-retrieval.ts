@@ -84,6 +84,7 @@ export async function findResumeReuseCandidates(input: {
     .filter(isReusableLocalDraft)
     .flatMap((draft): ResumeReuseCandidateView[] => {
       const source = draft.workspace.sourceSnapshot.jd;
+      if (!source) return [];
       const overlappingKeywords = [...keywordSet(source)]
         .filter((value) => targetKeywords.has(value)).sort();
       const sameTargetRole = Boolean(targetRole && targetRole === roleKey(source));

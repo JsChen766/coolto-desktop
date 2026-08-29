@@ -158,8 +158,8 @@ function sameLayoutTemplate(left: ResumeStructure, right: ResumeStructure) {
 
 function assertEligibleBase(base: ResumeFull, language: string): void {
   if (base.qualityStatus !== "passed" || base.status === "archived" ||
-      base.deletedAt || !base.jdId) {
-    throw new Error("历史 Resume 未通过质量门槛、已归档或缺少来源 JD");
+      base.deletedAt) {
+    throw new Error("历史 Resume 未通过质量门槛或已归档");
   }
   if (base.structured.language !== language) {
     throw new Error("历史 Resume 语言与新工作区不一致，不能作为基底");

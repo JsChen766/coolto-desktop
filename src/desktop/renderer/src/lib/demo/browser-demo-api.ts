@@ -102,6 +102,13 @@ export function createBrowserDemoApi(): DesktopApi {
       submissionReceipt: async () => undefined,
     },
     library: createDemoLibraryApi(),
+    deliveryResumeFiles: {
+      list: async () => [],
+      importFile: async () => undefined,
+      rename: async () => { throw new Error("Demo 不支持投递文件维护"); },
+      select: async () => { throw new Error("Demo 不支持投递文件维护"); },
+      delete: async () => undefined,
+    },
     jobAssets: createDemoJobAssetsApi(now),
     experiences: {
       search: async () => ({ items: [], nextCursor: null }),

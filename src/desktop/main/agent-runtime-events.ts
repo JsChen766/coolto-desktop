@@ -11,6 +11,8 @@ import { extractInsufficientCreditsDetail } from "./insufficient-credits-detect.
 import { traceStopReason, traceToolMetadata } from "./agent-runtime-trace.js";
 import { requestDraftExperienceSyncApproval } from
   "./resume-drafts/resume-experience-sync-service.js";
+import { tailoredResumeFallbackDecision } from
+  "../../resume/strategy/tailored-fallback.js";
 
 export class AgentRuntimeEvents {
   public constructor(
@@ -42,6 +44,7 @@ export class AgentRuntimeEvents {
         return;
       }
       if (event.type === "run.failed") {
+        if (tailoredResumeFallbackDecision(context.workspaceStore.latest(), context.agent.outputRepetitionReason)) return;
         this.traces.recordModelCompleted(conversationId, "error");
         this.traces.recordStopReason(
           conversationId,

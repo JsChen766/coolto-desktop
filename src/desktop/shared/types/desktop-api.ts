@@ -89,6 +89,7 @@ import type { AppUpdateState, UpdateTrigger } from "./updates.js";
 import type { AgentTaskDesktopApi } from "./agent-tasks.js";
 import type { MailConnectionsDesktopApi } from "./mail-connections.js";
 import type { TrackerChildDesktopApi } from "./tracker-child-api.js";
+import type { DeliveryResumeFilesDesktopApi } from "./delivery-resume-files.js";
 export interface DesktopApi {
   platform: DesktopPlatform;
   auth: {
@@ -156,6 +157,7 @@ export interface DesktopApi {
     getCheckpoints(artifactId: string): Promise<ResumeDraftCheckpoint[]>;
     restoreCheckpoint(input: LibraryRestoreCheckpointInput): Promise<LocalResumeDraft>;
   };
+  deliveryResumeFiles: DeliveryResumeFilesDesktopApi;
   jobAssets: {
     get(): Promise<JobRepositorySnapshot>;
   };

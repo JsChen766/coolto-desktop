@@ -2,6 +2,7 @@ import type {
   ResumeDraftDetail,
   ResumeDraftQualityView,
 } from "../../shared/types.js";
+import { resumeSourceRequirements } from "../../../resume/source-strategy.js";
 import { summarizeDraft } from "../../../resume/draft/projection.js";
 import type { LocalResumeDraft } from "../../../resume/draft/types.js";
 import type { ResumeBulletMeasurement } from "../../../resume/compiler-types.js";
@@ -44,7 +45,7 @@ function qualityView(workspace: ResumeWorkspace): ResumeDraftQualityView {
   >((current, bullet) => !current || bullet.lastLineRatio < current.lastLineRatio
     ? bullet : current, undefined);
   const requirementIds = new Set(
-    workspace.sourceSnapshot.jd.requirements.map(
+    resumeSourceRequirements(workspace.sourceSnapshot).map(
       (requirement) => requirement.id,
     ),
   );

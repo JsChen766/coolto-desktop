@@ -175,13 +175,33 @@ test("one-line tiered bullets can be saved when every formal gate passes", async
   );
 });
 
+test("a qualified general resume saves without a JD or target role", async () => {
+  const { draft, workspace } = await createQualifiedDraft();
+  workspace.sourceSnapshot = {
+    ...workspace.sourceSnapshot,
+    generationStrategy: "general",
+    jd: null,
+  };
+  draft.title = "通用简历";
+  draft.workspace = workspace;
+
+  const payload = buildDraftSavePayload({
+    draft,
+    expectedRevision: workspace.revision,
+  });
+
+  assert.equal(payload.title, "通用简历");
+  assert.equal(payload.jdId, null);
+  assert.equal(payload.targetRole, null);
+});
+
 test("acknowledged critical-skill warning no longer blocks save or export", async () => {
   const { draft, workspace } = await createQualifiedDraft();
-  const requirement = workspace.sourceSnapshot.jd.requirements[0]!;
+  const requirement = workspace.sourceSnapshot.jd!.requirements[0]!;
   workspace.sourceSnapshot = {
     ...workspace.sourceSnapshot,
     jd: {
-      ...workspace.sourceSnapshot.jd,
+      ...workspace.sourceSnapshot.jd!,
       requirements: [{
         ...requirement,
         id: "req-k8s",
@@ -196,6 +216,16 @@ test("acknowledged critical-skill warning no longer blocks save or export", asyn
   };
   draft.workspace = workspace;
   assert.equal(isExportableWorkspace(workspace), false);
+
+  const userDirected = {
+    ...structuredClone(workspace),
+    selectionPolicy: "user_directed" as const,
+  };
+  assert.equal(
+    isExportableWorkspace(userDirected),
+    true,
+    "an explicit user-directed mismatch must remain a warning, not a blocker",
+  );
 
   workspace.factNeutralAuthorization = {
     sourceRequestKind: "critical_skill",

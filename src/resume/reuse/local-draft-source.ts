@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { LocalResumeDraft } from "../draft/types.js";
 import { resumeGenerationReadiness } from "../workspace/generation-readiness.js";
 import type { ResumeFull } from "../types.js";
+import { resumeSourceJd } from "../source-strategy.js";
 
 export interface ResumeReuseDraftSource {
   listReusableDrafts(): Promise<LocalResumeDraft[]>;
@@ -20,13 +21,14 @@ export function localDraftAsResume(draft: LocalResumeDraft): ResumeFull {
     throw new Error("本地 ResumeDraft 尚未通过全部生成门槛或存在待确认修改");
   }
   const workspace = draft.workspace;
+  const jd = resumeSourceJd(workspace.sourceSnapshot);
   const structured = structureWithEvidence(draft);
   return {
     id: draft.artifactId,
     title: draft.title,
-    targetRole: workspace.sourceSnapshot.jd.targetRole,
-    targetCompany: workspace.sourceSnapshot.jd.company,
-    jdId: workspace.sourceSnapshot.jd.id,
+    targetRole: jd?.targetRole ?? null,
+    targetCompany: jd?.company ?? null,
+    jdId: jd?.id ?? null,
     contentHash: localDraftContentHash(draft),
     schemaVersion: draft.schemaVersion,
     qualityStatus: "passed",

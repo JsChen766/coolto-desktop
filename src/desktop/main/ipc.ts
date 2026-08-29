@@ -63,6 +63,10 @@ import {
   MAIL_CONNECTION_IPC_CHANNELS,
   registerMailConnectionIpc,
 } from "./mail-connections/mail-connection-ipc.js";
+import {
+  DELIVERY_RESUME_FILE_IPC_CHANNELS,
+  registerDeliveryResumeFileIpc,
+} from "./delivery-resume-files/delivery-resume-file-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -89,6 +93,7 @@ export function registerDesktopIpc(
     ...WINDOW_CLOSE_IPC_CHANNELS,
     ...AGENT_TASK_IPC_CHANNELS,
     ...MAIL_CONNECTION_IPC_CHANNELS,
+    ...DELIVERY_RESUME_FILE_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -119,6 +124,11 @@ export function registerDesktopIpc(
   registerCheckoutIpc(ipcMain, auth);
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
   registerMailConnectionIpc(ipcMain, servicesForCurrentUser);
+  registerDeliveryResumeFileIpc(
+    ipcMain,
+    window,
+    async () => (await servicesForCurrentUser()).deliveryResumeFiles,
+  );
 
   const updateService = new ElectronUpdateService(electronUpdaterDriver, {
     feedUrl:
@@ -166,6 +176,7 @@ export function registerDesktopIpc(
       current.jds,
       await resumeLibraryForCurrentUser(),
       current.applications,
+      current.deliveryResumeFiles,
     );
   });
   registerApplicationIpc(

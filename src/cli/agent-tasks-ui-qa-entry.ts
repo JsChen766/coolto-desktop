@@ -24,6 +24,9 @@ app.whenReady().then(async () => {
       approval.includes("保存到 Answer Vault") &&
       approval.includes("Are you authorized to work in Canada?") &&
       approval.includes("jobs.example"));
+    expect("00c resume mismatch renders a normal two-action strategy card",
+      approval.includes("这份岗位暂时无法生成可信的针对性简历") &&
+      approval.includes("使用通用简历") && approval.includes("不继续投递"));
     expect("00a Tracker renders linked SubmissionReceipt",
       approval.includes("投递证据") && approval.includes("已确认提交") &&
       approval.includes("bbbbbbbbbbbb"));
@@ -31,7 +34,7 @@ app.whenReady().then(async () => {
       approval.includes("qa@example.com") && approval.includes("gmail.readonly") &&
       approval.includes("发送权限始终为关闭"));
     await window.webContents.executeJavaScript(
-      "document.querySelector('#approval-qa')?.remove(); document.querySelector('#receipt-qa')?.remove(); document.querySelector('#mail-settings-qa')?.remove()", true,
+      "document.querySelector('#approval-qa')?.remove(); document.querySelector('#resume-strategy-qa')?.remove(); document.querySelector('#receipt-qa')?.remove(); document.querySelector('#mail-settings-qa')?.remove()", true,
     );
     const wide = await inspect(window);
     expect("01 wide task list visible", wide.taskRows === 1 && wide.listVisible);

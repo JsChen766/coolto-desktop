@@ -16,7 +16,8 @@ const {
   activeView, clearExperienceImportFocus, closeTracker, desktopApi,
   experienceImportFocus, jobRepositoryNavigation, openRepositoryTracker,
   openTrackerAsset, requestResumePreview, returnToImportConversation,
-  selectChat, showSidebar, startJdAction, trackerContext,
+  selectChat, showSidebar, startGeneralResume, startJdAction, trackerContext,
+  startDeliveryResumeFile,
   updateRepositoryNavigation,
 } = props.shell;
 
@@ -63,6 +64,8 @@ defineExpose({ confirmExperienceLeave });
       @toggle-sidebar="showSidebar"
       @navigate="updateRepositoryNavigation"
       @agent="startJdAction"
+      @general="startGeneralResume"
+      @delivery="startDeliveryResumeFile"
       @record="recordFromRepository"
       @tracker="openRepositoryTracker"
     />

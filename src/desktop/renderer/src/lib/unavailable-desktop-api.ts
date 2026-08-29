@@ -85,6 +85,13 @@ export function createUnavailableDesktopApi(): DesktopApi {
       getCheckpoints: unavailable,
       restoreCheckpoint: unavailable,
     },
+    deliveryResumeFiles: {
+      list: unavailable,
+      importFile: unavailable,
+      rename: unavailable,
+      select: unavailable,
+      delete: unavailable,
+    },
     jobAssets: {
       get: unavailable,
     },

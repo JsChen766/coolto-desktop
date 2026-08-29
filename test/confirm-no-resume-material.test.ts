@@ -251,9 +251,9 @@ test("user can skip a critical-skill warning without inventing the skill", async
     sourceSnapshot: {
       ...workspace.sourceSnapshot,
       jd: {
-        ...workspace.sourceSnapshot.jd,
+        ...workspace.sourceSnapshot.jd!,
         requirements: [{
-          ...workspace.sourceSnapshot.jd.requirements[0]!,
+          ...workspace.sourceSnapshot.jd!.requirements[0]!,
           id: "req-k8s",
           text: "Kubernetes 生产部署",
           keywords: ["Kubernetes"],

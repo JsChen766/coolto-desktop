@@ -20,6 +20,7 @@ import "./styles/tracker-children.css";
 import "./styles/job-repository-layout.css";
 import "./styles/job-repository-list.css";
 import "./styles/job-repository-detail.css";
+import "./styles/delivery-resume-files.css";
 import "./styles/job-repository-content.css";
 import "./styles/job-repository-responsive.css";
 import "./styles/experience-library-layout.css";

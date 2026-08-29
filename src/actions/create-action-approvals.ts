@@ -50,6 +50,10 @@ import { createInboxApplicationApprovalExecutor } from "../inbox-signals/inbox-a
 import type { InboxSignalInterviewService } from "../desktop/main/agent-task/inbox-signal-interview-service.js";
 import { INBOX_INTERVIEW_UPDATE_ACTION } from "../inbox-signals/inbox-action-approval.js";
 import { createInboxInterviewApprovalExecutor } from "../inbox-signals/inbox-action-approval-executor.js";
+import {
+  createResumeStrategyChoiceExecutor,
+  RESUME_STRATEGY_CHOICE_ACTION,
+} from "../resume/strategy/choice-approval.js";
 
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
@@ -74,6 +78,10 @@ export function createActionApprovalManager(
   deps: ActionApprovalDependencies,
 ): ApprovalManager {
   const executors = new ActionExecutorRegistry();
+  executors.register(
+    RESUME_STRATEGY_CHOICE_ACTION,
+    createResumeStrategyChoiceExecutor(),
+  );
   executors.register(
     EXPERIENCE_IMPORT_ACTION_TYPE,
     createExperienceImportExecutor(

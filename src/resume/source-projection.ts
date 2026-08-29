@@ -2,6 +2,7 @@ import type {
   BulletEvidenceBinding,
   ResumeSourceSnapshot,
 } from "./source-types.js";
+import { resumeGenerationStrategy } from "./source-strategy.js";
 import {
   rankAvailableEvidence,
   slimEvidenceCandidates,
@@ -12,6 +13,7 @@ const MAX_JD_RAW_TEXT_CHARS = 800;
 
 export interface ResumeSourceProjection {
   schemaVersion: ResumeSourceSnapshot["schemaVersion"];
+  generationStrategy: "tailored" | "general";
   sourceFingerprint: string;
   profile: ResumeSourceSnapshot["profile"];
   jd: unknown;
@@ -39,9 +41,10 @@ export function projectResumeSourceSnapshot(
   );
   return {
     schemaVersion: snapshot.schemaVersion,
+    generationStrategy: resumeGenerationStrategy(snapshot),
     sourceFingerprint: snapshot.sourceFingerprint,
     profile: snapshot.profile,
-    jd: {
+    jd: snapshot.jd ? {
       id: snapshot.jd.id,
       title: snapshot.jd.title,
       company: snapshot.jd.company,
@@ -49,7 +52,7 @@ export function projectResumeSourceSnapshot(
       rawText: capJdRawText(snapshot.jd.rawText),
       contentHash: snapshot.jd.contentHash,
       requirements: snapshot.jd.requirements,
-    },
+    } : null,
     experiences: snapshot.experiences.map((experience) => {
       const exposedEvidenceCount = availableEvidence.filter(
         (candidate) => candidate.experienceId === experience.id,

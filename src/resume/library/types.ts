@@ -8,6 +8,7 @@
  */
 
 import type { ResumeStatus } from "../types.js";
+import type { ResumeGenerationStrategy } from "../source-strategy.js";
 
 // ---------------------------------------------------------------------------
 // Sync status between local draft and cloud current content.
@@ -62,6 +63,8 @@ export interface ResumeLibraryLocalSummary {
   updatedAt: string;
   checkpointCount: number;
   hasPendingChange: boolean;
+  generationStrategy: ResumeGenerationStrategy;
+  generationReady: boolean;
 }
 
 // ---------------------------------------------------------------------------

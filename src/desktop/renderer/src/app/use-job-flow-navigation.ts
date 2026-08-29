@@ -17,7 +17,7 @@ interface JobFlowDependencies {
   activeView: Ref<AppView>;
   closeNarrowSidebar(): void;
   createChat(): Promise<void>;
-  send(text: string, reference: JdChatReference): Promise<void>;
+  send(text: string, reference?: JdChatReference): Promise<void>;
 }
 
 export function useJobFlowNavigation(deps: JobFlowDependencies) {
@@ -63,6 +63,17 @@ export function useJobFlowNavigation(deps: JobFlowDependencies) {
     deps.activeView.value = "library";
   }
 
+  function openDeliveryResumeFile(fileId: string): void {
+    const next = copyNavigation(jobRepositoryNavigation.value);
+    next.view = "resumes";
+    next.detailOpen = true;
+    next.query = "";
+    next.resumeFilter = "";
+    next.selectedResumeId = `delivery:${fileId}`;
+    jobRepositoryNavigation.value = next;
+    deps.activeView.value = "library";
+  }
+
   async function startJdAction(
     action: "generate" | "match",
     jdId: string,
@@ -76,12 +87,21 @@ export function useJobFlowNavigation(deps: JobFlowDependencies) {
     });
   }
 
+  async function startGeneralResume(): Promise<void> {
+    await deps.createChat();
+    await deps.send(
+      "请基于我的全部经历生成一份不关联任何 JD 的高质量一页通用简历。",
+    );
+  }
+
   return {
     closeTracker,
     jobRepositoryNavigation,
     openRepositoryTracker,
+    openDeliveryResumeFile,
     openTrackerAsset,
     startJdAction,
+    startGeneralResume,
     trackerContext,
     updateRepositoryNavigation,
   };

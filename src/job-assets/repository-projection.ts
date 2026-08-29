@@ -1,6 +1,7 @@
 import type { JdRecord } from "../api/types.js";
 import type { ResumeLibraryEntry } from "../resume/library/types.js";
 import type { ApplicationRecord } from "../tracker/types.js";
+import type { DeliveryResumeFile } from "../delivery-resume-files/types.js";
 import { projectJobAssets } from "./projection.js";
 import {
   jdReference,
@@ -20,6 +21,7 @@ export interface JobRepositoryProjectionInput {
   jds: readonly JdRecord[];
   resumes: readonly ResumeLibraryEntry[];
   applications: readonly ApplicationRecord[];
+  deliveryResumeFiles?: readonly DeliveryResumeFile[];
 }
 
 export function projectJobRepository(
@@ -60,6 +62,9 @@ export function projectJobRepository(
       resumeSummaryById,
       applications,
     )),
+    deliveryResumeFiles: [...(input.deliveryResumeFiles ?? [])]
+      .sort((left, right) => Number(right.preferred) - Number(left.preferred) ||
+        right.updatedAt.localeCompare(left.updatedAt)),
   };
 }
 

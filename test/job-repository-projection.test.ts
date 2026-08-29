@@ -76,3 +76,31 @@ test("missing references retain the frozen Application title", () => {
   });
   assert.equal(snapshot.jds[0]?.applicationSummary.statusCounts.rejected, 1);
 });
+
+test("user source delivery files stay independent and available without a JD relation", () => {
+  const deliveryFile = {
+    id: "00000000-0000-4000-8000-000000000001",
+    title: "原始投递简历",
+    originalFilename: "resume.pdf",
+    type: "pdf" as const,
+    mimeType: "application/pdf",
+    sizeBytes: 100,
+    sha256: "b".repeat(64),
+    preferred: true,
+    createdAt: "2026-08-30T00:00:00.000Z",
+    updatedAt: "2026-08-30T00:00:00.000Z",
+  };
+  const snapshot = projectJobRepository({
+    jds: [repositoryJd("a"), repositoryJd("b")],
+    resumes: [repositoryResume("managed", "a")],
+    applications: [],
+    deliveryResumeFiles: [deliveryFile],
+  });
+
+  assert.deepEqual(snapshot.deliveryResumeFiles, [deliveryFile]);
+  assert.equal(snapshot.resumes.length, 1);
+  assert.deepEqual(snapshot.jds.map((jd) => jd.targetedResumeIds), [
+    ["managed"],
+    [],
+  ]);
+});

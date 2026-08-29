@@ -5,9 +5,11 @@ import type { ResumePublicationGateway } from "../resume/save/types.js";
 import type { JdReader } from "../api/types.js";
 import { createFindResumeReuseCandidatesTool } from "./find-resume-reuse-candidates.js";
 import {
+  isReusableLocalDraft,
   localDraftAsResume,
   type ResumeReuseDraftSource,
 } from "../resume/reuse/local-draft-source.js";
+import { resumeGenerationStrategy } from "../resume/source-strategy.js";
 
 const listParameters = Type.Object({});
 const getParameters = Type.Object({
@@ -24,10 +26,13 @@ export function createResumeReadTools(
     name: "list_resumes",
     label: "查看简历列表",
     description:
-      "覆盖已有简历前列出用户可见的云端简历。每个 ID 对应一份唯一的当前文档。",
+      "列出用户可见的云端简历，以及尚未保存到云端但已达标的本地通用简历。",
     parameters: listParameters,
     execute: async (_toolCallId, _params, signal) => {
-      const resumes = await reader.listResumes(signal);
+      const [resumes, localDrafts] = await Promise.all([
+        reader.listResumes(signal),
+        drafts?.listReusableDrafts() ?? Promise.resolve([]),
+      ]);
       const projection = resumes.map((resume) => ({
         id: resume.id,
         title: resume.title,
@@ -37,9 +42,29 @@ export function createResumeReadTools(
         qualityStatus: resume.qualityStatus,
         updatedAt: resume.updatedAt,
       }));
+      const localGeneral = localDrafts
+        .filter((draft) => !draft.cloudLink && isReusableLocalDraft(draft) &&
+          resumeGenerationStrategy(draft.workspace.sourceSnapshot) === "general")
+        .map((draft) => {
+          const resume = localDraftAsResume(draft);
+          return {
+            id: resume.id,
+            source: "local" as const,
+            artifactId: draft.artifactId,
+            title: resume.title,
+            targetRole: null,
+            jdId: null,
+            contentHash: resume.contentHash,
+            qualityStatus: resume.qualityStatus,
+            updatedAt: resume.updatedAt,
+          };
+        });
       return {
-        content: [{ type: "text", text: JSON.stringify(projection) }],
-        details: projection,
+        content: [{ type: "text", text: JSON.stringify([
+          ...projection,
+          ...localGeneral,
+        ]) }],
+        details: [...projection, ...localGeneral],
       };
     },
   };

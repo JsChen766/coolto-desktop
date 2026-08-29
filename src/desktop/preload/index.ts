@@ -89,6 +89,13 @@ const api: DesktopApi = {
     restoreCheckpoint: (input) =>
       ipcRenderer.invoke("library:restore-checkpoint", input),
   },
+  deliveryResumeFiles: {
+    list: () => ipcRenderer.invoke("delivery-resume-files:list"),
+    importFile: () => ipcRenderer.invoke("delivery-resume-files:import"),
+    rename: (input) => ipcRenderer.invoke("delivery-resume-files:rename", input),
+    select: (input) => ipcRenderer.invoke("delivery-resume-files:select", input),
+    delete: (input) => ipcRenderer.invoke("delivery-resume-files:delete", input),
+  },
   jobAssets: {
     get: () => ipcRenderer.invoke("job-assets:get"),
   },

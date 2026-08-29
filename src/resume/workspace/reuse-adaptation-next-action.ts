@@ -52,7 +52,7 @@ export function reuseAdaptationNextAction(
           "保留仍适合新 JD 的优秀内容，只对岗位重点、表达顺序或证据选择做最小必要调整；一次提交该 item 的完整 bullet 列表",
       }] : [];
     }),
-    uncoveredRequirements: workspace.sourceSnapshot.jd.requirements
+    uncoveredRequirements: (workspace.sourceSnapshot.jd?.requirements ?? [])
       .filter((requirement) =>
         adaptation.uncoveredRequirementIds.includes(requirement.id)
       )

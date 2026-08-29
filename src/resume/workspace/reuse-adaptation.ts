@@ -5,18 +5,21 @@ export function createReuseAdaptation(
   workspace: ResumeWorkspace,
 ): ResumeWorkspace["reuseAdaptation"] {
   const base = workspace.reuseBase;
-  if (!base || base.sourceJdId === workspace.sourceSnapshot.jd.id) {
+  const targetJd = workspace.sourceSnapshot.jd;
+  if (!base || !base.sourceJdId || !targetJd ||
+    base.sourceJdId === targetJd.id ||
+    workspace.selectionPolicy === "user_directed") {
     return undefined;
   }
   const covered = coveredRequirementIds(workspace);
-  const uncoveredRequirementIds = workspace.sourceSnapshot.jd.requirements
+  const uncoveredRequirementIds = targetJd.requirements
     .map((requirement) => requirement.id)
     .filter((id) => !covered.has(id));
   const targets = adaptationCandidates(workspace, uncoveredRequirementIds);
   return {
     status: "pending",
     sourceJdId: base.sourceJdId,
-    targetJdId: workspace.sourceSnapshot.jd.id,
+    targetJdId: targetJd.id,
     retainedBulletIds: workspace.structure.sections.flatMap((section) =>
       section.items.flatMap((item) => item.bullets.map((bullet) => bullet.id))
     ),
@@ -41,7 +44,7 @@ export function reconcileReuseAdaptation(
     ...changed.filter((itemId) => adaptation.targetItemIds.includes(itemId)),
   ])];
   const covered = coveredRequirementIds(after);
-  const requirements = after.sourceSnapshot.jd.requirements;
+  const requirements = after.sourceSnapshot.jd?.requirements ?? [];
   const uncoveredRequirementIds = requirements
     .map((requirement) => requirement.id)
     .filter((id) => !covered.has(id));
@@ -74,7 +77,7 @@ function adaptationCandidates(
   workspace: ResumeWorkspace,
   uncoveredRequirementIds: readonly string[],
 ) {
-  const uncovered = workspace.sourceSnapshot.jd.requirements.filter(
+  const uncovered = (workspace.sourceSnapshot.jd?.requirements ?? []).filter(
     (requirement) => uncoveredRequirementIds.includes(requirement.id),
   );
   const sourceById = new Map(workspace.sourceSnapshot.experiences.map(

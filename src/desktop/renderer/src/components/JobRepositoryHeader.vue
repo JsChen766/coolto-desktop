@@ -2,9 +2,11 @@
 import {
   BriefcaseBusiness,
   FileText,
+  FileUp,
   Menu,
   RefreshCw,
   Search,
+  Sparkles,
 } from "@lucide/vue";
 
 import type {
@@ -27,6 +29,8 @@ defineEmits<{
   "update:resumeFilter": [value: ResumeFilter];
   refresh: [];
   toggleSidebar: [];
+  generateGeneral: [];
+  importDelivery: [];
 }>();
 </script>
 
@@ -59,6 +63,22 @@ defineEmits<{
       </button>
     </nav>
     <div class="repository-tools no-drag">
+      <button
+        v-if="view === 'resumes'"
+        class="secondary-button icon-label"
+        type="button"
+        @click="$emit('importDelivery')"
+      >
+        <FileUp :size="14" aria-hidden="true" />{{ $t('添加投递文件') }}
+      </button>
+      <button
+        v-if="view === 'resumes'"
+        class="primary-button icon-label"
+        type="button"
+        @click="$emit('generateGeneral')"
+      >
+        <Sparkles :size="14" aria-hidden="true" />{{ $t('生成通用简历') }}
+      </button>
       <label class="repository-search">
         <Search :size="15" aria-hidden="true" />
         <input
@@ -91,6 +111,7 @@ defineEmits<{
         <option value="generic">{{ $t('通用') }}</option>
         <option value="archived">{{ $t('归档') }}</option>
         <option value="local_only">{{ $t('仅本机') }}</option>
+        <option value="user_original">{{ $t('用户源文件') }}</option>
         <option value="conflict">{{ $t('同步冲突') }}</option>
       </select>
       <button

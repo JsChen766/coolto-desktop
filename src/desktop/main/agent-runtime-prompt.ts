@@ -17,6 +17,14 @@ import {
 } from "./resume-run-feedback.js";
 import { canonicalizeResumeBoundaryResponse } from
   "./resume-boundary-response.js";
+import { tailoredResumeFallbackDecision } from
+  "../../resume/strategy/tailored-fallback.js";
+import { requestResumeStrategyChoice } from
+  "../../resume/strategy/choice-approval.js";
+import { appendControlledAssistantMessage } from "./resume-run-feedback.js";
+
+const STRATEGY_FALLBACK_MESSAGE =
+  "现有经历暂时无法支持一份可信、与该岗位足够匹配的针对性简历。继续改写容易产生弱相关或空泛内容，因此我不会再继续生成。你可以改用通用简历，或者不继续投递这个岗位。";
 
 export interface AgentPromptExecutionInput {
   prompt: AgentPromptInput;
@@ -76,11 +84,31 @@ export async function executeAgentPrompt(
   context.currentUserMessage.text = prompt.text;
   await context.agent.prompt(promptText + attachmentNotice);
   const runStopError = context.agent.runStopError;
+  const proposed = context.workspaceStore.latest();
+  const strategyFallback = tailoredResumeFallbackDecision(
+    proposed,
+    context.agent.outputRepetitionReason,
+  );
+  if (runStopError && proposed && strategyFallback) {
+    await requestResumeStrategyChoice(
+      context.approvalManager,
+      proposed,
+      strategyFallback,
+    );
+    const messages = appendControlledAssistantMessage(
+      context.agent.getMessages(),
+      STRATEGY_FALLBACK_MESSAGE,
+    );
+    context.agent.replaceMessages(messages);
+    return {
+      messages,
+      attachTimestamp: lastUserMessageTimestamp(messages),
+    };
+  }
   if (runStopError) {
     discardFailedRunMessages(context);
     throw new Error(runStopError);
   }
-  const proposed = context.workspaceStore.latest();
   const canonicalMessages = canonicalizeResumeBoundaryResponse(
     context.agent.getMessages(),
     proposed,

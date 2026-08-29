@@ -142,6 +142,8 @@ function toLocalSummary(draft: ResumeDraftSummary): ResumeLibraryLocalSummary {
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpointCount,
     hasPendingChange: draft.hasPendingChange,
+    generationStrategy: draft.generationStrategy,
+    generationReady: draft.generationReady,
   };
 }
 
@@ -152,6 +154,9 @@ function toLocalSummaryFromFull(draft: LocalResumeDraft): ResumeLibraryLocalSumm
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpoints.length,
     hasPendingChange: draft.pendingChange != null,
+    generationStrategy: draft.workspace?.sourceSnapshot?.generationStrategy === "general"
+      ? "general" : "tailored",
+    generationReady: draft.workspace?.status === "ready_for_approval",
   };
 }
 

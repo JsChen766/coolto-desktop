@@ -8,6 +8,7 @@ import { plannedBulletLines } from "./bullet-line-plan.js";
 import { matchingFactNeutralFragment } from "./fact-neutral-fragments.js";
 import { validateFactNeutralFragment } from "./fact-neutral-validation.js";
 import { validatedBulletWorkUnitIds } from "./work-unit-ownership.js";
+import { resumeSourceRequirements } from "../source-strategy.js";
 
 export function buildValidatedBullet(input: {
   source: ResumeWorkspace;
@@ -135,7 +136,7 @@ export function buildValidatedBullet(input: {
 
 function assertRequirementIds(workspace: ResumeWorkspace, ids: string[]): void {
   const allowed = new Set(
-    workspace.sourceSnapshot.jd.requirements.map((item) => item.id),
+    resumeSourceRequirements(workspace.sourceSnapshot).map((item) => item.id),
   );
   const unknown = ids.filter((id) => !allowed.has(id));
   if (unknown.length) throw new Error(`未知 JD requirementId：${unknown.join("、")}`);

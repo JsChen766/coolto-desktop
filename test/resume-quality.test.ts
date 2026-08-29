@@ -100,9 +100,9 @@ test("quality review stops when a must-have requirement has no source support", 
   const snapshot = {
     ...structuredClone(workspace.sourceSnapshot),
     jd: {
-      ...structuredClone(workspace.sourceSnapshot.jd),
+      ...structuredClone(workspace.sourceSnapshot.jd!),
       requirements: [
-        ...structuredClone(workspace.sourceSnapshot.jd.requirements),
+        ...structuredClone(workspace.sourceSnapshot.jd!.requirements),
         missingRequirement,
       ],
     },
@@ -138,9 +138,9 @@ test("quality review distinguishes repairable coverage and unsupported responsib
   const snapshot = {
     ...structuredClone(workspace.sourceSnapshot),
     jd: {
-      ...structuredClone(workspace.sourceSnapshot.jd),
+      ...structuredClone(workspace.sourceSnapshot.jd!),
       requirements: [
-        ...structuredClone(workspace.sourceSnapshot.jd.requirements),
+        ...structuredClone(workspace.sourceSnapshot.jd!.requirements),
         pythonRequirement,
       ],
     },

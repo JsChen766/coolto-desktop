@@ -116,5 +116,8 @@ function summarizeDraftForProjection(draft: LocalResumeDraft) {
           : "local_changes"
     ) as "local_only" | "synced" | "local_changes",
 	cloudResumeId: draft.cloudLink?.resumeId ?? null,
+  generationStrategy: draft.workspace.sourceSnapshot.generationStrategy === "general"
+    ? "general" as const : "tailored" as const,
+  generationReady: draft.workspace.status === "ready_for_approval",
   };
 }

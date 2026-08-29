@@ -24,21 +24,27 @@ interface ResumeSource {
   list(): Promise<ResumeLibraryEntry[]>;
 }
 
+interface DeliveryResumeFileSource {
+  list(): Promise<import("../../../delivery-resume-files/types.js").DeliveryResumeFile[]>;
+}
+
 /** Reads the three local projections and returns one immutable UI snapshot. */
 export class JobAssetReadService {
   public constructor(
     private readonly jds: JdSource,
     private readonly resumes: ResumeSource,
     private readonly applications: ApplicationSource,
+    private readonly deliveryResumeFiles: DeliveryResumeFileSource,
   ) {}
 
   public async get(): Promise<JobRepositorySnapshot> {
-    const [jds, resumes, applications] = await Promise.all([
+    const [jds, resumes, applications, deliveryResumeFiles] = await Promise.all([
       readAllJds(this.jds),
       this.resumes.list(),
       readAllApplications(this.applications),
+      this.deliveryResumeFiles.list(),
     ]);
-    return projectJobRepository({ jds, resumes, applications });
+    return projectJobRepository({ jds, resumes, applications, deliveryResumeFiles });
   }
 }
 

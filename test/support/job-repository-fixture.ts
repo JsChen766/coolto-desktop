@@ -65,6 +65,8 @@ export function localRepositoryResume(id: string): ResumeLibraryEntry {
       updatedAt: AT,
       checkpointCount: 1,
       hasPendingChange: false,
+      generationStrategy: "tailored",
+      generationReady: false,
     },
     syncStatus: "local_only",
     availableOperations: ["open"],

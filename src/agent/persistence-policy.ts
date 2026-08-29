@@ -25,6 +25,9 @@ const TRANSIENT_TOOL_NAMES = new Set([
   "list_inbox_signals",
   "prepare_inbox_application_update",
   "prepare_inbox_interview_update",
+  "list_delivery_resume_files",
+  "select_delivery_resume_file",
+  "browser_upload_delivery_resume",
 ]);
 
 interface ToolResultLike {
@@ -91,6 +94,10 @@ function expirationInstruction(toolName: string): string {
   }
   if (toolName === "get_resume") {
     return "This Resume content expired when the task was persisted. Call get_resume again with the exact resumeId or artifactId before using it.";
+  }
+  if (["list_delivery_resume_files", "select_delivery_resume_file",
+    "browser_upload_delivery_resume"].includes(toolName)) {
+    return "This local delivery-file result expired when the transcript was persisted. List the user's local delivery resume files again; never reuse a stale file ID or local attachment state.";
   }
   return "This in-memory resume workspace expired when the task was persisted. Call create_resume_workspace again to lock fresh sources; do not reuse the old candidateId or evidence IDs.";
 }

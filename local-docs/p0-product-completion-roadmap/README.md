@@ -197,7 +197,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | BE6 | macOS Calendar | EventKit write-only、映射、改期/取消和去重 | 待 BE5 完成 |
 | BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | 待 BE6 完成；仅 App 打开时运行 |
 | BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |
-| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；2026-08-29 L7–L12 WorkUnit 语义层与 5 份当前代码真实单次生成完成：申万及后续 YSL/复星/安克/腾讯的 WorkUnit 合同 5/5 通过，SiC 7 段 evidence 稳定合并为一条 bullet；后续四稿机器门槛 3/4 通过；可见说明上限按用户要求从 6000 提至 8000 后，YSL 单次回归由 86.94% 推进到 91.61%，但仍以 8 条短尾、欠 3.13px 和“超过 8000 字”停滞失败，说明放宽阈值未消除长篇推演根因；人工审计另发现复星模板化连接、腾讯 3 条“虚构”限定丢失及三份机器通过稿仍各有 main item 低于 minimumLines，不能把机器通过等同整体通过；自动/Renderer QA 全绿；H 仍由专职测试人员验收；同类型岗位基础简历复用实现已从 Browser Enhance 合入，完整生成 token/质量对照仍待验收 |
+| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；2026-08-29 L7–L12 WorkUnit 语义层与 5 份当前代码真实单次生成完成；L13–L17 已补齐首次经历引导、真正 `jd=null` 的独立通用简历及 tailored 8000 字后的策略卡；L19 新增用户坚持不匹配岗位并指定经历的 `user_directed` 路径，逐 Experience 基础简历优先、否则取其他简历最近版本，多来源合成且不做 JD adaptation，无 focus 均匀分配、有唯一 focus 多写，critical-skill 只警告且不触发 mismatch 卡；2026-08-30 新增独立本地用户原文件投递资产，不进入任何写作/匹配/复用链路，可由用户指定用于任意岗位；L18 general/fallback 与 L20 user-directed 的真实账号模型生成尚未执行，人工文字质量、Section H 和完整 token/质量对照仍待验收 |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
 | R1 | 生产上线准备 | 邮件、限流、域名、备份、监控、密钥、发布与回滚 | 功能路线完成后执行 |
 
@@ -3393,10 +3393,26 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   单页的 19 个 grounded bindings，并新增实测 14px 断言。最终 `npm run check` 全绿（918 文件、813/813
   tests、全部 typecheck/build）；真实 Chromium/PDF QA 为 14px、行高 16.52px、单页 92.98%、A4、字体/
   文本层和 G6 导出全部通过。未做新模型长链、package、commit/push/发版；完整证据见 S4.5.1。
+- 2026-08-30 按用户确认新增“用户原文件投递资产”：PDF/DOCX 原始字节进入按账号隔离、safeStorage
+  加密的本地仓库，使用 SHA-256 做完整性校验和重复导入去重；首份默认标星，重命名/默认选择只改元数据，
+  外部源文件后续变化不会改变已保存副本。该资产不是 Resume、ResumeDraft、Experience 来源或
+  `baseResumeId`，不进入 `list_resumes`、相关性、质量门、生成、修改或历史复用；用户明确指定后，Agent
+  只调用独立选择工具并回复使用该文件投递，不继续写简历。
+- 求职仓库“简历”视角新增独立“投递文件”分组、用户源文件筛选、详情、重命名/删除与“用于投递”；每个
+  JD 详情均展示相同的全量本地投递文件并明确“与相关性无关”，不创建 `Resume.jdId` 或另一套简历关系。
+  首次引导将“原样保存用于投递”和“解析经历用于写简历”拆成两个入口；只要已有投递文件，即跳过通用简历
+  生成引导进入岗位链路。网页/Webmail 可通过宿主解析 file ID 并原样挂载，模型与 Renderer 永远拿不到路径，
+  邮件发送仍由用户点击。
+- 自动门禁覆盖不可变字节、格式/20MB、hash 去重、跨重启、默认切换、全岗位不过滤、工具隔离、路径隐藏、
+  onboarding、投递文件筛选与清除本地数据；`npm run check` 全绿（955 个源文件均 ≤250 行、840/840 tests、Node/
+  Preload/Vue typecheck、Node/Electron production build）。真实 development Electron 使用无用户数据的
+  合成 PDF 验证系统选择器、独立分组/详情、两个不同 JD 的相同可用列表、窄窗口、用户源文件筛选和 200%
+  缩放；未点击“用于投递”、未调用真实模型、未打开外部站点或发送邮件。合成文件与本地测试资产已清理，
+  本地测试仓库移入废纸篓可恢复；未 package、commit、push、上传或发版，S4.5 总状态不变。
 
 ## 明确不进入本路线
 
-- ResumeDraft/checkpoint 和原始文件云端同步；
+- ResumeDraft/checkpoint 和用户原始投递文件的云端同步；
 - Experience 归属于 JD/Resume/Application 的永久绑定；
 - JD 或 Resume 自己保存第二套投递状态；
 - FactBank、事实证据/RAG UI、云端材料库、图片关联或原始文件上传；

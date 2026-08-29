@@ -65,6 +65,20 @@ test("local only — no cloud", () => {
   assert.ok(entry.availableOperations.includes("delete_local_draft"));
 });
 
+test("a local general draft remains identifiable before cloud save", () => {
+  const draft = makeDraft({
+    workspace: {
+      revision: 5,
+      status: "ready_for_approval",
+      sourceSnapshot: { generationStrategy: "general" },
+    } as never,
+  });
+  const entry = buildEntryFromFull(null, draft);
+
+  assert.equal(entry.local?.generationStrategy, "general");
+  assert.equal(entry.local?.generationReady, true);
+});
+
 test("synced — hashes and revisions match", () => {
   const entry = buildEntryFromFull(
     makeCloud({ contentHash: "h1" }),

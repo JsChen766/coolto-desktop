@@ -8,11 +8,10 @@ import { useChatSession } from "../chat/use-chat-session";
 import { desktopApi } from "../lib/desktop-api";
 import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useAppUpdates } from "../updates/use-app-updates";
-import { useJobFlowNavigation } from "./use-job-flow-navigation";
-import { useExperienceImportNavigation } from "./use-experience-import-navigation";
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
 import { useResumeInstructionActions } from "./use-resume-instruction-actions";
 import { useWindowCloseSave } from "./use-window-close-save";
+import { useWorkspaceFlows } from "./use-workspace-flows";
 export type AppView = "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
 export function useAppShell() {
   const sidebarOpen = ref(true);
@@ -190,16 +189,11 @@ export function useAppShell() {
     });
   }
 
-  const jobFlow = useJobFlowNavigation({
-    activeView,
-    closeNarrowSidebar,
-    createChat,
-    send: (text, reference) => send(text, undefined, reference),
-  });
-  const experienceImport = useExperienceImportNavigation({
-    activeView,
-    closeNarrowSidebar,
+  const { jobFlow, deliveryResume, experienceImport } = useWorkspaceFlows({
+    activeView, closeNarrowSidebar, createChat,
     selectConversation: session.selectConversation,
+    send: (text, reference) => send(text, undefined, reference),
+    setError: (message) => { session.runError.value = message; },
   });
   const resumeInstructions = useResumeInstructionActions({
     workspace: resumeWorkspace,
@@ -224,6 +218,7 @@ export function useAppShell() {
     openResumeDraft,
     openTracker,
     ...jobFlow,
+    ...deliveryResume,
     clearExperienceImportFocus: experienceImport.clear,
     createChat,
     experienceImportFocus: experienceImport.focus,

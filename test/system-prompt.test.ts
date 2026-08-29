@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v142");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v145");
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
@@ -69,12 +69,25 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /同一个 JD 的最新合格本地草稿/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /nextAction 固定为 adapt_reused_content/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /适配完成前不得进入篇幅、溢出或尾行收尾/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /generationStrategy=general/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /通用简历不接收 JD/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /成果可信度、职责所有权、复杂度、影响力/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /通用简历的 requirementIds 必须为空/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /selectionPolicy=user_directed/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /基础\/通用简历/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /其他合格简历中最近一次使用/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得为了贴合当前 JD 改写/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /其余经历全部按 secondary 均匀分配/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /requestId/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /decline_resume_material/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_start_review/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_list_tabs/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_snapshot/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_download/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /list_delivery_resume_files/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /任意一份原始投递文件用于任意岗位/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /禁止继续搜索、生成、优化或切换其它简历/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_upload_delivery_resume/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /prepare_agent_task/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /优先从当前消息和对话上下文推导/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /用户明确要求假设、模拟或合理补充/u);

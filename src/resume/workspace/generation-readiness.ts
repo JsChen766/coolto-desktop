@@ -37,7 +37,8 @@ export function resumeGenerationReadiness(
       itemId: target.itemId,
     });
   }
-  if (criticalWarning && !workspace.factNeutralAuthorization) {
+  if (criticalWarning && !workspace.factNeutralAuthorization &&
+    workspace.selectionPolicy !== "user_directed") {
     blockers.push(criticalWarning);
   }
   if (
@@ -87,7 +88,8 @@ export function resumeGenerationReadiness(
 export function generationWorkspaceStatus(
   workspace: ResumeWorkspace,
 ): ResumeWorkspaceStatus {
-  if (criticalSkillWarning(workspace) && !workspace.factNeutralAuthorization) {
+  if (criticalSkillWarning(workspace) && !workspace.factNeutralAuthorization &&
+    workspace.selectionPolicy !== "user_directed") {
     return "needs_user_decision";
   }
   if (workspace.reuseAdaptation?.status === "pending") return "writing";

@@ -13,7 +13,7 @@ try {
     npmCli, "run", "desktop:build",
   ], { ...process.env, COOLTO_AGENT_TASKS_UI_QA: "1" });
   await run(process.execPath, [
-    resolve("node_modules/esbuild/bin/esbuild"),
+    npmCli, "exec", "--", "esbuild",
     "src/cli/agent-tasks-ui-qa-entry.ts", "--bundle", "--platform=node",
     "--format=cjs", "--external:electron",
     "--outfile=out/cli/agent-tasks-ui-qa-entry.cjs",

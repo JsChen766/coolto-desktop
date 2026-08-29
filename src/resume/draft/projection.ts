@@ -7,6 +7,9 @@ import type {
   ResumeDraftCheckpointReason,
   ResumeDraftSummary,
 } from "./types.js";
+import { resumeSourceJd } from "../source-strategy.js";
+import { resumeGenerationStrategy } from "../source-strategy.js";
+import { resumeGenerationReadiness } from "../workspace/generation-readiness.js";
 
 export function createLocalResumeDraft(input: {
   ownerId: string;
@@ -78,6 +81,8 @@ export function summarizeDraft(draft: LocalResumeDraft): ResumeDraftSummary {
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpoints.length,
     hasPendingChange: draft.pendingChange !== null,
+    generationStrategy: resumeGenerationStrategy(draft.workspace.sourceSnapshot),
+    generationReady: resumeGenerationReadiness(draft.workspace).ready,
     cloudState:
       syncedRevision === undefined
         ? "local_only"
@@ -89,8 +94,10 @@ export function summarizeDraft(draft: LocalResumeDraft): ResumeDraftSummary {
 }
 
 function draftTitle(workspace: ResumeWorkspace): string {
-  const role = workspace.sourceSnapshot.jd.targetRole?.trim();
-  const jdTitle = workspace.sourceSnapshot.jd.title.trim();
+  const jd = resumeSourceJd(workspace.sourceSnapshot);
+  if (!jd) return "通用简历";
+  const role = jd.targetRole?.trim();
+  const jdTitle = jd.title.trim();
   return role || jdTitle || "未命名简历";
 }
 

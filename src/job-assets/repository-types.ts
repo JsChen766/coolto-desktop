@@ -8,6 +8,7 @@ import type {
   ApplicationSummary,
   AssetReferenceState,
 } from "./types.js";
+import type { DeliveryResumeFile } from "../delivery-resume-files/types.js";
 
 export interface JobRepositoryReference {
   id: string | null;
@@ -64,4 +65,5 @@ export interface JobRepositoryResume {
 export interface JobRepositorySnapshot {
   jds: readonly JobRepositoryJd[];
   resumes: readonly JobRepositoryResume[];
+  deliveryResumeFiles: readonly DeliveryResumeFile[];
 }
