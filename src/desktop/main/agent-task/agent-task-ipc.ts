@@ -1,6 +1,10 @@
 import type { IpcMain } from "electron";
 
-import type { AgentTaskDelegationInput } from "../../shared/types.js";
+import type {
+  AgentTaskDelegationInput,
+  AgentTaskDetailView,
+  BrowserState,
+} from "../../shared/types.js";
 import type { UserServices } from "../user-services.js";
 import {
   listAgentTaskViews,
@@ -17,6 +21,7 @@ export const AGENT_TASK_IPC_CHANNELS = [
 export function registerAgentTaskIpc(
   ipcMain: IpcMain,
   services: () => Promise<UserServices>,
+  openVisibleBrowser: OpenVisibleBrowser,
 ): void {
   ipcMain.handle("agent-tasks:list", async () =>
     listAgentTaskViews((await services()).agentHarness));
@@ -37,7 +42,15 @@ export function registerAgentTaskIpc(
     ipcMain.handle(`agent-tasks:${action}`, async (_event, value: unknown) => {
       const current = await services();
       const taskId = parseAgentTaskId(value, "taskId");
-      await current.agentTasks[action](taskId);
+      const detail = action === "start" || action === "resume"
+        ? await readAgentTaskDetail(current.agentHarness, taskId)
+        : { grant: null };
+      await runAgentTaskAction(
+        action,
+        detail,
+        openVisibleBrowser,
+        () => current.agentTasks[action](taskId).then(() => undefined),
+      );
       return readAgentTaskDetail(current.agentHarness, taskId);
     });
   }
@@ -58,6 +71,26 @@ export function registerAgentTaskIpc(
       createdAt: receipt.createdAt,
     } : undefined;
   });
+}
+
+export type OpenVisibleBrowser = () => BrowserState | Promise<BrowserState>;
+
+export async function runAgentTaskAction(
+  action: "start" | "resume" | "pause" | "cancel",
+  detail: Pick<AgentTaskDetailView, "grant">,
+  openVisibleBrowser: OpenVisibleBrowser,
+  execute: () => Promise<void>,
+): Promise<void> {
+  const needsBrowser = (action === "start" || action === "resume") &&
+    detail.grant?.revokedAt === null &&
+    detail.grant.allowedActions.some((value) => value.startsWith("browser."));
+  if (needsBrowser) {
+    const state = await openVisibleBrowser();
+    if (!state.isOpen) {
+      throw new Error("可见浏览器未能打开，Agent 任务尚未启动");
+    }
+  }
+  await execute();
 }
 
 export function parseAgentTaskDelegationInput(

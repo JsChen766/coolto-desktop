@@ -83,6 +83,27 @@ test("Browser Webmail captures only exact visible mail text and dedupes the mess
   }), /必须逐字来自当前页面/u);
 });
 
+test("Browser Webmail keeps distinct messages when a SPA reuses the same URL and envelope", async () => {
+  const value = await setup();
+  const shared = {
+    sender: "recruiter@example.com", subject: "Application update",
+    receivedAt: "2026-08-22T10:00:00.000Z",
+    receivedAtEvidence: "Aug 22, 10:00",
+  };
+  const first = await value.controller.captureBrowser({
+    ...shared, bodyText: "Your application is under review.",
+  });
+  value.setBrowserText([
+    shared.sender, shared.subject, shared.receivedAtEvidence,
+    "Please select an interview time.",
+  ].join("\n"));
+  const second = await value.controller.captureBrowser({
+    ...shared, bodyText: "Please select an interview time.",
+  });
+  assert.notEqual(second.eventId, first.eventId);
+  assert.equal((await value.harness.events.all(value.taskId)).length, 2);
+});
+
 async function setup() {
   const evidence = new MemoryEvidenceStore("owner");
   const harness = new AgentHarnessServices(
@@ -114,6 +135,11 @@ async function setup() {
       messages: [{ ...message, connectionId: selected.id }], cursor: "101",
     }),
   };
+  let browserText = [
+    "recruiter@example.com", "Interview invitation", "Aug 22, 10:00",
+    "Your interview is scheduled for Monday at 10:00 HKT.",
+    "Application update", "Your application is under review.",
+  ].join("\n");
   const controller = new InboxSignalController(
     "conversation", harness,
     { get: async (id) => {
@@ -135,7 +161,7 @@ async function setup() {
         page: {
           url: "https://mail.example/message/1", title: "Interview invitation",
           metaDescription: "", ogTitle: "", ogDescription: "",
-          text: "recruiter@example.com\nInterview invitation\nAug 22, 10:00\nYour interview is scheduled for Monday at 10:00 HKT.",
+          text: browserText,
           textTruncated: false, formFields: [],
         },
         accessibility: [], accessibilityTruncated: false,
@@ -143,7 +169,10 @@ async function setup() {
     } as unknown as BrowserAgentController,
     () => true,
   );
-  return { harness, controller, taskId: task.id };
+  return {
+    harness, controller, taskId: task.id,
+    setBrowserText: (value: string) => { browserText = value; },
+  };
 }
 
 const message: InboxMessagePayloadV1 = {

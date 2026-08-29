@@ -1,6 +1,6 @@
 # Browser Enhance：Agent 托管浏览器路线
 
-> 状态：BE0–BE4 已完成；BE5 Inbox Signals 当前执行
+> 状态：BE0–BE5 对应基线已完成；BE5 为手动确认模式，BE6 macOS Calendar 当前执行
 > 建立日期：2026-08-20
 > 前置基线：[浏览器自动填写路线](../browser-autofill-roadmap/README.md) B0–B5、
 > [P0 产品能力补齐路线](../p0-product-completion-roadmap/README.md) S3–S4
@@ -538,7 +538,7 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 当前跨路线唯一执行顺序为：
 
 ```text
-BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（当前）→ BE6 → BE7 → BE8
+BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）→ BE6（当前）→ BE7 → BE8
 → S4.5 → S5 → R1
 ```
 
@@ -672,6 +672,181 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
   运行中仍 fail-closed，只有 `COOLTO_BROWSER_SITE_ACCEPTANCE_ORIGINS=https://mail.qq.com` 的监督验收
   进程可 capture；`browser_submit` 的独立测试 allowlist 不受影响。针对性 typecheck 与 8 项 QQ policy/
   Browser Webmail/Delegation 回归通过；真实登录后的页面与阶段完成结论仍待验收。
+- 2026-08-29 用户调整正式验收 Provider：个人 Outlook `https://outlook.live.com` 与 163 个人邮箱
+  `https://mail.163.com` 组成 Browser Webmail 双站点门禁；个人 QQ 降为补充候选，Microsoft 365、126、
+  yeah.net 和各企业邮不自动扩入。Gmail 继续走系统浏览器 OAuth + API Connector，并按用户确认不阻塞
+  BE5/BE6；该取舍提升 Provider 多样性，但不等于 Gmail 已完成生产交付。
+- 同日补齐 `outlook-personal-web-v1`、`netease-163-personal-web-v1` candidate Site Policy 和托管只读门：
+  Browser Webmail 自动巡视必须显式授权 `browser.read/control/write + mail.read/classify`，宿主再把工具面
+  收窄为标签/导航/观察、元素标记、安全邮件行点击、滚动和 hover；fill/select/check/upload/keypress/
+  drag/download/review/submit 均在已知邮箱 origin fail-closed。点击前读取 role/text/title/href/download，
+  只放行同源链接、邮件 row/option/listitem/treeitem/tab 与明确刷新/分页等按钮；发送/回复/转发、删除、
+  移动/归档、主动已读、垃圾邮件、设置、附件和外链均由宿主拒绝，未知控件交还用户。元素标记补充 ARIA
+  邮件行；Browser Webmail 去重改用逐字时间证据和必要正文，避免 SPA 复用 URL 且信封字段相同时合并两封
+  不同邮件。新增半自动真实验收入口：只轮询 URL 等待用户登录，进入邮箱后才定位指定测试主题、打开、
+  逐字 capture 两次并验证去重，报告不保存正文。
+- 当前自动化证据：相关 19/19 回归；最新完整 `npm run check` 全绿，855 个源文件 ≤250 行、737 tests
+  （735 pass、2 platform skip、0 fail）、主进程与 Preload/Vue typecheck、Node/Electron production build
+  均通过。`qa:browser-agent` 在当前 Air 显示
+  环境完成前 4 项后因 `Current display surface not available for capture` 停在 screenshot 门禁；未关闭或
+  降级该断言。真实 Outlook/163 登录后页面、跨标签、长列表、Provider 分层准确率和 ≥99% 总门禁仍未执行，
+  因此两个 policy 保持 candidate，BE5 状态不变。
+- 2026-08-29 个人 Outlook 登录摸底通过：Windows/Electron 43.2.0 的隔离 QA 浏览器可打开真实
+  Outlook 登录页，账号、密码和验证码完全由用户操作，登录阶段脚本只轮询顶层 URL、不读取 DOM 或截图；
+  用户确认已成功进入个人 Outlook 收件箱。首次 QA 入口因只依赖 `ready-to-show` 导致进程存在但窗口不可见，
+  修为 QA 专用显式 `show/focus`；随后 Outlook 登录跳转切换活跃 tab 被通用 `network_idle` 误判为上下文漂移，
+  登录探测移除该非必要读取等待。后续 runner 改用按 Provider 隔离且可复用的临时 QA Profile，避免每次 probe/
+  capture 重新登录；该 Profile 只用于验收，完成后必须精确清理。此次只证明可真实登录，尚未读取测试邮件、
+  capture、关联 Application 或晋升 Site Policy。
+- 同日 Outlook 测试邮件 probe 尚未通过：用户确认测试邮件已到达，并在一次真实窗口中选择“邮件可见未打开”；
+  宿主始终只按固定测试主题定位，所有失败运行均为 0 点击。初始 DOM 查询无法看到 Outlook 虚拟列表，随后
+  依次补充 accessible label、完整 AX tree、StaticText→交互祖先映射、主题相关节点优先限额、同 origin
+  `WebFrameMain.framesInSubtree` 语义执行和同 origin OOPIF target session；跨 origin frame/target 始终拒绝。
+  60 秒安全诊断最终仍为 `tokenMatch=0/5; roles=none`，说明固定主题没有进入当前受信 DOM/AX 读取面；在用户
+  重新确认列表中完整可见 `Coolto/BE5/Outlook/QA/20260829` 五个 token 前，不继续放宽匹配、不坐标点击、
+  不读取其它邮件。Outlook policy 因此继续保持 candidate，打开具体邮件、正文 capture 与去重均未通过。
+- 同日按用户要求把正式验收改回正常产品链，而非专用 Webmail runner：用户在普通聊天发送自然语言读取命令，
+  Agent 生成只读 Outlook DelegationPanel；接受后主进程依据冻结 grant 自动打开/聚焦现有可见 BrowserShell，
+  再启动同一 AgentTask。补齐待审批摘要主动回读，避免瞬时 `approval.required` 事件错过后卡片消失；DelegationPanel
+  与普通 ApprovalCard 共用稳定审批 action/accept 验收契约。前台用户启动/恢复的 run 不再误判为 unattended，
+  timer/environment wake 仍要求 `unattended=true`；running AgentTask 移除 `prepare_agent_task` 与
+  `request_write_access` 二次扩权工具，所有 Proposal 自动包含只负责检查点/等待/结束的 `task.lifecycle`。
+  个人 Outlook 根 URL 确定性规范为 `https://outlook.live.com/mail/0/`，其它路径/查询和域名不改写。
+- 真实 Windows/Electron 正常 App 验收已证明：自然语言 → 可见授权 → 自动打开“Coolto 浏览器” → Agent 自主导航
+  Outlook 产品入口成立；未登录的产品 Browser 会被 Microsoft 导向登录/营销入口，未授权域名由 Harness
+  fail-closed，最终任务以 `waiting` 停在用户接管边界，未读取任何邮件、未点击未知控件、未产生邮箱写入。
+  这不等于邮件读取通过；下一步必须由用户在该可见 Browser 中接管登录并交还 Agent，再验证固定测试主题、
+  两次 capture 去重和 163 同链路。主窗口证据 `local-builds/functional-qa/be5-visible-agent-product-path.png`
+  为 131,304 bytes，SHA-256 `8409B9B68DC7DDDE1A4A3917AC739282C9C11F1FA58AED25FF5E89D1E0F3A63F`；
+  最新完整 `npm run check` 全绿：856 个源文件 ≤250 行、744 tests（742 pass、2 platform skip、0 fail）、
+  Node/Preload/Vue typecheck 与 Node/Electron production build 均通过。BE5 状态仍不变。
+- 后续同一正常产品 Browser 由用户完成个人 Outlook 登录，真实页面落到
+  `https://outlook.office.com/mail/`，而不是先前假定的 `outlook.live.com`。Agent 在旧运行进程中把该页
+  当成未登记域名，无法获得宿主只读裁剪；一次继续尝试还错误替换了已登录标签，已立即恢复原收件箱 URL，
+  未读取或修改邮件。代码现已把**精确公共前端** `outlook.office.com` 加入同一个
+  `outlook-personal-web-v1` candidate policy，继续拒绝其它 Microsoft 365/企业域，并为该 origin 覆盖
+  只读工具面、点击拒绝和 capture acceptance 回归。最新 `npm run check` 再次全绿，数量仍为 856 个源文件、
+  744 tests（742 pass、2 platform skip、0 fail）。按用户“不要退已经打开的这个”要求，本轮没有重启当前
+  已登录 App；因此新 policy 尚未进入当前进程，必须等用户明确允许一次重启后再复用持久 Browser session
+  做真实指定邮件读取，BE5 状态不变。
+- 用户随后明确允许只重启 Coolto、不清 Browser profile；登录会话跨重启保留。真实收件箱最终落到新的
+  `https://outlook.cloud.microsoft/mail/`，因此宿主把个人 Outlook 冻结为精确公共跳转集合：
+  `outlook.live.com`、`outlook.office.com`、`outlook.cloud.microsoft`、`login.live.com`、
+  `login.microsoftonline.com`；Proposal 只要命中其中一个就把完整集合写进用户可见不可变授权，Site Policy
+  只对三个邮件前端应用相同只读工具/点击/capture 门，不扩展其它企业域。
+- 最终正常 App 自然语言运行中，Agent 自动打开可见 Browser、进入已登录
+  `outlook.cloud.microsoft/mail/`、搜索固定主题并唯一定位 AX `role=option` 邮件行。由于页面重渲染后的
+  fill 标记落在该 option 的无语义子节点，`browser_click_element` 按 fail-closed 拒绝；本轮由宿主只对
+  同时包含 `Coolto/BE5/Outlook/QA/20260829` 五个 token 的唯一 AX option 做一次非坐标语义接管，随后恢复
+  同一等待任务。AgentTask 进入 `completed`，无工具的自然语言结果回报：主题
+  `[Ext] Coolto BE5 Outlook QA 20260829`，发件人 `andrew chen <chenandrew418@gmail.com>`，时间
+  `2026-08-29 12:30`，正文只有测试标识 `COOLTO-BE5-OUTLOOK-20260829-A`；未回复、删除、移动、归档或
+  下载附件。当前 AX/页面也独立核对到相同主题、发件人/时间和正文标识。
+- 已补最小后续修复：fill 目标本身若是 button/link/input/select/textarea 或已有交互 role，绝不上提；只有
+  无语义子节点才可提升到最近的 `option/row/listitem/treeitem/tab`，随后读提示与 click 使用同一个安全祖先，
+  避免把删除/回复按钮伪装成邮件行。最新完整 `npm run check` 全绿：856 个源文件 ≤250 行、746 tests
+  （744 pass、2 platform skip、0 fail）、Node/Preload/Vue typecheck 与 Node/Electron production build
+  均通过。该自动点击修复尚未用第二封真实邮件做无接管复验；两次 capture 去重、163、跨标签、长列表和
+  ≥99% 关联准确率仍未执行，因此 Outlook policy 与 BE5 状态均不晋升。
+- 用户随后发送同主题第二封邮件，正文标识为 `COOLTO-BE5-OUTLOOK-20260829-B`，第一封为 `-A`。真实
+  Outlook 行的 aria-label 会包含正文安全提示 “verify the sender / do not reply / open attachments”；旧提交
+  检测以 `send` 子串误伤 `sender`，旧 Webmail 动作检测又在识别 `role=option` 前扫描正文中的
+  `reply/attachments`，因此合法邮件行仍被拒绝。现改为英文提交词完整单词边界；只读 Webmail 先拒绝下载和
+  跨域 href，再放行已确认的 `option/row/listitem/treeitem/tab`，只有其它动作控件才扫描危险文案。回归证明
+  正文安全提示不再误伤邮件行，而 reply/download 按钮仍拒绝。
+- 最终监督验收使用精确 `COOLTO_BROWSER_SITE_ACCEPTANCE_ORIGINS` 启动正常 App。第一轮 Agent 无接管自动
+  打开 A/B，分别成功 capture、read 和 record；同一任务的信号列表为两条，A/B 各一条，发件人与接收时间
+  不同，正文标识保留，`applicationId=null`，没有因相同 subject/SPA URL 合并。最初第二次完全相同 capture
+  被通用重复调用保护提前拦截，因此宿主只对幂等 `capture_browser_mail_event` 允许一次精确重放，第三次仍拦，
+  其它工具规则不变。B 专项真实任务随后连续两次使用完全相同的 sender/subject/time/body 参数，两个调用均
+  执行成功并返回同一稳定 event/source hash；该任务的信号列表仍只有一条 B（信号列表按当前任务隔离，因此
+  不包含上一个任务中的 A）。这与上一个 A/B 同任务的“两条不合并”证据共同覆盖真实碰撞去重门禁。
+- 全程未回复、删除、移动、归档、下载附件、打开外链或猜测 Application 关联。模型在逐字 evidence 参数与
+  signal quote 上有先失败后修正的调用，最终任务完成但 smoke 因保留历史 tool error 仍返回非零，不能把它
+  描述为零错误运行。最新完整门禁为 856 个源文件 ≤250 行、747 tests（745 pass、2 platform skip、0 fail）、
+  Node/Preload/Vue typecheck 与 Node/Electron production build 全绿；此前一次全量运行的无关 update 下载时序
+  测试失败，聚焦 19/19 通过后只重跑一次全量并通过。Outlook 自动点击、A/B 不合并及 B 幂等 capture 已有
+  真实证据；163、跨标签、长列表与 ≥99% 关联准确率仍未执行，BE5 状态不晋升。
+- 2026-08-30 完成 163 个人邮箱真实链路。登录入口 `mail.163.com` 实际落到
+  `hw.mail.163.com/js6/main.jsp`，宿主将两者作为精确 163 集合写入同一 candidate policy 与用户可见授权，
+  不扩展 126/yeah.net；跨日后旧 Grant 正确过期，新任务明确使用当日有效期。真实页面是网易邮箱 6.0 hash
+  模块：全文搜索 `mbox.SearchModule` 返回两封同主题邮件，A/B 正文标识分别为
+  `COOLTO-BE5-163-20260829-A` / `-B`，页面时间为 2026-08-30 00:02 / 00:05，发件人均为
+  `Jiansheng Chen<jianshengchen528@gmail.com>`。
+- 163 邮件行不是标准 row/option，而是 `div[role=link].rF0.nui-txt-flag0`。只读策略仅在精确
+  `hw.mail.163.com`、且危险文案检查通过后允许该 class 组合；删除/回复等 link 仍拒绝。真实 Agent 自动点击
+  A/B 均成功。阅读正文位于同 origin `readhtml3.jsp` iframe；旧快照由顶层页面先占满 20k 后才追加 frame，
+  正文被饿死。现改为多同源 frame 公平分配总文本预算，单 frame 行为不变，真实 capture 随后可逐字看到
+  sender/subject/time/body。
+- 首轮 163 模型在历史 eventId、无效 ISO 时间和 evidence quote 上发生失败，且曾需一次安全后退接管；最终
+  同一 AgentTask 恢复后完成：当前任务信号 2 条，A/B 各一条、不同 event/sourceMessageId/receivedAt，未因
+  同主题合并；每封两次完全相同 capture 均执行并返回同一稳定 event，重复未增项，两个 signal 均
+  `applicationId=null`。全程未回复、删除、移动、归档、下载附件、打开外链或读取其它邮件。该证据不是
+  “单轮零错误”，但双站点真实自动点击、正文读取、A/B 碰撞与 capture 幂等均已通过。
+- 最新静止工作树完整 `npm run check` 全绿：856 个源文件 ≤250 行、750 tests（748 pass、2 platform skip、
+  0 fail）、Node/Preload/Vue typecheck 与 Node/Electron production build 均通过。Outlook + 163 双站点门禁
+  已完成。
+- 2026-08-30 同一可见 Browser 内保留 Outlook 与 163 已登录标签，单一 AgentTask 执行 Outlook → 163 三轮、
+  共六次切换。每次切换后重新读取 active tab 与 snapshot，Outlook 始终落在
+  `outlook.cloud.microsoft`，163 始终落在 `hw.mail.163.com`，标题、URL 与目标 Provider 一致；没有复用
+  上一个标签的观察、没有打开或修改邮件。首轮 Outlook snapshot 出现一次 `UnknownVizError`，原样重试被
+  repetition guard 拦截；Agent 改用 `includeScreenshot=false` 后恢复并完成任务。因此跨标签门禁按“带可恢复
+  错误通过”记录，不写成单轮零错误。
+- 163 真实收件箱不是虚拟滚动，而是 `mbox.ListModule` 的六页分页长列表。验收覆盖第 2–6 页五个不同页面：
+  第 2–5 页各 20 行，第 6 页 9 行；每页均在内容变化后重新 snapshot/query/tag。163 分页内容先变化、
+  `2/6` 等可访问性页码稍后刷新，真实延迟可达数十秒；父 `li` / 内层 `div` 同文 treeitem、分页容器 /
+  `div[role=button]` / 内层 `span` 同文按钮也要求选择真实内层交互节点。有界页码轮询曾被 repetition guard
+  误判，拆为单步任务后完成。到第 6 页后只点击一次内层收件箱 treeitem 返回第 1 页，再按测试 marker
+  重定位并只打开 B；独立只读复核为 `read.ReadModule`，主题完全匹配，正文包含
+  `COOLTO-BE5-163-20260829-B` 且读信正文不含 A marker，没有打开其它邮件正文。至此真实长列表门禁通过，
+  但异步页码与轮询误判仍是后续需要修正的产品质量问题。
+- ≥99% Application 关联准确率不能执行：当前登录账号经 Renderer 只读 Application API 聚合统计为 0 条
+  非删除 Application、0 条 company+role 强标签；同时当前 Agent 工具注册表只有 Application 写入/Proposal
+  能力，没有列出或读取 Application/Tracker 候选的工具，实际 Inbox Agent 也明确报告无法枚举候选。没有
+  ≥100 条真实邮件—Application 标注对，且运行时无法读取候选时，不能用四封测试邮件或 synthetic fixture
+  冒充 ≥99% 真实准确率。所有邮件触发写入继续逐条 Approval，BE5 状态不晋升。
+- 2026-08-30 补齐上述运行时能力，但不增加第二套匹配器：新增只读
+  `search_application_candidates(eventId, query?, cursor?, limit?)`，只读现有账号隔离
+  `ApplicationSyncStore` 本地 projection，单页最多 20 条，只投影公司、岗位、JD 标题快照、状态、投递时间、
+  待确认、来源与同步状态；墓碑及 `conflict`/`failed` 不成为候选。工具使用独立 R0
+  `tracker.application.read` scope，邮箱分类 Proposal 未包含该 scope 时直接拒绝，Approval 以既有样式显示
+  “读取投递候选”，不新增页面或自动写开关。
+- 候选只向 Agent 暴露当前邮件事件绑定的 `app_N` 短引用。`record_inbox_signal` 的模型参数改为
+  `applicationRef`；任意 UUID、其它邮件事件返回的引用、未读取候选和候选 `entityVersion` 漂移均拒绝并要求
+  重读。模型可见 signal 也不返回 canonical Application ID；无法唯一判断仍写 `null`。宿主只验证引用来源
+  和投影新鲜度，不计算相似度、不选择候选，语义判断继续由同一个 Pi Agent 完成。为遵守行数/职责门禁，
+  BE5 工具注册拆到独立 47 行模块，主 registry 从 250 行降至 232 行；system prompt 升为 v124。
+- 新增 `eval:inbox-association -- --input <local.jsonl> [--output <report>]`：逐条使用生产
+  `createCooltoAgent`、生产 system prompt、生产 Inbox 工具和 Application 过滤。原始邮件/候选只从显式本地
+  JSONL 读取，不复制进仓库；报告只保存匿名 case ID、Provider、是否正确、置信度、工具序列、耗时和错误，
+  不输出邮件正文或公司/岗位。正式 gate 冻结为 confidence ≥95、至少 100 条、Outlook/163 各 ≥40、
+  gold null/歧义样本 ≥20，同时报告 exact accuracy、高置信关联 precision、linkable coverage 与 abstention
+  accuracy；全留空无法通过。`--allow-small` 只允许受控 smoke 返回成功，正式 `passed` 仍为 false。
+- 自动化与实模证据：专项 26/26；完整 `npm run check` 为 860 个源文件 ≤250 行、758 tests（756 pass、
+  2 platform skip、0 fail），Node/Preload/Vue typecheck 与 Node/Electron production build 全通过。两个不含
+  真实隐私的 Outlook/163 受控样本使用 `deepseek-v4-flash` + v124，均真实执行
+  `read_inbox_event → search_application_candidates → record_inbox_signal`：唯一正向候选关联与
+  `screening` 分类正确、置信度 95；同公司/同岗位/同投递时间双候选正确弃权为 `null`、置信度 90。
+  聚合 exact accuracy、linkable coverage、abstention accuracy 均为 1，但样本仅 2 条，报告
+  `controlledSmokePassed=true`、`gateEligible=false`、正式 `passed=false`。
+  用户随后明确批准重启。新构建沿用同一 userData 与 `persist:browser`：原标签未恢复，但重新打开 163 后
+  直接进入已登录欢迎页，登录态保留；`get_runtime_info` 已显示 `search_application_candidates`。
+- 新建真实受监督 Browser Webmail AgentTask 后，只打开测试邮件 B。首次任务在 `task_need_user` 后，普通聊天
+  “继续”没有调用正式 `agentTasks.resume`，因此浏览器虽继续导航，capture 正确拒绝
+  `Inbox Signals 需要 running AgentTask`；随后通过产品正式 resume IPC 恢复同一 waiting task并完成。
+  B 的 capture/read 成功，真实账号 `search_application_candidates(query=Coolto)` 返回 0 条、无 cursor、
+  excluded 0；伪造 `applicationRef=app_999` 被“Application 引用必须来自当前邮件的候选读取”拒绝，拒绝后
+  signal 仍为 0。再以 `applicationRef=null`、当前页面逐字 marker 记录成功，最终 list 只有 1 条 null signal，
+  `task_complete` 成功。全程未创建/修改 Application，未打开其它邮件，也未发送、删除、移动或下载。
+- 该真实 Electron 路径不是单轮零错误：初始普通 run 有一次重复 list、一次已移除的
+  `request_write_access` 调用和一次被 Site Policy 拒绝的搜索框 fill；正式 resume 内首次 capture 又因 sender
+  展示格式与非 ISO 时间各失败一次，改为页面逐字 sender 和等价 ISO 时间后成功。空候选与伪引用安全门禁
+  已通过，但 ≥100 条真实盲测仍无数据，正式准确率 gate 未执行；在下述产品门禁迁移决策前，BE5 不晋升。
+- **2026-08-30 产品门禁迁移决策：**用户确认当前没有 ≥100 条真实招聘邮件，不继续制造合成邮件凑数。
+  BE5 按“逐条人工确认”基线完成，准确率明确记录为“样本不足、未评估”，不写成 ≥99% 通过；所有邮件关联、
+  Tracker 状态和 Interview Proposal 继续逐条 Approval，现有自动写开关仍不存在。≥99% 真实邮件—Application
+  关联准确率不删除、不降低，迁移为 BE8 生产验收及未来任何自动写启用前的硬门禁；样本自然积累到足够规模
+  后再运行现有 evaluator，未通过则始终保持手动模式。该取舍解除 BE6 的阶段阻塞，不构成自动关联质量证明。
 - 2026-08-26 用户优先插入 Managed Apply 的 Resume Reuse Memory：新 JD 生成前，单一 Agent 先调用
   `find_resume_reuse_candidates`，宿主只按同目标岗位、JD keyword 重叠和更新时间缩小已发布且
   `qualityStatus=passed`、非 archived、带来源 JD 的候选，不设“相似度超过 N%”的宿主决策阈值，
@@ -746,7 +921,7 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
 - SubmissionReceipt 可验证率：≥99%；
 - 已确认成功但 Tracker 未最终同步的可恢复率：100%；
 - 自动字段答案有来源率：100%；
-- 高置信邮件信号的 Application 关联准确率：先达到 ≥99% 才允许自动写；
+- 高置信邮件信号的 Application 关联准确率：BE8/任何自动写启用前必须先达到 ≥99%；
 - 面试时间/时区写入准确率：100%；
 - Job Scout 重复推荐率：<1%。
 
@@ -793,8 +968,8 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
 
 - 本 README 是 `browser-enhance` 的唯一执行入口；阶段开始前先在对应阶段标题下补现状复核与
   用户确认结果，不创建平行路线；
-- BE0 已完成，正式完成记录为 [00-foundation](./00-foundation/README.md)；BE1–BE4 已在本 README
-  既有 5.1/5.3/6/7/8 节写回，不创建平行文档或新 section；当前唯一执行指针为 P0 BE5；
+- BE0 已完成，正式完成记录为 [00-foundation](./00-foundation/README.md)；BE1–BE5 已在本 README
+  既有 5.1/5.3/6/7/8 节写回，不创建平行执行路线；当前唯一执行指针为 BE6；
 - 每个阶段完成后在本 README 的阶段表和正式阶段文档写回真实结果、失败点、证据和遗留项；
 - 接口存在、Browser Demo、本地测试页或单一网站成功都不算“完全托管可用”；
 - 任何新增 UI 先提交 Delegation Panel、Task Control Center、Timeline、Receipt 和错误/接管状态方案，

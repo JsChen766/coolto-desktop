@@ -91,6 +91,8 @@ app.whenReady().then(async () => {
     expect("05b Browser Webmail message dedupes", webmail.dedupeCount === 1);
     const buttons = await browser.queryElements({ role: "button" });
     expect("06 semantic button query", buttons.elements.length >= 3);
+    const labelledMail = await browser.queryElements({ text: "Interview invitation row" });
+    expect("06a semantic query includes accessible labels", labelledMail.elements.length >= 1);
     const frame = await browser.queryElements({ selector: "#frame-button" });
     expect("07 same-origin frame query", Boolean(frame.elements[0]?.framePath.length));
     const shadow = await browser.queryElements({ selector: "#shadow-button" });
@@ -108,9 +110,13 @@ app.whenReady().then(async () => {
     const targetId = byLabel("Drop target");
     const editorId = byLabel("Editor");
     const submitId = byLabel("Submit application");
+    const mailRowId = byLabel("Interview invitation row");
     expect("11 nested/action elements tagged", Boolean(
-      hoverId && sourceId && targetId && editorId && submitId,
+      hoverId && sourceId && targetId && editorId && submitId && mailRowId,
     ));
+    await operator.clickElement(mailRowId!);
+    const openedMail = await browser.queryElements({ selector: "[data-opened='true']" });
+    expect("11a ARIA mail row is tagged and clickable", openedMail.elements.length === 1);
     await browser.hover(hoverId!);
     const hovered = await browser.queryElements({ selector: "[data-hovered='true']" });
     expect("12 hover event applied", hovered.elements.length === 1);

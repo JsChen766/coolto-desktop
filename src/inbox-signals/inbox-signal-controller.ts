@@ -12,6 +12,7 @@ import type {
 import { mailSecurityFlags } from "./mail-security.js";
 import type { BrowserAgentController } from "../browser/agent-control-types.js";
 import { boundedMailText } from "./mail-text.js";
+import { requireInboxTaskAccess } from "./inbox-task-access.js";
 
 export interface InboxApplicationReader {
   getApplication(id: string): Promise<{ id: string }>;
@@ -42,7 +43,9 @@ export class InboxSignalController {
     eventId: string; provider: string; sender: string; subject: string;
     receivedAt: string; sourceMessageHash: string; securityFlags: string[];
   }> {
-    const active = await this.#active("mail.read");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
     if (active.grant.connectorPolicy?.browserWebmail !== true) {
       throw new Error("DelegationGrant 未授权 Browser Webmail");
     }
@@ -67,7 +70,8 @@ export class InboxSignalController {
     }
     const receivedAt = new Date(input.receivedAt).toISOString();
     const identity = canonicalHash({
-      origin: url.origin, url: url.toString(), sender, subject, receivedAt,
+      origin: url.origin, url: url.toString(), sender, subject,
+      receivedAtEvidence: timeEvidence, bodyText,
     } as JsonValue);
     const message: InboxMessagePayloadV1 = {
       version: 1, provider: "browser_webmail",
@@ -87,7 +91,9 @@ export class InboxSignalController {
     subject: string; receivedAt: string; sourceMessageHash: string;
     securityFlags: string[];
   }>> {
-    const active = await this.#active("mail.read");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
     const connection = await this.connections.get(input.connectionId);
     requireSelectedConnection(active.grant.connectorPolicy, connection.id);
     const adapter = this.#adapters.get(connection.provider);
@@ -119,7 +125,9 @@ export class InboxSignalController {
   }
 
   public async readEvent(eventId: string): Promise<InboxMessagePayloadV1> {
-    const active = await this.#active("mail.read");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
     const event = await this.harness.events.get(active.task.id, eventId);
     if (event.source !== "mail" || !event.payloadRef) throw new Error("Mail event payload 不可用");
     const evidence = await this.harness.evidence?.read(event.payloadRef);
@@ -134,7 +142,9 @@ export class InboxSignalController {
     eventId: string; kind: ExternalSignalKind; confidence: number;
     applicationId?: string | null; rationale: string; evidenceQuotes: string[];
   }): Promise<ExternalSignalV1> {
-    const active = await this.#active("mail.classify");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.classify",
+    );
     const message = await this.readEvent(input.eventId);
     const applicationId = input.applicationId ?? null;
     if (applicationId) await this.applications.getApplication(applicationId);
@@ -153,7 +163,9 @@ export class InboxSignalController {
   }
 
   public async list(): Promise<ExternalSignalV1[]> {
-    const active = await this.#active("mail.read");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
     return this.harness.signals.list(active.task.id);
   }
 
@@ -182,18 +194,6 @@ export class InboxSignalController {
     };
   }
 
-  async #active(scope: "mail.read" | "mail.classify"): Promise<{
-    task: AgentTaskV1;
-    grant: NonNullable<Awaited<ReturnType<AgentHarnessServices["grants"]["getActive"]>>["grant"]>;
-  }> {
-    const task = await this.harness.tasks.findRunningByConversation(this.conversationId);
-    if (!task?.activeRunId) throw new Error("Inbox Signals 需要 running AgentTask");
-    const active = await this.harness.grants.getActive(task.id);
-    if (!active.grant || active.revocation || !active.grant.allowedActions.includes(scope)) {
-      throw new Error(`DelegationGrant 未授权 ${scope}`);
-    }
-    return { task, grant: active.grant };
-  }
 }
 
 function requireSelectedConnection(policy: Record<string, JsonValue> | undefined, id: string): void {

@@ -24,8 +24,11 @@ test("ordinary conversations cannot call AgentTask lifecycle tools", () => {
   );
 });
 
-test("running AgentTasks retain the complete tool surface", () => {
-  const tools = [tool("search_experiences"), tool("task_need_user")];
-  assert.deepEqual(toolsForConversationRun(tools, true), tools);
-  assert.notEqual(toolsForConversationRun(tools, true), tools);
+test("running AgentTasks keep lifecycle tools but remove bootstrap approvals", () => {
+  const tools = [tool("search_experiences"), tool("task_need_user"),
+    tool("prepare_agent_task"), tool("request_write_access")];
+  assert.deepEqual(
+    toolsForConversationRun(tools, true).map((item) => item.name),
+    ["search_experiences", "task_need_user"],
+  );
 });

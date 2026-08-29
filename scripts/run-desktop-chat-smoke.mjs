@@ -57,6 +57,7 @@ try {
     timeoutMs,
     Boolean(options.requireResumeReady),
     Boolean(options.acceptResumeAugmentation),
+    Boolean(options.acceptAgentTask),
   );
   result.durationMs = Date.now() - startedAt;
   result.agentEvents = await readAgentObservation(session);
@@ -299,6 +300,12 @@ async function installAgentObservation(session, stopAfterReuseWorkspace) {
               revisedText: entry?.revisedText ?? "",
             })),
           } : {}),
+          ...(event.name === "capture_browser_mail_event" ? {
+            sender: String(args.sender ?? "").slice(0, 500),
+            subject: String(args.subject ?? "").slice(0, 1_000),
+            receivedAtEvidence: String(args.receivedAtEvidence ?? "").slice(0, 500),
+            bodyText: String(args.bodyText ?? "").slice(0, 500),
+          } : {}),
         });
         if (event.name === "create_resume_workspace" && args.baseResumeId) {
           window.__cooltoSmokeReuseCallIds.push(event.callId);
@@ -342,11 +349,13 @@ async function waitForResult(
   waitMs,
   requireResumeReady,
   acceptResumeAugmentation,
+  acceptAgentTask,
 ) {
   const observedTools = new Map();
   const observedProgress = [];
   const progressSeen = new Set();
   let augmentationAcceptCount = 0;
+  let agentTaskAcceptCount = 0;
   let minimumAssistantCount = baseline.assistantCount + 1;
   let started = false;
   const state = await poll(waitMs, async () => {
@@ -365,16 +374,36 @@ async function waitForResult(
       !current.running &&
       current.approvalActionType === "resume.augmented.confirm"
     ) {
-      if (await acceptResumeApproval(session)) {
+      if (await acceptApproval(session, "resume.augmented.confirm")) {
         augmentationAcceptCount += 1;
         minimumAssistantCount = current.assistantCount + 1;
       }
       return undefined;
     }
+    if (
+      acceptAgentTask &&
+      !current.running &&
+      current.approvalActionType === "agent_task.provision"
+    ) {
+      if (await acceptApproval(session, "agent_task.provision")) {
+        agentTaskAcceptCount += 1;
+        minimumAssistantCount = current.assistantCount + 1;
+      }
+      return undefined;
+    }
+    const agentTaskSettled = agentTaskAcceptCount > 0 &&
+      current.agentTaskId && current.agentTaskId !== baseline.agentTaskId &&
+      ["waiting", "paused", "completed", "partially_completed", "failed",
+        "canceled", "expired"].includes(current.agentTaskStatus);
+    const requiredApprovalAccepted = !acceptAgentTask ||
+      agentTaskAcceptCount > 0 || Boolean(current.runError);
+    const requiredTaskSettled = !acceptAgentTask || agentTaskSettled ||
+      Boolean(current.runError);
     const finished = started && !current.running && (
       current.assistantCount >= minimumAssistantCount || Boolean(current.runError) ||
-      current.stoppedAfterReuseWorkspace
-    ) && !current.approvalActionType;
+      current.stoppedAfterReuseWorkspace || agentTaskSettled
+    ) && !current.approvalActionType && requiredApprovalAccepted &&
+      requiredTaskSettled;
     return finished ? current : undefined;
   }, "the chat run to complete");
   await settleCompletedTools(session, 2_000);
@@ -397,15 +426,24 @@ async function waitForResult(
     settledState.resumeGenerationReady === true &&
     settledState.resumePageCount === 1 &&
     settledState.resumeUsageRatio >= 0.92;
+  const agentTaskCreated = Boolean(settledState.agentTaskId) &&
+    settledState.agentTaskId !== baseline.agentTaskId;
   return {
     success: !settledState.runError && toolErrors.length === 0 &&
-      (!requireResumeReady || resumeReady),
+      (!requireResumeReady || resumeReady) &&
+      (!acceptAgentTask || (agentTaskAcceptCount === 1 && agentTaskCreated)),
     finalResponse: settledState.lastAssistant,
     runError: settledState.runError,
     tools,
     toolErrors,
     progressMessages: observedProgress,
     augmentationAcceptCount,
+    agentTask: {
+      required: acceptAgentTask,
+      accepted: agentTaskAcceptCount === 1 && agentTaskCreated,
+      status: agentTaskCreated ? settledState.agentTaskStatus : "",
+      goal: agentTaskCreated ? settledState.agentTaskGoal : "",
+    },
     resume: {
       required: requireResumeReady,
       changed: resumeChanged,
@@ -422,12 +460,15 @@ async function waitForResult(
 }
 
 async function readState(session) {
-  return evaluate(session, `(() => {
+  return evaluate(session, `(async () => {
     const input = document.querySelector('[data-testid="chat-composer-input"]');
     const messages = [...document.querySelectorAll('[data-testid="chat-message"]')];
     const assistant = messages.filter((item) => item.dataset.messageRole === "assistant");
     const resume = document.querySelector('[data-testid="resume-active-draft-status"]') ??
       [...document.querySelectorAll('[data-testid="resume-draft-status"]')].at(-1);
+    const agentTasks = await window.coolto.agentTasks.list();
+    const latestTask = [...agentTasks].sort((left, right) =>
+      right.updatedAt.localeCompare(left.updatedAt))[0];
     return {
       composerReady: input instanceof HTMLTextAreaElement && !input.disabled,
       sendReady: document.querySelector('[data-testid="chat-composer-send"]') instanceof HTMLButtonElement &&
@@ -438,7 +479,10 @@ async function readState(session) {
       lastAssistant: assistant.at(-1)?.textContent?.trim().slice(0, 8000) ?? "",
       runError: document.querySelector('[data-testid="chat-run-error"]')?.textContent?.trim() ?? "",
       progressLabel: document.querySelector('[data-testid="resume-generation-progress"]')?.textContent?.trim() ?? "",
-      approvalActionType: document.querySelector('[data-testid="approval-card"]')?.dataset.approvalActionType ?? "",
+      approvalActionType: document.querySelector('[data-approval-action-type]')?.dataset.approvalActionType ?? "",
+      agentTaskId: latestTask?.id ?? "",
+      agentTaskStatus: latestTask?.status ?? "",
+      agentTaskGoal: latestTask?.goal ?? "",
       stoppedAfterReuseWorkspace: window.__cooltoSmokeStoppedAfterReuseWorkspace === true,
       attachmentName: document.querySelector('[data-testid="chat-composer-attachment"] .composer-attachment-name')?.textContent?.trim() ?? "",
       attachmentError: document.querySelector('[data-testid="chat-composer-attachment-error"]')?.textContent?.trim() ?? "",
@@ -453,11 +497,11 @@ async function readState(session) {
   })()`);
 }
 
-async function acceptResumeApproval(session) {
+async function acceptApproval(session, actionType) {
   return evaluate(session, `(() => {
-    const card = document.querySelector('[data-testid="approval-card"]');
+    const card = document.querySelector('[data-approval-action-type]');
     const button = card?.querySelector('[data-testid="approval-accept"]');
-    if (card?.dataset.approvalActionType !== "resume.augmented.confirm" ||
+    if (card?.dataset.approvalActionType !== ${JSON.stringify(actionType)} ||
         !(button instanceof HTMLButtonElement) || button.disabled) return false;
     button.click();
     return true;

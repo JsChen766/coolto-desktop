@@ -85,6 +85,7 @@ export class DesktopAgentRuntime {
     });
   }
   public get isRunning(): boolean { return this.#runningConversationId !== undefined; }
+  public async pendingApprovals(conversationId: string) { return (await this.#contextFor(conversationId)).agent.getPendingApprovals(); }
   public async prompt(input: AgentPromptInput): Promise<ConversationDetail> {
     const conversationId = input.conversationId;
     const context = await this.#contextFor(conversationId);

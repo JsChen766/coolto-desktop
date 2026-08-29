@@ -88,7 +88,7 @@ export class ManagedTaskPolicyHooks {
       metadata,
       grant,
       revocation,
-      unattended: true,
+      unattended: (await this.options.services.tasks.getActiveRun(task.id)).wakeCause !== "user",
       freshObservation: !metadata.requiresFreshObservation || Boolean(observationHash),
       sitePolicyAllowed: this.options.sitePolicyAllows(
         target.origin,

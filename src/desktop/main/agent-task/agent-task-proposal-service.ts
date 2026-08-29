@@ -14,6 +14,7 @@ const ALLOWED_ACTIONS = new Set([
   "browser.submit", "tracker.application.create",
   "answers.read", "answers.prepare",
   "mail.read", "mail.classify",
+  "tracker.application.read",
   "tracker.application.update",
   "tracker.interview.update",
 ]);
@@ -85,12 +86,17 @@ function normalizeInput(input: AgentTaskDelegationInput): AgentTaskDelegationInp
   const goal = input.goal.trim();
   if (!conversationId || !goal) throw new Error("Conversation 和任务目标不能为空");
   if (Date.parse(input.expiresAt) <= Date.now()) throw new Error("DelegationGrant 已过期");
-  const allowedActions = [...new Set(input.allowedActions.map((value) => value.trim()))]
+  const allowedActions = [...new Set([
+    ...input.allowedActions.map((value) => value.trim()),
+    "task.lifecycle",
+  ])]
     .filter(Boolean).sort();
   if (allowedActions.includes("mail.send")) throw new Error("mail.send 永远不能托管授权");
   const invalid = allowedActions.filter((value) => !ALLOWED_ACTIONS.has(value));
   if (invalid.length) throw new Error(`BE2 不支持授权动作：${invalid.join(", ")}`);
-  const allowedDomains = normalizeDomains(input.allowedDomains);
+  const allowedDomains = expandKnownProviderDomains(
+    normalizeDomains(input.allowedDomains),
+  );
   const blockedDomains = normalizeDomains(input.blockedDomains);
   if (allowedActions.some((value) => value.startsWith("browser.")) &&
       allowedDomains.length === 0) {
@@ -104,9 +110,16 @@ function normalizeInput(input: AgentTaskDelegationInput): AgentTaskDelegationInp
     if (!validIds && !browserWebmail) {
       throw new Error("邮箱托管授权必须允许 Browser Webmail 或选择已连接邮箱");
     }
-    if (browserWebmail &&
-        (!allowedActions.includes("browser.read") || allowedDomains.length === 0)) {
-      throw new Error("Browser Webmail 需要 browser.read 与 allowed domain");
+    const browserMailActions = ["browser.read", "browser.control", "browser.write"];
+    if (browserWebmail && (allowedDomains.length === 0 ||
+        !browserMailActions.every((action) => allowedActions.includes(action)))) {
+      throw new Error(
+        "Browser Webmail 自动巡视需要 browser.read、browser.control、browser.write 与 allowed domain",
+      );
+    }
+    if (allowedActions.includes("mail.classify") &&
+        !allowedActions.includes("tracker.application.read")) {
+      throw new Error("邮件分类必须同时授权读取 Application 候选");
     }
   }
   return {
@@ -123,4 +136,16 @@ function normalizeDomains(values: string[]): string[] {
     }
     return domain;
   }))].sort();
+}
+
+function expandKnownProviderDomains(domains: string[]): string[] {
+  const outlook = [
+    "outlook.live.com", "outlook.office.com", "outlook.cloud.microsoft",
+    "login.live.com", "login.microsoftonline.com",
+  ];
+  const netease163 = ["mail.163.com", "hw.mail.163.com"];
+  const expanded = [...domains];
+  if (domains.some((domain) => outlook.includes(domain))) expanded.push(...outlook);
+  if (domains.some((domain) => netease163.includes(domain))) expanded.push(...netease163);
+  return [...new Set(expanded)].sort();
 }

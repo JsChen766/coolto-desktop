@@ -6,7 +6,6 @@ import type {
   JdReader,
   UserProfileReader,
 } from "../api/types.js";
-import { ApprovalManager } from "../approvals/approval-manager.js";
 import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
@@ -51,14 +50,12 @@ import type { ApplicationSubmissionService } from "../desktop/main/agent-task/ap
 import { createApplicationSubmissionTools } from "./application-submission-tools.js";
 import type { AnswerVaultStore } from "../agent-task/answer-vault-store.js";
 import { createAnswerVaultTools } from "./answer-vault-tools.js";
-import type { InboxSignalController } from "../inbox-signals/inbox-signal-controller.js";
-import { createInboxSignalTools } from "./inbox-signal-tools.js";
-import type { InboxSignalApplicationService } from "../desktop/main/agent-task/inbox-signal-application-service.js";
-import { createPrepareInboxApplicationTool } from "./inbox-action-tools.js";
-import type { InboxSignalInterviewService } from "../desktop/main/agent-task/inbox-signal-interview-service.js";
-import { createPrepareInboxInterviewTool } from "./inbox-interview-tools.js";
+import {
+  createInboxTools,
+  type InboxToolRegistryDependencies,
+} from "./inbox-tool-registry.js";
 
-export interface ToolRegistryDependencies {
+export interface ToolRegistryDependencies extends InboxToolRegistryDependencies {
   currentUserReader?: CurrentUserReader;
   userProfileReader?: UserProfileReader;
   profileProposals?: ProfileProposalExecutor;
@@ -67,7 +64,6 @@ export interface ToolRegistryDependencies {
   resumeReader?: ResumePublicationGateway;
   importProposalStore?: ExperienceImportProposalStore;
   jdProposalStore?: JdProposalStore;
-  approvalManager?: ApprovalManager;
   selectedFileRegistry?: SelectedFileRegistry;
   matchReportStore?: MatchReportStore;
   browserPageReader?: BrowserPageReader;
@@ -79,9 +75,6 @@ export interface ToolRegistryDependencies {
   jobScout?: JobScoutController;
   applicationSubmission?: ApplicationSubmissionService;
   answerVault?: AnswerVaultStore;
-  inboxSignals?: InboxSignalController;
-  inboxApplicationProposals?: InboxSignalApplicationService;
-  inboxInterviewProposals?: InboxSignalInterviewService;
   agentOrchestrated?: AgentOrchestratedDependencies;
   /** Immediately runs one sync round; resolves with a result summary. */
   syncNow?: () => Promise<SyncNowResult>;
@@ -199,18 +192,7 @@ export function createToolRegistry(
         : {}),
     }));
   }
-  if (dependencies.inboxSignals) businessTools.push(...createInboxSignalTools(dependencies.inboxSignals));
-  if (dependencies.inboxApplicationProposals && dependencies.approvalManager) {
-    businessTools.push(createPrepareInboxApplicationTool({
-      proposals: dependencies.inboxApplicationProposals, approvals: dependencies.approvalManager,
-    }));
-  }
-  if (dependencies.inboxInterviewProposals && dependencies.approvalManager) {
-    businessTools.push(createPrepareInboxInterviewTool({
-      proposals: dependencies.inboxInterviewProposals,
-      approvals: dependencies.approvalManager,
-    }));
-  }
+  businessTools.push(...createInboxTools(dependencies));
   if (dependencies.browserPageOperator && dependencies.approvalManager) {
     businessTools.push(
       ...createBrowserWriteTools(

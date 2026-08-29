@@ -18,3 +18,4 @@ coverage/
 /native/coolto-core/artifacts/
 /native/coolto-core/target/
 local-builds/
+/local-qa-data/

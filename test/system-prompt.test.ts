@@ -130,6 +130,15 @@ test("system prompt assigns resume semantics to the Agent and uses batch tools",
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_list_tabs/);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_snapshot/);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_download/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /search_application_candidates/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /app_N 引用/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /tracker\.application\.read/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /无法唯一判断.*applicationRef 留空/u);
+  assert.match(
+    COOLTO_SYSTEM_PROMPT,
+    /任何 Browser Webmail 邮件读取.*prepare_agent_task.*普通 request_write_access 不能替代/su,
+  );
+  assert.match(COOLTO_SYSTEM_PROMPT, /https:\/\/outlook\.live\.com\/mail\/0\//u);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /prepare_resume_draft/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /write_bullet/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /patch_resume_candidate/);

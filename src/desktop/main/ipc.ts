@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { BrowserAgentController } from "../../browser/agent-control-types.js";
 import type { BrowserPageOperator } from "../../browser/types.js";
 import type { BrowserAgentStatusBridge } from "./browser/browser-agent-status-bridge.js";
+import type { BrowserState } from "../shared/types.js";
 import { bindBrowserAgentCommands } from "./agent-task/bind-browser-agent-commands.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import { DesktopAuthService } from "./auth-service.js";
@@ -71,6 +72,7 @@ export function registerDesktopIpc(
   browserAgentController: BrowserAgentController,
   browserPageOperator: BrowserPageOperator,
   browserAgentStatus: BrowserAgentStatusBridge,
+  openVisibleBrowser: () => BrowserState | Promise<BrowserState>,
 ): void {
   for (const channel of [
     ...AUTH_IPC_CHANNELS,
@@ -187,7 +189,7 @@ export function registerDesktopIpc(
     async () => (await servicesForCurrentUser()).profileProposals,
   );
   registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
-  registerAgentTaskIpc(ipcMain, servicesForCurrentUser);
+  registerAgentTaskIpc(ipcMain, servicesForCurrentUser, openVisibleBrowser);
 }
 
 /** In-flight transcript snapshot started on window close; before-quit waits

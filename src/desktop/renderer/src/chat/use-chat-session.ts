@@ -18,6 +18,7 @@ import { useJdArtifacts } from "./use-jd-artifacts";
 import { useMatchReports } from "./use-match-reports";
 import { startApprovedAgentTask } from "./start-approved-agent-task";
 import { createAgentEventHandler } from "./agent-event-handler";
+import { refreshPendingApproval } from "./pending-approval-projection";
 import {
   createArtifactAnchorer,
   createRunStateReset,
@@ -25,9 +26,7 @@ import {
 } from "./chat-session-helpers";
 import { desktopErrorMessage } from "./desktop-error-message";
 import { useChatAuth } from "./use-chat-auth";
-
 type ResumeWorkspace = ReturnType<typeof useResumeWorkspace>;
-
 export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   const conversations = ref<ConversationSummary[]>([]);
   const current = ref<ConversationDetail>();
@@ -95,7 +94,6 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   async function refreshConversationList(): Promise<void> {
     conversations.value = await desktopApi.conversations.list();
   }
-
   async function createConversation(): Promise<void> {
     if (running.value || creatingConversation) return;
     const reusable = findReusableEmptyConversation(conversations.value,
@@ -121,7 +119,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     if (running.value || current.value?.id === conversationId) return;
     current.value = await desktopApi.conversations.get(conversationId);
     clearRunState();
-    pendingApproval.value = approvalByConversation.get(conversationId);
+    pendingApproval.value = await refreshPendingApproval(conversationId, approvalByConversation, desktopApi.agent.pendingApprovals);
     jd.switchConversation(conversationId);
     match.switchConversation(conversationId);
   }
@@ -182,6 +180,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
         ...(resumeReference ? { resumeReference } : {}),
         ...(jdReference ? { jdReference } : {}),
       });
+      pendingApproval.value = await refreshPendingApproval(conversationId, approvalByConversation, desktopApi.agent.pendingApprovals);
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();
       await refreshConversationList();
@@ -209,6 +208,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
         requestId: pendingApproval.value.id,
         decision: JSON.parse(JSON.stringify(decision)),
       });
+      pendingApproval.value = await refreshPendingApproval(conversationId, approvalByConversation, desktopApi.agent.pendingApprovals);
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();
       await refreshConversationList();

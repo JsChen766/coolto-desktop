@@ -42,7 +42,7 @@ export class AgentTaskRunner {
     const task = await this.services.tasks.get(taskId);
     const run = await this.services.tasks.startRun({
       taskId,
-      wakeCause: task.status === "paused" ? "resume_after_restart" : "user",
+      wakeCause: "user",
     });
     await this.changed(await this.services.tasks.get(task.id));
     return this.#run(task, wrapInternalPrompt([

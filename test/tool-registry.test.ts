@@ -46,6 +46,20 @@ test("registry exposes Answer Vault only through scoped read and prepare tools",
   assert.deepEqual(requireToolCapability(tools[2]!).requiredScopes, ["answers.prepare"]);
 });
 
+test("registry exposes Application candidates as an explicit read scope", () => {
+  const tools = createToolRegistry({
+    inboxSignals: {} as never,
+    inboxApplicationCandidates: {} as never,
+  });
+  const candidate = tools.find((tool) =>
+    tool.name === "search_application_candidates");
+  assert.ok(candidate);
+  assert.deepEqual(requireToolCapability(candidate).requiredScopes, [
+    "tracker.application.read",
+  ]);
+  assert.equal(requireToolCapability(candidate).sideEffect, "read");
+});
+
 test("workspace projection shortens education IDs discovered inside snapshot creation", async () => {
   const canonicalId = "8d7f6e5a-education-id";
   const details = {

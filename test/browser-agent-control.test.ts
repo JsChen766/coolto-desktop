@@ -7,6 +7,7 @@ import type {
 } from "../src/browser/agent-control-types.js";
 import { normalizeAgentNavigationUrl } from "../src/desktop/main/browser/browser-agent-navigation.js";
 import { normalizeAgentKeypress } from "../src/desktop/main/browser/browser-agent-interactions.js";
+import { buildClickScript } from "../src/desktop/main/browser/browser-writer-actions.js";
 import { createBrowserControlTools } from "../src/tools/browser/index.js";
 import { createToolRegistry } from "../src/tools/registry.js";
 import { runWriteOperation } from "../src/tools/browser/write-tool-helpers.js";
@@ -68,6 +69,14 @@ test("agent navigation accepts only credential-free HTTP(S) URLs", () => {
     normalizeAgentNavigationUrl("https://jobs.example/search?q=agent"),
     "https://jobs.example/search?q=agent",
   );
+  assert.equal(
+    normalizeAgentNavigationUrl("https://outlook.live.com"),
+    "https://outlook.live.com/mail/0/",
+  );
+  assert.equal(
+    normalizeAgentNavigationUrl("https://outlook.live.com/?source=manual"),
+    "https://outlook.live.com/?source=manual",
+  );
   for (const value of [
     "javascript:alert(1)",
     "file:///etc/passwd",
@@ -89,6 +98,15 @@ test("agent keypress rejects submit-equivalent keys", () => {
   for (const key of ["Enter", "NumpadEnter", "Space", " "]) {
     assert.throws(() => normalizeAgentKeypress({ key }));
   }
+});
+
+test("browser click promotes only non-interactive descendants to safe row roles", () => {
+  const read = buildClickScript("fill-1", "read");
+  const click = buildClickScript("fill-1", "click");
+  assert.match(read, /ownInteractive/u);
+  assert.match(read, /\[role="option"\]/u);
+  assert.match(click, /target\.click\(\)/u);
+  assert.match(click, /'BUTTON','A','INPUT','SELECT','TEXTAREA'/u);
 });
 
 test("browser control tools expose atomic tab and navigation actions", async () => {

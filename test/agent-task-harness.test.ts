@@ -42,6 +42,7 @@ function harness() {
 async function createGrantedTask(
   value = harness(),
   allowedActions = ["browser.navigate"],
+  unattended = true,
 ) {
   const task = await value.tasks.create("conversation-1", "Find backend roles");
   const now = Date.now();
@@ -50,7 +51,7 @@ async function createGrantedTask(
     allowedDomains: ["jobs.example"], blockedDomains: ["blocked.jobs.example"],
     allowedActions, jobCriteria: {}, assetPolicy: {},
     answerPolicy: {}, submissionBudget: { minimumMatch: 80, dailyLimit: null },
-    unattended: true, validFrom: new Date(now - 1_000).toISOString(),
+    unattended, validFrom: new Date(now - 1_000).toISOString(),
     expiresAt: new Date(now + 60_000).toISOString(), policyVersion: "be2-v1",
     confirmedByUserAt: new Date(now).toISOString(),
   });
@@ -200,4 +201,35 @@ test("managed hooks block stale writes then issue and reconcile one action token
   const receipts = await value.ledger.listReceipts(granted.task.id);
   assert.deepEqual(receipts.map((receipt) => receipt.status), ["blocked", "succeeded"]);
   assert.equal((await value.repository.read((state) => state.actionTokens)).length, 1);
+});
+
+test("managed hooks allow a supervised user run but gate background wake", async () => {
+  const run = async (wakeCause: "user" | "environment_event") => {
+    const value = harness();
+    const granted = await createGrantedTask(value, ["browser.read"], false);
+    await value.tasks.startRun({ taskId: granted.task.id, wakeCause });
+    const tools = applyToolCapabilities([{
+      name: "browser_list_tabs", label: "tabs", description: "",
+      parameters: {} as never, execute: async () => ({ content: [], details: {} }),
+    }]);
+    const hooks = new ManagedTaskPolicyHooks({
+      conversationId: granted.task.conversationId,
+      services: new AgentHarnessServices(ownerId, value.repository),
+      browser: { getActiveTab: () => null } as BrowserAgentController,
+      tools, sitePolicyAllows: () => true,
+    });
+    const toolCall = {
+      type: "toolCall" as const, name: "browser_list_tabs", id: wakeCause,
+      arguments: {},
+    };
+    return hooks.beforeToolCall({
+      toolCall, args: {}, assistantMessage: { content: [toolCall] } as never,
+      context: {} as never,
+    });
+  };
+  assert.equal(await run("user"), undefined);
+  assert.match(
+    (await run("environment_event"))?.reason ?? "",
+    /unattended_not_granted/u,
+  );
 });

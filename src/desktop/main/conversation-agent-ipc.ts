@@ -94,6 +94,11 @@ export function registerConversationAgentIpc(
   ipcMain.handle("agent:cancel", async () => {
     (await servicesForCurrentUser()).agent.cancel();
   });
+  ipcMain.handle("agent:pending-approvals", async (_event, conversationId: string) => {
+    const current = await servicesForCurrentUser();
+    await current.conversations.get(conversationId);
+    return current.agent.pendingApprovals(conversationId);
+  });
   ipcMain.handle(
     "agent:resolve-approval",
     async (_event, input: ApprovalResolveInput) =>
@@ -123,6 +128,7 @@ export const CONVERSATION_AGENT_IPC_CHANNELS = [
   "attachments:remove",
   "agent:prompt",
   "agent:cancel",
+  "agent:pending-approvals",
   "agent:resolve-approval",
   "window:minimize",
   "window:toggle-maximize",

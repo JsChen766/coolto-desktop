@@ -7,6 +7,8 @@ import {
   MemoryAgentHarnessStatePersistence,
 } from "../src/agent-task/agent-harness-state-repository.js";
 import { AgentTaskProposalService } from "../src/desktop/main/agent-task/agent-task-proposal-service.js";
+import { createAgentTaskApprovalDraft } from
+  "../src/desktop/main/agent-task/agent-task-approval.js";
 
 function service() {
   const repository = new AgentHarnessStateRepository(
@@ -46,6 +48,48 @@ test("Delegation proposal has no side effect before execute and replay is idempo
   assert.ok(task.grantId);
 });
 
+test("Delegation proposal always includes the internal task lifecycle", () => {
+  const proposal = service().proposals.prepare({
+    ...input(),
+    allowedActions: ["browser.read"],
+  });
+  assert.deepEqual(proposal.input.allowedActions, ["browser.read", "task.lifecycle"]);
+});
+
+test("Delegation approval names the Application read scope for the user", () => {
+  const proposal = service().proposals.prepare({
+    ...input(),
+    allowedActions: [
+      "mail.read", "mail.classify", "tracker.application.read",
+    ],
+    connectorPolicy: { mailConnectionIds: ["gmail-1"] },
+  });
+  const draft = createAgentTaskApprovalDraft(proposal);
+  assert.match(JSON.stringify(draft.preview), /读取投递候选/u);
+  assert.doesNotMatch(JSON.stringify(draft.preview), /tracker\.application\.read/u);
+});
+
+test("Outlook proposal freezes the exact personal redirect domain set", () => {
+  const proposal = service().proposals.prepare({
+    ...input(),
+    allowedDomains: ["outlook.live.com"],
+  });
+  assert.deepEqual(proposal.input.allowedDomains, [
+    "login.live.com", "login.microsoftonline.com", "outlook.cloud.microsoft",
+    "outlook.live.com", "outlook.office.com",
+  ]);
+});
+
+test("163 proposal freezes the exact entry and mailbox frontend domains", () => {
+  const proposal = service().proposals.prepare({
+    ...input(),
+    allowedDomains: ["mail.163.com"],
+  });
+  assert.deepEqual(proposal.input.allowedDomains, [
+    "hw.mail.163.com", "mail.163.com",
+  ]);
+});
+
 test("Delegation proposal rejects mail.send and non-domain URLs", () => {
   const value = service();
   assert.throws(
@@ -64,16 +108,31 @@ test("Delegation proposal rejects mail.send and non-domain URLs", () => {
   );
   assert.throws(
     () => value.proposals.prepare({
-      ...input(), allowedActions: ["mail.read", "mail.classify"],
+      ...input(), allowedActions: ["mail.read", "mail.classify", "tracker.application.read"],
     }),
     /Browser Webmail|已连接邮箱/u,
   );
-  assert.doesNotThrow(() => value.proposals.prepare({
+  assert.throws(() => value.proposals.prepare({
     ...input(), allowedActions: ["mail.read", "mail.classify"],
     connectorPolicy: { mailConnectionIds: ["gmail-1"] },
-  }));
+  }), /读取 Application 候选/u);
   assert.doesNotThrow(() => value.proposals.prepare({
-    ...input(), allowedActions: ["browser.read", "mail.read", "mail.classify"],
+    ...input(),
+    allowedActions: ["mail.read", "mail.classify", "tracker.application.read"],
+    connectorPolicy: { mailConnectionIds: ["gmail-1"] },
+  }));
+  assert.throws(() => value.proposals.prepare({
+    ...input(), allowedActions: [
+      "browser.read", "mail.read", "mail.classify", "tracker.application.read",
+    ],
+    connectorPolicy: { browserWebmail: true },
+  }), /browser\.control.*browser\.write/u);
+  assert.doesNotThrow(() => value.proposals.prepare({
+    ...input(),
+    allowedActions: [
+      "browser.read", "browser.control", "browser.write",
+      "mail.read", "mail.classify", "tracker.application.read",
+    ],
     connectorPolicy: { browserWebmail: true },
   }));
 });

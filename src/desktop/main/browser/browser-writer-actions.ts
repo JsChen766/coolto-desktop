@@ -187,19 +187,28 @@ export function buildClickScript(fillId: string, mode: "read" | "click"): string
     ${ELEMENT_HELPERS_SCRIPT}
     const el = findEl(${q(fillId)});
     if (!el) return null;
-    const text = (el.innerText || el.textContent || '').trim().slice(0, 200);
-    const value = ('value' in el ? String(el.value || '') : '').slice(0, 200);
+    const ownRole = String(el.getAttribute('role') || '').toLowerCase();
+    const ownInteractive = ['button','link','option','row','listitem','treeitem','tab']
+      .includes(ownRole) || ['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(el.tagName);
+    const target = ownInteractive ? el : (el.closest && el.closest(
+      '[role="option"],[role="row"],[role="listitem"],[role="treeitem"],[role="tab"]')) || el;
+    const text = (target.innerText || target.textContent || '').trim().slice(0, 200);
+    const value = ('value' in target ? String(target.value || '') : '').slice(0, 200);
     return {
-      tagName: el.tagName,
-      type: el.getAttribute('type'),
-      role: el.getAttribute('role'),
-      ariaLabel: el.getAttribute('aria-label') || '',
+      tagName: target.tagName,
+      type: target.getAttribute('type'),
+      role: target.getAttribute('role'),
+      ariaLabel: target.getAttribute('aria-label') || '',
       text,
       value,
-      name: el.getAttribute('name') || '',
-      id: el.id || '',
-      testId: el.getAttribute('data-testid') || '',
-      inForm: !!(el.closest && el.closest('form')),
+      name: target.getAttribute('name') || '',
+      id: target.id || '',
+      testId: target.getAttribute('data-testid') || '',
+      title: target.getAttribute('title') || '',
+      href: target.href || '',
+      className: String(target.className || ''),
+      download: target.hasAttribute('download'),
+      inForm: !!(target.closest && target.closest('form')),
     };
   })();`;
   }
@@ -207,9 +216,14 @@ export function buildClickScript(fillId: string, mode: "read" | "click"): string
   ${ELEMENT_HELPERS_SCRIPT}
   const el = findEl(${q(fillId)});
   if (!el) return { ok: false, reason: 'element_not_found' };
-  if (el.disabled) return { ok: false, reason: 'element_disabled' };
+  const ownRole = String(el.getAttribute('role') || '').toLowerCase();
+  const ownInteractive = ['button','link','option','row','listitem','treeitem','tab']
+    .includes(ownRole) || ['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(el.tagName);
+  const target = ownInteractive ? el : (el.closest && el.closest(
+    '[role="option"],[role="row"],[role="listitem"],[role="treeitem"],[role="tab"]')) || el;
+  if (target.disabled) return { ok: false, reason: 'element_disabled' };
   try {
-    el.click();
+    target.click();
     return { ok: true };
   } catch (e) {
     return { ok: false, reason: (e && e.message) || 'click_failed' };

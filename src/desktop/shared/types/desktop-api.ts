@@ -46,7 +46,7 @@ import type {
   ExperienceSyncIssueView,
   ExperienceWriteProposal,
 } from "../../../experience/maintenance-types.js";
-import type { DesktopAgentEvent } from "./approvals.js";
+import type { DesktopAgentEvent, DesktopApprovalRequest } from "./approvals.js";
 import type {
   BrowserFillRecordView,
   BrowserNavigateInput,
@@ -143,6 +143,7 @@ export interface DesktopApi {
   agent: {
     prompt(input: AgentPromptInput): Promise<ConversationDetail>;
     cancel(): Promise<void>;
+    pendingApprovals(conversationId: string): Promise<DesktopApprovalRequest[]>;
     resolveApproval(input: ApprovalResolveInput): Promise<ConversationDetail>;
     onEvent(listener: (conversationId: string, event: DesktopAgentEvent) => void): () => void;
   };

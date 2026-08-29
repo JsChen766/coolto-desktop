@@ -23,7 +23,11 @@ function submitEdit(): void {
 </script>
 
 <template>
-  <section class="delegation-panel" data-testid="delegation-panel">
+  <section
+    class="delegation-panel"
+    data-testid="delegation-panel"
+    :data-approval-action-type="request.actionType"
+  >
     <header class="delegation-heading">
       <span class="shield-mark"><ShieldCheck :size="19" :stroke-width="1.8" aria-hidden="true" /></span>
       <div><p>{{ $t('Delegation Grant') }}</p><h3>{{ $t(request.title) }}</h3>
@@ -39,7 +43,7 @@ function submitEdit(): void {
       <p v-for="warning in request.preview.warnings ?? []" :key="warning">{{ $t(warning) }}</p>
     </div>
     <div class="delegation-actions">
-      <button class="allow-button" type="button" :disabled="busy" @click="emit('decide', { type: 'accept' })">
+      <button data-testid="approval-accept" class="allow-button" type="button" :disabled="busy" @click="emit('decide', { type: 'accept' })">
         <LoaderCircle v-if="busy" class="spin" :size="16" aria-hidden="true" />
         <Check v-else :size="16" aria-hidden="true" />
         {{ busy ? $t('正在确认…') : $t('允许并启动任务') }}

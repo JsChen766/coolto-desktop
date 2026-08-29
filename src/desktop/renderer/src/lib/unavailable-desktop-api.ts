@@ -61,6 +61,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
     agent: {
       prompt: unavailable,
       cancel: unavailable,
+      pendingApprovals: unavailable,
       resolveApproval: unavailable,
       onEvent: () => () => undefined,
     },

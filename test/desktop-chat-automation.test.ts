@@ -53,6 +53,7 @@ test("desktop chat smoke exposes its command-line contract", () => {
   assert.match(result.stdout, /--new-chat/u);
   assert.match(result.stdout, /--require-resume-ready/u);
   assert.match(result.stdout, /--accept-resume-augmentation/u);
+  assert.match(result.stdout, /--accept-agent-task/u);
   assert.match(result.stdout, /--open-resume-preview/u);
   assert.match(result.stdout, /--stop-after-reuse-workspace/u);
   assert.match(result.stdout, /--file <path>/u);
@@ -79,6 +80,7 @@ test("desktop chat smoke parses an explicit new-chat run", () => {
     "--new-chat",
     "--require-resume-ready",
     "--accept-resume-augmentation",
+    "--accept-agent-task",
     "--open-resume-preview",
     "--stop-after-reuse-workspace",
     "--jd-id",
@@ -91,6 +93,7 @@ test("desktop chat smoke parses an explicit new-chat run", () => {
     newChat: true,
     requireResumeReady: true,
     acceptResumeAugmentation: true,
+    acceptAgentTask: true,
     openResumePreview: true,
     stopAfterReuseWorkspace: true,
     jdId: "jd-1",
@@ -136,6 +139,10 @@ test("desktop chat components expose the stable smoke contract", async () => {
     "../src/desktop/renderer/src/components/ApprovalCard.vue",
     import.meta.url,
   ), "utf8");
+  const delegationPanel = await readFile(new URL(
+    "../src/desktop/renderer/src/agent-tasks/DelegationPanel.vue",
+    import.meta.url,
+  ), "utf8");
   const eventHandler = await readFile(new URL(
     "../src/desktop/renderer/src/chat/agent-event-handler.ts",
     import.meta.url,
@@ -161,5 +168,7 @@ test("desktop chat components expose the stable smoke contract", async () => {
   assert.match(approvalCard, /data-testid="approval-card"/u);
   assert.match(approvalCard, /data-approval-action-type/u);
   assert.match(approvalCard, /data-testid="approval-accept"/u);
+  assert.match(delegationPanel, /data-approval-action-type/u);
+  assert.match(delegationPanel, /data-testid="approval-accept"/u);
   assert.match(eventHandler, /case "run\.started":[\s\S]+runError\.value = undefined/u);
 });

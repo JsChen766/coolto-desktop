@@ -29,7 +29,10 @@ export function createRepetitionGuard(limit = 2) {
       consecutive = 1;
       transientRetryUsed = false;
     }
-    if (consecutive < limit) return undefined;
+    const effectiveLimit = context.toolCall.name === "capture_browser_mail_event"
+      ? Math.max(limit, 3)
+      : limit;
+    if (consecutive < effectiveLimit) return undefined;
     return {
       block: true,
       reason:

@@ -2,6 +2,8 @@ export const frameHtml = `<!doctype html><button id="frame-button" role="button"
 export const pageTwoHtml = `<!doctype html><title>QA Page Two</title><main>Second page</main>`;
 export const pageOneHtml = `<!doctype html><title>QA Page One</title>
 <main><h1>Agent Engineer</h1>
+<div role="option" aria-label="Interview invitation row"
+ onclick="this.dataset.opened='true'">Recruiter — Interview invitation</div>
 <article><span>recruiter@example.com</span><h2>Interview invitation</h2>
 <time>Aug 22, 10:00</time><p>Your interview is scheduled for Monday at 10:00 HKT.</p></article>
 <label for="editor">Editor</label><input id="editor">

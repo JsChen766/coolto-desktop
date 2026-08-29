@@ -146,6 +146,8 @@ const api: DesktopApi = {
     prompt: (input: AgentPromptInput) =>
       ipcRenderer.invoke("agent:prompt", input),
     cancel: () => ipcRenderer.invoke("agent:cancel"),
+    pendingApprovals: (conversationId) =>
+      ipcRenderer.invoke("agent:pending-approvals", conversationId),
     resolveApproval: (input: ApprovalResolveInput) =>
       ipcRenderer.invoke("agent:resolve-approval", input),
     onEvent: (listener) => {

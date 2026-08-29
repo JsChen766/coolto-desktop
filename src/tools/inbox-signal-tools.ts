@@ -1,6 +1,9 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
+import type { ExternalSignalV1 } from "../inbox-signals/inbox-signal-types.js";
+import type { InboxApplicationCandidateReader } from
+  "../inbox-signals/inbox-application-candidate-reader.js";
 import type { InboxSignalController } from "../inbox-signals/inbox-signal-controller.js";
 
 const fetchParameters = Type.Object({
@@ -17,6 +20,12 @@ const browserCaptureParameters = Type.Object({
 const eventParameters = Type.Object({
   eventId: Type.String({ minLength: 1, maxLength: 200 }),
 });
+const candidateParameters = Type.Object({
+  eventId: Type.String({ minLength: 1, maxLength: 200 }),
+  query: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
+  cursor: Type.Optional(Type.String({ minLength: 1, maxLength: 1_000 })),
+  limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+});
 const signalKind = Type.Union([
   Type.Literal("application_confirmation"), Type.Literal("screening"),
   Type.Literal("interview_invite"), Type.Literal("interview_change"),
@@ -26,7 +35,7 @@ const recordParameters = Type.Object({
   eventId: Type.String({ minLength: 1, maxLength: 200 }),
   kind: signalKind,
   confidence: Type.Integer({ minimum: 0, maximum: 100 }),
-  applicationId: Type.Optional(Type.Union([
+  applicationRef: Type.Optional(Type.Union([
     Type.String({ minLength: 1, maxLength: 200 }), Type.Null(),
   ])),
   rationale: Type.String({ minLength: 1, maxLength: 1_000 }),
@@ -37,6 +46,7 @@ const recordParameters = Type.Object({
 
 export function createInboxSignalTools(
   controller: InboxSignalController,
+  candidates: InboxApplicationCandidateReader,
 ): AgentTool[] {
   const fetchTool: AgentTool<typeof fetchParameters> = {
       name: "fetch_inbox_events", label: "增量读取求职邮箱",
@@ -58,24 +68,76 @@ export function createInboxSignalTools(
       parameters: eventParameters, executionMode: "sequential",
       execute: async (_id, value) => result(await controller.readEvent(value.eventId)),
     };
+  const candidateTool: AgentTool<typeof candidateParameters> = {
+      name: "search_application_candidates", label: "查找邮件关联的投递候选",
+      description:
+        "按当前邮件 eventId 和可选公司/岗位关键词读取本地 Application 候选。" +
+        "只返回关联必要字段与本轮 app_N 引用；候选冲突或无法唯一判断时不得猜测。",
+      parameters: candidateParameters, executionMode: "sequential",
+      execute: async (_id, value) => result(await candidates.search(value)),
+    };
   const recordTool: AgentTool<typeof recordParameters> = {
       name: "record_inbox_signal", label: "记录邮件信号分类",
-      description: "由 Agent 记录邮件语义、置信度、Application 关联和逐字引用；不会直接迁移 Tracker 状态。无法可靠关联时 applicationId 留空。",
+      description: "由 Agent 记录邮件语义、置信度、Application 关联和逐字引用；不会直接迁移 Tracker 状态。可靠关联只能使用当前邮件候选读取返回的 app_N 引用，无法唯一判断时 applicationRef 留空。",
       parameters: recordParameters, executionMode: "sequential",
-      execute: async (_id, value) => result(await controller.record(value)),
+      execute: async (_id, value) => {
+        const { applicationRef, ...classification } = value;
+        const applicationId = applicationRef
+          ? await candidates.resolve(value.eventId, applicationRef)
+          : null;
+        const signal = await controller.record({
+          ...classification,
+          applicationId,
+        });
+        return signalResult(signal, candidates);
+      },
     };
   const listTool: AgentTool = {
       name: "list_inbox_signals", label: "列出邮件信号",
       description: "列出当前 AgentTask 已分类的归一化求职邮件信号，不返回整封正文。",
       parameters: Type.Object({}),
-      execute: async () => result({ signals: await controller.list() }),
+      execute: async () => {
+        const signals = await controller.list();
+        return projectedResult({
+          signals: signals.map((signal) => projectSignal(signal, candidates)),
+        }, { signals });
+      },
     };
-  return [browserCaptureTool, fetchTool, readTool, recordTool, listTool];
+  return [
+    browserCaptureTool, fetchTool, readTool, candidateTool, recordTool, listTool,
+  ];
 }
 
 function result(details: unknown) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(details) }],
+    details,
+  };
+}
+
+function signalResult(
+  signal: ExternalSignalV1,
+  candidates: InboxApplicationCandidateReader,
+) {
+  return projectedResult(projectSignal(signal, candidates), signal);
+}
+
+function projectSignal(
+  signal: ExternalSignalV1,
+  candidates: InboxApplicationCandidateReader,
+) {
+  const { applicationId, ...safe } = signal;
+  return {
+    ...safe,
+    applicationRef: applicationId
+      ? candidates.referenceFor(signal.eventId, applicationId) ?? "linked"
+      : null,
+  };
+}
+
+function projectedResult(modelValue: unknown, details: unknown) {
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(modelValue) }],
     details,
   };
 }

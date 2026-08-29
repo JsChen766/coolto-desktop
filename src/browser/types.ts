@@ -41,6 +41,8 @@ export interface FormElementSummary {
     | "contenteditable"
     | "other";
   inputType?: string;
+  role?: string;
+  text?: string;
   label: string;
   placeholder: string;
   required: boolean;
@@ -114,7 +116,7 @@ export interface BrowserPageOperator {
   /** 写原语调用前统一检查；返回 { ok:false, message } 时应作为 isError 返回。 */
   checkWriteAccess(): WriteAccessCheck;
 
-  tagElements(): Promise<FormElementSummary[]>;
+  tagElements(preferredText?: string): Promise<FormElementSummary[]>;
   fillField(fillId: string, value: string): Promise<void>;
   selectOption(fillId: string, value: string): Promise<void>;
   setChecked(fillId: string, checked: boolean): Promise<void>;

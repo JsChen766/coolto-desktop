@@ -74,6 +74,15 @@ export class AgentTaskStore {
     ) ?? null);
   }
 
+  public getActiveRun(taskId: string): Promise<AgentRunV1> {
+    return this.repository.read((state) => {
+      const task = requireTask(state.tasks, taskId, this.ownerId);
+      const run = state.runs.find((candidate) => candidate.id === task.activeRunId);
+      if (!run || run.status !== "running") throw new Error("AgentRun 不存在或已结束");
+      return run;
+    });
+  }
+
   public startRun(input: {
     taskId: string;
     wakeCause: AgentRunV1["wakeCause"];

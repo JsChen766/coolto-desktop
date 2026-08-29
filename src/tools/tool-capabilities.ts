@@ -112,6 +112,10 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
     .includes(tool.name)) return metadata({
       scope: "mail.read", read: true, fresh: false, sequential: true,
     });
+  if (tool.name === "search_application_candidates") return metadata({
+    scope: "tracker.application.read", read: true, fresh: false,
+    sequential: true,
+  });
   if (tool.name === "capture_browser_mail_event") return {
     sideEffect: "reversible", risk: "R1",
     requiredScopes: ["browser.read", "mail.read"],

@@ -102,9 +102,9 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
     }
   }
 
-  public async tagElements(): Promise<FormElementSummary[]> {
+  public async tagElements(preferredText?: string): Promise<FormElementSummary[]> {
     const ctx = this.#requireGranted();
-    const result = await tagPageElements(ctx.webContents);
+    const result = await tagPageElements(ctx.webContents, ctx.origin, preferredText);
     this.gate.touch();
     return result;
   }
@@ -134,7 +134,7 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
     const ctx = this.#requireGranted();
     const hint = await readClickTargetHint(ctx.webContents, fillId);
     if (!hint) throw new Error("目标元素不存在（element_not_found）");
-    const guard = evaluateClickTarget(hint);
+    const guard = evaluateClickTarget(hint, ctx.origin);
     if (!guard.allow) {
       throw new Error(
         guard.reason ??

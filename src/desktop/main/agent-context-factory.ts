@@ -36,6 +36,8 @@ import type { MailConnectionRegistry } from "../../inbox-signals/inbox-signal-ty
 import { GmailInboxAdapter } from "../../inbox-signals/gmail-inbox-adapter.js";
 import { OutlookInboxAdapter } from "../../inbox-signals/outlook-inbox-adapter.js";
 import { InboxSignalController } from "../../inbox-signals/inbox-signal-controller.js";
+import { InboxApplicationCandidateReader } from
+  "../../inbox-signals/inbox-application-candidate-reader.js";
 import { InboxSignalApplicationService } from "./agent-task/inbox-signal-application-service.js";
 import { InboxSignalInterviewService } from "./agent-task/inbox-signal-interview-service.js";
 import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
@@ -133,6 +135,9 @@ export class AgentContextFactory {
       deps.browserAgentController,
       isBe2SitePolicyAllowed,
     );
+    const inboxApplicationCandidates = new InboxApplicationCandidateReader(
+      conversationId, deps.agentHarness, deps.applications,
+    );
     const tools = createToolRegistry({
       currentUserReader: deps.apiClient,
       userProfileReader: deps.profiles,
@@ -155,6 +160,7 @@ export class AgentContextFactory {
       applicationSubmission,
       answerVault: deps.agentHarness.answers,
       inboxSignals,
+      inboxApplicationCandidates,
       inboxApplicationProposals: inboxApplication,
       inboxInterviewProposals: inboxInterview,
       agentOrchestrated: {

@@ -17,7 +17,7 @@ export function createAgentTaskApprovalDraft(
       summary: [
         { label: "目标", value: proposal.input.goal },
         { label: "允许站点", value: proposal.input.allowedDomains.join("、") },
-        { label: "允许动作", value: proposal.input.allowedActions.join("、") },
+        { label: "允许动作", value: allowedActionLabels(proposal.input.allowedActions) },
         {
           label: "邮箱连接",
           value: readMailConnections(proposal.input.connectorPolicy),
@@ -33,6 +33,13 @@ export function createAgentTaskApprovalDraft(
       ],
     },
   };
+}
+
+function allowedActionLabels(actions: string[]): string {
+  const labels: Record<string, string> = {
+    "tracker.application.read": "读取投递候选",
+  };
+  return actions.map((action) => labels[action] ?? action).join("、");
 }
 
 function readMailConnections(
