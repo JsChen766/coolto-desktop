@@ -139,6 +139,13 @@ function gapDescription(state: ResumeRunFeedbackState): string {
   if (codes.has("bullet_count_too_low")) {
     gaps.push("部分核心经历的内容还不够完整");
   }
+  if (codes.has("item_empty")) {
+    gaps.push("部分已选经历还没有形成有证据支持的独立工作单元");
+  }
+  if (codes.has("item_line_budget_shortfall") ||
+    codes.has("item_line_allocation_stale")) {
+    gaps.push("部分高相关经历还没有达到应有的内容深度，需要按当前岗位重新分配正文行数");
+  }
   if (codes.has("augmented_confirmation_pending")) {
     gaps.push("补写内容仍需要你确认");
   }

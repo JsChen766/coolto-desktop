@@ -3368,6 +3368,16 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   （914 文件、810/810 tests、全部 typecheck/build）。真实 Electron 同 JD 运行最终无 runError、11 个工具全
   completed，但样本走 72.54% best-effort 路径而未命中引号边界；测试草稿/对话已精确删除，精确分支由完整
   Agent/宿主确定性回归覆盖。详细实现与验收边界见 S4.5.1。
+- 2026-08-29 按用户确认的最小路线，将新 Resume workspace 的相关性主指标从固定 bullet 数切换为
+  Experience 总正文行数：`main/secondary/utility` 只按 `3/2/1` 权重分配 `itemLineBudgets`，bullet 由独立
+  工作/项目/报告数量决定，同一工作单元允许多 evidence 合并成一条长 bullet。继续使用一个自然语言 Agent、
+  原三个工具、Pi 0.84.2 原生循环和原 Renderer/tail/save/PDF 链；旧草稿保留 legacy 条数兼容。
+  `npm run check` 全绿（918 个业务/样式源文件均 ≤250 行、813/813 tests、全部 typecheck/build），
+  `git diff --check` 通过。一次有效 development Electron 真实生成在 514 秒达到 revision 27、单页
+  95.96%、0 violation、`ready_for_approval`，保存/导出启用；真实草稿包含 main 仅 2 条 bullet 但共 6 行，
+  证明条数不再是相关性门槛。该次模型没有选中目标研究报告，且无补材收尾仍有重复连接语，因此只将 L1–L5
+  标为完成、L6 标为“已执行但场景覆盖不完整”，不声明研究报告端到端问题已完全关闭。详细 artifact、行数
+  和边界见 S4.5.1；未 cloud save、实际导出、package、commit/push、上传或发版，阶段总状态不变。
 
 ## 明确不进入本路线
 

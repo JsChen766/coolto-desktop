@@ -16,6 +16,7 @@ import {
   type LineExpansionTarget,
 } from "./line-expansion-targets.js";
 import type { ResumeWorkspace } from "./types.js";
+import { observedWorkspaceItemLines } from "./item-line-budget.js";
 
 const MIN_GROUNDED_ADDITION_OPTIONS = 12;
 
@@ -53,20 +54,26 @@ export function resumeUsageNextAction(
   );
   const targets = lineExpansionTargets(workspace);
   const tieredItemIds = new Set(Object.keys(workspace.itemTiers ?? {}));
+  const observedLines = observedWorkspaceItemLines(workspace);
   const additionTargets = groundedAdditionTargets(
     workspace,
     Math.max(MIN_GROUNDED_ADDITION_OPTIONS, targetBodyLines * 4),
-  ).filter((target) => tieredItemIds.has(target.itemId));
+  ).filter((target) =>
+    tieredItemIds.has(target.itemId) &&
+    (
+      workspace.lineBudgetVersion !== "item-lines-v1" ||
+      (observedLines[target.itemId] ?? 0) <
+        (workspace.itemLineBudgets?.[target.itemId]?.targetLines ?? 0)
+    )
+  );
   const neutralActive = factNeutralClosureActive(workspace);
   return {
     mode: "increase_usage",
     additionalBodyLinesToMinimum: targetBodyLines,
-    requiredInput: firstGeneration && additionTargets.length
-      ? "bulletAdditions"
-      : !neutralActive && additionTargets.length && targets.length
-        ? "bulletAdditionsOrLineExpansions"
-        : !neutralActive && additionTargets.length
-          ? "bulletAdditions" : "lineExpansions",
+    requiredInput: targets.length
+      ? "lineExpansions"
+      : !neutralActive && additionTargets.length
+        ? "bulletAdditions" : "lineExpansions",
     maximumAddedBullets: neutralActive
       ? 0 : Math.min(targetBodyLines, additionTargets.length),
     groundedAdditionTargets: neutralActive ? [] : additionTargets,

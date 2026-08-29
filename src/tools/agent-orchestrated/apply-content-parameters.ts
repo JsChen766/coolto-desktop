@@ -93,7 +93,7 @@ const runtimeApplyContentParameters: TSchema = {
     bullets: Type.Array(bullet),
   }), {
     minItems: 1,
-    description: "仅在 repair_bullet_counts 时使用；一次覆盖全部 itemTargets，并为每个 item 提交完整 bullet 列表，不得提交候选版本；教育信息固定展示，禁止传入",
+    description: "在 write_item_lines、复用适配或补材整合时使用；一次覆盖全部 itemTargets，并按独立工作单元为每个 item 提交非空完整 bullet 列表；每条可绑定多个同工作单元 evidence；教育信息固定展示，禁止传入",
   })),
   bulletUpdates: Type.Optional(Type.Array(Type.Object({
     bulletId: Type.String({ minLength: 1 }),

@@ -22,9 +22,9 @@ import {
   type SupplementalIntegrationTarget,
 } from "./supplemental-integration-targets.js";
 import {
-  bulletCountRepairPlan,
-  type BulletCountRepairTarget,
-} from "./bullet-count-repair.js";
+  itemLineWriteTargets,
+  type ItemLineWriteTarget,
+} from "./item-line-plan.js";
 import type { ResumeMaterialNextAction } from "./material-next-action.js";
 import { normalizeResumeMaterialRequest } from "./material-request.js";
 import { reuseAdaptationNextAction, type ResumeReuseAdaptationAction } from
@@ -69,10 +69,10 @@ export type ResumeAgentNextAction =
   }
   | ({ mode: "reduce_overflow" } & OverflowReductionPlan)
   | {
-    mode: "repair_bullet_counts";
+    mode: "write_item_lines";
     requiredInput: "items";
     itemIds: string[];
-    itemTargets: BulletCountRepairTarget[];
+    itemTargets: ItemLineWriteTarget[];
   }
   | ResumeUsageNextAction
   | {
@@ -160,21 +160,8 @@ export function resumeAgentNextAction(
     compile.overflowPx > RESUME_LAYOUT_TOLERANCE_PX
   ) return { mode: "reduce_overflow", ...overflowReductionPlan(workspace) };
 
-  const countPlan = bulletCountRepairPlan(workspace);
-  if (countPlan.mode === "request_more_material") {
-    if (isFirstResumeGeneration(workspace) &&
-      countPlan.initialDraftTargets.length) {
-      return countRepairAction(countPlan.initialDraftTargets);
-    }
-    return {
-      mode: "request_more_material",
-      question: initialMaterialQuestion(countPlan.question),
-      targetExperienceId: countPlan.targetExperienceId,
-    };
-  }
-  if (countPlan.targets.length) {
-    return countRepairAction(countPlan.targets);
-  }
+  const lineTargets = itemLineWriteTargets(workspace);
+  if (lineTargets.length) return itemLineAction(lineTargets);
 
   if (usageAction) return usageAction;
 
@@ -226,9 +213,9 @@ export function resumeAgentNextAction(
   return { mode: "inspect_blockers" };
 }
 
-function countRepairAction(targets: BulletCountRepairTarget[]) {
+function itemLineAction(targets: ItemLineWriteTarget[]) {
   return {
-    mode: "repair_bullet_counts" as const,
+    mode: "write_item_lines" as const,
     requiredInput: "items" as const,
     itemIds: targets.map((target) => target.itemId),
     itemTargets: targets,

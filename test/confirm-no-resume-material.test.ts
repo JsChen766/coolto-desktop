@@ -145,7 +145,7 @@ test("a repeated no-material decision reopens a stalled closure after manual edi
   assert.equal(value.store.latest()?.tailRepairProgress, undefined);
 });
 
-test("no-more-material demotes a two-bullet main even after a tail pause", async () => {
+test("no-more-material preserves relevance tier regardless of bullet count", async () => {
   const store = new ResumeWorkspaceStore();
   const compiler = new FixtureResumeCompiler();
   const created = resultText(await createResumeWorkspaceTool(
@@ -189,7 +189,7 @@ test("no-more-material demotes a two-bullet main even after a tail pause", async
     "demote-main-on-opt-out",
     { candidateId: workspace.candidateId, expectedRevision: workspace.revision },
   );
-  assert.equal(store.latest()?.itemTiers?.["item-work-1"], "secondary");
+  assert.equal(store.latest()?.itemTiers?.["item-work-1"], "main");
   assert.equal(
     store.latest()?.factNeutralAuthorization?.sourceRequestKind,
     "tail_repair_stalled",

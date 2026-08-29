@@ -2,13 +2,13 @@ import {
   RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
   RESUME_LAYOUT_TOLERANCE_PX,
 } from "../compiler-types.js";
-import { resolveTailPolicy } from "../tail-policy.js";
 import { resumeGenerationReadiness } from "./generation-readiness.js";
 import { resumeAgentNextAction } from "./agent-next-action.js";
 import type { ResumeWorkspace } from "./types.js";
 import { normalizeResumeMaterialRequest } from "./material-request.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
-import { minimumResumeBulletCount } from "./bullet-count-rules.js";
+import { buildBulletDiagnostics, buildItemDiagnostics } from
+  "./agent-layout-diagnostics.js";
 export interface WorkspaceOperationReceipt {
   status: "success" | "partial_success" | "rejected";
   appliedItemIds: string[];
@@ -30,9 +30,6 @@ export function buildAgentWorkspaceView(
 ): object {
   const provenance = new Map(
     (workspace.bulletProvenance ?? []).map((entry) => [entry.bulletId, entry]),
-  );
-  const measurement = new Map(
-    workspace.compileResult.bullets.map((entry) => [entry.bulletId, entry]),
   );
   const items = workspace.structure.sections.flatMap((section) =>
     section.items.map((item) => ({
@@ -60,56 +57,8 @@ export function buildAgentWorkspaceView(
       }),
     })),
   );
-  const itemDiagnostics = items.flatMap((item) => {
-    const minimumRequired = minimumResumeBulletCount({
-      sectionType: item.sectionType, itemId: item.itemId,
-      ...(item.tier ? { tier: item.tier } : {}),
-    });
-    return minimumRequired ? [{
-        itemId: item.itemId,
-        tier: item.tier ?? "skills",
-        bulletCount: item.bullets.length,
-        minimumRequired,
-        passed: item.bullets.length >= minimumRequired,
-    }] : [];
-  });
-  const bulletDiagnostics = items.flatMap((item) =>
-    item.bullets.map((bullet) => {
-      const observed = measurement.get(bullet.bulletId);
-      const availableLineWidthPx = observed?.availableLineWidthPx ?? 0;
-      const passed = observed?.passed ?? false;
-      const policy = resolveTailPolicy(observed?.tailPolicyVersion);
-      const ceuPx = observed?.ceuPx ?? 0;
-      const hardDeficitPx = Math.max(
-        0,
-        availableLineWidthPx * policy.hardMinRatio -
-          (observed?.lastLineWidthPx ?? 0),
-      );
-      const idealDeficitPx = Math.max(
-        0,
-        availableLineWidthPx * policy.repairIdealRatio -
-          (observed?.lastLineWidthPx ?? 0),
-      );
-      return {
-        bulletId: bullet.bulletId,
-        lineCount: observed?.lineCount ?? 0,
-        lastLineWidthPx: observed?.lastLineWidthPx ?? 0,
-        availableLineWidthPx,
-        lastLineRatio: observed?.lastLineRatio ?? 0,
-        tailPolicyVersion: policy.version,
-        ceuPx,
-        minimumPassingTailWidthPx: round(
-          availableLineWidthPx * policy.hardMinRatio,
-        ),
-        hardTailDeficitPx: round(hardDeficitPx),
-        idealTailDeficitPx: round(idealDeficitPx),
-        hardTailDeficitCjk: ceuPx > 0 ? round(hardDeficitPx / ceuPx) : 0,
-        idealTailDeficitCjk: ceuPx > 0 ? round(idealDeficitPx / ceuPx) : 0,
-        tailWidthDeficitPx: round(hardDeficitPx),
-        passed,
-      };
-    }),
-  );
+  const itemDiagnostics = buildItemDiagnostics(workspace, items);
+  const bulletDiagnostics = buildBulletDiagnostics(workspace, items);
   const compile = workspace.compileResult;
   const readiness = resumeGenerationReadiness(workspace);
   const bodyLineHeightPx = Math.max(1, compile.bodyLineHeightPx);
@@ -128,7 +77,12 @@ export function buildAgentWorkspaceView(
   const minimumUsagePassed =
     compile.usedHeightPx + RESUME_LAYOUT_TOLERANCE_PX >=
     compile.availableHeightPx * RESUME_GLOBAL_MINIMUM_USAGE_RATIO;
-  const bulletCountsPassed = itemDiagnostics.every((item) => item.passed);
+  const bulletCountsPassed = workspace.lineBudgetVersion === "item-lines-v1"
+    ? itemDiagnostics.every((item) => item.bulletCount > 0)
+    : itemDiagnostics.every((item) => item.passed);
+  const itemLinesPassed = workspace.lineBudgetVersion === "item-lines-v1"
+    ? itemDiagnostics.every((item) => item.passed)
+    : true;
   const bulletTailsPassed = bulletDiagnostics.every((bullet) => bullet.passed);
   const pendingConfirmation = pendingAugmentedContent(workspace);
   return {
@@ -173,6 +127,7 @@ export function buildAgentWorkspaceView(
         singlePage,
         minimumUsagePassed,
         bulletCountsPassed,
+        itemLinesPassed,
         bulletTailsPassed,
       },
       items: itemDiagnostics,
@@ -182,9 +137,14 @@ export function buildAgentWorkspaceView(
           code: violation.code,
           ...(violation.bulletId ? { bulletId: violation.bulletId } : {}),
         })),
-        ...itemDiagnostics
-          .filter((item) => !item.passed)
-          .map((item) => ({ code: "bullet_count_too_low", itemId: item.itemId })),
+        ...itemDiagnostics.filter((item) => !item.passed).map((item) => ({
+          code: workspace.lineBudgetVersion === "item-lines-v1"
+            ? item.bulletCount > 0
+              ? "item_line_budget_shortfall"
+              : "item_empty"
+            : "bullet_count_too_low",
+          itemId: item.itemId,
+        })),
         ...pendingConfirmation.map((item) => ({
           code: "pending_augmented_confirmation",
           itemId: item.itemId,

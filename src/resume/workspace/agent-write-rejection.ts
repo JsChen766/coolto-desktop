@@ -89,16 +89,19 @@ export function resumeWriteRejection(
   if (action.mode === "reduce_overflow") {
     return overflowReductionRejection(action, params);
   }
-  if (action.mode === "repair_bullet_counts") {
+  if (action.mode === "write_item_lines") {
     const hasOtherMode = Boolean(
       params.bulletUpdates?.length || params.bulletRemovals?.length ||
         params.bulletAdditions?.length || params.tailGrowths?.length ||
         params.lineExpansions?.length || params.lineRewrites?.length ||
         params.tailRewrites?.length,
     );
-    return params.items?.length && !hasOtherMode
+    const hasEmptyItem = params.items?.some((item) =>
+      !("bullets" in item) || !(item as { bullets?: readonly unknown[] }).bullets?.length
+    );
+    return params.items?.length && !hasOtherMode && !hasEmptyItem
       ? undefined
-      : "nextAction 是 repair_bullet_counts；必须用一次 items 批量提交全部 itemTargets 的完整 bullet 列表";
+      : "nextAction 是 write_item_lines；必须用一次 items 批量提交全部 itemTargets 的非空完整 bullet 列表";
   }
   if (action.mode === "increase_usage") {
     if (params.items?.length || params.bulletUpdates?.length ||

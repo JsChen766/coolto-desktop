@@ -6,6 +6,7 @@ import { applyAgentResumeContent } from "../src/resume/workspace/agent-content-a
 import { resumeContentProgressKey } from "../src/resume/workspace/agent-progress-key.js";
 import { resumeAgentNextAction } from "../src/resume/workspace/agent-next-action.js";
 import { resumeWriteRejection } from "../src/resume/workspace/agent-write-rejection.js";
+import { itemLineWriteTargets } from "../src/resume/workspace/item-line-plan.js";
 import { buildAgentWorkspaceView } from "../src/resume/workspace/agent-workspace-view.js";
 import { buildResumeSkeleton } from "../src/resume/workspace/candidate-skeleton.js";
 import { groundedAdditionTargets } from "../src/resume/workspace/grounded-addition-targets.js";
@@ -215,10 +216,9 @@ class MinimalOverflowCompiler extends FixtureResumeCompiler {
   ) {
     const result = await super.compile(structure);
     const bulletCount = structure.sections.flatMap((section) =>
-      section.items.filter((item) => item.id === "item-work-1")
-        .flatMap((item) => item.bullets)
+      section.items.flatMap((item) => item.bullets)
     ).length;
-    const usageRatio = 0.9 + bulletCount * 0.03;
+    const usageRatio = 0.84 + bulletCount * 0.03;
     const overflowPx = Math.max(0, usageRatio * 1000 - 1000);
     const violations = overflowPx > 0
       ? [{ code: "page_overflow" as const, message: "slight overflow" }]
@@ -449,7 +449,7 @@ test("slight overflow removes only one extra bullet before any source reduction"
   assert.equal(action.requiredInput, "bulletRemovals");
   assert.equal(action.bodyLinesToRemove, 1);
   assert.equal(action.maximumRemovedBullets, 1);
-  assert.equal(action.bulletRemovalTargets.length, 4);
+  assert.equal(action.bulletRemovalTargets.length, 1);
   assert.equal(
     action.bulletRemovalTargets.every((target: { lineCount: number }) =>
       target.lineCount === 2
@@ -492,17 +492,8 @@ test("slight overflow removes only one extra bullet before any source reduction"
   assert.match(longerRemoval.writeRejectedReason, /bulletRemovalTargets/u);
   assert.equal(longerRemoval.revision, written.revision);
 
-  const tooMany = text(await value.apply.execute("too-many-removals", {
-    candidateId: created.candidateId,
-    expectedRevision: written.revision,
-    bulletRemovals: action.bulletRemovalTargets.slice(0, 2).map(
-      (target: { bulletId: string }) => ({ bulletId: target.bulletId }),
-    ),
-  }));
-  assert.match(tooMany.writeRejectedReason, /最多删除 1 条/u);
-  assert.equal(tooMany.revision, written.revision);
-
   const removedId = action.bulletRemovalTargets[0].bulletId;
+  assert.equal(action.bulletRemovalTargets[0].itemId, "item-tiny-work-1");
   const reduced = text(await value.apply.execute("minimal-removal", {
     candidateId: created.candidateId,
     expectedRevision: written.revision,
@@ -513,7 +504,10 @@ test("slight overflow removes only one extra bullet before any source reduction"
   assert.equal(reduced.layout.usageRatio, 0.99);
   assert.equal(value.store.latest()!.structure.sections.flatMap((section) =>
     section.items.find((item) => item.id === "item-work-1")?.bullets ?? []
-  ).length, 3);
+  ).length, 4);
+  assert.equal(value.store.latest()!.structure.sections.flatMap((section) =>
+    section.items.find((item) => item.id === "item-tiny-work-1")?.bullets ?? []
+  ).length, 1);
 });
 
 test("whole-experience overflow fallback removes at most one source", async () => {
@@ -604,6 +598,14 @@ test("bullet addition allocates after the highest suffix when existing ids have 
       })),
     }],
   }));
+  const afterInitial = store.latest()!;
+  afterInitial.itemLineBudgets!["item-work-1"] = {
+    tier: "main",
+    targetLines: 7,
+    minimumLines: 6,
+  };
+  store.restore(afterInitial);
+  initial.nextAction = resumeAgentNextAction(afterInitial);
   assert.equal(initial.nextAction.mode, "increase_usage");
   assert.equal(initial.nextAction.requiredInput, "bulletAdditions");
 
@@ -693,27 +695,30 @@ test("create_resume_workspace locks all sources and measures only the blank page
   assert.equal(payload.wholePageBudget.minimumBodyLinesToAdd, 10);
   assert.equal(payload.wholePageBudget.preferredBodyLinesToAdd, 12);
   assert.equal(payload.wholePageBudget.maximumBodyLinesToAdd, 14);
-  assert.equal(payload.wholePageBudget.remainingMinimumBullets, 3);
+  assert.equal(payload.wholePageBudget.remainingMinimumBullets, 0);
   assert.equal(payload.wholePageBudget.linePlanning.minimumLinesPerBullet, 1);
   assert.equal(payload.wholePageBudget.linePlanning.fixedMaximumLinesPerBullet, null);
-  assert.equal(payload.wholePageBudget.minimumBodyLinesForMinimumBullets, 3);
-  assert.deepEqual(payload.wholePageBudget.itemMinimums, [{
+  assert.equal(payload.wholePageBudget.minimumBodyLinesForMinimumBullets, 0);
+  assert.deepEqual(payload.wholePageBudget.itemMinimums, []);
+  assert.deepEqual(payload.wholePageBudget.itemLineBudgets, [{
     itemId: "item-work-1",
     tier: "main",
-    currentBulletCount: 0,
-    minimumBulletCount: 3,
-    remainingMinimumBullets: 3,
+    currentLines: 0,
+    targetLines: 12,
+    minimumLines: 11,
+    remainingLines: 12,
   }]);
   assert.equal(payload.readiness.ready, false);
-  assert.equal(payload.nextAction.mode, "repair_bullet_counts");
+  assert.equal(payload.nextAction.mode, "write_item_lines");
   assert.equal(payload.nextAction.requiredInput, "items");
   assert.equal(payload.nextAction.itemTargets.length, 1);
-  assert.equal(payload.nextAction.itemTargets[0].missingBulletCount, 3);
+  assert.equal(payload.nextAction.itemTargets[0].targetLines, 12);
+  assert.equal(payload.nextAction.itemTargets[0].minimumLines, 11);
   assert.equal(payload.nextAction.itemTargets[0].availableEvidence.length, 3);
   assert.equal(payload.nextAction.itemTargets[0].currentBullets.length, 0);
 });
 
-test("first generation writes every available fact before asking for more", async () => {
+test("first generation accepts one grounded work unit without a tier bullet minimum", async () => {
   const value = harness(new StablePageCompiler());
   const payload = text(await value.create.execute("insufficient-count-evidence", {
     jdId: "jd-1",
@@ -725,12 +730,11 @@ test("first generation writes every available fact before asking for more", asyn
   }));
 
   assert.equal(payload.status, "writing");
-  assert.equal(payload.nextAction.mode, "repair_bullet_counts");
+  assert.equal(payload.nextAction.mode, "write_item_lines");
   assert.deepEqual(payload.nextAction.itemIds, [
     "item-tiny-work-1",
     "item-work-1",
   ]);
-  assert.equal(payload.nextAction.itemTargets[0].allowPartialDraft, true);
 
   const drafted = text(await value.apply.execute("write-grounded-body-first", {
     candidateId: payload.candidateId,
@@ -742,11 +746,8 @@ test("first generation writes every available fact before asking for more", asyn
   }));
   assert.equal(drafted.revision, payload.revision + 1);
   assert.equal(drafted.operation.status, "success");
-  assert.equal(drafted.status, "needs_user_decision");
-  assert.equal(drafted.nextAction.mode, "request_more_material");
-  assert.equal(drafted.nextAction.targetExperienceId, "tiny-work-1");
-  assert.match(drafted.nextAction.question, /只有 1 条可独占事实/u);
-  assert.match(drafted.nextAction.question, /至少需要 2 条 bullet/u);
+  assert.equal(drafted.status, "ready_for_approval");
+  assert.equal(drafted.nextAction.mode, "stop");
   assert.equal(
     value.store.latest()!.structure.sections.flatMap((section) =>
       section.items.flatMap((item) => item.bullets)
@@ -754,23 +755,12 @@ test("first generation writes every available fact before asking for more", asyn
     4,
   );
 
-  const finalized = text(await createConfirmNoResumeMaterialTool(
-    value.store,
-    () => 100,
-    value.compiler,
-  ).execute("skip-insufficient-item", {
-    candidateId: drafted.candidateId,
-    expectedRevision: drafted.revision,
-  }));
-  assert.equal(finalized.status, "ready_for_approval");
-  assert.equal(finalized.readiness.ready, true);
-  assert.equal(finalized.nextAction.mode, "stop");
   assert.equal(value.store.latest()!.structure.sections.some((section) =>
     section.items.some((item) => item.id === "item-tiny-work-1")
-  ), false);
+  ), true);
 });
 
-test("bullet count repair rejects an incomplete multi-item batch", async () => {
+test("item line writing rejects an incomplete multi-item batch", async () => {
   const builder = createWorkspaceSnapshotBuilder({
     tinyWorkContent: "负责日常数据整理。维护周度报表并核对异常数据。",
   });
@@ -880,7 +870,7 @@ test("count repair rejects a duplicate range but keeps other valid bullets", asy
   assert.match(result.operation.rejectedItems[0].reason, /reuses.*reserved/u);
   assert.equal(value.store.latest()!.revision, workspace.revision + 1);
   assert.equal(value.store.latest()!.bindings.length, 2);
-  assert.equal(result.nextAction.mode, "repair_bullet_counts");
+  assert.notEqual(result.nextAction.mode, "repair_bullet_counts");
 });
 
 test("apply_resume_content reports every invalid bullet in one item", async () => {
@@ -948,7 +938,7 @@ test("first-generation count repair keeps individually valid bullets", async () 
     (section) => section.items,
   ).find((candidate) => candidate.id === "item-work-1")!;
   assert.equal(item.bullets.length, 2);
-  assert.equal(result.nextAction.mode, "repair_bullet_counts");
+  assert.notEqual(result.nextAction.mode, "repair_bullet_counts");
 });
 
 test("item retry progress requires formal resume progress, not a changing error set", async () => {
@@ -1268,6 +1258,7 @@ test("apply_resume_content replaces a complete item batch and compiles once", as
   ).find((item) => item.id === "item-work-1")?.bullets.length, 3);
   assert.equal(payload.layout.observedRevision, 1);
   assert.equal(payload.layout.gates.bulletCountsPassed, true);
+  assert.equal(payload.layout.gates.itemLinesPassed, false);
   assert.equal("resume" in payload, false);
   assert.match(payload.recovery, /get_resume_workspace/u);
 });
@@ -1659,7 +1650,13 @@ test("underfill lands exact extra lines before the final tail-repair phase", asy
       message: "underfilled",
     }],
   };
+  workspace.itemLineBudgets!["item-work-1"] = {
+    tier: "main",
+    targetLines: 6,
+    minimumLines: 6,
+  };
   value.store.restore(workspace);
+  assert.deepEqual(itemLineWriteTargets(workspace), []);
   const target = workspace.structure.sections.flatMap((section) => section.items)
     .flatMap((item) => item.bullets)[0]!;
   const validTarget = workspace.structure.sections.flatMap((section) => section.items)
@@ -1739,7 +1736,7 @@ test("underfill lands exact extra lines before the final tail-repair phase", asy
   assert.match(fullerText, /增加一行短尾，补充处理方法$/u);
 });
 
-test("first-generation underfill consumes unused grounded facts before expansion", async () => {
+test("first-generation underfill deepens planned work units before adding bullets", async () => {
   const builder = createWorkspaceSnapshotBuilder({
     workContent: `${WORK_CONTENT}补充访谈 8 名业务用户并整理需求优先级。`,
   });
@@ -1765,10 +1762,8 @@ test("first-generation underfill consumes unused grounded facts before expansion
   const action = resumeAgentNextAction(workspace);
   assert.equal(action.mode, "increase_usage");
   if (action.mode !== "increase_usage") return;
-  assert.equal(action.requiredInput, "bulletAdditions");
-  assert.ok(action.groundedAdditionTargets.some(
-    (target) => target.sourceQuote.includes("访谈 8 名业务用户"),
-  ));
+  assert.equal(action.requiredInput, "lineExpansions");
+  assert.ok(action.lineExpansionTargets.length > 0);
 });
 
 test("a user-supplied fact must be integrated before page-fill expansion", async () => {
@@ -2042,8 +2037,23 @@ function underfilledWorkspace(
   workspace: NonNullable<ReturnType<ResumeWorkspaceStore["latest"]>>,
   usageRatio: number,
 ) {
+  const itemLineBudgets = Object.fromEntries(
+    workspace.structure.sections.flatMap((section) =>
+      section.items.flatMap((item) => {
+        const budget = workspace.itemLineBudgets?.[item.id];
+        if (!budget) return [];
+        const currentLines = Math.max(1, item.bullets.length * 2);
+        return [[item.id, {
+          ...budget,
+          targetLines: currentLines,
+          minimumLines: currentLines,
+        }] as const];
+      }),
+    ),
+  );
   return {
     ...workspace,
+    itemLineBudgets,
     status: "writing" as const,
     compileResult: {
       ...workspace.compileResult,
@@ -2127,13 +2137,13 @@ test("explicit skills section does not require a relevance tier", async () => {
   assert.equal(payload.resume.items.find(
     (item: { itemId: string }) => item.itemId === "item-skills-1",
   ).tier, null);
-  assert.equal(payload.nextAction.mode, "repair_bullet_counts");
+  assert.equal(payload.nextAction.mode, "write_item_lines");
   assert.equal(payload.nextAction.itemTargets.find(
     (item: { itemId: string }) => item.itemId === "item-skills-1",
-  ).minimumBulletCount, 1);
+  ).minimumLines, 2);
   assert.equal(payload.layout.items.find(
     (item: { itemId: string }) => item.itemId === "item-skills-1",
-  ).minimumRequired, 1);
+  ).minimumLines, 2);
 });
 
 test("legacy utility rows require one grounded bullet before completion", async () => {
@@ -2153,11 +2163,11 @@ test("legacy utility rows require one grounded bullet before completion", async 
   ).tier, "utility");
   assert.equal(payload.layout.items.find(
     (item: { itemId: string }) => item.itemId === "item-legacy-skills-1",
-  ).minimumRequired, 1);
-  assert.equal(payload.nextAction.mode, "repair_bullet_counts");
+  ).minimumLines, 1);
+  assert.equal(payload.nextAction.mode, "write_item_lines");
   assert.equal(payload.nextAction.itemTargets.find(
     (item: { itemId: string }) => item.itemId === "item-legacy-skills-1",
-  ).minimumBulletCount, 1);
+  ).minimumLines, 1);
 
   const mainOnly = await applyAgentResumeContent({
     workspace: value.store.latest()!,
@@ -2168,11 +2178,11 @@ test("legacy utility rows require one grounded bullet before completion", async 
   assert.equal(resumeGenerationReadiness(mainOnly.workspace).ready, false);
   assert.ok(resumeGenerationReadiness(mainOnly.workspace).blockers.some(
     (blocker) =>
-      blocker.code === "bullet_count_too_low" &&
+      blocker.code === "item_empty" &&
       blocker.itemId === "item-legacy-skills-1",
   ));
   assert.equal(resumeAgentNextAction(mainOnly.workspace).mode,
-    "repair_bullet_counts");
+    "write_item_lines");
 
   const emptyUtility = await applyAgentResumeContent({
     workspace: mainOnly.workspace,

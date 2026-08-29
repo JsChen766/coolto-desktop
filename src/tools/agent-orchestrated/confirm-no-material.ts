@@ -3,11 +3,7 @@ import { Type } from "@earendil-works/pi-ai";
 
 import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
 import { buildAgentWorkspaceReceipt } from "../../resume/workspace/agent-workspace-view.js";
-import { bulletCountRepairPlan } from
-  "../../resume/workspace/bullet-count-repair.js";
 import { ResumeWorkspaceError } from "../../resume/workspace/errors.js";
-import { isFirstResumeGeneration } from
-  "../../resume/workspace/first-generation-policy.js";
 import { startEvidenceReassessment } from
   "../../resume/workspace/evidence-assessment.js";
 import { resumeGenerationReadiness } from
@@ -15,8 +11,6 @@ import { resumeGenerationReadiness } from
 import { scenarioMaterialQuestion } from "../../resume/workspace/material-question.js";
 import type { ResumeWorkspace } from "../../resume/workspace/types.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
-import { pruneUnderSupportedFirstGenerationItems } from
-  "../../resume/workspace/first-generation-closure.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { resumeWriteResultForModel } from "./resume-write-result-for-model.js";
 
@@ -67,17 +61,8 @@ export function createConfirmNoResumeMaterialTool(
       }
       const messageTimestamp = currentUserMessageTimestamp();
       if (!messageTimestamp) throw new Error("当前用户消息来源不可用，不能确认无补充事实");
-      let closureWorkspace = prepareFirstGenerationClosure(workspace);
-      if (bulletCountRepairPlan(closureWorkspace).mode ===
-        "request_more_material") {
-        if (!compiler) {
-          throw new Error("首次生成收尾缺少真实版面编译器，不能安全移除证据不足的经历");
-        }
-        closureWorkspace = await pruneUnderSupportedFirstGenerationItems(
-          closureWorkspace,
-          compiler,
-        );
-      }
+      void compiler;
+      const closureWorkspace = workspace;
       const updated = request.discoveryStage === "scenario_probe" ||
           !params.scenarioQuestions?.length
         ? authorizeNeutral(
@@ -164,27 +149,4 @@ function authorizeNeutral(
   return resumeGenerationReadiness(reassessed).ready
     ? { ...reassessed, status: "ready_for_approval" }
     : reassessed;
-}
-
-/** Keeps truthful bullets by demoting evidence-poor main items after opt-out. */
-function prepareFirstGenerationClosure(
-  workspace: ResumeWorkspace,
-): ResumeWorkspace {
-  if (!isFirstResumeGeneration(workspace)) {
-    if (workspace.materialRequest?.kind === "bullet_count_insufficient") {
-      throw new Error("历史简历的 main 经历数量门槛不能自动降级");
-    }
-    return workspace;
-  }
-  const itemTiers = { ...workspace.itemTiers };
-  let demoted = 0;
-  for (const item of workspace.structure.sections.flatMap(
-    (section) => section.items,
-  )) {
-    if (itemTiers[item.id] === "main" && item.bullets.length === 2) {
-      itemTiers[item.id] = "secondary";
-      demoted += 1;
-    }
-  }
-  return demoted ? { ...workspace, itemTiers } : workspace;
 }

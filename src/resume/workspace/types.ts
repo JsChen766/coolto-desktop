@@ -20,6 +20,20 @@ import type { ResumeMaterialFollowUpPending, ResumeMaterialRequest } from "./mat
 import type { ResumeReuseAdaptation, ResumeReuseBase } from "./reuse-adaptation-types.js";
 import type { ResumeEvidenceAssessmentState } from
   "./evidence-assessment-types.js";
+import type {
+  ResumeBulletConfirmation,
+  ResumeBulletOrigin,
+  ResumeBulletProvenance,
+  ResumeItemLineBudget,
+  ResumeItemTier,
+} from "./item-content-types.js";
+export type {
+  ResumeBulletConfirmation,
+  ResumeBulletOrigin,
+  ResumeBulletProvenance,
+  ResumeItemLineBudget,
+  ResumeItemTier,
+} from "./item-content-types.js";
 export type ResumeCandidateLanguage = "zh-CN" | "en-US";
 export type ResumeWorkspaceStatus =
   | "writing"
@@ -41,16 +55,13 @@ export interface ResumeOperationReport {
   repairs: EvidenceRepairAction[];
   rejected: Array<{ index: number; message: string }>;
 }
-/**
- * 生成前由真实 Chromium 布局测量得到的物理预算：write_bullet 的默认
- * targetChars 和指令提示都以此动态给出，首稿长度不再依赖固定默认区间。
- */
+/** Legacy Chromium budget retained for older workspace drafts. */
 export interface ResumeLayoutBudget {
   /** 每行真实字符数（真实 Chromium 测量）。 */
   charsPerLine: number;
   /** 达到最低占用率所需的 bullet 行数（固定行已扣除）。 */
   requiredBulletLinesAtMinimum: number;
-  /** 所选经历的可写 bullet 容量（一条独立证据可写一条 bullet，不按类别写死）。 */
+  /** Legacy planner capacity; current item-lines workspaces do not equate evidence with bullets. */
   writableBulletCapacity: number;
   maxBulletLines: 2 | 3;
 }
@@ -88,8 +99,11 @@ export interface ResumeWorkspace {
   awaitingUserConfirmation?: { note: string } | null;
   /** Agent 为已有事实 bullet 添加的无直接证据修饰语，按片段确认或回退。 */
   augmentedFragments?: ResumeAugmentedFragment[];
-  /** Agent declares relevance tiers; the host only enforces their counts. */
+  /** Agent declares relevance tiers; the host allocates item body lines. */
   itemTiers?: Record<string, ResumeItemTier>;
+  /** New workspaces express relevance through item body-line allocation. */
+  lineBudgetVersion?: "item-lines-v1";
+  itemLineBudgets?: Record<string, ResumeItemLineBudget>;
   /** Provenance for the current complete bullet lists. */
   bulletProvenance?: ResumeBulletProvenance[];
   /** User-provided facts added after the immutable source snapshot was locked. */
@@ -113,20 +127,6 @@ export interface ResumeWorkspace {
   pageFillProgress?: {
     consecutiveZeroGrowthRounds: number;
   };
-}
-export type ResumeItemTier = "main" | "secondary" | "utility";
-export type ResumeBulletOrigin = "grounded" | "agent_augmented";
-export type ResumeBulletConfirmation =
-  | "not_required"
-  | "pending"
-  | "confirmed";
-export interface ResumeBulletProvenance {
-  bulletId: string;
-  itemId: string;
-  origin: ResumeBulletOrigin;
-  evidenceIds: string[];
-  requirementIds: string[];
-  confirmation: ResumeBulletConfirmation;
 }
 export interface ResumeAugmentedFragment {
   bulletId: string;

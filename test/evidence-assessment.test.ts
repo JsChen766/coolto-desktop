@@ -12,6 +12,8 @@ import type { ResumeCompiler } from
   "../src/resume/workspace/compiler-port.js";
 import { ResumeWorkspaceStore } from
   "../src/resume/workspace/workspace-store.js";
+import type { ResumeWorkspace } from
+  "../src/resume/workspace/types.js";
 import { createApplyResumeContentTool } from
   "../src/tools/agent-orchestrated/apply-content.js";
 import { createDeclineResumeMaterialTool } from
@@ -100,6 +102,38 @@ async function seededWorkspace() {
   return { store, apply, evidence };
 }
 
+function completeItemWithEvidence(
+  workspace: ResumeWorkspace,
+  evidence: { evidenceId: string; text: string },
+  text = evidence.text.replace(/。$/u, ""),
+) {
+  const item = workspace.structure.sections.flatMap((section) => section.items)
+    .find((entry) => entry.id === "item-work-1")!;
+  const provenance = new Map(
+    (workspace.bulletProvenance ?? []).map((entry) => [entry.bulletId, entry]),
+  );
+  return [{
+    itemId: item.id,
+    bullets: [
+      ...item.bullets.map((bullet) => ({
+        bulletId: bullet.id,
+        text: bullet.text,
+        plannedLines: workspace.bulletLinePlans?.[bullet.id]?.plannedLines ?? 2,
+        origin: "grounded" as const,
+        evidenceIds: provenance.get(bullet.id)?.evidenceIds ?? [],
+        requirementIds: provenance.get(bullet.id)?.requirementIds ?? [],
+      })),
+      {
+        text,
+        plannedLines: 2,
+        origin: "grounded" as const,
+        evidenceIds: [evidence.evidenceId],
+        requirementIds: ["req-1"],
+      },
+    ],
+  }];
+}
+
 test("evidence reassessment lowers the second-round threshold and consumes both rounds", async () => {
   const value = await seededWorkspace();
   const first = evidenceAssessmentNextAction(value.store.latest()!)!;
@@ -116,16 +150,13 @@ test("evidence reassessment lowers the second-round threshold and consumes both 
   value.store.replace(assessedOne, assessedOne.revision - 1);
   assert.equal(assessedOne.evidenceAssessment!.phase, "grounded_fill_1");
 
+  const roundOneEvidence = value.evidence.find(
+    (entry) => entry.evidenceId === first.evidenceIds[0],
+  )!;
   const addedOne = payload(await value.apply.execute("add-round-one", {
     candidateId: assessedOne.candidateId,
     expectedRevision: assessedOne.revision,
-    bulletAdditions: [{
-      itemId: "item-work-1",
-      text: value.evidence[3]!.text.replace(/。$/u, ""),
-      origin: "grounded",
-      evidenceIds: [value.evidence[3]!.evidenceId],
-      requirementIds: ["req-1"],
-    }],
+    items: completeItemWithEvidence(value.store.latest()!, roundOneEvidence),
   }));
   assert.equal(addedOne.nextAction.mode, "assess_evidence");
   assert.equal(addedOne.nextAction.round, 2);
@@ -145,16 +176,13 @@ test("evidence reassessment lowers the second-round threshold and consumes both 
     reasonCode: "truthful_recent_fallback",
   }]);
   value.store.replace(assessedTwo, assessedTwo.revision - 1);
+  const roundTwoEvidence = value.evidence.find(
+    (entry) => entry.evidenceId === addedOne.nextAction.evidenceIds[0],
+  )!;
   const addedTwo = payload(await value.apply.execute("add-round-two", {
     candidateId: assessedTwo.candidateId,
     expectedRevision: assessedTwo.revision,
-    bulletAdditions: [{
-      itemId: "item-work-1",
-      text: value.evidence[4]!.text.replace(/。$/u, ""),
-      origin: "grounded",
-      evidenceIds: [value.evidence[4]!.evidenceId],
-      requirementIds: ["req-1"],
-    }],
+    items: completeItemWithEvidence(value.store.latest()!, roundTwoEvidence),
   }));
 
   assert.equal(addedTwo.revision, assessedTwo.revision + 1);
@@ -177,16 +205,15 @@ test("a rejected selected fact advances to the lower-threshold round instead of 
   ]);
   value.store.replace(assessed, assessed.revision - 1);
 
+  const selectedEvidence = value.evidence.find(
+    (entry) => entry.evidenceId === first.evidenceIds[0],
+  )!;
   const rejected = payload(await value.apply.execute("reject-round-one", {
     candidateId: assessed.candidateId,
     expectedRevision: assessed.revision,
-    bulletAdditions: [{
-      itemId: "item-work-1",
-      text: "带句末标点的无效写入。",
-      origin: "grounded",
-      evidenceIds: [first.evidenceIds[0]!],
-      requirementIds: ["req-1"],
-    }],
+    items: completeItemWithEvidence(
+      value.store.latest()!, selectedEvidence, "带句末标点的无效写入。",
+    ),
   }));
 
   assert.equal(rejected.operation.status, "rejected");

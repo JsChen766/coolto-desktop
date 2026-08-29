@@ -40,6 +40,8 @@ import { generationWorkspaceStatus } from
   "../../resume/workspace/generation-readiness.js";
 import { createReuseAdaptation } from
   "../../resume/workspace/reuse-adaptation.js";
+import { createItemLineBudgets } from
+  "../../resume/workspace/item-line-budget.js";
 
 export function createResumeWorkspaceTool(
   snapshotBuilder: ResumeSourceSnapshotBuilder,
@@ -114,6 +116,7 @@ export function createResumeWorkspaceTool(
         existing.sourceSnapshot.sourceFingerprint === snapshot.sourceFingerprint &&
         existing.structure.language === params.language &&
         samePublishedResumeSeed(existing.reuseBase, reuseBase) &&
+        existing.lineBudgetVersion === "item-lines-v1" &&
         sameRecord(existing.itemTiers ?? {}, itemTiers) &&
         sameFixedPresentation(existing.structure, freshStructure)
       ) {
@@ -189,6 +192,12 @@ export function createResumeWorkspaceTool(
         repairRound: 0,
         repairHistory: [],
         itemTiers,
+        lineBudgetVersion: "item-lines-v1",
+        itemLineBudgets: createItemLineBudgets({
+          structure: retained.structure,
+          itemTiers,
+          compileResult,
+        }),
         bulletProvenance: retained.bulletProvenance,
         ...(retained.augmentedFragments.length
           ? { augmentedFragments: retained.augmentedFragments }

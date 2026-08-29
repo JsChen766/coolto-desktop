@@ -1,7 +1,6 @@
 import type { ResumeCompiler } from "./compiler-port.js";
 import { EvidenceLedger } from "../evidence-ledger.js";
 import type { AgentAugmentedFragmentInput, AgentItemContentInput } from "./agent-content-types.js";
-import { assertMinimumBulletCount } from "./agent-content-validation.js";
 import type { ResumeWorkspace } from "./types.js";
 import { ResumeWorkspaceStore } from "./workspace-store.js";
 import type { WorkspaceOperationReceipt } from "./agent-workspace-view.js";
@@ -65,10 +64,12 @@ export async function applyAgentResumeContent(input: {
       if (located.section.type === "education") {
         throw new Error("教育信息由经历库固定展示，不能在简历生成中改写或删除");
       }
-      const partialDraftGrowth = input.allowPartialItemProgress &&
-        rawItem.bullets.length > located.item.bullets.length;
-      if (!partialDraftGrowth) {
-        assertMinimumBulletCount(source, itemId, rawItem.bullets.length);
+      if (
+        source.lineBudgetVersion === "item-lines-v1" &&
+        source.itemLineBudgets?.[itemId] &&
+        rawItem.bullets.length === 0
+      ) {
+        throw new Error("被选中的经历至少需要一个有证据支持的独立工作单元");
       }
       if (rawItem.bullets.length === 0) {
         located.section.items.splice(located.index, 1);

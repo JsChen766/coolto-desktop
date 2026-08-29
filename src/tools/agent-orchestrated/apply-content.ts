@@ -165,7 +165,7 @@ export function createApplyResumeContentTool(compiler: ResumeCompiler, store: Re
       const factNeutralFragments = mergeFactNeutralFragments(
         tailNeutralFragments, neutralWrite.fragments,
       );
-      if (action.mode === "repair_bullet_counts") {
+      if (action.mode === "write_item_lines") {
         const supplied = new Set(items.map((item) => item.itemId));
         const missing = action.itemIds.filter((itemId) => !supplied.has(itemId));
         const attemptsCountRepair = action.itemIds.some((itemId) =>
@@ -174,7 +174,7 @@ export function createApplyResumeContentTool(compiler: ResumeCompiler, store: Re
         if (attemptsCountRepair && missing.length) {
           return resumeWriteRejectedResult(
             workspace,
-            `repair_bullet_counts 必须在一次 items 调用中覆盖全部 itemTargets；missing=${missing.join(",")}`,
+            `write_item_lines 必须在一次 items 调用中覆盖全部 itemTargets；missing=${missing.join(",")}`,
           );
         }
       }
@@ -190,7 +190,7 @@ export function createApplyResumeContentTool(compiler: ResumeCompiler, store: Re
           : { pageFillProgressMade }),
         ...(factNeutralFragments.length
           ? { factNeutralFragments } : {}),
-        allowPartialItemProgress: isFirstResumeGeneration(workspace) && (action.mode === "repair_bullet_counts" || action.mode === "integrate_supplemental_evidence"),
+        allowPartialItemProgress: isFirstResumeGeneration(workspace) && (action.mode === "write_item_lines" || action.mode === "integrate_supplemental_evidence"),
       });
       if ((params.lineExpansions || params.lineRewrites) &&
         lineRewriteDiagnostics) {

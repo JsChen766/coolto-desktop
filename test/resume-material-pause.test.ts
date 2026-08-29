@@ -60,7 +60,7 @@ test("missing must-have technology evidence warns only after grounded body writi
   }));
 
   assert.equal(created.status, "writing");
-  assert.equal(created.nextAction.mode, "repair_bullet_counts");
+  assert.equal(created.nextAction.mode, "write_item_lines");
   assert.ok(created.readiness.blockers.some(
     (blocker: { code: string }) => blocker.code === "critical_skill_evidence_missing",
   ));
@@ -369,7 +369,7 @@ test("partial material answers narrow the gap and an explicit decline ends the r
     ],
   }));
   const evidence = evidenceForModel(store.latest()!.sourceSnapshot);
-  const requested = payload(await createApplyResumeContentTool(
+  const drafted = payload(await createApplyResumeContentTool(
     compiler,
     store,
   ).execute("draft-before-count-request", {
@@ -386,7 +386,16 @@ test("partial material answers narrow the gap and an explicit decline ends the r
         })),
     })),
   }));
-  assert.match(requested.nextAction.question, /至少 2 条/u);
+  const requested = payload(await createPauseResumeForMaterialTool(store)
+    .execute("request-partial-material", {
+      candidateId: drafted.candidateId,
+      expectedRevision: drafted.revision,
+      reason: "核心工作单元还可补充具体方法与结果",
+      question: "请补充该经历中尚未写入的具体方法、协作或结果",
+      targetExperienceId: "tiny-work-1",
+    }));
+  assert.equal(requested.nextAction.mode, "request_more_material");
+  assert.match(requested.nextAction.question, /具体方法/u);
 
   const add = createAddResumeMaterialTool(store, () => 2_000);
   const partial = payload(await add.execute("partial-answer", {
@@ -427,7 +436,7 @@ test("partial material answers narrow the gap and an explicit decline ends the r
   }));
   assert.equal(integrated.status, "needs_user_decision");
   assert.equal(integrated.nextAction.mode, "request_more_material");
-  assert.match(integrated.nextAction.question, /至少 1 条/u);
+  assert.match(integrated.nextAction.question, /^【继续补充】/u);
   assert.notEqual(integrated.nextAction.requestId, requested.nextAction.requestId);
   await assert.rejects(
     add.execute("stale-request-answer", {
@@ -461,8 +470,7 @@ test("partial material answers narrow the gap and an explicit decline ends the r
   }));
   assert.equal(resumed.status, "writing");
   assert.equal("materialRequest" in resumed, false);
-  assert.equal(resumed.nextAction.mode, "repair_bullet_counts");
-  assert.equal(resumed.nextAction.requiredInput, "items");
+  assert.equal(resumed.nextAction.mode, "increase_usage");
 });
 
 test("pause ignores a search-result short id that is not a workspace experience id", async () => {

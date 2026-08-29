@@ -2,38 +2,16 @@ import type { ResumeWorkspace, ResumeWorkspaceStatus } from "./types.js";
 import { deriveWorkspaceStatus } from "./workspace-status.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
 import { criticalSkillWarning } from "./critical-skill-gate.js";
-import { findResumePaddingIssue } from "../planning/text-padding.js";
-import { minimumResumeBulletCount } from "./bullet-count-rules.js";
-import { matchingFactNeutralFragment } from "./fact-neutral-fragments.js";
-import { validateFactNeutralFragment } from "./fact-neutral-validation.js";
 import { supplementalIntegrationTargets } from
   "./supplemental-integration-targets.js";
-export type ResumeGenerationBlockerCode =
-  | "layout_not_current"
-  | "layout_not_qualified"
-  | "item_tier_missing"
-  | "bullet_count_too_low"
-  | "bullet_provenance_missing"
-  | "grounded_evidence_missing"
-  | "augmented_confirmation_pending"
-  | "sentence_punctuation"
-  | "bullet_content_padding"
-  | "critical_skill_evidence_missing"
-  | "reuse_adaptation_pending"
-  | "supplemental_evidence_not_integrated";
-
-export interface ResumeGenerationBlocker {
-  code: ResumeGenerationBlockerCode;
-  message: string;
-  itemId?: string;
-  bulletId?: string;
-}
-
-export interface ResumeGenerationReadiness {
-  ready: boolean;
-  blockers: ResumeGenerationBlocker[];
-  warnings: ResumeGenerationBlocker[];
-}
+import { itemReadinessBlockers } from "./item-readiness.js";
+import type { ResumeGenerationBlocker, ResumeGenerationReadiness } from
+  "./generation-readiness-types.js";
+export type {
+  ResumeGenerationBlocker,
+  ResumeGenerationBlockerCode,
+  ResumeGenerationReadiness,
+} from "./generation-readiness-types.js";
 
 /** Deterministic host gate shared by preview, save and export. */
 export function resumeGenerationReadiness(
@@ -87,126 +65,7 @@ export function resumeGenerationReadiness(
       message: "当前 bullet 与真实版面测量结果不一致",
     });
   }
-  const hasCurrentProvenance = workspace.bulletProvenance !== undefined;
-  const provenance = new Map(
-    (workspace.bulletProvenance ?? []).map((entry) => [entry.bulletId, entry]),
-  );
-  const bindings = new Map(
-    workspace.bindings.map((entry) => [entry.bulletId, entry]),
-  );
-  const supplementalEvidenceIds = new Set(
-    (workspace.supplementalEvidence ?? []).map((entry) => entry.evidenceId),
-  );
-  for (const section of workspace.structure.sections) {
-    for (const item of section.items) {
-      const tier = workspace.itemTiers?.[item.id];
-      const requiresTier = !["education", "skills"].includes(section.type);
-      if (requiresTier && !tier) {
-        blockers.push({
-          code: "item_tier_missing",
-          message: "经历缺少 main/secondary 匹配度分级",
-          itemId: item.id,
-        });
-      }
-      const minimum = minimumResumeBulletCount({
-        sectionType: section.type,
-        itemId: item.id,
-        ...(tier ? { tier } : {}),
-      });
-      if (item.bullets.length < minimum) {
-        blockers.push({
-          code: "bullet_count_too_low",
-          message: `${tier ?? section.type} 内容至少需要 ${minimum} 条 bullet`,
-          itemId: item.id,
-        });
-      }
-      for (const bullet of item.bullets) {
-        const neutralFragment = matchingFactNeutralFragment(
-          workspace,
-          bullet.id,
-          bullet.text,
-        );
-        const paddingIssue = findResumePaddingIssue(
-          neutralFragment?.baseText ?? bullet.text,
-        );
-        if (paddingIssue) {
-          blockers.push({
-            code: "bullet_content_padding",
-            message: `bullet 包含${paddingIssue}，必须改写为具体动作、对象、方法或结果`,
-            itemId: item.id,
-            bulletId: bullet.id,
-          });
-        }
-        if (neutralFragment) {
-          try {
-            validateFactNeutralFragment(
-              neutralFragment.fragmentText,
-              workspace.structure.language,
-            );
-          } catch (error: unknown) {
-            blockers.push({
-              code: "bullet_content_padding",
-              message: error instanceof Error ? error.message : String(error),
-              itemId: item.id,
-              bulletId: bullet.id,
-            });
-          }
-        }
-        const source = provenance.get(bullet.id);
-        if (!source && hasCurrentProvenance) {
-          blockers.push({
-            code: "bullet_provenance_missing",
-            message: "bullet 缺少来源记录",
-            itemId: item.id,
-            bulletId: bullet.id,
-          });
-        } else if (!source && !bindings.has(bullet.id)) {
-          blockers.push({
-            code: "grounded_evidence_missing",
-            message: "旧版事实型 bullet 缺少可验证证据",
-            itemId: item.id,
-            bulletId: bullet.id,
-          });
-        } else if (source &&
-          source.origin === "grounded" &&
-          (
-            !source.evidenceIds.length ||
-            (
-              source.evidenceIds.some(
-                (evidenceId) => !supplementalEvidenceIds.has(evidenceId),
-              ) &&
-              !bindings.has(bullet.id)
-            )
-          )
-        ) {
-          blockers.push({
-            code: "grounded_evidence_missing",
-            message: "事实型 bullet 缺少可验证证据",
-            itemId: item.id,
-            bulletId: bullet.id,
-          });
-        } else if (source &&
-          source.origin === "agent_augmented" &&
-          source.confirmation !== "confirmed"
-        ) {
-          blockers.push({
-            code: "augmented_confirmation_pending",
-            message: "AI 补写内容尚未得到用户确认",
-            itemId: item.id,
-            bulletId: bullet.id,
-          });
-        }
-        if (hasSentencePunctuation(bullet.text)) {
-          blockers.push({
-            code: "sentence_punctuation",
-            message: "bullet 末尾不得有句末标点",
-            itemId: item.id,
-            bulletId: bullet.id,
-          });
-        }
-      }
-    }
-  }
+  blockers.push(...itemReadinessBlockers(workspace));
   for (const pending of pendingAugmentedContent(workspace)) {
     if (pending.kind !== "fragment") continue;
     blockers.push({
@@ -239,10 +98,4 @@ function layoutFailureMessage(workspace: ResumeWorkspace): string {
   return codes.length
     ? `版面尚未达标：${codes.join("、")}`
     : "版面尚未达到单页、92% 页面占用率和 >70% 尾行要求";
-}
-
-function hasSentencePunctuation(value: string): boolean {
-  return new Set(["。", ".", "！", "!", "？", "?", "；", ";", "：", ":"]).has(
-    value.trim().at(-1) ?? "",
-  );
 }

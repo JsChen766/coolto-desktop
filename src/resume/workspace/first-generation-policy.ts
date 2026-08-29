@@ -1,5 +1,5 @@
 import { groundedAdditionTargets } from "./grounded-addition-targets.js";
-import { bulletCountRepairPlan } from "./bullet-count-repair.js";
+import { itemLineWriteTargets } from "./item-line-plan.js";
 import {
   RESUME_DEFAULT_TARGET_USAGE_RATIO,
   RESUME_LAYOUT_TOLERANCE_PX,
@@ -28,14 +28,8 @@ export function hasPendingFirstGenerationGroundedWork(
   workspace: ResumeWorkspace,
 ): boolean {
   if (!isFirstResumeGeneration(workspace)) return false;
-  const countPlan = bulletCountRepairPlan(workspace);
-  return (
-    (countPlan.mode === "repair"
-      ? countPlan.targets.length
-      : countPlan.initialDraftTargets.length) > 0
-  ) || (
-    unusedGroundedEvidenceCount(workspace) > 0 &&
-    hasSafeFirstGenerationPageCapacity(workspace)
+  return itemLineWriteTargets(workspace).some(
+    (target) => target.currentBullets.length === 0,
   );
 }
 
@@ -48,8 +42,7 @@ export function factNeutralClosureActive(
   if (workspace.evidenceAssessment) {
     return workspace.evidenceAssessment.phase === "neutral_closure";
   }
-  const countPlan = bulletCountRepairPlan(workspace);
-  return countPlan.mode === "repair" && countPlan.targets.length === 0 &&
+  return itemLineWriteTargets(workspace).length === 0 &&
     (
       unusedGroundedEvidenceCount(workspace) === 0 ||
       !hasSafeFirstGenerationPageCapacity(workspace)
