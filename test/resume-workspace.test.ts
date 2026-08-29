@@ -33,6 +33,10 @@ test("preparer creates the fixed resume skeleton and returns a real pixel budget
   assert.equal(workspace.structure.sections[0]?.items[0]?.id, "item-edu-1");
   assert.equal(workspace.structure.sections[1]?.items[0]?.id, "item-work-1");
   assert.equal(workspace.structure.layout_template_id, "resume-standard");
+  assert.equal(
+    workspace.structure.layout_tuning?.body_font_scale,
+    10.5 / 9.75,
+  );
   assert.equal(compiler.structures.length, 1);
   assert.equal(projection.budget.pxToMinimum, 200);
   assert.equal(projection.budget.estimatedBodyLinesRemaining, 14);

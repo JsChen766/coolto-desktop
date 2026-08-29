@@ -20,6 +20,9 @@ import {
 import { compareResumeExperienceRecency } from "./experience-recency.js";
 import { RESUME_TAIL_POLICY_V2 } from "../tail-policy.js";
 
+/** resume-standard 9.75pt -> Chinese 五号 10.5pt; renderer cap is 1.08. */
+const STANDARD_FIVE_POINT_BODY_SCALE = 10.5 / 9.75;
+
 export function buildResumeSkeleton(
   snapshot: ResumeSourceSnapshot,
   experienceOrder: readonly string[],
@@ -60,7 +63,9 @@ export function buildResumeSkeleton(
     layout_profile_hash: snapshot.template.profileHash,
     tail_policy_version: RESUME_TAIL_POLICY_V2.version,
     layout_tuning: {
-      body_font_scale: 1,
+      body_font_scale: snapshot.template.templateId === "resume-standard"
+        ? STANDARD_FIVE_POINT_BODY_SCALE
+        : 1,
       body_line_height: defaultResumeBodyLineHeight(snapshot.template.templateId),
       section_gap_scale: 1,
       item_gap_scale: 1,

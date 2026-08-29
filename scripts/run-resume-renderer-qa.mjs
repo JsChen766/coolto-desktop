@@ -154,6 +154,7 @@ assert.equal(report.workspaceResult.repairRound, 1);
 assert.ok(report.workspaceResult.repairDiagnostic.candidatesCompiled >= 1);
 assert.ok(report.workspaceResult.bindingCount > 0);
 assert.equal(report.workspaceResult.compileResult.qualified, true);
+assert.equal(report.workspaceResult.compileResult.bodyFontSizePx, 14);
 assert.ok(report.workspaceResult.compileResult.usageRatio >= 0.85);
 assert.ok(report.workspaceResult.compileResult.bullets.every((bullet) => bullet.passed));
 assert.equal(report.g6ExportResult.status, "exported");
