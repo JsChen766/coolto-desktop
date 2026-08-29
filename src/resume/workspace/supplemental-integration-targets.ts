@@ -9,6 +9,7 @@ export interface SupplementalIntegrationTarget {
     text: string;
     origin: "grounded" | "agent_augmented";
     evidenceIds: string[];
+    workUnitIds: string[];
     requirementIds: string[];
   }>;
   supplementalEvidence: Array<{ evidenceId: string; text: string }>;
@@ -41,7 +42,7 @@ export function supplementalIntegrationTargets(
         itemId: item.id,
         experienceId,
         requiredEdit:
-          "一次完整重交 currentBullets：保留仍有价值的现有 bullet，并把至少一条 supplementalEvidence 的具体事实自然写入最相关 bullet；该 bullet 的 evidenceIds 必须加入对应 supplemental evidenceId。不得只为过门禁机械追加原句。",
+          "一次完整重交 currentBullets：按最新 WorkUnit 分组保留或重组 bullet；每条绑定完整 workUnitIds 并引用其全部 evidence，补充事实若属于已有项目应合入同一 bullet，只有新 WorkUnit 才新增 bullet。不得只为过门禁机械追加原句。",
         currentBullets: item.bullets.map((bullet) => {
           const source = provenance.get(bullet.id);
           return {
@@ -49,6 +50,7 @@ export function supplementalIntegrationTargets(
             text: bullet.text,
             origin: source?.origin ?? "grounded",
             evidenceIds: [...(source?.evidenceIds ?? [])],
+            workUnitIds: [...(source?.workUnitIds ?? [])],
             requirementIds: [...(source?.requirementIds ?? [])],
           };
         }),

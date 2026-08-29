@@ -42,6 +42,8 @@ import { createReuseAdaptation } from
   "../../resume/workspace/reuse-adaptation.js";
 import { createItemLineBudgets } from
   "../../resume/workspace/item-line-budget.js";
+import { pendingResumeWorkUnitMap } from
+  "../../resume/workspace/work-unit-map.js";
 
 export function createResumeWorkspaceTool(
   snapshotBuilder: ResumeSourceSnapshotBuilder,
@@ -54,7 +56,7 @@ export function createResumeWorkspaceTool(
     name: "create_resume_workspace",
     label: "创建简历工作区",
     description:
-      "锁定目标 JD、Profile 和 Agent 选择的经历集合，并创建真实 Chromium 工作区。baseResumeId/baseDraftArtifactId 只能来自已核验候选且只能提供一个；宿主重核 evidence、重算新 JD coverage，将有效 grounded bullet 播种到新候选，不覆盖历史资产。教育自动纳入且不能改写；每个工作来源提交 localizedPosition。宿主继续执行 must-have、bullet 数、整页容量、单页、尾行和事实门禁。",
+      "锁定目标 JD、Profile 和 Agent 选择的经历集合，并创建真实 Chromium 工作区。baseResumeId/baseDraftArtifactId 只能来自已核验候选且只能提供一个；宿主重核 evidence、重算新 JD coverage，将有效 grounded bullet 播种到新候选，不覆盖历史资产。教育自动纳入且不能改写；每个工作来源提交 localizedPosition。新空白工作区先做 WorkUnit 语义分组；宿主继续执行 must-have、Experience 行数、整页容量、单页、尾行和事实门禁。",
     executionMode: "sequential",
     parameters: createWorkspaceParameters,
     execute: async (_toolCallId, params) => {
@@ -198,6 +200,9 @@ export function createResumeWorkspaceTool(
           itemTiers,
           compileResult,
         }),
+        ...(!baseResume ? { workUnitMap: pendingResumeWorkUnitMap(
+          snapshot.sourceFingerprint,
+        ) } : {}),
         bulletProvenance: retained.bulletProvenance,
         ...(retained.augmentedFragments.length
           ? { augmentedFragments: retained.augmentedFragments }

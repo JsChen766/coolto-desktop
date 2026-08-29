@@ -28,17 +28,72 @@ import {
   FixtureResumeCompiler,
   WORK_CONTENT,
 } from "./support/resume-workspace-fixture.js";
+import {
+  completeFixtureWorkUnits,
+  fixtureCreationPayload,
+  withFixtureWorkUnits,
+} from "./support/resume-work-unit-fixture.js";
 
-function harness(compiler = new FixtureResumeCompiler()) {
-  const builder = createWorkspaceSnapshotBuilder();
+function harness(
+  compiler = new FixtureResumeCompiler(),
+  builder = createWorkspaceSnapshotBuilder(),
+) {
   const store = new ResumeWorkspaceStore();
+  const rawCreate = createResumeWorkspaceTool(builder, compiler, store);
+  const rawApply = createApplyResumeContentTool(compiler, store);
+  const create = {
+    ...rawCreate,
+    execute: async (id: string, params: any) => {
+      const result = await rawCreate.execute(id, params);
+      const original = text(result);
+      if (!original.candidateId) return result;
+      const payload = fixtureCreationPayload(store, original);
+      return {
+        ...result,
+        content: [{ type: "text" as const, text: JSON.stringify(payload) }],
+        details: {
+          ...(result.details as Record<string, unknown>),
+          ...payload,
+          loopGuardKey: resumeContentProgressKey(store.latest()!),
+        },
+      };
+    },
+  } as typeof rawCreate;
+  const apply = {
+    ...rawApply,
+    execute: async (id: string, params: any) => {
+      if (!params.workUnits && store.latest()?.workUnitMap?.status === "pending") {
+        const before = store.latest()!;
+        const grouped = completeFixtureWorkUnits(store);
+        if (params.expectedRevision === before.revision) {
+          params = { ...params, expectedRevision: grouped.revision };
+        }
+      }
+      const workspace = store.latest()!;
+      params = {
+        ...params,
+        ...(params.items ? { items: params.items.map((item: any) => ({
+          ...item,
+          bullets: item.bullets.map((bullet: any) =>
+            withFixtureWorkUnits(workspace, bullet)
+          ),
+        })) } : {}),
+        ...(params.bulletAdditions ? {
+          bulletAdditions: params.bulletAdditions.map((bullet: any) =>
+            withFixtureWorkUnits(workspace, bullet)
+          ),
+        } : {}),
+      };
+      return rawApply.execute(id, params);
+    },
+  } as typeof rawApply;
   return {
     builder,
     compiler,
     store,
-    create: createResumeWorkspaceTool(builder, compiler, store),
+    create,
     get: createGetResumeWorkspaceTool(store),
-    apply: createApplyResumeContentTool(compiler, store),
+    apply,
   };
 }
 
@@ -419,15 +474,7 @@ test("slight overflow removes only one extra bullet before any source reduction"
     tinyWorkContent: "负责日常数据整理。维护周度报表并核对异常数据。",
   });
   const compiler = new MinimalOverflowCompiler();
-  const store = new ResumeWorkspaceStore();
-  const value = {
-    builder,
-    compiler,
-    store,
-    create: createResumeWorkspaceTool(builder, compiler, store),
-    get: createGetResumeWorkspaceTool(store),
-    apply: createApplyResumeContentTool(compiler, store),
-  };
+  const value = harness(compiler, builder);
   const created = text(await value.create.execute("create-overflow", {
     jdId: "jd-1",
     language: "zh-CN",
@@ -436,12 +483,17 @@ test("slight overflow removes only one extra bullet before any source reduction"
       { experienceId: "tiny-work-1", tier: "secondary" },
     ],
   }));
+  const semanticWorkspace = value.store.latest()!;
   const written = text(await value.apply.execute("write-overflow", {
     candidateId: created.candidateId,
     expectedRevision: created.revision,
     items: [
-      { itemId: "item-work-1", bullets: workBullets(value).slice(0, 4) },
-      { itemId: "item-tiny-work-1", bullets: tinyWorkBullets(value) },
+      { itemId: "item-work-1", bullets: workBullets(value).slice(0, 4).map(
+        (bullet) => withFixtureWorkUnits(semanticWorkspace, bullet)
+      ) },
+      { itemId: "item-tiny-work-1", bullets: tinyWorkBullets(value).map(
+        (bullet) => withFixtureWorkUnits(semanticWorkspace, bullet)
+      ) },
     ],
   }));
   const action = written.nextAction;
@@ -576,11 +628,12 @@ test("bullet addition allocates after the highest suffix when existing ids have 
   const store = new ResumeWorkspaceStore();
   const create = createResumeWorkspaceTool(builder, compiler, store);
   const apply = createApplyResumeContentTool(compiler, store);
-  const created = text(await create.execute("create-id-gap", {
+  let created = text(await create.execute("create-id-gap", {
     jdId: "jd-1",
     language: "zh-CN",
     experiences: [{ experienceId: "work-1", tier: "main" }],
   }));
+  created = fixtureCreationPayload(store, created);
   const evidence = evidenceForModel(store.latest()!.sourceSnapshot)
     .filter((entry) => entry.experienceId === "work-1");
   const initial = text(await apply.execute("write-id-gap", {
@@ -588,7 +641,8 @@ test("bullet addition allocates after the highest suffix when existing ids have 
     expectedRevision: created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: evidence.slice(0, 3).map((entry, index) => ({
+      bullets: evidence.slice(0, 3).map((entry, index) => withFixtureWorkUnits(
+        store.latest()!, {
         bulletId: `item-work-1-bullet-${index + 2}`,
         text: entry.text.replace(/。$/u, ""),
         plannedLines: 2,
@@ -612,13 +666,13 @@ test("bullet addition allocates after the highest suffix when existing ids have 
   const added = text(await apply.execute("append-after-gap", {
     candidateId: created.candidateId,
     expectedRevision: initial.revision,
-    bulletAdditions: [{
+    bulletAdditions: [withFixtureWorkUnits(store.latest()!, {
       itemId: "item-work-1",
       text: evidence[3]!.text.replace(/。$/u, ""),
       origin: "grounded",
       evidenceIds: [evidence[3]!.evidenceId],
       requirementIds: ["req-1"],
-    }],
+    })],
   }));
 
   assert.equal(added.revision, initial.revision + 1);
@@ -680,7 +734,7 @@ test("create_resume_workspace locks all sources and measures only the blank page
   const payload = await createWorkspace(value);
 
   assert.equal(value.compiler.structures.length, 1);
-  assert.equal(payload.revision, 0);
+  assert.equal(payload.revision, 1);
   assert.equal(payload.source.jd.id, "jd-1");
   assert.equal(payload.source.experiences.length, 2);
   assert.equal("content" in payload.source.experiences[0], false);
@@ -768,7 +822,7 @@ test("item line writing rejects an incomplete multi-item batch", async () => {
   const store = new ResumeWorkspaceStore();
   const create = createResumeWorkspaceTool(builder, compiler, store);
   const apply = createApplyResumeContentTool(compiler, store);
-  const created = text(await create.execute("create-complete-count-batch", {
+  let created = text(await create.execute("create-complete-count-batch", {
     jdId: "jd-1",
     language: "zh-CN",
     experiences: [
@@ -776,6 +830,7 @@ test("item line writing rejects an incomplete multi-item batch", async () => {
       { experienceId: "tiny-work-1", tier: "secondary" },
     ],
   }));
+  created = fixtureCreationPayload(store, created);
   const evidence = evidenceForModel(store.latest()!.sourceSnapshot)
     .filter((entry) => entry.experienceId === "work-1");
   const rejected = text(await apply.execute("incomplete-count-batch", {
@@ -783,7 +838,7 @@ test("item line writing rejects an incomplete multi-item batch", async () => {
     expectedRevision: created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: evidence.map((entry) => ({
+      bullets: evidence.map((entry) => withFixtureWorkUnits(store.latest()!, {
         text: entry.text.replace(/。$/u, ""),
         origin: "grounded",
         evidenceIds: [entry.evidenceId],
@@ -867,7 +922,10 @@ test("count repair rejects a duplicate range but keeps other valid bullets", asy
   }));
 
   assert.equal(result.operation.status, "partial_success");
-  assert.match(result.operation.rejectedItems[0].reason, /reuses.*reserved/u);
+  assert.match(
+    result.operation.rejectedItems[0].reason,
+    /reuses.*reserved|WorkUnit 不能拆到多条/u,
+  );
   assert.equal(value.store.latest()!.revision, workspace.revision + 1);
   assert.equal(value.store.latest()!.bindings.length, 2);
   assert.notEqual(result.nextAction.mode, "repair_bullet_counts");
@@ -1006,6 +1064,11 @@ test("grounded writes auto-attach same-experience evidence that covers numbers",
   const workspace = await createWorkspace(value);
   const evidence = evidenceForModel(value.store.latest()!.sourceSnapshot)
     .filter((entry) => entry.experienceId === "work-1");
+  const numericEvidence = evidence.find((entry) => entry.text.includes("3 个团队"))!;
+  const numericWorkUnits = withFixtureWorkUnits(value.store.latest()!, {
+    origin: "grounded",
+    evidenceIds: [evidence[0]!.evidenceId, numericEvidence.evidenceId],
+  }).workUnitIds;
   const payload = text(await value.apply.execute("auto-cover-number", {
     candidateId: workspace.candidateId,
     expectedRevision: workspace.revision,
@@ -1015,6 +1078,7 @@ test("grounded writes auto-attach same-experience evidence that covers numbers",
         text: "使用 Python 清洗数据并为 3 个团队建立周度报表",
         origin: "grounded",
         evidenceIds: [evidence[0]!.evidenceId],
+        ...(numericWorkUnits ? { workUnitIds: numericWorkUnits } : {}),
       }, ...workBullets(value).slice(2), {
         text: "主动复盘跨团队协作流程并沉淀可复用方法",
         origin: "agent_augmented",
@@ -1022,7 +1086,11 @@ test("grounded writes auto-attach same-experience evidence that covers numbers",
     }],
   }));
 
-  assert.equal(payload.operation.rejectedItems.length, 0);
+  assert.equal(
+    payload.operation.rejectedItems.length,
+    0,
+    JSON.stringify(payload.operation.rejectedItems),
+  );
   assert.equal(value.store.latest()!.bulletProvenance?.find(
     (entry) => entry.itemId === "item-work-1",
   )?.evidenceIds.length, 2);
@@ -1113,7 +1181,7 @@ test("create_resume_workspace expands one JD in place without duplicating its dr
   );
 
   assert.equal(expanded.candidateId, first.candidateId);
-  assert.equal(expanded.revision, 1);
+  assert.equal(expanded.revision, first.revision + 2);
   assert.equal(expanded.sourceSelection.mode, "reselected");
   assert.equal(expanded.sourceSelection.selectedExperienceCount, 3);
   assert.deepEqual(expanded.sourceSelection.newItemIds, ["item-tiny-work-1"]);
@@ -1141,7 +1209,7 @@ test("create_resume_workspace expands one JD in place without duplicating its dr
     }),
   );
   assert.equal(unchanged.candidateId, first.candidateId);
-  assert.equal(unchanged.revision, 1);
+  assert.equal(unchanged.revision, expanded.revision);
   assert.equal(unchanged.sourceSelection.mode, "unchanged");
   assert.equal(unchanged.recovery.repeated, true);
   assert.match(unchanged.recovery.instruction, /禁止再次调用 create_resume_workspace/u);
@@ -1180,7 +1248,7 @@ test("source expansion retains user-provided facts for selected experiences", as
   );
 
   assert.equal(expanded.candidateId, first.candidateId);
-  assert.equal(expanded.revision, added.revision + 1);
+  assert.equal(expanded.revision, added.revision + 2);
   assert.equal(
     expanded.availableEvidence.some(
       (entry: { text: string }) => entry.text === "补充了真实的用户访谈方法",
@@ -1239,13 +1307,13 @@ test("apply_resume_content replaces a complete item batch and compiles once", as
   const created = await createWorkspace(value);
   const execution = await value.apply.execute("apply", {
     candidateId: created.candidateId,
-    expectedRevision: 0,
+    expectedRevision: created.revision,
     items: [{ itemId: "item-work-1", bullets: workBullets(value) }],
   });
   const payload = text(execution);
 
   assert.equal(value.compiler.structures.length, 2);
-  assert.equal(payload.revision, 1);
+  assert.equal(payload.revision, created.revision + 1);
   assert.equal(payload.operation.status, "success");
   assert.equal("loopGuardKey" in payload, false);
   assert.match(
@@ -1256,7 +1324,7 @@ test("apply_resume_content replaces a complete item batch and compiles once", as
   assert.equal(value.store.latest()!.structure.sections.flatMap(
     (section) => section.items,
   ).find((item) => item.id === "item-work-1")?.bullets.length, 3);
-  assert.equal(payload.layout.observedRevision, 1);
+  assert.equal(payload.layout.observedRevision, payload.revision);
   assert.equal(payload.layout.gates.bulletCountsPassed, true);
   assert.equal(payload.layout.gates.itemLinesPassed, false);
   assert.equal("resume" in payload, false);
@@ -1558,7 +1626,11 @@ test("a complete semantic tail rewrite is applied only after it passes", async (
   });
   const advanced = text(advancedExecution);
 
-  assert.equal(advanced.revision, written.revision + 1);
+  assert.equal(
+    advanced.revision,
+    written.revision + 1,
+    JSON.stringify(advanced),
+  );
   assert.equal(advanced.tailRepairDiagnostics.appliedTargetCount, 1);
   assert.equal(
     (advancedExecution.details as { turnGovernorPhaseKey?: string })
@@ -1741,15 +1813,7 @@ test("first-generation underfill deepens planned work units before adding bullet
     workContent: `${WORK_CONTENT}补充访谈 8 名业务用户并整理需求优先级。`,
   });
   const compiler = new FixtureResumeCompiler();
-  const store = new ResumeWorkspaceStore();
-  const value = {
-    builder,
-    compiler,
-    store,
-    create: createResumeWorkspaceTool(builder, compiler, store),
-    get: createGetResumeWorkspaceTool(store),
-    apply: createApplyResumeContentTool(compiler, store),
-  };
+  const value = harness(compiler, builder);
   const created = await createWorkspace(value);
   await value.apply.execute("three-grounded-bullets", {
     candidateId: created.candidateId,
@@ -1782,6 +1846,7 @@ test("a user-supplied fact must be integrated before page-fill expansion", async
     experienceId: "work-1",
     facts: ["组织 6 场用户访谈并形成产品需求优先级"],
   }));
+  completeFixtureWorkUnits(value.store);
 
   const action = resumeAgentNextAction(value.store.latest()!);
   assert.equal(action.mode, "integrate_supplemental_evidence");
@@ -1794,9 +1859,12 @@ test("a user-supplied fact must be integrated before page-fill expansion", async
   ));
   const target = action.itemTargets[0]!;
   const supplemental = target.supplementalEvidence[0]!;
+  const supplementalWorkUnitId = value.store.latest()!.workUnitMap!.units
+    .find((unit) => unit.evidenceIds.includes(supplemental.evidenceId))!
+    .workUnitId;
   const integrated = text(await value.apply.execute("integrate-numeric-fact", {
     candidateId: created.candidateId,
-    expectedRevision: added.revision,
+    expectedRevision: value.store.latest()!.revision,
     items: [{
       itemId: target.itemId,
       bullets: target.currentBullets.map((bullet, index) => index === 0
@@ -1804,11 +1872,12 @@ test("a user-supplied fact must be integrated before page-fill expansion", async
             ...bullet,
             text: `${bullet.text}，组织 6 场用户访谈并形成产品需求优先级`,
             evidenceIds: [...bullet.evidenceIds, supplemental.evidenceId],
+            workUnitIds: [...bullet.workUnitIds, supplementalWorkUnitId],
           }
         : bullet),
     }],
   }));
-  assert.equal(integrated.revision, added.revision + 1);
+  assert.equal(integrated.revision, added.revision + 2);
   assert.doesNotMatch(
     JSON.stringify(integrated.nextAction),
     /integrate_supplemental_evidence/u,
@@ -1938,8 +2007,13 @@ test("two consecutive zero-growth page-fill rounds pause for user material", asy
   assert.equal("materialRequest" in resumed, false);
   assert.equal(value.store.latest()!.pageFillProgress, undefined);
   assert.equal(value.store.latest()!.lineRewriteProgress, undefined);
-  assert.equal(resumed.nextAction.mode, "integrate_supplemental_evidence");
-  assert.equal(resumed.nextAction.requiredInput, "items");
+  assert.equal(resumed.nextAction.mode, "group_work_units");
+  completeFixtureWorkUnits(value.store);
+  const integration = resumeAgentNextAction(value.store.latest()!);
+  assert.equal(integration.mode, "integrate_supplemental_evidence");
+  if (integration.mode === "integrate_supplemental_evidence") {
+    assert.equal(integration.requiredInput, "items");
+  }
 });
 
 test("underfill accepts one rewrite that safely crosses two lines", async () => {
@@ -2171,7 +2245,9 @@ test("legacy utility rows require one grounded bullet before completion", async 
 
   const mainOnly = await applyAgentResumeContent({
     workspace: value.store.latest()!,
-    items: [{ itemId: "item-work-1", bullets: workBullets(value) }],
+    items: [{ itemId: "item-work-1", bullets: workBullets(value).map(
+      (bullet) => withFixtureWorkUnits(value.store.latest()!, bullet)
+    ) }],
     compiler: value.compiler,
     store: value.store,
   });
@@ -2259,7 +2335,7 @@ test("apply_resume_content keeps item validation atomic but allows partial succe
   const payload = text(
     await value.apply.execute("apply", {
       candidateId: created.candidateId,
-      expectedRevision: 0,
+      expectedRevision: created.revision,
       items: [
         { itemId: "item-work-1", bullets: workBullets(value) },
         {
@@ -2292,7 +2368,7 @@ test("get_resume_workspace returns current authority without recompiling", async
   const execution = await value.get.execute("get", {});
   const payload = text(execution);
 
-  assert.equal(payload.revision, 0);
+  assert.equal(payload.revision, value.store.latest()!.revision);
   assert.equal(value.compiler.structures.length, before);
   assert.ok(payload.availableEvidence.length >= 4);
   assert.equal(
@@ -2340,14 +2416,14 @@ test("add_resume_material appends user facts without mutating the source snapsho
   const payload = text(
     await add.execute("material", {
       candidateId: created.candidateId,
-      expectedRevision: 0,
+      expectedRevision: created.revision,
       experienceId: "work-1",
       facts: ["独立搭建自动化检查流程并覆盖 5 个数据源"],
     }),
   );
 
-  assert.equal(payload.revision, 1);
-  assert.equal(payload.layout.observedRevision, 0);
+  assert.equal(payload.revision, created.revision + 1);
+  assert.equal(payload.layout.observedRevision, created.revision);
   assert.equal(payload.addedEvidence.length, 1);
   assert.match(payload.addedEvidence[0].evidenceId, /^supplemental:/u);
   assert.equal(value.store.latest()!.sourceSnapshot.experiences

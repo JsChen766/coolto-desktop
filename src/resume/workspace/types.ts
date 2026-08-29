@@ -18,8 +18,8 @@ import type {
 } from "./fact-neutral-types.js";
 import type { ResumeMaterialFollowUpPending, ResumeMaterialRequest } from "./material-request-types.js";
 import type { ResumeReuseAdaptation, ResumeReuseBase } from "./reuse-adaptation-types.js";
-import type { ResumeEvidenceAssessmentState } from
-  "./evidence-assessment-types.js";
+import type { ResumeEvidenceAssessmentState } from "./evidence-assessment-types.js";
+import type { ResumeWorkUnitMap } from "./work-unit-types.js";
 import type {
   ResumeBulletConfirmation,
   ResumeBulletOrigin,
@@ -104,6 +104,7 @@ export interface ResumeWorkspace {
   /** New workspaces express relevance through item body-line allocation. */
   lineBudgetVersion?: "item-lines-v1";
   itemLineBudgets?: Record<string, ResumeItemLineBudget>;
+  workUnitMap?: ResumeWorkUnitMap;
   /** Provenance for the current complete bullet lists. */
   bulletProvenance?: ResumeBulletProvenance[];
   /** User-provided facts added after the immutable source snapshot was locked. */

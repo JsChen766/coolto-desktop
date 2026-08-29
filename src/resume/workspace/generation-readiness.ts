@@ -7,6 +7,7 @@ import { supplementalIntegrationTargets } from
 import { itemReadinessBlockers } from "./item-readiness.js";
 import type { ResumeGenerationBlocker, ResumeGenerationReadiness } from
   "./generation-readiness-types.js";
+import { workUnitReadinessBlockers } from "./work-unit-ownership.js";
 export type {
   ResumeGenerationBlocker,
   ResumeGenerationBlockerCode,
@@ -18,6 +19,10 @@ export function resumeGenerationReadiness(
   workspace: ResumeWorkspace,
 ): ResumeGenerationReadiness {
   const blockers: ResumeGenerationBlocker[] = [];
+  if (workspace.workUnitMap?.status === "pending") blockers.push({
+    code: "work_unit_map_missing",
+    message: "经历 evidence 尚未完成 WorkUnit 语义分组",
+  });
   const criticalWarning = criticalSkillWarning(workspace);
   const warnings = criticalWarning ? [criticalWarning] : [];
   if (workspace.reuseAdaptation?.status === "pending") blockers.push({
@@ -65,6 +70,7 @@ export function resumeGenerationReadiness(
       message: "当前 bullet 与真实版面测量结果不一致",
     });
   }
+  blockers.push(...workUnitReadinessBlockers(workspace));
   blockers.push(...itemReadinessBlockers(workspace));
   for (const pending of pendingAugmentedContent(workspace)) {
     if (pending.kind !== "fragment") continue;

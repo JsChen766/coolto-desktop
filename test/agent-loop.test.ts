@@ -996,7 +996,7 @@ test("resume repetition recovery receives the exact reason and authority", async
 test("resume agent keeps recovering runaway narration without persisting it", async () => {
   const faux = fauxProvider({ tokensPerSecond: 0 });
   const narration = Array.from(
-    { length: 6_101 },
+    { length: 8_101 },
     (_, index) => String.fromCodePoint(0x4e00 + index),
   ).join("");
   faux.setResponses([

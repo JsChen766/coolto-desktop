@@ -42,6 +42,7 @@ import {
   resumeUsageNextAction,
   type ResumeUsageNextAction,
 } from "./usage-next-action.js";
+import { workUnitGroupingAction } from "./work-unit-map.js";
 const MAX_MODEL_TAIL_REWRITE_TARGETS = 4;
 interface AgentSemanticTailRewriteTarget {
   requiredEdit: string;
@@ -58,6 +59,7 @@ interface AgentSemanticTailRewriteTarget {
 }
 export type ResumeAgentNextAction =
   | { mode: "stop" }
+  | NonNullable<ReturnType<typeof workUnitGroupingAction>>
   | ResumeReuseAdaptationAction | ResumeMaterialNextAction
   | ResumeEvidenceAssessmentAction
   | { mode: "await_augmented_confirmation" }
@@ -87,6 +89,16 @@ export type ResumeAgentNextAction =
 export function resumeAgentNextAction(
   workspace: ResumeWorkspace,
 ): ResumeAgentNextAction {
+  const workUnitAction = workUnitGroupingAction(workspace);
+  const compile = workspace.compileResult;
+  if (workUnitAction && workspace.status !== "needs_user_decision" &&
+    (compile.pageCount !== 1 ||
+    compile.overflowPx > RESUME_LAYOUT_TOLERANCE_PX)) {
+    return { mode: "reduce_overflow", ...overflowReductionPlan(workspace) };
+  }
+  if (workUnitAction && workspace.status !== "needs_user_decision") {
+    return workUnitAction;
+  }
   const reuseAction = reuseAdaptationNextAction(workspace);
   if (reuseAction) return reuseAction;
   const criticalSkillRequest = criticalSkillMaterialRequest(workspace);
@@ -154,7 +166,6 @@ export function resumeAgentNextAction(
     !(isFirstResumeGeneration(workspace) && usageAction)
   ) return { mode: "stop" };
 
-  const compile = workspace.compileResult;
   if (
     compile.pageCount !== 1 ||
     compile.overflowPx > RESUME_LAYOUT_TOLERANCE_PX

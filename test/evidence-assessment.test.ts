@@ -25,6 +25,10 @@ import {
   FixtureResumeCompiler,
   WORK_CONTENT,
 } from "./support/resume-workspace-fixture.js";
+import {
+  completeFixtureWorkUnits,
+  withFixtureWorkUnits,
+} from "./support/resume-work-unit-fixture.js";
 
 class AssessmentCompiler extends FixtureResumeCompiler {
   public override async compile(
@@ -75,12 +79,14 @@ async function seededWorkspace() {
   }));
   const evidence = evidenceForModel(store.latest()!.sourceSnapshot)
     .filter((entry) => entry.experienceId === "work-1");
+  created.revision = completeFixtureWorkUnits(store).revision;
   const written = payload(await apply.execute("seed-assessment", {
     candidateId: created.candidateId,
     expectedRevision: created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: evidence.slice(0, 3).map((entry, index) => ({
+      bullets: evidence.slice(0, 3).map((entry, index) => withFixtureWorkUnits(
+        store.latest()!, {
         bulletId: `item-work-1-bullet-${index + 1}`,
         text: entry.text.replace(/。$/u, ""),
         plannedLines: 2,
@@ -121,15 +127,16 @@ function completeItemWithEvidence(
         plannedLines: workspace.bulletLinePlans?.[bullet.id]?.plannedLines ?? 2,
         origin: "grounded" as const,
         evidenceIds: provenance.get(bullet.id)?.evidenceIds ?? [],
+        workUnitIds: provenance.get(bullet.id)?.workUnitIds ?? [],
         requirementIds: provenance.get(bullet.id)?.requirementIds ?? [],
       })),
-      {
+      withFixtureWorkUnits(workspace, {
         text,
         plannedLines: 2,
         origin: "grounded" as const,
         evidenceIds: [evidence.evidenceId],
         requirementIds: ["req-1"],
-      },
+      }),
     ],
   }];
 }

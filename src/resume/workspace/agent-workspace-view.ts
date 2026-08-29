@@ -49,6 +49,7 @@ export function buildAgentWorkspaceView(
           text: bullet.text,
           origin: source?.origin ?? "grounded",
           evidenceIds: source?.evidenceIds ?? [],
+          workUnitIds: source?.workUnitIds ?? [],
           requirementIds: source?.requirementIds ?? [],
           confirmation: source?.confirmation ?? "not_required",
           plannedLines: linePlan?.plannedLines ?? null,

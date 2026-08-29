@@ -24,6 +24,10 @@ import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
 } from "./support/resume-workspace-fixture.js";
+import {
+  completeFixtureWorkUnits,
+  withFixtureWorkUnits,
+} from "./support/resume-work-unit-fixture.js";
 
 function resultText(result: { content: readonly { type: string; text?: string }[] }) {
   return JSON.parse(String(result.content[0]?.text ?? "{}"));
@@ -41,22 +45,23 @@ async function shortTailHarness() {
     experiences: [{ experienceId: "work-1", tier: "secondary" }],
   }));
   const apply = createApplyResumeContentTool(compiler, store);
+  created.revision = completeFixtureWorkUnits(store).revision;
   const written = resultText(await apply.execute("draft", {
     candidateId: created.candidateId,
     expectedRevision: created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: [{
+      bullets: [withFixtureWorkUnits(store.latest()!, {
         text: "使用 Python 清洗运营数据产品短尾",
         origin: "grounded",
         evidenceIds: ["work-1:0:19"],
         requirementIds: ["req-1"],
-      }, {
+      }), withFixtureWorkUnits(store.latest()!, {
         text: "为 3 个团队建立周度报表",
         origin: "grounded",
         evidenceIds: ["work-1:19:33"],
         requirementIds: ["req-1"],
-      }],
+      })],
     }],
   }));
   const workspace = store.latest()!;
@@ -458,12 +463,14 @@ test("first generation consumes unused grounded evidence before neutral closure"
   const evidence = evidenceForModel(store.latest()!.sourceSnapshot)
     .filter((entry) => entry.experienceId === "work-1");
   const apply = createApplyResumeContentTool(compiler, store);
+  created.revision = completeFixtureWorkUnits(store).revision;
   await apply.execute("write-minimum", {
     candidateId: created.candidateId,
     expectedRevision: created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: evidence.slice(0, 2).map((entry) => ({
+      bullets: evidence.slice(0, 2).map((entry) => withFixtureWorkUnits(
+        store.latest()!, {
         text: entry.text.replace(/。$/u, ""),
         origin: "grounded" as const,
         evidenceIds: [entry.evidenceId],

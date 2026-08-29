@@ -73,18 +73,32 @@ test("one long multi-evidence report satisfies a main item without three bullets
   }));
   const evidence = evidenceForModel(store.latest()!.sourceSnapshot)
     .filter((entry) => entry.experienceId === "work-1");
-  const applied = result(await createApplyResumeContentTool(
-    compiler, store,
-  ).execute("write-one-report-unit", {
+  const applyTool = createApplyResumeContentTool(compiler, store);
+  const grouped = result(await applyTool.execute("group-one-report-unit", {
     candidateId: created.candidateId,
     expectedRevision: created.revision,
+    workUnits: [{
+      itemId: "item-work-1",
+      units: [{
+        label: "数据产品周报与异常检查",
+        kind: "report",
+        evidenceIds: evidence.map((entry) => entry.evidenceId),
+      }],
+    }],
+  }));
+  const workUnitId = grouped.nextAction.itemTargets[0].availableWorkUnits[0]
+    .workUnitId;
+  const applied = result(await applyTool.execute("write-one-report-unit", {
+    candidateId: created.candidateId,
+    expectedRevision: grouped.revision,
     items: [{
       itemId: "item-work-1",
       bullets: [{
         text: evidence.map((entry) => entry.text.replace(/。$/u, "")).join("，"),
-        plannedLines: created.nextAction.itemTargets[0].targetLines,
+        plannedLines: grouped.nextAction.itemTargets[0].targetLines,
         origin: "grounded",
         evidenceIds: evidence.map((entry) => entry.evidenceId),
+        workUnitIds: [workUnitId],
         requirementIds: ["req-1"],
       }],
     }],

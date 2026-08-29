@@ -16,6 +16,7 @@ export interface ResumeBulletProvenance {
   bulletId: string;
   itemId: string;
   origin: ResumeBulletOrigin;
+  workUnitIds?: string[];
   evidenceIds: string[];
   requirementIds: string[];
   confirmation: ResumeBulletConfirmation;

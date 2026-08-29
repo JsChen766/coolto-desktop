@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v141");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v142");
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
@@ -17,8 +17,11 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /main 至少 3 条/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /secondary 至少 2 条/);
   assert.match(COOLTO_SYSTEM_PROMPT, /相关度只决定该 Experience 的总行数预算/u);
-  assert.match(COOLTO_SYSTEM_PROMPT, /同一工作单元.*多个 evidenceId/u);
-  assert.match(COOLTO_SYSTEM_PROMPT, /同一工作单元.*合成一条 bullet/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /完整引用这些 WorkUnit 的全部 evidenceIds/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /同一 WorkUnit 的证据合并到一条 bullet/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /nextAction.mode=group_work_units/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /每个 evidenceId 必须且只能归入一个 WorkUnit/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /同一 workUnitId 在整份简历中最多属于一条 bullet/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /write_item_lines/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /plannedLines/);
   assert.match(COOLTO_SYSTEM_PROMPT, /行数也没有固定上限/);

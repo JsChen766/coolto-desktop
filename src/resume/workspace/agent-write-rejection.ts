@@ -1,12 +1,23 @@
 import { resumeAgentNextAction } from "./agent-next-action.js";
 import type { ResumeWorkspace } from "./types.js";
 import { factNeutralClosureActive } from "./first-generation-policy.js";
+import type { ResumeWorkUnitInput } from "./work-unit-types.js";
+import {
+  additionWorkUnitRejection,
+  workUnitGroupingWriteRejection,
+} from "./work-unit-write-rejection.js";
+import { overflowReductionRejection } from "./overflow-write-rejection.js";
 
-interface ResumeWriteParams {
+export interface ResumeWriteParams {
+  workUnits?: readonly ResumeWorkUnitInput[];
   items?: readonly { itemId?: string }[];
   bulletUpdates?: readonly { bulletId: string }[];
   bulletRemovals?: readonly { bulletId: string }[];
-  bulletAdditions?: readonly { itemId: string; evidenceIds?: readonly string[] }[];
+  bulletAdditions?: readonly {
+    itemId: string;
+    evidenceIds?: readonly string[];
+    workUnitIds?: readonly string[];
+  }[];
   tailGrowths?: readonly {
     bulletId: string;
     growthText?: string;
@@ -42,12 +53,14 @@ export function resumeWriteRejection(
   const action = resumeAgentNextAction(workspace);
   const neutralModeError = factNeutralModeError(workspace, params);
   if (neutralModeError) return neutralModeError;
+  const groupingRejection = workUnitGroupingWriteRejection(action, params);
+  if (groupingRejection !== null) return groupingRejection;
   if (action.mode === "adapt_reused_content") {
     const supplied = new Set(params.items?.flatMap((item) =>
       item.itemId ? [item.itemId] : []
     ) ?? []);
     const hasOtherMode = Boolean(
-      params.bulletUpdates?.length || params.bulletRemovals?.length ||
+      params.workUnits?.length || params.bulletUpdates?.length || params.bulletRemovals?.length ||
         params.bulletAdditions?.length || params.tailGrowths?.length ||
         params.lineExpansions?.length || params.lineRewrites?.length ||
         params.tailRewrites?.length,
@@ -75,7 +88,7 @@ export function resumeWriteRejection(
       item.itemId ? [item.itemId] : []
     ) ?? []);
     const hasOtherMode = Boolean(
-      params.bulletUpdates?.length || params.bulletRemovals?.length ||
+      params.workUnits?.length || params.bulletUpdates?.length || params.bulletRemovals?.length ||
         params.bulletAdditions?.length || params.tailGrowths?.length ||
         params.lineExpansions?.length || params.lineRewrites?.length ||
         params.tailRewrites?.length,
@@ -91,7 +104,7 @@ export function resumeWriteRejection(
   }
   if (action.mode === "write_item_lines") {
     const hasOtherMode = Boolean(
-      params.bulletUpdates?.length || params.bulletRemovals?.length ||
+      params.workUnits?.length || params.bulletUpdates?.length || params.bulletRemovals?.length ||
         params.bulletAdditions?.length || params.tailGrowths?.length ||
         params.lineExpansions?.length || params.lineRewrites?.length ||
         params.tailRewrites?.length,
@@ -104,7 +117,7 @@ export function resumeWriteRejection(
       : "nextAction 是 write_item_lines；必须用一次 items 批量提交全部 itemTargets 的非空完整 bullet 列表";
   }
   if (action.mode === "increase_usage") {
-    if (params.items?.length || params.bulletUpdates?.length ||
+    if (params.workUnits?.length || params.items?.length || params.bulletUpdates?.length ||
       params.bulletRemovals?.length ||
       params.tailGrowths?.length || params.tailRewrites?.length) {
       return `nextAction 是 increase_usage；本轮只允许 ${action.requiredInput}`;
@@ -122,7 +135,7 @@ export function resumeWriteRejection(
       return `bulletAdditions 最多新增 ${action.maximumAddedBullets} 条 bullet`;
     }
     const allowedEvidence = new Set(
-      action.groundedAdditionTargets.map((target) => target.evidenceId),
+      action.groundedAdditionTargets.flatMap((target) => target.evidenceIds),
     );
     const extraEvidence = (params.bulletAdditions ?? []).flatMap(
       (addition) => addition.evidenceIds ?? [],
@@ -130,6 +143,10 @@ export function resumeWriteRejection(
     if (extraEvidence.length) {
       return `bulletAdditions 只能使用 groundedAdditionTargets：extra=${extraEvidence.join(",")}`;
     }
+    const workUnitError = additionWorkUnitRejection(
+      action, params.bulletAdditions ?? [],
+    );
+    if (workUnitError) return workUnitError;
     const expansions = params.lineExpansions ?? params.lineRewrites;
     if (expansions?.length &&
       expansions.length > action.targetExpandedBullets) {
@@ -147,7 +164,7 @@ export function resumeWriteRejection(
     return undefined;
   }
   if (action.mode !== "batch_tail_rewrite") {
-    return params.tailGrowths?.length || params.lineExpansions?.length ||
+    return params.workUnits?.length || params.tailGrowths?.length || params.lineExpansions?.length ||
         params.lineRewrites?.length || params.tailRewrites?.length ||
         params.bulletRemovals?.length
       ? "tailRewrites 只允许用于 batch_tail_rewrite；lineRewrites 仅用于 page fill；bulletRemovals 只允许用于 reduce_overflow"
@@ -160,7 +177,7 @@ export function resumeWriteRejection(
   const required = new Set(action.bulletIds);
   const missing = action.bulletIds.filter((id) => !supplied.has(id));
   const extra = [...supplied].filter((id) => !required.has(id));
-  if (!params.items?.length && !params.bulletUpdates?.length &&
+  if (!params.workUnits?.length && !params.items?.length && !params.bulletUpdates?.length &&
     !params.bulletRemovals?.length && !params.bulletAdditions?.length &&
     !params.lineExpansions?.length && !params.lineRewrites?.length &&
     !params.tailGrowths?.length &&
@@ -196,7 +213,7 @@ function factNeutralModeError(
   const neutralActive = factNeutralClosureActive(workspace);
   if (factNeutralRequested && !neutralActive) {
     return workspace.factNeutralAuthorization
-      ? "首次生成仍有可写的真实证据或最低 bullet 数缺口；必须先完成 grounded 写入，不能提前使用 fact_neutral"
+      ? "首次生成仍有可写的真实证据或 Experience 行数缺口；必须先完成 grounded 写入，不能提前使用 fact_neutral"
       : "用户尚未明确结束补充并进入最终收尾，不能使用 fact_neutral";
   }
   if (!neutralActive) return undefined;
@@ -209,37 +226,6 @@ function factNeutralModeError(
     (input) => input.contentMode !== "fact_neutral"
   )) {
     return "当前已进入无素材充实阶段；所有尾行候选必须显式传 contentMode=fact_neutral";
-  }
-  return undefined;
-}
-
-function overflowReductionRejection(
-  action: Extract<
-    ReturnType<typeof resumeAgentNextAction>,
-    { mode: "reduce_overflow" }
-  >,
-  params: ResumeWriteParams,
-): string | undefined {
-  if (action.requiredInput === "reselectWithoutOneExperience") {
-    return "nextAction 是 reduce_overflow；当前已无高于最低条数的 bullet，只能用 create_resume_workspace 从当前完整非教育经历集合中移除一段最低相关经历";
-  }
-  if (params.items?.length || params.bulletUpdates?.length ||
-    params.bulletAdditions?.length || params.tailGrowths?.length ||
-    params.lineExpansions?.length || params.lineRewrites?.length ||
-    params.tailRewrites?.length) {
-    return "nextAction 是 reduce_overflow；本轮只允许 bulletRemovals";
-  }
-  const removals = params.bulletRemovals ?? [];
-  if (removals.length > action.maximumRemovedBullets) {
-    return `reduce_overflow 本轮最多删除 ${action.maximumRemovedBullets} 条 bullet`;
-  }
-  const allowed = new Set(
-    action.bulletRemovalTargets.map((target) => target.bulletId),
-  );
-  const extra = removals.filter((entry) => !allowed.has(entry.bulletId));
-  if (extra.length) {
-    return `bulletRemovals 只能删除 bulletRemovalTargets 中的额外 bullet：extra=${extra
-      .map((entry) => entry.bulletId).join(",")}`;
   }
   return undefined;
 }

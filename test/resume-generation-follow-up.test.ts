@@ -16,6 +16,8 @@ import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
 } from "./support/resume-workspace-fixture.js";
+import { completeFixtureWorkUnits } from
+  "./support/resume-work-unit-fixture.js";
 
 test("skipping a critical-skill warning is an explicit no-material decision", () => {
   assert.equal(hasNoMoreResumeMaterialIntent("没有相关经历，跳过这个警告"), true);
@@ -170,6 +172,7 @@ test("a repeated no-material signal reopens a stalled neutral closure", async ()
       { experienceId: "tiny-work-1", tier: "secondary" },
     ],
   });
+  completeFixtureWorkUnits(store);
   const workspace = store.latest()!;
   store.restore({
     ...workspace,
@@ -221,7 +224,7 @@ function forceMaterialBoundary(
   store: ResumeWorkspaceStore,
   requestedAt = new Date(0).toISOString(),
 ) {
-  const workspace = store.latest()!;
+  const workspace = completeFixtureWorkUnits(store);
   store.restore({
     ...workspace,
     status: "needs_user_decision",

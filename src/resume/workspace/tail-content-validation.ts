@@ -33,6 +33,8 @@ export function validateTailCandidateText(
           text,
           origin: provenance.origin,
           evidenceIds: [...(evidenceIds ?? provenance.evidenceIds)],
+          ...(provenance.workUnitIds
+            ? { workUnitIds: provenance.workUnitIds } : {}),
           requirementIds: provenance.requirementIds,
         },
         index,

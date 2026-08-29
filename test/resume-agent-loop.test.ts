@@ -40,6 +40,30 @@ test("one Agent prompt creates and batch-writes a resume workspace", async () =>
       fauxToolCall("apply_resume_content", {
         candidateId: match[0],
         expectedRevision: 0,
+        workUnits: [{
+          itemId: "item-work-1",
+          units: [
+            { label: "数据清洗", kind: "responsibility", evidenceIds: ["work-1:0:19"] },
+            { label: "周度报表", kind: "report", evidenceIds: ["work-1:19:33"] },
+            { label: "异常检查", kind: "responsibility", evidenceIds: ["work-1:33:50"] },
+          ],
+        }],
+      }),
+      { stopReason: "toolUse" },
+    );},
+    (context) => {
+      const serialized = JSON.stringify(context.messages);
+      const candidateId = serialized.match(/resume-workspace-[0-9a-f-]+/u)?.[0];
+      const workUnitIds = [...serialized.matchAll(/work-unit-[0-9a-f]+/gu)]
+        .map((match) => match[0]).filter((id, index, all) =>
+          all.indexOf(id) === index
+        );
+      assert.ok(candidateId, serialized);
+      assert.ok(workUnitIds.length >= 2, serialized);
+      return fauxAssistantMessage(
+      fauxToolCall("apply_resume_content", {
+        candidateId,
+        expectedRevision: 1,
         items: [
           {
             itemId: "item-work-1",
@@ -48,12 +72,14 @@ test("one Agent prompt creates and batch-writes a resume workspace", async () =>
                 text: "使用 Python 清洗运营数据产品",
                 origin: "grounded",
                 evidenceIds: ["work-1:0:19"],
+                workUnitIds: [workUnitIds[0]],
                 requirementIds: ["req-1"],
               },
               {
                 text: "为 3 个团队建立周度报表",
                 origin: "grounded",
                 evidenceIds: ["work-1:19:33"],
+                workUnitIds: [workUnitIds[1]],
                 requirementIds: ["req-1"],
               },
             ],
@@ -78,9 +104,9 @@ test("one Agent prompt creates and batch-writes a resume workspace", async () =>
 
   await agent.prompt("生成一页针对性简历");
 
-  assert.equal(faux.state.callCount, 2);
+  assert.equal(faux.state.callCount, 3);
   assert.equal(agent.runStopError, undefined);
-  assert.equal(store.latest()?.revision, 1);
+  assert.equal(store.latest()?.revision, 2);
   assert.equal(compiler.structures.length, 2);
   assert.deepEqual(
     agent.toolNames.filter((name) => name.includes("resume_workspace") || name === "apply_resume_content"),

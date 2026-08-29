@@ -15,6 +15,8 @@ import { applyCriticalSkillGate } from "../../resume/workspace/critical-skill-ga
 import { applyBulletCountMaterialGate } from "../../resume/workspace/material-request-gate.js";
 import { normalizeResumeMaterialRequest } from "../../resume/workspace/material-request.js";
 import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
+import { pendingResumeWorkUnitMap } from
+  "../../resume/workspace/work-unit-map.js";
 
 const parameters = Type.Object({
   candidateId: Type.String({ minLength: 1 }),
@@ -85,6 +87,11 @@ export function createAddResumeMaterialTool(
         revision: workspace.revision + 1,
         status: "writing",
         supplementalEvidence: [...existing, ...added],
+        ...(workspace.workUnitMap ? {
+          workUnitMap: pendingResumeWorkUnitMap(
+            workspace.sourceSnapshot.sourceFingerprint,
+          ),
+        } : {}),
         materialFollowUpPending: {
           sourceRequestKind: activeRequest?.kind ?? "agent_declared",
           targetExperienceId: params.experienceId,

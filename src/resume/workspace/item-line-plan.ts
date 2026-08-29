@@ -15,6 +15,13 @@ export interface ItemLineEvidence {
   text: string;
 }
 
+export interface ItemLineWorkUnit {
+  workUnitId: string;
+  label: string;
+  kind: string;
+  evidence: ItemLineEvidence[];
+}
+
 export interface ItemLineWriteTarget {
   itemId: string;
   sourceExperienceId: string;
@@ -28,8 +35,10 @@ export interface ItemLineWriteTarget {
     text: string;
     plannedLines: number;
     evidenceIds: string[];
+    workUnitIds: string[];
   }>;
   availableEvidence: ItemLineEvidence[];
+  availableWorkUnits: ItemLineWorkUnit[];
   requiredEdit: string;
 }
 
@@ -64,6 +73,9 @@ export function itemLineWriteTargets(
         text: entry.text,
       })),
   ];
+  const evidenceText = new Map(evidence.map((entry) => [
+    entry.evidenceId, entry.text,
+  ]));
   return workspace.structure.sections.flatMap((section) =>
     section.items.flatMap((item) => {
       const budget = workspace.itemLineBudgets?.[item.id];
@@ -86,6 +98,21 @@ export function itemLineWriteTargets(
         entry.experienceId === item.source_experience_id &&
         (!selected || used.has(entry.evidenceId) || selected.has(entry.evidenceId))
       ).map(({ evidenceId, text }) => ({ evidenceId, text }));
+      const availableWorkUnits = workspace.workUnitMap?.status === "ready"
+        ? workspace.workUnitMap.units.filter((unit) =>
+            unit.itemId === item.id && (!selected || unit.evidenceIds.some(
+              (id) => used.has(id) || selected.has(id),
+            ))
+          ).map((unit) => ({
+            workUnitId: unit.workUnitId,
+            label: unit.label,
+            kind: unit.kind,
+            evidence: unit.evidenceIds.map((evidenceId) => ({
+              evidenceId,
+              text: evidenceText.get(evidenceId) ?? "",
+            })),
+          }))
+        : [];
       return [{
         itemId: item.id,
         sourceExperienceId: item.source_experience_id ?? "",
@@ -100,11 +127,14 @@ export function itemLineWriteTargets(
           plannedLines:
             workspace.bulletLinePlans?.[bullet.id]?.plannedLines ?? 1,
           evidenceIds: [...(provenance.get(bullet.id)?.evidenceIds ?? [])],
+          workUnitIds: [...(provenance.get(bullet.id)?.workUnitIds ?? [])],
         })),
         availableEvidence,
+        availableWorkUnits,
         requiredEdit: [
           `本 Experience 目标总行数约 ${budget.targetLines} 行（最低 ${budget.minimumLines} 行）`,
-          "先按独立工作/项目/报告分组：一个工作单元只形成一条 bullet，同一工作单元的多个 evidence 合并引用",
+          "每条 bullet 绑定一个或多个完整 workUnitIds，并完整引用这些 WorkUnit 的全部 evidence；同一 WorkUnit 不得拆到多条 bullet",
+          "相关度主要通过 Experience 总行数和核心 WorkUnit 的展开行数表达，不用 bullet 数量凑重要性",
           "用一次 items 提交该 item 的完整 bullet 列表；每条提供 plannedLines，全部 plannedLines 之和应接近目标总行数",
         ].join("；"),
       }];

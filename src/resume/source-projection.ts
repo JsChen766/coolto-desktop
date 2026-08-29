@@ -81,7 +81,7 @@ export function projectResumeSourceSnapshot(
       truthRule:
         "Do not add numbers, technologies, scope, ownership, or results absent from the cited source text.",
       draftPlanRule:
-        "You decide allocation from JD relevance, each experience's availableEvidenceCount, and the real layout returned by create_resume_workspace. Main items require at least three bullets and secondary items at least two. Prefer one unused evidenceId per grounded bullet, batch the first complete draft, then use get_resume_workspace measurements to decide whether to add, enrich, or trim content. No host-fixed category count exists.",
+        "First group every Experience into complete WorkUnits. A bullet owns one or more whole WorkUnits; one WorkUnit may appear in only one bullet. Relevance changes total item lines, never a fixed bullet count. Batch the first complete draft, then use real measurements to enrich or trim content.",
     },
   };
 }

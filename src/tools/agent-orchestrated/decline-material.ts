@@ -40,9 +40,13 @@ export function createDeclineResumeMaterialTool(
         );
       }
       const resolution = params.resolution ?? "user_stopped_questions";
-      if (resolution === "best_effort_stalled" &&
-        hasPendingEvidenceAssessmentWork(workspace)) {
-        throw new Error("两轮证据复评或已选择证据尚未耗尽，不能提前结束自动写作");
+      if (resolution === "best_effort_stalled" && workspace.workUnitMap &&
+        (workspace.workUnitMap.status === "pending" ||
+          !workspace.evidenceAssessment ||
+          hasPendingEvidenceAssessmentWork(workspace))) {
+        throw new Error(
+          "WorkUnit 分组及两轮证据复评尚未完成，不能提前结束自动写作",
+        );
       }
       const request = workspace.materialRequest
         ? normalizeResumeMaterialRequest(

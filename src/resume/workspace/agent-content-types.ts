@@ -6,6 +6,7 @@ export interface AgentBulletContentInput {
   plannedLines?: number;
   origin: ResumeBulletOrigin;
   evidenceIds?: readonly string[];
+  workUnitIds?: readonly string[];
   requirementIds?: readonly string[];
 }
 

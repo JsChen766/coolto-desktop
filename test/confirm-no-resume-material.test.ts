@@ -18,6 +18,8 @@ import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
 } from "./support/resume-workspace-fixture.js";
+import { completeFixtureWorkUnits } from
+  "./support/resume-work-unit-fixture.js";
 
 function resultText(result: { content: readonly { type: string; text?: string }[] }) {
   return JSON.parse(String(result.content[0]?.text ?? "{}"));
@@ -34,6 +36,7 @@ async function harness() {
     language: "zh-CN",
     experiences: [{ experienceId: "work-1", tier: "secondary" }],
   }));
+  created.revision = completeFixtureWorkUnits(store).revision;
   const workspace = store.latest()!;
   store.restore({
     ...workspace,

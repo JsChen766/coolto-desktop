@@ -10,6 +10,7 @@ export function availableSemanticTailEvidence(
   workspace: ResumeWorkspace,
   bulletId: string,
 ): SemanticTailEvidence[] {
+  if (workspace.workUnitMap?.status === "ready") return [];
   const owner = bulletExperienceId(workspace, bulletId);
   const used = new Set((workspace.bulletProvenance ?? [])
     .flatMap((entry) => entry.evidenceIds));

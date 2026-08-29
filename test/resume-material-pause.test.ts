@@ -4,6 +4,8 @@ import test from "node:test";
 import type { JdRecord } from "../src/api/types.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import { resumeGenerationReadiness } from "../src/resume/workspace/generation-readiness.js";
+import { resumeAgentNextAction } from
+  "../src/resume/workspace/agent-next-action.js";
 import { evidenceForModel } from "../src/resume/workspace/agent-workspace-evidence.js";
 import { createAddResumeMaterialTool } from "../src/tools/agent-orchestrated/add-material.js";
 import { createApplyResumeContentTool } from "../src/tools/agent-orchestrated/apply-content.js";
@@ -16,6 +18,10 @@ import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
 } from "./support/resume-workspace-fixture.js";
+import {
+  completeFixtureWorkUnits,
+  withFixtureWorkUnits,
+} from "./support/resume-work-unit-fixture.js";
 
 function payload(result: { content: readonly { type: string; text?: string }[] }) {
   return JSON.parse(String(result.content[0]?.text ?? "{}"));
@@ -58,6 +64,8 @@ test("missing must-have technology evidence warns only after grounded body writi
       { experienceId: "work-1", tier: "main" },
     ],
   }));
+  created.revision = completeFixtureWorkUnits(store).revision;
+  created.nextAction = resumeAgentNextAction(store.latest()!);
 
   assert.equal(created.status, "writing");
   assert.equal(created.nextAction.mode, "write_item_lines");
@@ -75,7 +83,7 @@ test("missing must-have technology evidence warns only after grounded body writi
     expectedRevision: created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: evidence.map((entry) => ({
+      bullets: evidence.map((entry) => withFixtureWorkUnits(store.latest()!, {
         text: entry.text.replace(/。$/u, ""),
         origin: "grounded",
         evidenceIds: [entry.evidenceId],
@@ -121,6 +129,7 @@ test("must-have technology evidence passes, and only a relevant grounded answer 
     language: "zh-CN",
     experiences: [{ experienceId: "work-1", tier: "main" }],
   }));
+  created.revision = completeFixtureWorkUnits(store).revision;
   const initialEvidence = evidenceForModel(store.latest()!.sourceSnapshot)
     .filter((entry) => entry.experienceId === "work-1");
   const warned = payload(await createApplyResumeContentTool(
@@ -131,7 +140,8 @@ test("must-have technology evidence passes, and only a relevant grounded answer 
     expectedRevision: created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: initialEvidence.map((entry) => ({
+      bullets: initialEvidence.map((entry) => withFixtureWorkUnits(
+        store.latest()!, {
         text: entry.text.replace(/。$/u, ""),
         origin: "grounded",
         evidenceIds: [entry.evidenceId],
@@ -237,6 +247,7 @@ test("Agent can pause for one material question and resume from the user answer"
       { experienceId: "work-1", tier: "main" },
     ],
   }));
+  removeFixtureSemanticLayer(store);
   const reusable = store.latest()!;
   store.restore({
     ...reusable,
@@ -368,6 +379,7 @@ test("partial material answers narrow the gap and an explicit decline ends the r
       { experienceId: "work-1", tier: "secondary" },
     ],
   }));
+  removeFixtureSemanticLayer(store);
   const evidence = evidenceForModel(store.latest()!.sourceSnapshot);
   const drafted = payload(await createApplyResumeContentTool(
     compiler,
@@ -484,6 +496,7 @@ test("pause ignores a search-result short id that is not a workspace experience 
     language: "zh-CN",
     experiences: [{ experienceId: "work-1", tier: "main" }],
   }));
+  removeFixtureSemanticLayer(store);
   const reusable = store.latest()!;
   store.restore({
     ...reusable,
@@ -552,4 +565,10 @@ function technicalRequirement(
     v2Importance: "must_have",
     v2Category: "technology",
   };
+}
+
+function removeFixtureSemanticLayer(store: ResumeWorkspaceStore): void {
+  const { workUnitMap: _removed, ...legacy } = store.latest()!;
+  void _removed;
+  store.restore(legacy);
 }

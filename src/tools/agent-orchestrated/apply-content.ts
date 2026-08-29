@@ -23,12 +23,13 @@ import { resumeWriteLoopGuardKey } from "../../resume/workspace/resume-write-loo
 import { syncAugmentedApproval } from "./sync-augmented-approval.js";
 import { mergeFactNeutralFragments, safeFactNeutralFragmentsForWrite } from "./fact-neutral-write.js";
 import { isFirstResumeGeneration } from "../../resume/workspace/first-generation-policy.js";
+import { tryApplyWorkUnitGrouping } from "./apply-work-unit-grouping.js";
 export function createApplyResumeContentTool(compiler: ResumeCompiler, store: ResumeWorkspaceStore, approvalManager?: ApprovalManager): AgentTool<typeof parameters> {
   return {
     name: "apply_resume_content",
     label: "批量写入简历内容",
     description:
-      "批量写入并真实测量简历。首稿提交 plannedLines；篇幅阶段用 lineExpansions；尾行阶段用 tailRewrites 提交最多两份完整事实等价改写，由宿主真实测量并择优。",
+      "先提交 WorkUnit 语义分组，再批量写入并真实测量简历。首稿提交 workUnitIds 与 plannedLines；篇幅阶段用 lineExpansions；尾行阶段用 tailRewrites。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {
@@ -41,21 +42,20 @@ export function createApplyResumeContentTool(compiler: ResumeCompiler, store: Re
       }
       const action = resumeAgentNextAction(workspace);
       const pageFillAttempt = action.mode === "increase_usage";
-      const modeCount = [params.items, params.bulletUpdates,
-        params.bulletRemovals,
-        params.bulletAdditions, params.tailGrowths, params.lineExpansions,
-        params.lineRewrites, params.tailRewrites]
+      const modeCount = [params.workUnits, params.items, params.bulletUpdates,
+        params.bulletRemovals, params.bulletAdditions, params.tailGrowths,
+        params.lineExpansions, params.lineRewrites, params.tailRewrites]
         .filter((value) => value?.length).length;
       if (modeCount !== 1) {
         return resumeWriteRejectedResult(
           workspace,
-          "items、bulletUpdates、bulletRemovals、bulletAdditions、tailGrowths、lineExpansions、lineRewrites、tailRewrites 必须且只能提供一种",
+          "workUnits、items、bulletUpdates、bulletRemovals、bulletAdditions、tailGrowths、lineExpansions、lineRewrites、tailRewrites 必须且只能提供一种",
         );
       }
       const rejectedReason = resumeWriteRejection(workspace, params);
-      if (rejectedReason) {
-        return resumeWriteRejectedResult(workspace, rejectedReason);
-      }
+      if (rejectedReason) return resumeWriteRejectedResult(workspace, rejectedReason);
+      const grouped = tryApplyWorkUnitGrouping(workspace, params.workUnits, store);
+      if (grouped) return grouped;
       let resolved: Parameters<typeof resolveResumeContentChanges>[1] = params;
       let rewriteWarning: string | undefined;
       let tailRepairFeedback: SemanticTailRewriteFeedback[] | undefined;

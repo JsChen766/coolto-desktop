@@ -10,6 +10,7 @@ import type {
 import type { ResumeWorkspace } from "./types.js";
 import { supplementalNumericEvidenceForBullet } from
   "./agent-content-state.js";
+import { assertWorkUnitsUnused } from "./work-unit-ownership.js";
 
 type ResumeItem =
   ResumeWorkspace["structure"]["sections"][number]["items"][number];
@@ -44,6 +45,10 @@ export function validateAgentItemBullets(input: {
       .flatMap((entry) => entry.evidenceIds)
       .filter((evidenceId) => supplemental.has(evidenceId)),
   );
+  const usedWorkUnits = new Set(
+    input.provenance.filter((entry) => entry.itemId !== input.item.id)
+      .flatMap((entry) => entry.workUnitIds ?? []),
+  );
   let retainedIds = new Set(input.retainedIds);
   let retainedTexts = [...input.retainedTexts];
   const acceptedBindings = [...baseBindings];
@@ -62,6 +67,7 @@ export function validateAgentItemBullets(input: {
         retainedIds: nextIds,
         retainedTexts: nextTexts,
       });
+      assertWorkUnitsUnused(entry.provenance.workUnitIds, usedWorkUnits);
       assertSupplementalAvailable(entry.provenance.evidenceIds, {
         supplemental,
         usedSupplemental,
@@ -79,6 +85,7 @@ export function validateAgentItemBullets(input: {
       entry.provenance.evidenceIds
         .filter((evidenceId) => supplemental.has(evidenceId))
         .forEach((evidenceId) => usedSupplemental.add(evidenceId));
+      entry.provenance.workUnitIds?.forEach((id) => usedWorkUnits.add(id));
       retainedIds = nextIds;
       retainedTexts = nextTexts;
     } catch (error: unknown) {

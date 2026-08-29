@@ -187,7 +187,7 @@ test("workspace creation skips one selected experience that became inactive", as
   const payload = JSON.parse(content.text);
 
   assert.equal(payload.status, "writing");
-  assert.equal(payload.nextAction.mode, "write_item_lines");
+  assert.equal(payload.nextAction.mode, "group_work_units");
   assert.doesNotMatch(JSON.stringify(payload), /exp-stale/u);
 });
 

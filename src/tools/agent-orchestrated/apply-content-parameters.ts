@@ -1,5 +1,7 @@
 import { Type } from "@earendil-works/pi-ai";
 import { Unsafe, type TSchema, type TUnsafe } from "typebox";
+import type { ResumeWorkUnitInput } from
+  "../../resume/workspace/work-unit-types.js";
 
 interface ApplyBulletInput {
   bulletId?: string;
@@ -7,6 +9,7 @@ interface ApplyBulletInput {
   plannedLines?: number;
   origin: "grounded" | "agent_augmented";
   evidenceIds?: string[];
+  workUnitIds?: string[];
   requirementIds?: string[];
 }
 
@@ -22,6 +25,7 @@ interface ComponentExpansionInput {
 export interface ApplyResumeContentParameters {
   candidateId: string;
   expectedRevision: number;
+  workUnits?: ResumeWorkUnitInput[];
   items?: Array<{
     itemId?: string;
     experienceId?: string;
@@ -64,8 +68,15 @@ const bullet = Type.Object({
     Type.Literal("agent_augmented"),
   ]),
   evidenceIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+  workUnitIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
   requirementIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
 });
+
+const workUnitKind = Type.Union([
+  Type.Literal("project"), Type.Literal("report"),
+  Type.Literal("initiative"), Type.Literal("responsibility"),
+  Type.Literal("deliverable"), Type.Literal("skill_group"),
+]);
 
 const componentExpansion = Type.Object({
   bulletId: Type.String({ minLength: 1 }),
@@ -87,6 +98,17 @@ const runtimeApplyContentParameters: TSchema = {
   properties: {
   candidateId: Type.String({ minLength: 1 }),
   expectedRevision: Type.Integer({ minimum: 0 }),
+  workUnits: Type.Optional(Type.Array(Type.Object({
+    itemId: Type.String({ minLength: 1 }),
+    units: Type.Array(Type.Object({
+      label: Type.String({ minLength: 1 }),
+      kind: workUnitKind,
+      evidenceIds: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
+    }), { minItems: 1 }),
+  }), {
+    minItems: 1,
+    description: "仅在 group_work_units 时使用；一次覆盖全部 itemTargets，并把每条 evidence 完整且唯一地归入语义 WorkUnit",
+  })),
   items: Type.Optional(Type.Array(Type.Object({
     itemId: Type.Optional(Type.String({ minLength: 1 })),
     experienceId: Type.Optional(Type.String({ minLength: 1 })),
@@ -114,6 +136,7 @@ const runtimeApplyContentParameters: TSchema = {
       Type.Literal("agent_augmented"),
     ]),
     evidenceIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+    workUnitIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     requirementIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
   }), {
     minItems: 1,

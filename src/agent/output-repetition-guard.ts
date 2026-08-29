@@ -2,7 +2,7 @@ const MIN_PATTERN_CHARS = 64;
 const MAX_PATTERN_CHARS = 1_024;
 const REQUIRED_REPEATS = 4;
 const MAX_BUFFER_CHARS = 8_192;
-const MAX_NARRATIVE_CHARS = 6_000;
+const MAX_NARRATIVE_CHARS = 8_000;
 
 export type OutputRepetitionReason =
   | "repeated_cycle"

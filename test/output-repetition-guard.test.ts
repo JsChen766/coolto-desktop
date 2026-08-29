@@ -34,10 +34,12 @@ test("streaming output guard allows long non-repeating content", () => {
 test("streaming output guard stops runaway unique narration before a tool call", () => {
   const guard = new StreamingOutputRepetitionGuard();
   const narration = Array.from(
-    { length: 180 },
+    { length: 220 },
     (_, index) =>
       `第 ${index + 1} 次重新规划仍在展开不同措辞，但没有产生工具调用或用户结论 ${index * 31 + 7}`,
   ).join("\n");
 
-  assert.equal(guard.append(narration), "narrative_limit");
+  assert.equal([...narration].length > 8_000, true);
+  assert.equal(guard.append([...narration].slice(0, 8_000).join("")), undefined);
+  assert.equal(guard.append([...narration][8_000]!), "narrative_limit");
 });

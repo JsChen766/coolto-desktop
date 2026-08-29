@@ -114,6 +114,7 @@ function expandBulletAdditions(
       text: addition.text,
       origin: addition.origin,
       ...(addition.evidenceIds ? { evidenceIds: addition.evidenceIds } : {}),
+      ...(addition.workUnitIds ? { workUnitIds: addition.workUnitIds } : {}),
       ...(addition.requirementIds
         ? { requirementIds: addition.requirementIds }
         : {}),
@@ -150,6 +151,7 @@ function changedItems(
             origin: source.origin,
             evidenceIds: [...(changes?.get(bullet.id)?.evidenceIds ??
               source.evidenceIds)],
+            workUnitIds: [...(source.workUnitIds ?? [])],
             requirementIds: source.requirementIds,
           };
         });

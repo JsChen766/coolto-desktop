@@ -7,6 +7,7 @@ import type { ResumeBulletProvenance, ResumeWorkspace } from "./types.js";
 import { plannedBulletLines } from "./bullet-line-plan.js";
 import { matchingFactNeutralFragment } from "./fact-neutral-fragments.js";
 import { validateFactNeutralFragment } from "./fact-neutral-validation.js";
+import { validatedBulletWorkUnitIds } from "./work-unit-ownership.js";
 
 export function buildValidatedBullet(input: {
   source: ResumeWorkspace;
@@ -80,10 +81,19 @@ export function buildValidatedBullet(input: {
       throw new Error("agent_augmented bullet 不得包含未确认数字或 XX 占位符");
     }
   }
+  const workUnitIds = validatedBulletWorkUnitIds({
+    workspace: input.source,
+    itemId: input.item.id,
+    origin: input.bullet.origin,
+    evidenceIds,
+    ...(input.bullet.workUnitIds
+      ? { workUnitIds: input.bullet.workUnitIds } : {}),
+  });
   const provenance: ResumeBulletProvenance = {
     bulletId,
     itemId: input.item.id,
     origin: input.bullet.origin,
+    ...(workUnitIds?.length ? { workUnitIds } : {}),
     evidenceIds,
     requirementIds,
     confirmation:

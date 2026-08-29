@@ -32,6 +32,10 @@ import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
 } from "./support/resume-workspace-fixture.js";
+import {
+  completeFixtureWorkUnits,
+  withFixtureWorkUnits,
+} from "./support/resume-work-unit-fixture.js";
 
 function resultText(result: { content: readonly { type: string; text?: string }[] }) {
   return JSON.parse(String(result.content[0]?.text ?? "{}"));
@@ -50,6 +54,7 @@ async function workspaceHarness() {
       { experienceId: "work-1", tier: "secondary" },
     ],
   }));
+  created.revision = completeFixtureWorkUnits(store).revision;
   return { builder, compiler, store, created };
 }
 
@@ -65,14 +70,16 @@ function augmentedApproval(
   return new ApprovalManager(new ApprovalStore(), executors);
 }
 
-function mixedBullets() {
+function mixedBullets(
+  workspace: NonNullable<ReturnType<ResumeWorkspaceStore["latest"]>>,
+) {
   return [
-    {
+    withFixtureWorkUnits(workspace, {
       text: "使用 Python 清洗运营数据产品",
       origin: "grounded" as const,
       evidenceIds: ["work-1:0:19"],
       requirementIds: ["req-1"],
-    },
+    }),
     {
       text: "建立主动复盘和跨团队协作机制",
       origin: "agent_augmented" as const,
@@ -87,8 +94,11 @@ test("agent_augmented content creates a program approval and accept confirms it"
   const apply = createApplyResumeContentTool(value.compiler, value.store, approvals);
   const payload = resultText(await apply.execute("apply", {
     candidateId: value.created.candidateId,
-    expectedRevision: 0,
-    items: [{ itemId: "item-work-1", bullets: mixedBullets() }],
+    expectedRevision: value.created.revision,
+    items: [{
+      itemId: "item-work-1",
+      bullets: mixedBullets(value.store.latest()!),
+    }],
   }));
 
   assert.equal(payload.pendingConfirmation.length, 1);
@@ -99,8 +109,8 @@ test("agent_augmented content creates a program approval and accept confirms it"
   await approvals.resolve(payload.approvalRequestId, { type: "accept" });
 
   const workspace = value.store.latest()!;
-  assert.equal(workspace.revision, 2);
-  assert.equal(workspace.compileObservedRevision, 2);
+  assert.equal(workspace.revision, value.created.revision + 2);
+  assert.equal(workspace.compileObservedRevision, workspace.revision);
   assert.equal(workspace.bulletProvenance?.some(
     (entry) => entry.confirmation === "pending"), false);
   assert.equal(value.compiler.structures.length, compileCount);
@@ -141,15 +151,15 @@ test("agent augmentation waits for tail repair before requesting approval", asyn
   const apply = createApplyResumeContentTool(value.compiler, value.store, approvals);
   const initial = resultText(await apply.execute("apply-short-tail", {
     candidateId: value.created.candidateId,
-    expectedRevision: 0,
+    expectedRevision: value.created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: [{
+      bullets: [withFixtureWorkUnits(value.store.latest()!, {
         text: "使用 Python 清洗运营数据产品",
         origin: "grounded",
         evidenceIds: ["work-1:0:19"],
         requirementIds: ["req-1"],
-      }, {
+      }), {
         origin: "agent_augmented",
         requirementIds: ["req-1"],
         text: "建立主动复盘和跨团队协作机制短尾",
@@ -192,8 +202,11 @@ test("rejecting agent_augmented content removes it and recompiles", async () => 
   const apply = createApplyResumeContentTool(value.compiler, value.store, approvals);
   const payload = resultText(await apply.execute("apply", {
     candidateId: value.created.candidateId,
-    expectedRevision: 0,
-    items: [{ itemId: "item-work-1", bullets: mixedBullets() }],
+    expectedRevision: value.created.revision,
+    items: [{
+      itemId: "item-work-1",
+      bullets: mixedBullets(value.store.latest()!),
+    }],
   }));
   const before = value.compiler.structures.length;
   await approvals.resolve(payload.approvalRequestId, { type: "reject" });
@@ -232,7 +245,7 @@ test("prepare_experience_sync batches supplemental facts behind approval", async
   const add = createAddResumeMaterialTool(value.store, () => 99);
   await add.execute("add", {
     candidateId: value.created.candidateId,
-    expectedRevision: 0,
+    expectedRevision: value.created.revision,
     experienceId: "work-1",
     facts: ["补充了用户明确提供的新职责范围"],
   });
@@ -248,7 +261,7 @@ test("prepare_experience_sync batches supplemental facts behind approval", async
   const tool = createPrepareExperienceSyncTool(value.store, proposals, approvals);
   const result = resultText(await tool.execute("sync", {
     candidateId: value.created.candidateId,
-    expectedRevision: 1,
+    expectedRevision: value.created.revision + 1,
     experienceIds: ["work-1"],
   }));
 
@@ -267,7 +280,7 @@ test("supplemental facts prompt for warehouse sync before the resume qualifies",
   const add = createAddResumeMaterialTool(value.store, () => 99);
   await add.execute("add-before-qualified", {
     candidateId: value.created.candidateId,
-    expectedRevision: 0,
+    expectedRevision: value.created.revision,
     experienceId: "work-1",
     facts,
   });
@@ -329,39 +342,40 @@ test("qualified draft automatically opens one experience sync approval", async (
   const apply = createApplyResumeContentTool(value.compiler, value.store);
   await apply.execute("write-qualified", {
     candidateId: value.created.candidateId,
-    expectedRevision: 0,
+    expectedRevision: value.created.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: [{
+      bullets: [withFixtureWorkUnits(value.store.latest()!, {
         text: "使用 Python 清洗运营数据产品",
         origin: "grounded",
         evidenceIds: ["work-1:0:19"],
         requirementIds: ["req-1"],
-      }, {
+      }), withFixtureWorkUnits(value.store.latest()!, {
         text: "为 3 个团队建立周度报表",
         origin: "grounded",
         evidenceIds: ["work-1:19:33"],
         requirementIds: ["req-1"],
-      }],
+      })],
     }],
   });
   const add = createAddResumeMaterialTool(value.store, () => 99);
   const added = resultText(await add.execute("add-auto-sync", {
     candidateId: value.created.candidateId,
-    expectedRevision: 1,
+    expectedRevision: value.store.latest()!.revision,
     experienceId: "work-1",
     facts: ["补充了用户明确提供的新职责范围"],
   }));
+  completeFixtureWorkUnits(value.store);
   const beforeMaterialApply = value.store.latest()!;
   const secondBullet = beforeMaterialApply.structure.sections
     .flatMap((section) => section.items)
     .find((item) => item.id === "item-work-1")!.bullets[1]!;
   await apply.execute("apply-auto-sync-material", {
     candidateId: value.created.candidateId,
-    expectedRevision: 2,
+    expectedRevision: beforeMaterialApply.revision,
     items: [{
       itemId: "item-work-1",
-      bullets: [{
+      bullets: [withFixtureWorkUnits(beforeMaterialApply, {
         bulletId: beforeMaterialApply.structure.sections
           .flatMap((section) => section.items)
           .find((item) => item.id === "item-work-1")!.bullets[0]!.id,
@@ -369,13 +383,13 @@ test("qualified draft automatically opens one experience sync approval", async (
         origin: "grounded",
         evidenceIds: ["work-1:0:19"],
         requirementIds: ["req-1"],
-      }, {
+      }), withFixtureWorkUnits(beforeMaterialApply, {
         bulletId: secondBullet.id,
         text: "为 3 个团队建立周度报表，补充了用户明确提供的新职责范围",
         origin: "grounded",
         evidenceIds: ["work-1:19:33", added.addedEvidence[0].evidenceId],
         requirementIds: ["req-1"],
-      }],
+      })],
     }],
   });
   const draft = createLocalResumeDraft({

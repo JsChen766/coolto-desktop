@@ -18,6 +18,8 @@ import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
 } from "./support/resume-workspace-fixture.js";
+import { completeFixtureWorkUnits } from
+  "./support/resume-work-unit-fixture.js";
 
 test("material boundary replaces model process narration with the exact question", async () => {
   const { store, paused } = await pausedWorkspace();
@@ -117,6 +119,9 @@ test("best-effort guard stop reports the preserved draft without a new question"
     jdId: "jd-1", language: "zh-CN",
     experiences: [{ experienceId: "work-1", tier: "main" }],
   }));
+  const { workUnitMap: _semantic, ...legacyWorkspace } = store.latest()!;
+  void _semantic;
+  store.restore(legacyWorkspace);
   const decline = createDeclineResumeMaterialTool(store, () => undefined);
   await decline.execute("guard-stop", {
     candidateId: created.candidateId,
@@ -149,6 +154,7 @@ async function pausedWorkspace() {
     language: "zh-CN",
     experiences: [{ experienceId: "work-1", tier: "main" }],
   }));
+  created.revision = completeFixtureWorkUnits(store).revision;
   const workspace = store.latest()!;
   store.restore({
     ...workspace,
