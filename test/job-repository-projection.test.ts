@@ -112,6 +112,7 @@ test("user source delivery files stay independent and available without a JD rel
     sizeBytes: 100,
     sha256: "b".repeat(64),
     preferred: true,
+    slot: 1 as const,
     createdAt: "2026-08-30T00:00:00.000Z",
     updatedAt: "2026-08-30T00:00:00.000Z",
   };

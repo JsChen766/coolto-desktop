@@ -63,6 +63,7 @@ export function validateDeliveryResumeContent(
       sizeBytes: content.byteLength,
       sha256: createHash("sha256").update(content).digest("hex"),
       preferred: false,
+      slot: null,
       createdAt: now,
       updatedAt: now,
     },

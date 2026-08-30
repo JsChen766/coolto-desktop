@@ -3,6 +3,7 @@ import {
   BriefcaseBusiness,
   ClipboardList,
   FileText,
+  FileUp,
   Menu,
   RefreshCw,
   Search,
@@ -19,6 +20,7 @@ defineProps<{
   query: string;
   jobFilter: JobFilter;
   resumeFilter: ResumeFilter;
+  deliveryFileCount: number;
   loading: boolean;
 }>();
 defineEmits<{
@@ -29,6 +31,7 @@ defineEmits<{
   refresh: [];
   toggleSidebar: [];
   applications: [];
+  importDelivery: [];
 }>();
 </script>
 
@@ -61,6 +64,17 @@ defineEmits<{
       </button>
     </nav>
     <div class="repository-tools no-drag">
+      <button
+        v-if="view === 'resumes'"
+        class="secondary-button icon-label"
+        type="button"
+        :disabled="deliveryFileCount >= 3"
+        :title="deliveryFileCount >= 3 ? $t('最多保存 3 份原始简历') : undefined"
+        @click="$emit('importDelivery')"
+      >
+        <FileUp :size="14" aria-hidden="true" />
+        {{ $tf('添加原始简历（{count}/3）', { count: deliveryFileCount }) }}
+      </button>
       <button
         class="secondary-button icon-label"
         type="button"
@@ -98,6 +112,7 @@ defineEmits<{
         <option value="">{{ $t('全部简历') }}</option>
         <option value="targeted">{{ $t('针对性') }}</option>
         <option value="generic">{{ $t('通用') }}</option>
+        <option value="user_original">{{ $t('原始简历') }}</option>
         <option value="archived">{{ $t('归档') }}</option>
         <option value="conflict">{{ $t('同步冲突') }}</option>
       </select>

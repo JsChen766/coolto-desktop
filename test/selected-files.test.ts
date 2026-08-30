@@ -63,7 +63,7 @@ test("selected file registry only reads explicitly registered text files", async
   }
 });
 
-test("desktop attachment replacement is atomic and detects changed files", async () => {
+test("desktop attachment replacement is atomic and pins selected bytes", async () => {
   const directory = await mkdtemp(join(tmpdir(), "coolto-replace-"));
   const firstPath = join(directory, "first.md");
   const secondPath = join(directory, "second.txt");
@@ -87,7 +87,10 @@ test("desktop attachment replacement is atomic and detects changed files", async
     await assert.rejects(registry.read(first!.id), /明确选择/u);
 
     await writeFile(secondPath, "Second file changed after selection", "utf8");
-    await assert.rejects(registry.read(second!.id), /失效或被替换/u);
+    assert.equal(
+      Buffer.from((await registry.read(second!.id)).content).toString("utf8"),
+      "Second",
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

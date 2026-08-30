@@ -13,6 +13,22 @@
   color: var(--stage-offer);
 }
 
+.delivery-resume-slot-marker {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--stage-offer);
+}
+
+.delivery-resume-slot-marker b {
+  position: absolute;
+  color: var(--bg);
+  font-size: 8px;
+  line-height: 1;
+}
+
 .delivery-resume-source-badge,
 .delivery-resume-preferred {
   display: inline-flex;

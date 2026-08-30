@@ -17,7 +17,8 @@ import {
 import { replaceDeliveryResumeFile } from "./atomic-file.js";
 import {
   emptyDeliveryResumeManifest,
-  isDeliveryResumeManifest,
+  DELIVERY_RESUME_SLOTS,
+  normalizeDeliveryResumeManifest,
   type DeliveryResumeManifest,
 } from "./manifest.js";
 import type {
@@ -73,9 +74,15 @@ export class DeliveryResumeFileRepository implements DeliveryResumeFileSource {
       (file) => file.sha256 === validated.metadata.sha256,
     );
     if (duplicate) return structuredClone(duplicate);
+    const slot = DELIVERY_RESUME_SLOTS.find((candidate) =>
+      !manifest.files.some((file) => file.slot === candidate));
+    if (!slot) {
+      throw new Error("最多保存 3 份原始简历，请先删除一份后重试");
+    }
     const metadata = {
       ...validated.metadata,
       preferred: manifest.files.length === 0,
+      slot,
     };
     await this.#writeBlob(metadata.id, validated.content);
     try {
@@ -165,10 +172,11 @@ export class DeliveryResumeFileRepository implements DeliveryResumeFileSource {
     try {
       const decoded = this.codec.decodeText(await readFile(this.#manifestPath));
       const parsed = JSON.parse(decoded) as unknown;
-      if (!isDeliveryResumeManifest(parsed) || parsed.ownerId !== this.ownerId) {
+      const manifest = normalizeDeliveryResumeManifest(parsed);
+      if (!manifest || manifest.ownerId !== this.ownerId) {
         throw new Error("本地投递文件清单无效或不属于当前用户");
       }
-      return parsed;
+      return manifest;
     } catch (error: unknown) {
       if (!isMissing(error)) throw error;
       return emptyDeliveryResumeManifest(this.ownerId);

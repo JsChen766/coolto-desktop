@@ -1,4 +1,5 @@
 export type DeliveryResumeFileType = "pdf" | "docx";
+export type DeliveryResumeSlot = 1 | 2 | 3;
 
 /**
  * A user-owned delivery file is intentionally not a Resume or ResumeDraft.
@@ -13,6 +14,7 @@ export interface DeliveryResumeFile {
   sizeBytes: number;
   sha256: string;
   preferred: boolean;
+  slot: DeliveryResumeSlot | null;
   createdAt: string;
   updatedAt: string;
 }

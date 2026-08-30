@@ -36,8 +36,10 @@ export function filterDeliveryResumeFiles(
   return files.filter((file) => !needle || normalize([
     file.title,
     file.originalFilename,
-    "用户源文件",
-  ].join(" ")).includes(needle));
+    "原始简历",
+    file.slot,
+  ].join(" ")).includes(needle)).sort((left, right) =>
+    (left.slot ?? 99) - (right.slot ?? 99) || left.id.localeCompare(right.id));
 }
 
 export function filterResumes(

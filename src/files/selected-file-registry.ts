@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readFile, realpath, stat } from "node:fs/promises";
+import type { Stats } from "node:fs";
+import { open, realpath } from "node:fs/promises";
 import { basename, extname } from "node:path";
 
 import type {
@@ -20,8 +21,7 @@ const FILE_TYPES = new Map<string, SupportedImportFileType>([
 
 interface RegisteredFile {
   metadata: SelectedFileMetadata;
-  path: string;
-  identity: FileIdentity;
+  content: Uint8Array;
 }
 
 interface FileIdentity {
@@ -65,20 +65,9 @@ export class SelectedFileRegistry {
     if (!file) {
       throw new Error(`未找到用户明确选择的附件：${fileId}`);
     }
-    const before = await currentIdentity(file);
-    if (!sameIdentity(file.identity, before)) {
-      throw invalidatedFileError(file.metadata.filename);
-    }
-    const content = await readFile(file.path).catch(() => {
-      throw invalidatedFileError(file.metadata.filename);
-    });
-    const after = await currentIdentity(file);
-    if (!sameIdentity(file.identity, after)) {
-      throw invalidatedFileError(file.metadata.filename);
-    }
     return {
       metadata: { ...file.metadata },
-      content,
+      content: Buffer.from(file.content),
     };
   }
 
@@ -94,32 +83,39 @@ export class SelectedFileRegistry {
 
   async #inspect(inputPath: string): Promise<RegisteredFile> {
     const resolvedPath = await realpath(inputPath);
-    const fileStat = await stat(resolvedPath);
-    if (!fileStat.isFile()) {
-      throw new Error(`附件不是普通文件：${inputPath}`);
-    }
-    if (fileStat.size > MAX_FILE_SIZE) {
-      throw new Error(
-        `附件超过 ${MAX_FILE_SIZE_MB}MB：${basename(resolvedPath)}`,
-      );
-    }
+    const filename = basename(resolvedPath);
     const type = FILE_TYPES.get(extname(resolvedPath).toLowerCase());
     if (!type) {
       throw new Error(
-        `不支持的附件类型：${basename(resolvedPath)}；仅支持 PDF、DOCX、TXT、MD`,
+        `不支持的附件类型：${filename}；仅支持 PDF、DOCX、TXT、MD`,
       );
     }
-    const metadata: SelectedFileMetadata = {
-      id: `attachment-${randomUUID()}`,
-      filename: basename(resolvedPath),
-      type,
-      sizeBytes: fileStat.size,
-    };
-    return {
-      metadata,
-      path: resolvedPath,
-      identity: identityFromStat(fileStat),
-    };
+    const handle = await open(resolvedPath, "r").catch(() => {
+      throw invalidatedFileError(filename);
+    });
+    try {
+      const before = await handle.stat();
+      if (!before.isFile()) throw new Error(`附件不是普通文件：${inputPath}`);
+      if (before.size > MAX_FILE_SIZE) {
+        throw new Error(`附件超过 ${MAX_FILE_SIZE_MB}MB：${filename}`);
+      }
+      const content = await handle.readFile();
+      const after = await handle.stat();
+      if (!sameIdentity(identityFromStat(before), identityFromStat(after))) {
+        throw invalidatedFileError(filename);
+      }
+      return {
+        metadata: {
+          id: `attachment-${randomUUID()}`,
+          filename,
+          type,
+          sizeBytes: content.byteLength,
+        },
+        content: new Uint8Array(content),
+      };
+    } finally {
+      await handle.close();
+    }
   }
 
   #commit(files: RegisteredFile[]): SelectedFileMetadata[] {
@@ -130,17 +126,7 @@ export class SelectedFileRegistry {
   }
 }
 
-async function currentIdentity(file: RegisteredFile): Promise<FileIdentity> {
-  try {
-    return identityFromStat(await stat(file.path));
-  } catch {
-    throw invalidatedFileError(file.metadata.filename);
-  }
-}
-
-function identityFromStat(
-  value: Awaited<ReturnType<typeof stat>>,
-): FileIdentity {
+function identityFromStat(value: Stats): FileIdentity {
   return {
     device: Number(value.dev),
     inode: Number(value.ino),

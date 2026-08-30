@@ -19,6 +19,7 @@ const file: DeliveryResumeFile = {
   sizeBytes: 100,
   sha256: "a".repeat(64),
   preferred: true,
+  slot: 1,
   createdAt: "2026-08-30T00:00:00.000Z",
   updatedAt: "2026-08-30T00:00:00.000Z",
 };
@@ -35,4 +36,14 @@ test("user source files are never filtered by JD relevance", () => {
     applications: [],
   }).resumes;
   assert.deepEqual(filterResumes(managed, "", "user_original"), []);
+});
+
+test("original resumes render in stable numbered slot order", () => {
+  const third = { ...file, id: file.id.replace(/1$/u, "3"), slot: 3 as const };
+  const second = { ...file, id: file.id.replace(/1$/u, "2"), slot: 2 as const };
+  assert.deepEqual(
+    filterDeliveryResumeFiles([third, file, second], "原始简历", "user_original")
+      .map((item) => item.slot),
+    [1, 2, 3],
+  );
 });

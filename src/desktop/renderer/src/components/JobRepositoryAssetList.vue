@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { BriefcaseBusiness, FileText, Link } from "@lucide/vue";
+import { BriefcaseBusiness, FileText, Link, Star } from "@lucide/vue";
 
 import type {
+  DeliveryResumeFile,
   JobRepositoryJd,
   JobRepositoryResume,
 } from "@desktop/types";
@@ -18,6 +19,7 @@ defineProps<{
   view: "jobs" | "resumes";
   jds: readonly JobRepositoryJd[];
   resumes: readonly JobRepositoryResume[];
+  deliveryResumeFiles: readonly DeliveryResumeFile[];
   selectedId: string | undefined;
   emptyLabel: string;
 }>();
@@ -25,6 +27,7 @@ defineProps<{
 defineEmits<{
   selectJd: [id: string];
   selectResume: [entryId: string];
+  selectDeliveryFile: [entryId: string];
 }>();
 </script>
 
@@ -89,9 +92,34 @@ defineEmits<{
         {{ resumeSyncLabel(resume.entry.syncStatus) }}
       </span>
       </button>
+      <p v-if="deliveryResumeFiles.length" class="repository-list-group-label">
+        {{ $tf('原始简历（{count}/3）', { count: Math.min(deliveryResumeFiles.length, 3) }) }}
+      </p>
+      <button
+        v-for="file in deliveryResumeFiles"
+        :key="`delivery:${file.id}`"
+        class="repository-asset-row delivery-resume-file-row"
+        :class="{ active: selectedId === `delivery:${file.id}` }"
+        type="button"
+        @click="$emit('selectDeliveryFile', `delivery:${file.id}`)"
+      >
+        <span class="delivery-resume-slot-marker" :aria-label="file.slot ? $tf('原始简历 {slot}', { slot: file.slot }) : $t('历史原始简历')">
+          <Star :size="17" fill="currentColor" aria-hidden="true" />
+          <b>{{ file.slot ?? '·' }}</b>
+        </span>
+        <span class="repository-asset-copy">
+          <strong>{{ file.title }}</strong>
+          <small>{{ file.originalFilename }}</small>
+          <span class="repository-row-facts">
+            <span>{{ file.slot ? $tf('原始简历 {slot}', { slot: file.slot }) : $t('历史原始简历') }}</span>
+            <span>{{ $t('仅本机') }}</span>
+          </span>
+        </span>
+        <span v-if="file.preferred" class="library-sync-badge">{{ $t('当前首选') }}</span>
+      </button>
     </template>
 
-    <p v-if="view === 'jobs' ? !jds.length : !resumes.length" class="repository-list-empty">
+    <p v-if="view === 'jobs' ? !jds.length : !resumes.length && !deliveryResumeFiles.length" class="repository-list-empty">
       {{ emptyLabel }}
     </p>
   </div>

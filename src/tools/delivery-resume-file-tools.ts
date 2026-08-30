@@ -2,7 +2,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import type { BrowserPageOperator } from "../browser/types.js";
-import type { DeliveryResumeFileStore } from
+import type { DeliveryResumeFile, DeliveryResumeFileStore } from
   "../delivery-resume-files/types.js";
 import type { SelectedFileRegistry } from
   "../files/selected-file-registry.js";
@@ -56,7 +56,8 @@ export function createDeliveryResumeFileTools(
         );
         return {
           content: [{ type: "text", text:
-            `已选择《${file.title}》用于投递。该文件可用于任意岗位，内容保持原样。` }],
+            `已选择${slotLabel(file)}《${file.title}》用于投递。` +
+            "该文件可用于任意岗位，内容保持原样。" }],
           details: file,
         };
       },
@@ -89,13 +90,18 @@ function saveSelectedFileTool(
       return {
         content: [{
           type: "text",
-          text: `已将《${preferred.title}》原样保存为用户原始简历，` +
-            "可用于任意岗位；未解析或修改文件内容。",
+          text: `已将《${preferred.title}》原样保存为${slotLabel(preferred)}，` +
+            "可在「求职仓库 → 简历资产 → 原始简历」中查看；" +
+            "可用于任意岗位，未解析或修改文件内容。",
         }],
         details: preferred,
       };
     },
   };
+}
+
+function slotLabel(file: DeliveryResumeFile): string {
+  return file.slot ? `原始简历 ${file.slot}` : "历史原始简历";
 }
 
 function browserUploadTool(

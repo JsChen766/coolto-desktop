@@ -1,4 +1,11 @@
 export const deliveryResumeMessages: Record<string, string> = {
+  "原始简历": "Original resumes",
+  "原始简历 {slot}": "Original resume {slot}",
+  "原始简历（{count}/3）": "Original resumes ({count}/3)",
+  "添加原始简历（{count}/3）": "Add original resume ({count}/3)",
+  "最多保存 3 份原始简历": "You can save up to 3 original resumes",
+  "历史原始简历": "Legacy original resume",
+  "当前首选": "Current preferred",
   "添加投递文件": "Add delivery file",
   "用户源文件": "User source file",
   "可编辑简历": "Editable resumes",

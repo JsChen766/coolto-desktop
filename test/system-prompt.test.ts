@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v146");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v147");
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
@@ -86,6 +86,7 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_download/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /list_delivery_resume_files/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /save_selected_file_as_delivery_resume/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /求职仓库 → 简历资产 → 原始简历/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /任意一份原始投递文件用于任意岗位/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /禁止继续搜索、生成、优化或切换其它简历/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /browser_upload_delivery_resume/u);

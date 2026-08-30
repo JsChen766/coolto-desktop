@@ -49,8 +49,12 @@ function requestDelete(): void {
             <p>{{ $t('用户源文件 · 仅本机') }}</p>
           </template>
         </div>
-        <span class="delivery-resume-source-badge">
-          <Star :size="12" fill="currentColor" aria-hidden="true" />{{ $t('原文件') }}
+        <span
+          class="delivery-resume-source-badge"
+          :aria-label="file.slot ? $tf('原始简历 {slot}', { slot: file.slot }) : $t('历史原始简历')"
+        >
+          <Star :size="12" fill="currentColor" aria-hidden="true" />
+          {{ file.slot ? $tf('原始简历 {slot}', { slot: file.slot }) : $t('历史原始简历') }}
         </span>
       </div>
       <div class="repository-detail-actions">
@@ -58,7 +62,7 @@ function requestDelete(): void {
           <Send :size="14" aria-hidden="true" />{{ $t('用于投递') }}
         </button>
         <span v-if="file.preferred" class="delivery-resume-preferred">
-          <Star :size="13" fill="currentColor" aria-hidden="true" />{{ $t('默认投递文件') }}
+          <Star :size="13" fill="currentColor" aria-hidden="true" />{{ $t('当前首选') }}
         </span>
         <details class="repository-more-actions">
           <summary class="repository-more-trigger" :aria-label="$t('更多投递文件操作')">

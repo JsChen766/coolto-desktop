@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -27,6 +27,7 @@ test("user source resumes persist immutable bytes independently from writing ass
 
     const imported = await files.importFile(source);
     assert.equal(imported.preferred, true);
+    assert.equal(imported.slot, 1);
     assert.equal(imported.originalFilename, "source.pdf");
     assert.match(imported.sha256, /^[0-9a-f]{64}$/u);
 
@@ -54,9 +55,11 @@ test("content hash deduplicates imports and preference is independent metadata",
     assert.equal((await files.importFile(firstPath)).id, first.id);
     const second = await files.importFile(secondPath);
     assert.equal(second.preferred, false);
+    assert.equal(second.slot, 2);
 
     const preferred = await files.setPreferred(second.id);
     assert.equal(preferred.preferred, true);
+    assert.equal(preferred.slot, 2);
     assert.deepEqual((await files.list()).map((file) => [file.id, file.preferred]), [
       [second.id, true],
       [first.id, false],
@@ -66,6 +69,73 @@ test("content hash deduplicates imports and preference is independent metadata",
     assert.equal(renamed.sha256, second.sha256);
     await files.delete(second.id);
     assert.equal((await files.list())[0]?.preferred, true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("three stable slots reject a fourth new file and reuse a deleted slot", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coolto-delivery-slots-"));
+  try {
+    const files = new DeliveryResumeFileRepository(
+      "owner-1", join(root, "storage"), codec,
+    );
+    const paths = await Promise.all([1, 2, 3, 4].map(async (index) => {
+      const path = join(root, `resume-${index}.pdf`);
+      await writeFile(path, `%PDF-1.7\nresume ${index}\n%%EOF`);
+      return path;
+    }));
+    const first = await files.importFile(paths[0]!);
+    const second = await files.importFile(paths[1]!);
+    const third = await files.importFile(paths[2]!);
+    assert.deepEqual([first.slot, second.slot, third.slot], [1, 2, 3]);
+    assert.equal((await files.importFile(paths[0]!)).id, first.id);
+    await assert.rejects(files.importFile(paths[3]!), /最多保存 3 份/u);
+
+    await files.delete(second.id);
+    const replacement = await files.importFile(paths[3]!);
+    assert.equal(replacement.slot, 2);
+    assert.deepEqual(
+      (await files.list()).map((item) => item.slot).sort(),
+      [1, 2, 3],
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("v1 manifests migrate slots without deleting historical overflow", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coolto-delivery-v1-"));
+  try {
+    const storage = join(root, "storage");
+    await mkdir(storage);
+    const files = [1, 2, 3, 4].map((index) => ({
+      id: `00000000-0000-4000-8000-00000000000${index}`,
+      title: `Legacy ${index}`,
+      originalFilename: `legacy-${index}.pdf`,
+      type: "pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 10,
+      sha256: String(index).repeat(64),
+      preferred: index === 1,
+      createdAt: `2026-08-0${index}T00:00:00.000Z`,
+      updatedAt: `2026-08-0${index}T00:00:00.000Z`,
+    }));
+    await writeFile(join(storage, "manifest.coolto"), codec.encodeText(JSON.stringify({
+      schemaVersion: "delivery-resume-files-v1",
+      ownerId: "owner-1",
+      files,
+    })));
+    const repository = new DeliveryResumeFileRepository("owner-1", storage, codec);
+    const slots = new Map((await repository.list()).map((item) => [item.title, item.slot]));
+    assert.deepEqual([...slots.entries()].sort(), [
+      ["Legacy 1", 1], ["Legacy 2", 2], ["Legacy 3", 3], ["Legacy 4", null],
+    ]);
+    await repository.rename(files[0]!.id, "Legacy One");
+    const manifest = JSON.parse(codec.decodeText(
+      await readFile(join(storage, "manifest.coolto")),
+    )) as { schemaVersion: string };
+    assert.equal(manifest.schemaVersion, "delivery-resume-files-v2");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

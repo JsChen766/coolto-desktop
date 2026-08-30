@@ -19,6 +19,7 @@ export function useDeliveryResumeFiles(input: {
   load(): Promise<void>;
   setError(value: string | undefined): void;
   closeDetail(): void;
+  openDetail(): void;
 }) {
   const busy = ref(false);
   const filtered = computed(() => filterDeliveryResumeFiles(
@@ -43,6 +44,7 @@ export function useDeliveryResumeFiles(input: {
       input.resumeFilter.value = "";
       input.query.value = "";
       select(entryId(imported.id));
+      input.openDetail();
     });
   }
 

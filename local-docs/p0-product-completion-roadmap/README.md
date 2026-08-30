@@ -3437,6 +3437,23 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   development Electron 使用无用户数据 PDF 和自然指令“请把这个作为原始简历，保持原文件不做任何修改”
   直接回复已原样保存，可用于任意岗位；未进入解析、经历导入或生成。两条测试对话、PDF 和本地投递资产均
   已清理并移入废纸篓可恢复；邮件/外部站点未打开，未 package、commit、push、上传或发版。
+- 随后用户真实文件再次出现“附件已失效或被替换”：桥接工具虽然存在，但 `SelectedFileRegistry` 只保存
+  路径和 stat 身份，直到 Agent 工具执行才读取字节；系统临时路径回收、替换或文件物化会在选择与保存之间
+  形成 TOCTOU 窗口。现改为选择时通过同一已打开文件句柄完成类型/20MB、前后 stat 和原始字节读取，注册表
+  只保留不可变内存快照，后续解析和原样保存均返回副本，不再重新读取外部路径；会话删除、附件移除和账号
+  清理仍释放快照。回归测试先稳定复现删除原路径后的同一错误，修复后验证路径删除及内容替换均继续使用
+  选择时字节；附件专项 24/24、全量 852/852 tests、957 个源文件行数门禁、Node/Preload/Renderer
+  typecheck、Node/Electron production build 与 `git diff --check` 全绿。未 package、commit、push 或发版。
+- 用户随后确认原始简历应在“求职仓库 → 简历资产”中可见，但继续与 Resume 业务隔离，并且每个账号最多
+  支持三份。Manifest 升级为 `delivery-resume-files-v2`，新增与 `preferred` 独立的稳定 `slot=1/2/3`：
+  新 hash 占用最小空槽，第四份拒绝，重复 hash 不占槽，删除释放原槽且不重排其它编号；v1 按创建时间和
+  ID 稳定迁移，历史超限项保留为 `slot=null`，不自动删除。Renderer 恢复独立“原始简历（N/3）”分组、
+  `★1/★2/★3` 文本标识、当前首选、筛选、详情、重命名/删除/用于投递及 `delivery:<id>` 导航；达到三份
+  只禁用新增。原始文件仍不进入 `JobRepositoryResume`、`list_resumes`、JD 关系、Application `resumeId`、
+  生成、修改、质量门或历史复用。Agent 只按宿主 slot 报告编号和真实可见位置。专项 20/20、全量
+  855/855 tests、957 个源文件行数门禁、Node/Preload/Renderer typecheck、Node/Electron production
+  build 与 `git diff --check` 全绿；真实当前账号只读验证“添加原始简历（1/3）”、`★1` 列表、当前首选
+  和详情均可访问，未新增、删除、改首选或投递。未 package、commit、push 或发版。
 
 ## 明确不进入本路线
 
