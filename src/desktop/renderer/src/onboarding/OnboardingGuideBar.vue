@@ -9,6 +9,7 @@ defineProps<{
   secondaryLabel?: string | undefined;
   busy?: boolean;
   error?: string | undefined;
+  aboveComposer?: boolean;
 }>();
 
 defineEmits<{
@@ -18,7 +19,12 @@ defineEmits<{
 </script>
 
 <template>
-  <aside class="onboarding-guide-bar" role="status" aria-live="polite">
+  <aside
+    class="onboarding-guide-bar"
+    :class="{ 'above-composer': aboveComposer }"
+    role="status"
+    aria-live="polite"
+  >
     <span class="onboarding-guide-index">{{ index }}</span>
     <span class="onboarding-guide-copy">
       <strong>{{ $t(title) }}</strong>
@@ -67,6 +73,7 @@ defineEmits<{
   color: var(--bg);
   box-shadow: var(--shadow-menu);
 }
+.onboarding-guide-bar.above-composer { bottom: 116px; }
 .onboarding-guide-index {
   display: grid;
   place-items: center;

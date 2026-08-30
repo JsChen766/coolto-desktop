@@ -4,7 +4,6 @@ import type { ChatMessage } from "@desktop/types";
 import {
   ChatHeader,
   ChatMessageView,
-  Composer,
   EmptyState,
   ExperienceImportResultCard,
   FillProgressCard,
@@ -21,7 +20,18 @@ import { useStreamingElapsed } from "../chat/use-streaming-elapsed";
 import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
 import ChatPendingAction from "./ChatPendingAction.vue";
-const props = defineProps<{ shell: AppShell; composerDisabled?: boolean }>();
+import ChatComposerHost from "./ChatComposerHost.vue";
+const props = defineProps<{
+  shell: AppShell;
+  composerDisabled?: boolean;
+  composerGuided?: boolean;
+  composerGuidedText?: string | undefined;
+  composerGuidedHighlight?: boolean;
+}>();
+defineEmits<{
+  composerFocus: [];
+  composerSend: [text: string];
+}>();
 const emptyStages = useEmptyStateStages();
 const {
   activeArtifactType,
@@ -32,7 +42,6 @@ const {
   browser,
   conversationAttachment,
   current,
-  desktopApi,
   draftCloudState,
   exportResume,
   fillProgress,
@@ -46,10 +55,6 @@ const {
   openResumeDraft,
   openTracker, importDeliveryResumeFile,
   pendingApproval,
-  cloudCopyRequested,
-  clearResumeOperationContext,
-  requestCloudResumeCopy,
-  resumeOperationContext,
   resolveApproval,
   resumeWorkspace,
   runError,
@@ -217,21 +222,14 @@ const GENERAL_RESUME_PROMPT =
               />
             </div>
           </div>
-          <Composer
+          <ChatComposerHost
+            :shell="shell"
             :disabled="composerDisabled || !current"
-            :running="running"
-            :attachment="conversationAttachment.attachment.value"
-            :attachment-busy="conversationAttachment.selecting.value"
-            :attachment-error="conversationAttachment.error.value"
-            :resume-context="resumeOperationContext"
-            :cloud-copy-requested="cloudCopyRequested"
-            @send="send"
-            @cancel="desktopApi.agent.cancel"
-            @select-attachment="conversationAttachment.select"
-            @select-attachment-path="conversationAttachment.selectPath"
-            @remove-attachment="conversationAttachment.remove"
-            @clear-resume-context="clearResumeOperationContext"
-            @request-local-copy="requestCloudResumeCopy"
+            :guided="composerGuided"
+            :guided-text="composerGuidedText"
+            :guided-highlight="composerGuidedHighlight"
+            @guided-focus="$emit('composerFocus')"
+            @guided-send="$emit('composerSend', $event)"
           />
         </section>
         <ResumePreviewOutlet

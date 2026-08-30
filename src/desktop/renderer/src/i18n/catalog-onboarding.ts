@@ -59,4 +59,12 @@ export const onboardingMessages: Record<string, string> = {
   "正在准备一次性体验": "Preparing the one-time tour",
   "正在准备一次性示例体验…": "Preparing the one-time sample tour…",
   "首次体验暂时无法启动": "The first-use tour could not start",
+  "先从聊天框开始使用 Coolto": "Start with the Coolto chat box",
+  "Coolto 的核心使用方式是从聊天框告诉 Agent 你想做什么；请点击下方输入框。":
+    "Coolto starts with telling the Agent what you want in chat. Select the input below.",
+  "示例指令正在填入聊天框": "A sample instruction is being entered",
+  "文字填写完成后，请点击输入框右下角的真实发送按钮。":
+    "When the text is ready, select the real Send button in the lower-right corner.",
+  "请使用准备好的示例资料，带我体验如何保存经历、根据 JD 生成简历并追踪投递。":
+    "Use the prepared sample data to show me how to save experience, create a resume from a JD, and track an application.",
 };

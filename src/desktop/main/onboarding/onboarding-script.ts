@@ -15,7 +15,7 @@ const INTRO = [
 
 const SCRIPTS: Record<OnboardingAction, readonly [string, string]> = {
   accept_sample_profile: [
-    "【示例操作】我同意使用完全虚构的示例资料开始体验。",
+    "【示例操作】请使用准备好的示例资料，带我体验如何保存经历、根据 JD 生成简历并追踪投递。",
     "示例身份已经准备好：林小满（示例）、+852 5555 0108、demo@coolto.example、Hong Kong。现在进入真实的经历仓库，查看三条脱敏示例经历如何成为长期资产。",
   ],
   view_sample_experience: [
@@ -50,7 +50,7 @@ const EN_INTRO = [
 
 const EN_SCRIPTS: Record<OnboardingAction, readonly [string, string]> = {
   accept_sample_profile: [
-    "[Sample action] I agree to start with fully fictional sample data.",
+    "[Sample action] Use the prepared sample data to show me how to save experience, create a resume from a JD, and track an application.",
     "The sample identity is ready: Lin Xiaoman (sample), +852 5555 0108, demo@coolto.example, Hong Kong. Next, open the real experience library to see three fictional experiences as reusable assets.",
   ],
   view_sample_experience: [

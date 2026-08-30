@@ -11,6 +11,7 @@ import JobRepositoryView from "../components/JobRepositoryView.vue";
 import OnboardingGuideBar from "./OnboardingGuideBar.vue";
 import type { OnboardingController } from "./use-onboarding";
 import { SAMPLE_JD_ID } from "./onboarding-sample-api";
+import { translate } from "../i18n/locale";
 
 const props = defineProps<{
   shell: AppShell;
@@ -19,6 +20,7 @@ const props = defineProps<{
 
 const experienceSeen = ref(false);
 const applicationSeen = ref(false);
+const composerFocused = ref(false);
 const navigation = ref<JobRepositoryNavigationState>({
   view: "jobs",
   query: "",
@@ -46,9 +48,13 @@ watch(step, (next) => {
 const guide = computed(() => {
   switch (step.value) {
     case "welcome": return {
-      title: "先用完全虚构的资料体验",
-      description: "确认后会进入真实经历仓库；示例不会写入你的正式资产。",
-      action: "同意并开始一次性体验",
+      title: composerFocused.value
+        ? "示例指令正在填入聊天框"
+        : "先从聊天框开始使用 Coolto",
+      description: composerFocused.value
+        ? "文字填写完成后，请点击输入框右下角的真实发送按钮。"
+        : "Coolto 的核心使用方式是从聊天框告诉 Agent 你想做什么；请点击下方输入框。",
+      action: undefined,
     };
     case "experience": return {
       title: "在真实经历仓库查看长期事实",
@@ -90,9 +96,7 @@ const guide = computed(() => {
 });
 
 async function primaryAction(): Promise<void> {
-  if (step.value === "welcome") {
-    await props.controller.advance("accept_sample_profile");
-  } else if (step.value === "experience" && experienceSeen.value) {
+  if (step.value === "experience" && experienceSeen.value) {
     await props.controller.advance("view_sample_experience");
   } else if (step.value === "browser") {
     await props.controller.openBrowserDemo();
@@ -102,6 +106,16 @@ async function primaryAction(): Promise<void> {
     await props.controller.complete();
   }
 }
+
+async function sendGuidedPrompt(): Promise<void> {
+  if (step.value === "welcome") {
+    await props.controller.advance("accept_sample_profile");
+  }
+}
+
+const guidedPrompt = computed(() => composerFocused.value
+  ? translate("请使用准备好的示例资料，带我体验如何保存经历、根据 JD 生成简历并追踪投递。")
+  : undefined);
 
 async function generateResume(
   action: "generate" | "match",
@@ -146,7 +160,12 @@ async function generateResume(
       <AppChatWorkspace
         v-else
         :shell="shell"
-        composer-disabled
+        :composer-disabled="step !== 'welcome'"
+        :composer-guided="step === 'welcome'"
+        :composer-guided-text="guidedPrompt"
+        :composer-guided-highlight="step === 'welcome'"
+        @composer-focus="composerFocused = true"
+        @composer-send="sendGuidedPrompt"
       />
       <OnboardingGuideBar
         v-if="step && step !== 'completed'"
@@ -157,6 +176,7 @@ async function generateResume(
         :secondary-label="guide.secondary"
         :busy="controller.busy.value"
         :error="controller.error.value"
+        :above-composer="step === 'welcome'"
         @action="primaryAction"
         @secondary="controller.reopenBrowserDemo"
       />
