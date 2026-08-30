@@ -32,12 +32,13 @@ export class BrowserTabManager {
     private readonly onChange: () => void,
   ) {}
 
-  public newTab(url?: string): BrowserTab {
+  public newTab(url?: string, displayUrl?: string): BrowserTab {
     const tab = new BrowserTab(
       () => this.onChange(),
       (openUrl) => {
         this.newTab(openUrl);
       },
+      displayUrl,
     );
     this.#tabs.push(tab);
     this.window.contentView.addChildView(tab.view);

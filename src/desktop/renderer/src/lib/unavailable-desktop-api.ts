@@ -27,6 +27,13 @@ export function createUnavailableDesktopApi(): DesktopApi {
       providers: unavailable, list: unavailable,
       connect: unavailable, disconnect: unavailable,
     },
+    onboarding: {
+      status: unavailable,
+      start: unavailable,
+      advance: unavailable,
+      openBrowserDemo: unavailable,
+      complete: unavailable,
+    },
     conversations: {
       list: unavailable,
       create: unavailable,

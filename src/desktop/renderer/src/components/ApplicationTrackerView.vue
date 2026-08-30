@@ -23,6 +23,7 @@ const props = defineProps<{ context?: TrackerNavigationContext }>();
 const emit = defineEmits<{
   close: [];
   openAsset: [kind: "jd" | "resume", id: string];
+  applicationOpened: [applicationId: string];
 }>();
 
 const page = useApplicationTrackerPage(() => props.context);
@@ -47,6 +48,10 @@ async function refresh(): Promise<void> {
 }
 async function childrenChanged(): Promise<void> {
   await Promise.all([overview.load(), recovery.load()]);
+}
+function openApplication(application: (typeof filtered.value)[number]): void {
+  tracker.selected.value = application;
+  emit("applicationOpened", application.id);
 }
 </script>
 
@@ -110,7 +115,7 @@ async function childrenChanged(): Promise<void> {
         :busy="tracker.busy.value"
         :interviews="overview.snapshot.value.interviews"
         :reminders="overview.snapshot.value.reminders"
-        @open="tracker.selected.value = $event"
+        @open="openApplication"
         @transition="prepareTransition"
       />
     </div>
@@ -119,14 +124,14 @@ async function childrenChanged(): Promise<void> {
       :applications="filtered"
       :events="overview.snapshot.value.statusEvents"
       :interviews="overview.snapshot.value.interviews"
-      @open="tracker.selected.value = $event"
+      @open="openApplication"
     />
     <ApplicationCalendarView
       v-else
       :applications="filtered"
       :interviews="overview.snapshot.value.interviews"
       :reminders="overview.snapshot.value.reminders"
-      @open="tracker.selected.value = $event"
+      @open="openApplication"
     />
 
     <ApplicationDetailShell

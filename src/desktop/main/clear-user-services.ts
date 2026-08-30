@@ -15,6 +15,7 @@ export async function clearUserServices(input: {
   current.agent.cancel();
   current.selectedFiles.clear();
   await current.deliveryResumeFiles.clearStaging();
+  await current.onboardingBrowser?.cleanup().catch(() => undefined);
   current.reminderScheduler.dispose();
   current.agentTaskScheduler.dispose();
   if (input.reason !== "account_changed") return;

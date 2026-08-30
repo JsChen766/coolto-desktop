@@ -67,6 +67,11 @@ import {
   DELIVERY_RESUME_FILE_IPC_CHANNELS,
   registerDeliveryResumeFileIpc,
 } from "./delivery-resume-files/delivery-resume-file-ipc.js";
+import type { BrowserWindowManager } from "./browser/browser-window-manager.js";
+import {
+  ONBOARDING_IPC_CHANNELS,
+  registerOnboardingIpc,
+} from "./onboarding/onboarding-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -75,6 +80,7 @@ export function registerDesktopIpc(
   browserAgentController: BrowserAgentController,
   browserPageOperator: BrowserPageOperator,
   browserAgentStatus: BrowserAgentStatusBridge,
+  browserWindow: BrowserWindowManager,
 ): void {
   for (const channel of [
     ...AUTH_IPC_CHANNELS,
@@ -94,6 +100,7 @@ export function registerDesktopIpc(
     ...AGENT_TASK_IPC_CHANNELS,
     ...MAIL_CONNECTION_IPC_CHANNELS,
     ...DELIVERY_RESUME_FILE_IPC_CHANNELS,
+    ...ONBOARDING_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -106,6 +113,7 @@ export function registerDesktopIpc(
     browserAgentController,
     browserPageOperator,
     browserAgentStatus,
+    browserWindow,
   );
   window.once("closed", () => {
     void services.clear("window_closed");
@@ -199,6 +207,7 @@ export function registerDesktopIpc(
   );
   registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
   registerAgentTaskIpc(ipcMain, servicesForCurrentUser);
+  registerOnboardingIpc(ipcMain, servicesForCurrentUser);
 }
 
 /** In-flight transcript snapshot started on window close; before-quit waits

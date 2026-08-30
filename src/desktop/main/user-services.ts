@@ -4,7 +4,6 @@ import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { BrowserAgentController } from "../../browser/agent-control-types.js";
 import type { BrowserPageOperator } from "../../browser/types.js";
 import type { BrowserAgentStatusBridge } from "./browser/browser-agent-status-bridge.js";
-import type { AgentHarnessServices } from "../../agent-task/agent-harness-services.js";
 import { ResumeManualEditor } from "../../resume/draft/manual-editor.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import { DesktopAgentRuntime } from "./agent-runtime.js";
@@ -38,43 +37,15 @@ import { ReminderNotificationScheduler } from "./tracker/reminder-notification-s
 import { TrackerRecoveryService } from "./tracker/tracker-recovery-service.js";
 import { createElectronAgentHarness } from "./agent-task/create-electron-agent-harness.js";
 import { createAgentTaskRuntime } from "./agent-task/create-agent-task-runner.js";
-import type { AgentTaskRunner } from "../../agent-task/agent-task-runner.js";
-import type { AgentTaskScheduler } from "../../agent-task/agent-task-scheduler.js";
 import { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
 import { clearUserServices } from "./clear-user-services.js";
 import { ElectronMailConnectionService } from "./mail-connections/electron-mail-connection-service.js";
-import { createUserFileServices, type UserFileServices } from "./user-file-services.js";
-export interface UserServices extends UserFileServices {
-  ownerId: string;
-  conversations: ConversationStore;
-  resumeDrafts: ResumeDraftService;
-  resumeDraftEditing: ResumeDraftEditingService;
-  resumePdfExports: ResumePdfExportService;
-  agent: DesktopAgentRuntime;
-  agentHarness: AgentHarnessServices;
-  agentTasks: AgentTaskRunner;
-  agentTaskProposals: AgentTaskProposalService;
-  agentTaskScheduler: AgentTaskScheduler;
-  resumes: ResumeSyncStore;
-  jds: JdSyncStore;
-  applications: ApplicationSyncStore;
-  applicationProposals: ApplicationProposalService;
-  experiences: ExperienceSyncStore;
-  profiles: ProfileSyncStore;
-  profileProposals: ProfileProposalService;
-  experienceHistory: ExperienceHistoryService;
-  experienceProposals: ExperienceProposalService;
-  trackerDetail: ApplicationTrackerDetailService;
-  interviews: InterviewSyncStore;
-  interviewProposals: InterviewProposalService;
-  notes: NoteSyncStore;
-  noteProposals: NoteProposalService;
-  reminders: ReminderSyncStore;
-  reminderProposals: ReminderProposalService;
-  reminderScheduler: ReminderNotificationScheduler;
-  trackerRecovery: TrackerRecoveryService;
-  mailConnections: ElectronMailConnectionService;
-}
+import { createUserFileServices } from "./user-file-services.js";
+import type { BrowserWindowManager } from "./browser/browser-window-manager.js";
+import { createOnboardingServices } from
+  "./onboarding/create-onboarding-services.js";
+import type { UserServices } from "./user-services-contract.js";
+export type { UserServices } from "./user-services-contract.js";
 export class UserServicesResolver {
   private services: UserServices | undefined;
   public constructor(
@@ -84,12 +55,17 @@ export class UserServicesResolver {
     private readonly browserAgentController: BrowserAgentController,
     private readonly browserPageOperator: BrowserPageOperator,
     private readonly browserAgentStatus: BrowserAgentStatusBridge,
+    private readonly browserWindow: BrowserWindowManager,
   ) {}
 
   public async get(): Promise<UserServices> {
     const user = this.auth.requireCurrentUser();
     if (this.services?.ownerId === user.id) return this.services;
     const conversations = new ConversationStore(user.id);
+    const { onboarding, onboardingBrowser } = createOnboardingServices({
+      ownerId: user.id, conversations, browserWindow: this.browserWindow,
+      browserPageOperator: this.browserPageOperator,
+    });
     const agentHarness = await createElectronAgentHarness(user.id);
     const resumeDrafts = new ResumeDraftService(
       user.id,
@@ -195,6 +171,8 @@ export class UserServicesResolver {
         syncStore, triggerSync, waitForInitialSync, () => this.auth.syncNow(),
       ),
       mailConnections,
+      onboarding,
+      onboardingBrowser,
     };
     return this.services;
   }

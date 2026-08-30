@@ -71,6 +71,13 @@ export function createBrowserDemoApi(): DesktopApi {
       connect: async () => { throw new Error("Demo 模式未配置邮箱 OAuth"); },
       disconnect: async () => undefined,
     },
+    onboarding: {
+      status: async () => ({ version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }),
+      start: async () => ({ status: { version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }, conversation: null }),
+      advance: async () => { throw new Error("Browser Demo 不运行首次体验"); },
+      openBrowserDemo: async () => undefined,
+      complete: async () => ({ status: { version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }, conversation: null }),
+    },
     conversations: chat.conversations,
     attachments: chat.attachments,
     getPathForFile: () => "",

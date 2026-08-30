@@ -21,7 +21,7 @@ import { useStreamingElapsed } from "../chat/use-streaming-elapsed";
 import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
 import ChatPendingAction from "./ChatPendingAction.vue";
-const props = defineProps<{ shell: AppShell }>();
+const props = defineProps<{ shell: AppShell; composerDisabled?: boolean }>();
 const emptyStages = useEmptyStateStages();
 const {
   activeArtifactType,
@@ -218,7 +218,7 @@ const GENERAL_RESUME_PROMPT =
             </div>
           </div>
           <Composer
-            :disabled="!current"
+            :disabled="composerDisabled || !current"
             :running="running"
             :attachment="conversationAttachment.attachment.value"
             :attachment-busy="conversationAttachment.selecting.value"

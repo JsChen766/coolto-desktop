@@ -11,6 +11,7 @@ import type {
   DesktopAgentEvent,
   DesktopApi,
 } from "../shared/types.js";
+import { onboardingPreloadApi } from "./onboarding-api.js";
 
 const api: DesktopApi = {
   platform: process.platform,
@@ -175,6 +176,7 @@ const api: DesktopApi = {
     disconnect: (connectionId) =>
       ipcRenderer.invoke("mail-connections:disconnect", connectionId),
   },
+  onboarding: onboardingPreloadApi,
   agentTasks: {
     list: () => ipcRenderer.invoke("agent-tasks:list"),
     get: (taskId) => ipcRenderer.invoke("agent-tasks:get", taskId),

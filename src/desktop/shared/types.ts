@@ -64,5 +64,7 @@ export type * from "./types/resume-library.js";
 export type * from "./types/updates.js";
 export type * from "./types/agent-tasks.js";
 export type * from "./types/mail-connections.js";
+export { ONBOARDING_VERSION } from "./types/onboarding.js";
+export type * from "./types/onboarding.js";
 export type * from "./types/tracker-child-api.js";
 export type * from "./types/delivery-resume-files.js";

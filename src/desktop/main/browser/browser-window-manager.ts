@@ -1,13 +1,7 @@
 import { BrowserWindow, type WebContents } from "electron";
 
-import type {
-  BrowserOpenInput,
-  BrowserShellState,
-  BrowserState,
-} from "../../shared/types.js";
-import type {
-  BrowserPageOperator,
-} from "../../../browser/types.js";
+import type { BrowserOpenInput, BrowserShellState, BrowserState } from "../../shared/types.js";
+import type { BrowserPageOperator } from "../../../browser/types.js";
 import type { BrowserAgentController } from "../../../browser/agent-control-types.js";
 import {
   BrowserActiveOriginTracker,
@@ -24,10 +18,7 @@ import {
   type WriteAccessLifecycle,
 } from "./browser-page-operator.js";
 import { BrowserReviewOrchestrator } from "./browser-review-orchestrator.js";
-import {
-  createBrowserWindow,
-  deriveShellState,
-} from "./browser-window-factory.js";
+import { createBrowserWindow, deriveShellState } from "./browser-window-factory.js";
 import { BrowserWriteAccessGate } from "./browser-write-access-gate.js";
 import { BrowserTabManager } from "./browser-tab-manager.js";
 import { BrowserAgentControllerImpl } from "./browser-agent-controller.js";
@@ -43,6 +34,7 @@ export class BrowserWindowManager {
   #window: BrowserWindow | undefined;
   #tabs: BrowserTabManager | undefined;
   #pendingUrl: string | undefined;
+  #pendingDisplayUrl: string | undefined;
   #theme: "light" | "dark" = "light";
   readonly #emitters: BrowserWindowEmitters;
   readonly #writeAccess = new BrowserWriteAccessGate();
@@ -110,13 +102,19 @@ export class BrowserWindowManager {
     const url = input?.url?.trim();
     if (this.#window && !this.#window.isDestroyed()) {
       this.#window.focus();
-      if (url) this.#tabs?.newTab(url);
+      if (url) this.#tabs?.newTab(url, this.#pendingDisplayUrl);
+      this.#pendingDisplayUrl = undefined;
       this.pushState();
       return this.getState();
     }
     this.#pendingUrl = url;
     this.#window = this.#createWindow();
     return this.getState();
+  }
+
+  public openOnboardingDemo(url: string, theme: "light" | "dark"): BrowserState {
+    this.#pendingDisplayUrl = "coolto://onboarding/example-application";
+    return this.open({ url, theme });
   }
 
   public close(): void {
@@ -213,8 +211,9 @@ export class BrowserWindowManager {
       this.pushState();
       return;
     }
-    this.#tabs.newTab(this.#pendingUrl);
+    this.#tabs.newTab(this.#pendingUrl, this.#pendingDisplayUrl);
     this.#pendingUrl = undefined;
+    this.#pendingDisplayUrl = undefined;
   }
 
   #shellState(): BrowserShellState {

@@ -79,5 +79,5 @@ const HOME_PAGE_HTML = `<!doctype html>
 export const BROWSER_HOME_URL = `data:text/html;charset=utf-8,${encodeURIComponent(HOME_PAGE_HTML)}`;
 
 export function isBrowserHomeUrl(url: string): boolean {
-  return url === BROWSER_HOME_URL || url.startsWith("data:text/html");
+  return url === BROWSER_HOME_URL;
 }

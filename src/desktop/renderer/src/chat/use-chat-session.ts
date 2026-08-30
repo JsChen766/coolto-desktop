@@ -32,6 +32,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   const toolRuns = ref<ToolRun[]>([]);
   const pendingApproval = ref<DesktopApprovalRequest>();
   const approvalBusy = ref(false);
+  const authenticatedReady = ref(false);
   const dialog = ref<{
     mode: "rename" | "delete";
     conversation: ConversationSummary;
@@ -72,6 +73,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     if (running.value) await desktopApi.agent.cancel();
   }
   function clearAuthenticatedState(): void {
+    authenticatedReady.value = false;
     current.value = undefined;
     conversations.value = [];
     approvalByConversation.clear();
@@ -86,6 +88,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     const first = conversations.value[0];
     if (first) await selectConversation(first.id);
     else await createConversation();
+    authenticatedReady.value = true;
   }
   async function refreshConversationList(): Promise<void> {
     conversations.value = await desktopApi.conversations.list();
@@ -112,13 +115,17 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     }
   }
 
-  async function selectConversation(conversationId: string): Promise<void> {
-    if (running.value || current.value?.id === conversationId) return;
+  async function selectConversation(
+    conversationId: string,
+    force = false,
+  ): Promise<void> {
+    if (running.value || (!force && current.value?.id === conversationId)) return;
     current.value = await desktopApi.conversations.get(conversationId);
     clearRunState();
     pendingApproval.value = approvalByConversation.get(conversationId);
     jd.switchConversation(conversationId);
     match.switchConversation(conversationId);
+    if (force) await refreshConversationList();
   }
 
   function openDialog(
@@ -222,14 +229,9 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
 
   return {
     ...auth,
-    conversations,
-    current,
-    running,
-    streamingText,
-    runError,
-    toolRuns,
-    pendingApproval,
-    approvalBusy,
+    conversations, current, running,
+    streamingText, runError, toolRuns,
+    pendingApproval, approvalBusy, authenticatedReady,
     dialog,
     jdArtifacts: jd.jdArtifacts,
     activeJd: jd.activeJd,
@@ -237,6 +239,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     activeMatchReport: match.activeMatchReport,
     createConversation,
     selectConversation,
+    reloadConversation: (id: string) => selectConversation(id, true),
     openDialog,
     confirmDialog,
     send,

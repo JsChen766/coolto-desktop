@@ -14,8 +14,13 @@ import { buildBrowserUserAgent } from "./browser-user-agent.js";
 export class BrowserTab {
   readonly id = randomUUID();
   readonly view: WebContentsView;
+  #displaySourceUrl: string | undefined;
 
-  public constructor(onChange: () => void, onOpenUrl: (url: string) => void) {
+  public constructor(
+    onChange: () => void,
+    onOpenUrl: (url: string) => void,
+    private readonly displayUrl?: string,
+  ) {
     this.view = new WebContentsView({
       webPreferences: {
         session: getBrowserSession(),
@@ -46,7 +51,9 @@ export class BrowserTab {
   }
 
   public loadUrl(url?: string): void {
-    void this.view.webContents.loadURL(url?.trim() || BROWSER_HOME_URL);
+    const target = url?.trim() || BROWSER_HOME_URL;
+    this.#displaySourceUrl = this.displayUrl ? target : undefined;
+    void this.view.webContents.loadURL(target);
   }
 
   public setBounds(bounds: Rectangle): void {
@@ -83,7 +90,11 @@ export class BrowserTab {
     return {
       id: this.id,
       title: isHome ? "新标签页" : contents.getTitle() || "加载中…",
-      url: !rawUrl || isHome ? null : rawUrl,
+      url: !rawUrl || isHome
+        ? null
+        : this.displayUrl && rawUrl === this.#displaySourceUrl
+          ? this.displayUrl
+          : rawUrl,
       isLoading: contents.isLoading(),
       canGoBack: contents.navigationHistory.canGoBack(),
       canGoForward: contents.navigationHistory.canGoForward(),

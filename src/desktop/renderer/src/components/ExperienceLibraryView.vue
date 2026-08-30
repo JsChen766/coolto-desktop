@@ -18,6 +18,7 @@ const emit = defineEmits<{
   clearImportFocus: [];
   returnImport: [];
   toggleSidebar: [];
+  selected: [experienceId: string];
 }>();
 const {
   clearImportFocus,
@@ -41,6 +42,11 @@ const {
 );
 
 defineExpose({ confirmLeave: maintenance.confirmLeave });
+
+function selectAndReport(experienceId: string): void {
+  selectExperience(experienceId);
+  emit("selected", experienceId);
+}
 </script>
 
 <template>
@@ -126,7 +132,7 @@ defineExpose({ confirmLeave: maintenance.confirmLeave });
           :highlighted-ids="page.focusedIds.value"
           :query="page.query.value"
           :empty-label="$t('没有符合当前搜索或筛选条件的经历')"
-          @select="selectExperience"
+          @select="selectAndReport"
         />
       </aside>
       <section class="experience-detail-pane">

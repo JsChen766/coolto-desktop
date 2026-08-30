@@ -3454,6 +3454,18 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   855/855 tests、957 个源文件行数门禁、Node/Preload/Renderer typecheck、Node/Electron production
   build 与 `git diff --check` 全绿；真实当前账号只读验证“添加原始简历（1/3）”、`★1` 列表、当前首选
   和详情均可访问，未新增、删除、改首选或投递。未 package、commit、push 或发版。
+- 2026-08-30 按用户确认完成全账号一次性真实页面引导：新老账号只要没有当前版本完成记录，登录后即锁定
+  普通导航并创建本机加密的“开始使用 Coolto”对话；每一步由用户点击同意，宿主把带“示例操作”标记的
+  固定中英文消息写入真实对话历史，不调用 Agent/LLM、不消耗额度。Renderer 通过临时 Desktop API override
+  让现有经历仓库、求职仓库、聊天/A4 与 Tracker 读取完全虚构的 Profile、3 条 Experience、Nova Labs JD、
+  固定一页 Resume 和一条 Application；所有写 API fail-closed，样例从不进入 LocalSyncStore、Outbox 或云端。
+  浏览器阶段使用真实 Browser Shell、受信任展示地址 `coolto://onboarding/example-application`、本地 data page、
+  固定临时 PDF、既有字段写入与页内接受/拒绝 Overlay；没有外部站点、提交或邮箱扫描。审核结束后自动回到
+  Tracker；完成动作先关闭浏览器并删除临时文件，再持久化 completed。真实 development Electron 在后端离线
+  下从既有账号完整走通并重启复验：示例 Resume/Application 已从正式页面消失，临时目录无文件，引导对话保留，
+  第二次启动不再强制出现。自动门禁 `npm run check` 全绿：973 个源文件均 ≤250 行、861/861 tests、Node/
+  Preload/Renderer typecheck、Node/Electron production build 与 `git diff --check` 通过。当前 Browser Enhance BE5、
+  S4.5 生成质量状态与邮箱/Calendar 路线均未改变；未 package、commit、push、上传或发版。
 
 ## 明确不进入本路线
 
