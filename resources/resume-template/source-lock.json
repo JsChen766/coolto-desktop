@@ -5,8 +5,8 @@
     {
       "origin": "cv-agent-be/contracts/resume-layout-templates-v1.json",
       "target": "src/desktop/renderer/src/resume/template/resume-layout-templates-v1.json",
-      "sha256": "72a6812848b24d0bfafad109f0af4028dae6b8bfc958efcbd11eba992e01384d",
-      "size": 5562
+      "sha256": "29b1876781afa04d93976707084038329a18752e9bab4f76f2d3c4f33b1b79c8",
+      "size": 5774
     },
     {
       "origin": "cv-agent-be/app/infra/layout/fonts/simsun.ttc",
