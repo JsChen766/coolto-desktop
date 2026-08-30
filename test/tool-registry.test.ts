@@ -3,6 +3,12 @@ import test from "node:test";
 
 import { createToolRegistry } from "../src/tools/registry.js";
 import { ExperienceReferenceRegistry } from "../src/tools/experience-reference-registry.js";
+import { requireToolCapability } from "../src/tools/tool-capabilities.js";
+import { AgentHarnessServices } from "../src/agent-task/agent-harness-services.js";
+import {
+  AgentHarnessStateRepository,
+  MemoryAgentHarnessStatePersistence,
+} from "../src/agent-task/agent-harness-state-repository.js";
 
 test("tool registry has unique, explicitly scoped tools", async () => {
   const tools = createToolRegistry();
@@ -10,6 +16,7 @@ test("tool registry has unique, explicitly scoped tools", async () => {
 
   assert.deepEqual(names, ["get_runtime_info"]);
   assert.equal(new Set(names).size, names.length);
+  assert.ok(tools.every((tool) => requireToolCapability(tool).requiredScopes.length > 0));
 
   const runtimeTool = tools[0];
   assert.ok(runtimeTool);
@@ -21,13 +28,33 @@ test("tool registry has unique, explicitly scoped tools", async () => {
   assert.equal(result.details.persistentAssetCacheEnabled, false);
 });
 
+test("registry exposes Answer Vault only through scoped read and prepare tools", () => {
+  const services = new AgentHarnessServices(
+    "owner-1",
+    new AgentHarnessStateRepository(
+      "owner-1", new MemoryAgentHarnessStatePersistence(),
+    ),
+  );
+  const tools = createToolRegistry({
+    answerVault: services.answers,
+    approvalManager: {} as never,
+  });
+  assert.deepEqual(tools.map((tool) => tool.name), [
+    "get_runtime_info", "get_answer_vault", "prepare_answer_vault_entry",
+  ]);
+  assert.deepEqual(requireToolCapability(tools[1]!).requiredScopes, ["answers.read"]);
+  assert.deepEqual(requireToolCapability(tools[2]!).requiredScopes, ["answers.prepare"]);
+});
+
 test("workspace projection shortens education IDs discovered inside snapshot creation", async () => {
   const canonicalId = "8d7f6e5a-education-id";
+  const registry = new ExperienceReferenceRegistry();
+  const reference = registry.referenceFor(canonicalId);
   const details = {
     source: { experiences: [{ id: canonicalId, category: "education" }] },
     resume: { items: [{ sourceExperienceId: canonicalId }] },
   };
-  const wrapped = new ExperienceReferenceRegistry().wrap({
+  const wrapped = registry.wrap({
     name: "create_resume_workspace",
     label: "test",
     description: "test",
@@ -41,9 +68,57 @@ test("workspace projection shortens education IDs discovered inside snapshot cre
   const result = await wrapped.execute("workspace", {});
   const content = result.content[0];
   const projected = JSON.parse(content?.type === "text" ? content.text : "{}");
-  assert.equal(projected.source.experiences[0].id, "exp_1");
-  assert.equal(projected.resume.items[0].sourceExperienceId, "exp_1");
+  assert.equal(projected.source.experiences[0].id, reference);
+  assert.equal(projected.resume.items[0].sourceExperienceId, reference);
   assert.equal((result.details as typeof details).source.experiences[0]?.id, canonicalId);
+});
+
+test("experience references remain stable and resolve after workspace restore", async () => {
+  const canonicalId = "01a00a4f-f312-7132-8036-984b133ae3ea";
+  const priorReference = new ExperienceReferenceRegistry().referenceFor(canonicalId);
+  let receivedExperienceId = "";
+  const restoredRegistry = new ExperienceReferenceRegistry(() => [canonicalId]);
+  const wrapped = restoredRegistry.wrap({
+    name: "add_resume_material",
+    label: "test",
+    description: "test",
+    parameters: {} as never,
+    execute: async (_toolCallId, params) => {
+      receivedExperienceId = (params as { experienceId: string }).experienceId;
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(params) }],
+        details: params,
+      };
+    },
+  });
+
+  const result = await wrapped.execute("restored", {
+    experienceId: priorReference,
+  });
+  const content = result.content[0];
+  assert.match(priorReference, /^exp_[a-f0-9]{12}$/u);
+  assert.equal(receivedExperienceId, canonicalId);
+  assert.equal(JSON.parse(content?.type === "text" ? content.text : "{}").experienceId, priorReference);
+});
+
+test("material ingestion resolves a short target Experience reference", async () => {
+  const canonicalId = "01a00a4f-f312-7132-8036-984b133ae3ea";
+  const registry = new ExperienceReferenceRegistry();
+  const reference = registry.referenceFor(canonicalId);
+  let received = "";
+  const wrapped = registry.wrap({
+    name: "begin_experience_material_ingestion", label: "test",
+    description: "test", parameters: {} as never,
+    execute: async (_callId, params) => {
+      received = (params as { target: { experienceId: string } }).target.experienceId;
+      return { content: [{ type: "text" as const, text: "{}" }], details: {} };
+    },
+  });
+  await wrapped.execute("material", {
+    source: { kind: "text" },
+    target: { kind: "existing", experienceId: reference },
+  });
+  assert.equal(received, canonicalId);
 });
 
 test("authenticated registry exposes the current user tool", async () => {
@@ -130,11 +205,12 @@ test("experience registry exposes list and detail tools", async () => {
   const modelSearch = JSON.parse(
     searchContent?.type === "text" ? searchContent.text : "{}",
   );
-  assert.equal(modelSearch.items[0].id, "exp_1");
+  const shortReference = modelSearch.items[0].id as string;
+  assert.match(shortReference, /^exp_[a-f0-9]{12}$/u);
   assert.equal(searchResult.details.items[0]?.id, canonicalId);
 
   const detailResult = await tools[2]!.execute("detail", {
-    experienceId: "exp_1",
+    experienceId: shortReference,
   });
   assert.equal(requestedIds[0], canonicalId);
   assert.equal(detailResult.details.id, canonicalId);
@@ -142,7 +218,7 @@ test("experience registry exposes list and detail tools", async () => {
   assert.equal(detailContent?.type, "text");
   assert.equal(JSON.parse(
     detailContent?.type === "text" ? detailContent.text : "{}",
-  ).id, "exp_1");
+  ).id, shortReference);
   assert.equal(
     JSON.stringify(detailResult).includes("historical content"),
     false,

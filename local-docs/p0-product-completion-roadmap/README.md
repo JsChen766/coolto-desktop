@@ -1,7 +1,8 @@
 # Coolto P0 产品能力补齐路线
 
 > 状态：既有产品路线与完成记录保留为历史基线；后续开发已统一为一条正式执行链
-> 当前阶段：S4 Tracker 业务闭环已完成；下一阶段为 S4.5 简历生成与交付修复，之后按 S5 → R1 推进
+> 当前阶段：Browser Enhance BE5 Inbox Signals；BE1–BE4 已于 2026-08-23 完成门禁
+> 后续顺序：BE5 → BE6 → BE7 → BE8 → S4.5 → S5 → R1
 > 建立日期：2026-07-24
 > 上游依赖：[简历生成交付路线](../resume-generation-roadmap/README.md) G1–G7 已完成
 
@@ -165,6 +166,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 → A0（已完成）→ J0（已完成）→ J1（已完成）→ J2（已完成）→ J3（已完成）
 → E0（已完成）→ E1（已完成）→ E2（已完成）→ E3（已完成）
 → E4（已完成）→ E5（已完成）→ E6（已完成）→ S4（已完成）
+→ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（当前）→ BE6 → BE7 → BE8
 → S4.5 → S5 → R1
 ```
 
@@ -186,7 +188,16 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | E5 | 版本记录 | 在线分页历史、pending 本地版本说明和恢复为新 revision | ✅ 已完成 |
 | E6 | 经历仓库验收 | Electron + Docker、离线、冲突、日期、可访问性、跨账号与性能回归 | ✅ 已完成 |
 | S4 | Tracker 业务闭环 | 独立接入 Interview、Note、Reminder、状态历史与本地通知 | ✅ 已完成 |
-| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；H 未开始（用户决定由专职测试人员按 Section H 标准验收，见 Section G/G-1 完成记录） |
+| BE0 | [Browser Enhance 架构冻结](../browser-enhance/00-foundation/README.md) | 复用现有 Agent Harness，冻结 Agent/Harness/Adapter、grant、工具与威胁模型契约 | ✅ 2026-08-23 合同完成 |
+| BE1 | Agent Browser Control | 复用现有 BrowserWindow/Tab/Page 底座，补 Agent 标签、导航、等待、混合观察和可逆交互原语 | ✅ 2026-08-23 完成；27/27 真实 Electron fixture 场景、全量 650 pass/2 skip |
+| BE2 | Persistent Agent Harness | AgentTask、grant、事件邮箱、checkpoint、接管、暂停/恢复和审计 | ✅ 2026-08-23 完成；全量 669 pass/2 skip，Harness 10/10、任务 UI 11/11、BrowserBar 回归 29/29 |
+| BE3 | Managed Job Scout | App 打开期间多源搜索、去重、匹配、Shortlist 和增量巡视 | ✅ 2026-08-23 完成；Greenhouse 15×2、Lever 383×2，重复 0，673 pass/2 skip，Shortlist UI 12/12 |
+| BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionReceipt 与 Application Proposal | ✅ 2026-08-23 机制闭环完成；685 pass/2 skip，Browser 31/31、Harness 10/10、UI 14/14；真实域名 submit 仍待 BE8 逐域验收 |
+| BE5 | Inbox Signals | 默认 Browser Webmail、可选 Gmail/Outlook 增量、Application 关联与状态/Interview Proposal | **当前阶段**；QQ 个人邮箱 candidate Site Policy 已建立并启动监督验收，尚未完成真实页面/账号与 ≥99% 关联准确率门禁；Resume Reuse Memory 已通过代码/全量门禁以及真实 Electron 无候选冷启动、临时真实接口样本下的常规 prompt 正向复用工作区链路，复用后事实不足仍正确停在 `needs_user_decision`；完整生成 token/耗时/质量对照未执行；OAuth Client 只阻塞可选 API Connector；邮件发送始终由用户点击 |
+| BE6 | macOS Calendar | EventKit write-only、映射、改期/取消和去重 | 待 BE5 完成 |
+| BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | 待 BE6 完成；仅 App 打开时运行 |
+| BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |
+| S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；2026-08-29 L7–L12 WorkUnit 语义层与 5 份当前代码真实单次生成完成；L13–L17 已补齐首次经历引导、真正 `jd=null` 的独立通用简历及 tailored 8000 字后的策略卡；L19 新增用户坚持不匹配岗位并指定经历的 `user_directed` 路径，逐 Experience 基础简历优先、否则取其他简历最近版本，多来源合成且不做 JD adaptation，无 focus 均匀分配、有唯一 focus 多写，critical-skill 只警告且不触发 mismatch 卡；2026-08-30 新增独立本地用户原文件投递资产，不进入任何写作/匹配/复用链路，可由用户指定用于任意岗位；L18 general/fallback 与 L20 user-directed 的真实账号模型生成尚未执行，人工文字质量、Section H 和完整 token/质量对照仍待验收 |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
 | R1 | 生产上线准备 | 邮件、限流、域名、备份、监控、密钥、发布与回滚 | 功能路线完成后执行 |
 
@@ -645,6 +656,25 @@ Desktop API/demo、IPC 注册、Vue 状态和样式，禁止创建新的 `Manage
   副本确认弹窗、取消零写入、手动清理不关闭预览、切换对话自动清理均通过，1402px 宽屏和等效
   876px 窄屏无横向溢出。当前账号只有两份 `cloud_only` Resume，故没有为测试创建或修改业务数据，
   最终“确认创建”写入未在真实账号执行；本轮没有 commit/push。
+- 2026-08-30 用户确认再次按岗位中心收敛求职仓库。本地 `ResumeDraftSummary` 与仓库本地摘要保留
+  source snapshot 中已经冻结的 `jdId`、JD 标题和目标岗位；只读聚合使用逻辑 entry ID 将尚未保存到
+  云端的 tailored 草稿展示到对应 JD，云端 Resume ID 与 Application 实际使用关系仍分开计算。通用
+  草稿继续保持 `jdId=null`，已关联云端 Resume 仍以云端当前关系优先，没有新增关系表、业务写路径或
+  Renderer 直写。
+- 求职仓库默认岗位视角保持不变，“简历”改为次级“简历资产”；仓库顶部移除“生成通用简历”和
+  “添加投递文件”，JD 主操作改为“准备岗位简历”。用户原始投递文件的底层加密保存、聊天入口和浏览器
+  上传能力继续存在，但不再混入 Resume 列表或重复出现在每个 JD 详情；Resume→JD 改为可点击的反向
+  关系导航。首次实现曾将 Tracker 与 Agent 任务移出主导航；用户对照原页面后明确这两个成熟入口必须
+  保留，现已恢复侧栏“Agent 任务”和“投递追踪”，仓库内“投递记录”继续作为上下文快捷入口。暂停、
+  继续、撤销授权及 Tracker 全视图均未删除；恢复后 Renderer typecheck、行数门禁、production build 与
+  `git diff --check` 通过。
+- 权限与写入边界未改变：Resume 保存仍需质量门与不可变 Proposal，Application 仍要求真实 `resumeId`
+  并冻结 `resumeContentHashSnapshot`，Tracker/Experience/JD 写入继续走审批、Outbox 与乐观锁。新增本地
+  tailored/general 关系回归后，专项 28/28、全量 851/851 tests、957 个源文件行数门禁、Node/Preload/
+  Renderer typecheck、Node 与 Electron production build、`git diff --check` 全绿。首次 Electron 构建因
+  上级目录 dataless `package.json` 被 esbuild 读取而返回 `EPERM`；门禁期间仅以带 `trap` 的精确临时改名
+  绕过并已原位恢复，文件内容和属性未改变。真实本地 Electron 已启动到隐私知情同意页；未代用户接受，
+  因此登录后岗位/简历关系与窄窗口的本轮人工验收仍待用户完成隐私同意后复验。本轮没有 commit/push。
 
 ### E0–E6：独立经历仓库
 
@@ -1651,6 +1681,28 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   由专职测试人员按 Section H 标准执行（含本 Section 门槛逐项复核），不以本轮自动门禁提前宣称
   Section G 完成。
 
+**S4.5 当前预览行间距调节补充记录（2026-08-26，用户确认）**：
+
+- **产品与交互**：预览打开且存在本地草稿时，在右上角高级详情与保存按钮之间增加复用 Lucide 与既有
+  popover token 的“调整行间距”入口；滑块固定展示 `90%–135%`、步长 `1%`、默认 `100%`，同时提供
+  减小、增大和还原默认的点击/键盘路径。拖动时 A4 立即预览，松开后才提交正式本地修订；中英文、
+  `aria-label`、`aria-valuetext`、Esc 收起、点击外部收起和焦点返回均接入。
+- **一页硬门禁**：右侧同源 A4 DOM 逐档测量每个候选行距，以 `pageCount=1`、`overflow≤1px` 和既有
+  最大页面占比作为动态安全上限；完整轨道仍可见，但安全上限之后显示为不可用尾段，滑块不能进入，
+  到达边界时显示“继续增大将超过一页，已到达当前安全上限”。Main 保存前再次使用隐藏 Chromium 编译
+  同一结构；任何多页、溢出或超过页面占比上限的结果均拒绝写入并保持原行距，因此 Renderer 估算不会
+  成为唯一安全边界。
+- **持久化与同源交付**：行距写入既有 `layout_tuning.body_line_height`，不修改或补写正文；成功调整会
+  增加本地 revision 和“调整行间距”checkpoint，并带 expected revision 防止并发覆盖。预览、保存到
+  简历库与 PDF 导出继续消费同一结构，新增回归明确验证保存/导出 payload 保留该 tuning；pending AI
+  修改存在时入口禁用，文字自动保存会在行距提交前先完成。
+- **验证证据**：新增纯逻辑与草稿服务回归，覆盖 `90%–135%` 映射、模板基线防漂移、动态上限、陈旧
+  revision、一页拒绝、checkpoint、保存/导出同源；`npm run check` 全绿（686/686 tests、758 个源文件
+  ≤250 行、模板快照、Node/preload/renderer 类型检查与两端构建通过），`git diff --check` 通过。真实
+  Electron 已复验按钮位置、popover 视觉与可访问结构；隔离内存 Demo 中当前样本在 `101%` 达到安全
+  上限，加号随即禁用、警告出现且无法继续增大，重置后回到 `100%`。Demo 未写入真实业务数据；本轮
+  未另行导出真实文件，完整 PDF 人工质检仍随既定 Section H 执行。本轮未 commit。
+
 #### S4.5 Section G-1：应用自动更新闭环
 
 - 在既有 electron-builder 打包链（`electron-builder@26`，`package:mac`）上接入 `electron-updater`：
@@ -2137,7 +2189,9 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   承诺无 SmartScreen/Gatekeeper 提醒；自动更新源仍为 `http://127.0.0.1:8099`，须在用户提供准确 HTTPS
   发布基础地址后重打最终分发包。本轮只完成本地 Windows 测试发行，未上传产物。
 
-- 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4 → S4.5 → S5 → R1 推进；
+- 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4
+  → BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（当前）→ BE6 → BE7 → BE8
+  → S4.5 → S5 → R1 推进；2026-08-23 用户明确覆盖此前先回 S4.5 的顺序；
 - 每阶段先复核现状和工作树；列出的确认点必须在该阶段开始时向用户确认，不提前假设；
 - 每阶段和阶段内 section 完成后单独质检，并将真实结果、失败和遗留项写回本 README；
 - 每个业务模块只提供自己的 Store/Mapper/Adapter，不把实体分支集中进同步或求职仓库上帝类；
@@ -3049,12 +3103,412 @@ feed SHA-512 与独立全字节 SHA-256 校验：Windows EXE
 `5799A4A5F905A3EDD74B3F124E58771040D9705AB58764965FB6A612640AF967`。Windows 仍为 NotSigned，macOS
 仍为 ad-hoc/未 notarize；S4.5 状态不因本次反馈入口发布而改变。
 
+**S4.5.1 尾行 V2 实施与实测（2026-08-25 至 08-26，尾行独测通过、整份未完成）：**尾行质量政策已
+从 layout manifest 解耦并版本化；新工作区采用严格 `2/3 + 1px` V2，历史无版本结构保留 V1。隐藏
+Chromium 新增 computed-style CEU 标定和“水 × n”换行响应曲线，Agent 每条只提交一个 `growthText`、
+每批最多 4 条，一次数字 CEU 修正后转 ordered reflow；没有候选、多模型或静态全字符表。Renderer/PDF
+QA、722 文件行数门禁、Node/Preload/Vue typecheck、641 tests 和双 build 全绿。真实模型隔离测试分别
+完成极短尾 17→0，以及 CEU growth 15→0（首次 60%、两次内 100%、平均 1.4 次）。本地 Electron
+自然语言整份复测最终无 run error，但因真实素材在篇幅阶段连续两轮无法安全增高，停在 revision 8、
+单页 90.91% 的 `needs_user_decision`，未产生可导出的合格 revision；因此只确认尾行子链路通过，
+S4.5.1 与 S4.5 状态不变。详细证据写入 S4.5.1 阶段 38 后续记录；未 commit/push/package/发版。
+
+**S4.5.1 无素材二次确认与中性尾行补齐（2026-08-26，独立真实 Electron 通过）：**新增两段明显追问，
+两次“无可补充”必须来自不同用户消息；关键技能和最低 bullet 数不可绕过。授权后的有限中性短语只留在
+当前 Resume，禁止数字、实体、工具、结果或因果主张，原事实仍按原 evidence 校验。真实
+`deepseek-v4-flash` + Chromium 压力样本把 17 条极短尾全部清零：单页 94.61%、无溢出、最短尾行
+71.3%、revision 3→8、17 条中性片段留痕、最终 `ready_for_approval`；报告为
+`local-builds/tail-repair-eval/report-1787675960514.json`。完整 `npm run check` 通过：733 文件行数门禁、
+645/645 tests、全部 typecheck/build。开发 App 已实际启动；跨重启旧草稿因临时 candidate 与 `exp_N`
+引用失效不能续接确认，安全保留原草稿并报告失败，未把该恢复边界伪报为通过。依赖实体同时迁出 iCloud
+Desktop 至标准 `~/Library/Caches/Coolto/**/node_modules`，连续门禁后 dataless=0。未 package、commit、
+push、上传或发版；整份自然语言新建简历尚未重跑，因此 S4.5.1/S4.5 总状态暂不改为完成。
+
+**S4.5.1 最新可见 App 简历复验（2026-08-26，通过）：**用户指出隔离样本并非界面最新产物后，已在
+当前开发 App 内新建并完成真实简历 artifact `0be8b4fd-3679-4713-b590-38cb2556b0f1`。首轮重复保护
+中断时仍有 14 条短尾，没有冒充完成；同一 workspace 续跑并真实显示两段明显追问，两次“没有可补充”
+来自不同用户消息，确认工具成功后把 revision 11 的 12 条剩余短尾于 revision 16 全部清零。最终
+`generationReady=true`、`ready_for_approval`、单页 92.37%、blocker 0、最短尾行 67.65%（严格大于
+2/3），保存与导出按钮均已解锁。这次证据是用户界面中最新可见简历，而不是隔离测试报告；本地 App
+保持启动。未 commit、push、package、上传或发版。
+
+**S4.5.1 尾行完整语义改写替代中性补齐（2026-08-26，独立链路连续 3 次通过）：**用户判定固定中性
+复核/跟踪尾缀不可接受后，模型可见工具面已移除 `confirm_no_resume_material`、`fact_neutral` 与
+`tailGrowths`，改为每条最多两份完整事实等价 `tailRewrites`；允许重组语句，但事实、数字、专名、工具、
+单页、≥92% 与 V2 三分之二门槛均不放宽。宿主先拒绝机械重复，再批量 Chromium 实测并确定性择优；合法
+但尚未过线的候选只作临时工作基线，不污染正式 revision。最终同一版本连续三次真实
+`deepseek-v4-flash` + Chromium 将 17 条极短尾全部清零，耗时 76.2/62.8/79.7 秒，0 重复、0 schema/
+malformed，单页使用率均为 94.61%，报告为 `report-1787714165830.json`、
+`report-1787714243027.json`、`report-1787714335246.json`；旧机械固定尾缀未再出现。Renderer/PDF QA
+为单页 96.11%、最低尾行 76.79%；最终 `npm run check` 为 742 文件门禁、650/650 tests、全部
+typecheck/build 通过。尚未完成用户 Codex 优质简历金标对照或自然语言整份 App 新建复验，故
+S4.5.1/S4.5 状态不变；未 package、commit、push、上传或发版。
+
+**S4.5.1 补材恢复与短尾绑定修复（2026-08-26，真实 App 进展至剩 1 条）：**输出重复恢复现已区分
+`repeated_cycle` / `narrative_limit` 并强制首项输出为当前 nextAction 工具调用；Vue Resume/JD 引用在 IPC 前白名单
+去代理化。经历短 ID 由顺序 `exp_N` 改为真实 ID 派生的跨重启稳定值，恢复草稿时先重建映射。更关键的是，
+`tailRewrites` 现可从 `availableEvidence` 选择补充事实并用 `additionalEvidenceIds` 将其绑到正式 bullet；整页仍单页、
+无溢出且≥92% 时，bullet 可自然增行，不再被旧“必须保持原行数”误杀。真实 11.62 MiB SiC PDF 在 Electron 中再次
+完成选择、解析和补材，续跑期间未再出现模型输出停滞/重复或 IPC clone 错误；草稿短尾由 2 条降至 1 条并已接受为本地
+修订。最后一条仍需用户确认本人参与的测算/交付事实，保存/导出仍正确禁用；因此不标记完成。完整 `npm run check` 为
+744 个源文件、656/656 tests及全部 typecheck/build 通过。未 package、commit、push、上传或发版。
+
+**S4.5.1 最终自然语言生成、补材与审批复验（2026-08-26，本轮范围通过）：**修复测试中的工具回执
+`TextContent | ImageContent` 收窄后，审计额外发现并修复 Experience update 把本地专用
+`resumeSectionKey/resumeSectionLabel` 发给后端的问题；失败经历通过真实 UI“重新应用本地修改”恢复为
+`clean`，未另存重复实体。Agent 经历搜索不再暴露 `conflict/failed` 证据，未完成 Resume artifact 会在主进程
+重启后恢复 workspace 与稳定短引用。只有 bullet 明确引用且归属同一经历的 supplemental evidence 才能支持新增数字，
+Agent items、手动编辑与 candidate patch 均复用该门禁。
+
+- 全新 Electron 对话只输入一句自然语言生成请求；首轮 176.489 秒，JD 一次搜索/一次读取、经历两次不同查询，
+  0 tool error，单页 92.44%，在一条严格尾行缺口处正常追问。用户只补充 PDF 中可核验的两条 SiC 测算事实，
+  48.706 秒内完成 `add_resume_material` 与正式 item 整合，页面升至 95.35%；正文同时保留
+  `380/35/30/56/57` 亿元，并新增导电型 260 亿元、半绝缘型 120 亿元、新能源汽车 245 亿元、
+  `6600/6300/6000/5500` 元/片与 `0.5/0.03/0.09/0.05` 片单台需求假设。
+- 证据未进入正式正文的 revision 12 上，“保存到简历库/导出到本地文件”均真实禁用并显示对应 blocker；
+  合格 revision 上两按钮均启用。用户表示暂时无更多事实后，一次成功展示 5 个岗位场景问题，未泄露
+  `nextAction`、candidate、revision 或工具名；用户再回复“这些都没有”后才进入事实中性充实。
+- 自动草稿 revision 19 达到 `ready_for_approval`、单页 95.35%、0 blocker，并自动弹出
+  `resume.experience.sync` 卡；卡片直接提供“接受并执行/拒绝”，真实接受后 Experience 为 version 3、
+  `clean`、Outbox=0，新事实全部存在于当前 revision。Smoke 同步支持开发版 localhost URL，并把这一宿主审批卡
+  识别为合格终态，不再无意义等待 Assistant 文本。
+- 最终内容金标复核拒绝了“从相关背景……完整语境出发”等机械前缀，并纠正“基准产品范围”、错误 VC 名称和
+  超出来源的退出路径表述。事实中性候选改为在原事实分句间加入自然衔接，原字符顺序与事实不变；最终本地草稿
+  revision 28 经真实 Chromium 为一页 95.35%、overflow=0、0 violations、最低尾行 67.65%，所有上述数字仍在，
+  保存/导出真实启用。截图证据位于 `local-builds/final-e2e-20260826/`。
+- 最终 `npm run check` 全绿：752 个业务源文件均 ≤250 行、669/669 tests、Node/Preload/Vue typecheck、
+  Node build 与 Electron production build 通过。未 commit、push、package、上传或发版。用户明确列为后续的
+  “同类型岗位复用一份满意基础简历再微调”仍未实现和验证；Section H 仍由专职测试人员执行，因此不把 S4.5
+  总状态改写为全部完成。
+
+**S4.5.1 内部过程隐藏与标准两端对齐（2026-08-26，真实 App 链路通过，目标草稿仍需补材）：**全新华泰
+硬科技投资 JD 验收暴露模型在尾行阶段公开输出 `I need to / currentText / CJK / tailRewrites` 并在 6,000 字
+保护后结束生成。现在实时模型正文完全不展示，历史协议叙述和权威补材问题前的内部前缀也由投影删除；
+6,000 字保护只丢弃本次无工具响应并继续恢复，不再以固定三次结束，恢复请求和文本计划 follow-up 使用
+`tool_choice=required` 强制先调用工具。单测连续 4 次 6,101 字符失控后第 5 次完成，0 失败事件、失控文本
+未落入对话。真实 App 续跑只显示 92.5% 与短尾 6→4 等进度，最终将华泰草稿降至 3 条短尾并只显示
+`【需要补充事实】`；当前保存/导出仍正确禁用。简历 bullet 同时改为标准两端对齐，最后一行自然结束且
+V2 三分之二门槛不变；预览/测量/PDF 同源 QA 为单页 96.11%、最低尾行 76.79%、工作区 97.67%。最终
+`npm run check` 为 752 文件、671/671 tests 和全部 typecheck/build 通过。未 package/commit/push/上传/发版，
+S4.5.1/S4.5 状态不变。
+
+**S4.5.1 工具执行结果回执（2026-08-26，真实 App 通过）：**内部过程隐藏后，孚腾资本真实对话中的“这些
+都没有”和连续 LongBridge 文件修改请求因 Assistant 工具消息整体隐藏、临时进度结束清空而没有任何反馈。
+现宿主在每个用户轮次结束后从工具结果与最终工作区生成持久化 Assistant 回执，并替换模型自拟总结；只有
+`【需要补充事实】` / `【帮你一起回忆】` 权威问题原样保留。达标只显示“已全部达标，可以预览、保存和
+导出”；未达标只说明自然语言缺口，禁止显示页面占比、尾行百分比、事实校验、JD 覆盖、revision、工具名或
+门禁码。真实 App 未重新附加文件时正确显示“未提取到可安全写入内容、未修改、请确认附件”；再次确认无
+补充事实后显示“不编造 + 已全部达标”，并展示经历同步审批卡。最终 `npm run check` 为 753 文件、677/677
+tests 和全部 typecheck/build 通过。审批未代用户接受，未 package/commit/push/上传/发版，阶段状态不变。
+
+**S4.5.1 JD 确认后的开始生成回执（2026-08-26，实现与回归通过）：**用户接受 `jd.save` 审批且原始意图
+明确要求生成简历时，宿主立即显示并持久化“OK，已经确认要生成简历了，我现在开始生成。”，然后才运行
+JD continuation；用户只回复“确认”时会沿用前一条生成意图，不需要再次确认。最近请求若明确“只保存/
+不生成”或只做匹配则不显示。专用 `assistant.notice` 事件保证运行中的当前聊天即时可见，最终会话替换不会
+重复。新增意图、持久化与 Renderer 合同回归后，`npm run check` 为 753 文件、682/682 tests 和全部
+typecheck/build 通过；本轮没有新的待确认 JD 做真实接受回放，未 package/commit/push/上传/发版。
+
+**S4.5.1 文件补材的经历仓库沉淀确认（2026-08-26，实现与回归通过）：**用户在修改简历时上传并说明属于
+已有经历的报告、作品或其他材料，Agent 必须一次提取并加入其中全部可核验事实，尽量保留背景、职责、方法、
+对象、数据、交付物与结果；一页简历只按当前岗位和版面择取部分内容，不能反向压缩经历仓库的长期证据。
+`add_resume_material` 成功后，宿主不再等待简历达到交付门槛，而是立即复用 ApprovalCard 展示“将补充事实
+同步到经历仓库”，完整预览拟追加内容并让用户整体接受或拒绝；拒绝只阻止经历仓库写入，当前本地简历草稿
+仍保留材料。已有简历 AI 编辑分支也接入同一审批，纯 supplemental 变化会先持久化，不再因尚未选入 bullet
+而丢失同步机会；同一 evidence fingerprint 仍只提示一次。`npm run check` 全绿：758 个业务源文件均
+≤250 行、688/688 tests、Node/Preload/Vue typecheck、Node build 与 Electron production build 通过。
+本轮未执行真实附件 + Electron 人工接受/拒绝验收，未 package/commit/push/上传/发版，阶段总状态不变。
+
+**S4.5.1 用户指令优先与材料追问终止第一批（2026-08-27，真实 Electron 通过）：**主 system prompt
+升级为 `coolto-local-agent/v131`，明确安全、权限、执行事实和运行保护范围内以用户当前明确指令为先；
+可逆信息不足时自行判断，用户表示没有材料、停止追问、按现有信息继续或接受当前草稿后不得换一种说法
+继续索取。场景回忆改为用户主动选择的 1–3 个问题；明确无材料可在同一消息解锁事实中性表达，不再要求
+第二次确认。JD、浏览器写权限、AgentTask、补写审批、输出重复和 turn governor 的内部 continuation/recovery
+提示同步收口，自动恢复本身不再制造材料问题。
+
+- 复用现有 `decline_resume_material` 表达 `user_stopped_questions` / `best_effort_stalled`，没有既有
+  material request 时也能保留当前最好草稿并进入 `stop_insufficient_material`；用户停止与运行保护停机
+  使用不同可见回执，不冒充合格。首次真实实测发现模型会用纯文本口头确认停止却不调用工具，留下旧材料
+  边界；随后基于 Pi Agent Core 原生 follow-up 和 `shouldStopAfterTurn` 修复：新产生的问题必须原样显示，
+  既有材料边界的用户回答若未使用 add/confirm/decline 落地，会追加一次 `tool_choice=required` 内部续接，
+  禁止纯文本假停机，没有增加第二套 Agent loop。
+- 真实开发 Electron 重启后，新对话引用历史未完成“投行项目实习生”草稿，输入“没有任何补充，不要再问，
+  也不要修改简历；请停止并保留当前草稿”。最终真实出现 2 项工具调用，并由宿主规范化为“已停止追问并
+  保留当前草稿。由于现有事实不足，这份简历尚未达到交付门槛。”；继续等待 5 秒无自动 follow-up、无新问题，
+  导航恢复可用，简历正文未修改。另一次场景实测命中历史草稿里持久化的旧 `scenario_probe` 与旧同步卡，
+  已明确排除为污染样本且未操作审批，不作为通过证据。
+- 最终 `npm run check` 全绿：889 个源文件均 ≤250 行、764/764 tests、Node/Preload/Vue typecheck、Node build
+  与 Electron production build 通过，`git diff --check` 通过。用户已批准但依赖内容/交付策略的真实性覆盖、
+  关键技能与 bullet 数放宽、任务级补写授权、缺失 Profile 继续、用户接受版本保存/导出仍保留为第二批，
+  尚未开始。未 package、commit、push、上传或发版，阶段总状态不变。
+
+**S4.5.1 材料三段闭环与最终尾行收尾（2026-08-27，自动门禁通过、真实 Electron 待验收）：**材料不足
+不再直接进入重复追问或停止：Agent 必须先结合 JD、经历和短尾位置发起一次具体补充邀约；用户愿意时先
+加入并正式整合全部新事实，整合后宿主固定显示 `【继续补充】` 再问一次；用户首次拒绝邀约或补充后表示
+没有更多材料，均调用 `confirm_no_resume_material` 进入最终收尾，只有明确停止整份生成才使用
+`decline_resume_material`。最终收尾保留 V2 三分之二门槛和 1px 几何容差，事实中性授权后尾行/篇幅/
+深度尝试耗尽只轮换候选并继续真实 Chromium 校验，禁止重新生成材料问题，`pause_resume_for_material`
+同时硬拒绝回问。候选池扩展为可轮换的多长度自然连接方案，无标点锚点时也能覆盖较大缺口；事实、数字、
+专名、单页与 ≥92% 门禁不变。新增/更新回归覆盖首次邀约、补充后再次确认、无材料直接收尾、收尾耗尽后
+不得回问、候选长度覆盖及既有 1px 门禁。`npm run check` 全绿：890 个源文件均 ≤250 行、766/766 tests、
+全部 typecheck 与 Node/Electron build 通过。未做真实模型/Electron 端到端收尾，未 package/commit/push/
+上传或发版，阶段总状态不变。
+
+**S4.5.1 AI Builder 无补材三次真实回归（2026-08-27，0/3 未通过）：**用户明确排除一轮直接 JD reference
+测试后，使用真实已登录账号和同一自然输入“请为岗位「AI Builder」生成针对性简历。”执行三次独立新
+对话，并在首次材料边界统一回复“我没有任何要补充的，直接进入最后一个环节。”。第 1 次 47.077 秒在
+邀约前因 workspace 后连续 12 次 `get_experience` 触发 governor，无 artifact；第 2 次先于 31.803 秒
+给出具体 bullet 数量邀约，回复后 `confirm_no_resume_material` 被 `bullet_count_insufficient` 安全门拒绝，
+续跑 106.164 秒后停在 revision 3、单页 78.10%、17 条短尾、最低 3.66%；第 3 次首轮 109.372 秒自行
+best-effort 停止，回复后无素材授权成功，但 56.915 秒内 8 次 apply 只把页面从 72.14% 推到 76.51%，
+随后 governor 中止，终态 revision 5、3 条短尾、最低 7.31%。三次均未达到 92%，没有真正进入最终尾行
+批次，故不能把自动回归表述为真实收尾保证。根因收敛为：bullet 数量不足分支不能跳过补材、最终篇幅阶段
+仍受通用无进展保护提前结束，以及一次创建后重复读取经历的 Agent 编排退化。截图与哈希记录在 S4.5.1
+执行细则；未操作审批、保存或导出，未 package/commit/push/上传/发版，阶段总状态不变。
+
+同日只读排查确认“历史好稿未复用”的直接根因不在 Agent 相似度判断：三次均调用了
+`find_resume_reuse_candidates`，但真实账号当前有 46 条 `local_only` ResumeDraft、0 条 cloud Resume；
+Reuse Memory 只读取已发布且 `qualityStatus=passed`、带来源 JD 的 cloud Resume，因此候选集合恒为空，
+后续也从未调用 `get_resume` 或向 workspace 传 `baseResumeId`。成功的 AI Builder 本地稿
+`07e029b8-d502-400a-b0f4-4c853b2e5e3f` 本身确为 revision 17、单页 92.78%、0 短尾、最低尾行
+67.65%，但 `cloudState=local_only`、无 cloud link；同时 local draft 列表不投影来源 JD、generation
+readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关联 JD”。因此 UI 中“位于简历仓库”的
+本地好稿并不属于当前 Reuse Memory 的候选域，每个新对话仍从空 skeleton 重新选择经历和写作，造成来源
+集合漂移与模型结果波动。本轮未修改代码或用户资产，详细证据写入 S4.5.1，阶段状态不变。
+
+问题已按同一 Reuse Memory 路径修复：候选现在同时包含 cloud passed Resume 与 local ready ResumeDraft；
+本地候选要求全部门禁通过且没有 pending change，并带来源 JD/Experience 和内容指纹。Agent 用
+`get_resume(artifactId)` 核验，同一 JD 默认选择最新合格本地稿，`create_resume_workspace` 通过新增的
+`baseDraftArtifactId` 播种；宿主继续逐字重核当前 evidence、重算 coverage，不覆盖原稿。相同 JD 复用时
+保留历史 item tier，新增经历才重新分级；合格 revision 现在也会幂等生成 generated checkpoint。完整
+`npm run check` 全绿：893 个源文件、770/770 tests、全部 typecheck/build。真实 AI Builder 自然请求
+25.534 秒内复用 `07e029b8-d502-400a-b0f4-4c853b2e5e3f` 的 7 条经历，新 artifact
+`27b22c79-592a-4465-92b5-fc257c958e3d` 直接达到单页 92.78%、0 短尾、最低 67.65%、0 blocker 和
+`ready_for_approval`；原 revision 17 基底不变。未 cloud write/保存/导出/package/commit/push/上传/发版，
+阶段状态不变。
+
+- 2026-08-28 根据真实泰康资产跨 JD 复用失败继续补齐完整快路径。候选检索新增按目标 requirement 权重
+  计算的 `abilityOverlap/mustHaveOverlap`，仍只负责缩小候选并由同一个 Agent 读取完整 JD/Resume 后选择；
+  没有增加规则模型或第二套 Agent loop。新工作区继续先建立目标 JD 框架，再按 section + Experience ID
+  搬入 evidence/revision 仍完全一致的 grounded bullet，并在模板一致时保留原安全布局 tuning。
+- 跨 JD 播种新增本地 `reuseAdaptation` 生命周期和 `reuse_adaptation_pending` readiness blocker；创建后
+  `nextAction` 必须先进入 `adapt_reused_content`，只选择最高影响的一个非教育 item 做一次完整 items
+  批量最小调整。真实内容未变化不能完成；完成前 bullet 数、篇幅、溢出、尾行、保存与导出均不能越级，
+  完成后继续复用原有确定性门禁。相同 JD 合格基底不增加该阶段；当前 Experience 漂移时仍会丢弃失效
+  bullet 并按真实缺口修复，不以“同 JD”绕过 evidence 重核。
+- 同一真实用户轮次内，相同参数的 `get_experience` 只允许成功读取一次；交错的双 Experience 批次第二轮
+  会被 `beforeToolCall` 拦截，新的真实用户消息会重置读取集合。草稿保存现在是继续模型循环前的强边界：
+  新 candidate 保存时先清除旧右侧内容，保存成功即自动展开当前 Resume 预览；保存失败显示现有错误状态
+  并抛出终止，不再让模型在没有 artifact 时继续。Pi 0.84.2 原生 listener settlement、beforeToolCall 和
+  shouldStopAfterTurn 继续承担循环与事件顺序。
+- 自动门禁新增/扩展跨 JD pending→真实内容变化→completed、同 JD直通、布局 tuning、能力重叠、交错重复
+  读取、跨用户轮次重读和右侧交接合同；最终 `npm run check` 全绿：896 个业务源文件均 ≤250 行、
+  774/774 tests、Node/Preload/Vue typecheck、Node build 与 Electron production build 全部通过，
+  `git diff --check` 通过。
+  真实 development Electron 使用已保存泰康 JD 和历史“投资实习生”本地基底（7 条经历）验证：新 artifact
+  在约 23.4 秒内落盘并显示，初始单页 86.67% 且被适配 blocker 锁定；修正过严的多 item 适配后，唯一一次
+  完整跨 JD 运行在约 185 秒达到 revision 5、单页 99.98%、0 blocker、0 短尾、
+  `ready_for_approval`。另一次同 JD 复用因当前 evidence 重核丢失一条历史 bullet，120 秒内仍剩 1 条短尾，
+  正确保持未达标；因此本轮证明跨 JD 快路径可完成，不把单样本扩大为所有 JD 的稳定性完成声明。
+  本轮创建的 5 个 QA 对话和 4 份本地草稿已按精确 ID 删除，最终恢复 84 个原对话、49 份原草稿；未操作
+  原泰康对话、历史基底、审批、云端保存或导出。未 package、commit、push、上传或发版，阶段总状态不变。
+- 2026-08-28 使用用户提供的华泰联合证券“投资银行项目实习生”JD 做真实 development Electron 验收时，
+  首轮发现 JD 审批可在原 prompt 尚未完成落盘时进入同一会话，`announceResumeGenerationStart` 因 Agent
+  仍在运行而拒绝 `replaceMessages`。宿主新增按会话串行交接的 run gate：同会话审批排队到当前运行完整
+  settlement 后接管，不同会话仍立即拒绝；覆盖同会话等待、顺序接管和跨会话拒绝的确定性回归。
+- 第二轮已成功把历史基底显示在右侧，但模型又以完全相同参数创建工作区，被通用重复保护抢先终止。
+  `create_resume_workspace` 现交回原有幂等/乐观锁领域恢复，unchanged 回执明确禁止再次创建并要求立即执行
+  当前 `nextAction`；`adapt_reused_content` 同时成为上下文压缩的正式 continuation authority。跨 JD 适配也
+  固定优先于后续补材问题。对 JD 的“办公常用工具/金融建模工具”与经历中的 `Microsoft Office/财务模型`
+  增加保守直接同义证据匹配，避免已有可核验事实仍被误判为缺素材。
+- 干净对话真实工具序列完成候选检索、`get_resume`、两次 Experience 检索、工作区创建和最小批量适配；
+  右侧 blocker 由 `reuse_adaptation_pending` 正确转为页面 88.1% 与短尾，证明复用适配先完成。后续页面门禁
+  通过、只剩 2 条短尾时选择“不补充新事实”进入事实中性收尾，最终单页覆盖 94.1%、最低尾行 66.7%
+  （V2 硬门槛 2/3）、0 blocker，保存与导出按钮启用。高级详情的尾行目标不再硬编码 75%，改为展示该
+  最低尾行实际 policy 的硬门槛。测试 JD 与最终本地草稿按用户要求保留，未执行保存到云端、导出、
+  package、commit、push、上传或发版。最终 `npm run check` 全绿：897 个业务源文件均 ≤250 行、779/779
+  tests、全部 typecheck/build 通过；阶段总状态不变。
+- 2026-08-28 使用用户提供的腾讯游戏战投、AI×金融投研 Research Content Editor、广发证券投行三条
+  JD 做零补材真实 development Electron 验收；仅接受必需的 JD 导入卡，未追加事实、文件或补写确认。
+  结果为 **2/3 机器门槛可交付**：腾讯 63.674 秒达到 revision 1 / 单页 92.56% / 最低尾行 66.70% /
+  JD coverage 2/6；广发 85.640 秒达到 revision 3 / 单页 94.09% / 最低尾行 70.75% / JD coverage
+  1/6，二者保存/导出启用。Research Editor 在 184.954 秒停止于 revision 3 / 单页 81.95% / 最低尾行
+  5.69% / JD coverage 0/5，仍有 6 条短尾、欠填和两段 main bullet 数不足，保存/导出禁用，故明确未完成。
+  实测还暴露广发审批前内部编排旁白泄漏、两份成功稿缺少最终完成回执、Research Editor 运行中工具异常，
+  以及“ready 但 JD coverage 很低、双语教育重复/跨岗位弱相关内容仍需人工检查”的质量缺口。完整 artifact、
+  JD ID、时长与截图 SHA-256 已写入 S4.5.1；三条对话/JD/本地草稿保留供用户查看，未 cloud save、导出、
+  修改业务代码、commit/push/package/上传/发版，S4.5.1/S4.5 总状态不变。
+- Research Editor 同一草稿随后按用户“没有可以补充的了，你继续完成”复跑约 682.5 秒，复现十分钟无可见
+  变化：1 次 `confirm_no_resume_material` 后连续 39 次 `apply_resume_content`，工具行全部显示 completed，
+  但授权前后 11 条可见 bullet 完全一致，页面仍为 81.95%、最低尾行 5.69%、JD coverage 0/5；revision
+  3→4 只来自无补材授权，不是正文进展。两个 main item（LongBridge、东吴证券）仍为 0 bullet。
+  诊断确认不同 rejected error 集合持续改变 loop key，令无进展计数不能连续累积，直到 40-turn 上限；
+  fact-neutral governor recovery 又强制继续写作，最终可见说明超过 6000 字才被 narrative guard 中止，
+  并由后者掩盖前面的拒绝循环。此问题不是网关挂起或 Renderer 漏刷；完整代码边界、时间线和截图哈希已
+  写入 S4.5.1。本轮仅诊断，未修改业务代码，阶段状态不变。
+- Research Editor 首次生成无补材闭环已按用户定稿逻辑修复：空白稿低于 95% 时必须先消费可安全放入单页的
+  grounded bullet；用户明确无更多材料后，清空旧重试状态、保留已验证的部分 item 写入，并将仅有 2 条真实
+  bullet 的 main 降为 secondary，再只使用宿主白名单的句尾事实中性候选收尾。模型自拟“废话”不再进入
+  中性测量；changing rejection errors 也不再被当作正式进展。最终 `npm run check` 为 901 文件、788/788
+  tests、全部 typecheck/build 全绿。最新真实 development Electron artifact
+  `883f5e98-0357-48a6-8b68-a24f4c0fa76b` 在用户确认无更多材料后 81 秒达到 revision 9 / 单页 96.92% /
+  最低尾行 69.87% / overflow 0 / 0 violation / 0 blocker / `ready_for_approval`，保存与导出启用；截图 SHA-256
+  为 `f6620c2e841df0b79afd58f42220e4b47ad909d3812409730900fa34503bb7b3`。未实际保存或导出，未 package、
+  commit、push、上传或发版。JD coverage 仍为 0/5 且成稿保留部分中文字段，本场景机器门槛通过不代表出版级
+  编辑质量或 S4.5.1/S4.5 全阶段完成。
+- 用户随后确认“首次必须先有正文；无相关事实时允许跳过关键能力警告并继续到可导出”。空白 skeleton 不再
+  被 bullet 数或 must-have 门禁提前暂停：首次回执先要求一次写完所有可用 grounded 正文，证据不足 item 也
+  可保留逐条验证成功的中间正文，之后才提出补材问题。must-have 缺口改为显式可跳过 warning；用户授权后
+  不编造该技能，warning 保留在工作区回执和最终反馈，但退出 save/PDF blocker。后续补入真实事实会撤销旧
+  授权并重新计算。单个不足最低条数的弱 item 在首次生成跳过后由宿主删除并重新编译；历史复用不自动删段，
+  本地复用来源也只读取最终可见 structure，不会把被删弱段带回；所有 item 都不足时仍 fail-closed。
+  `npm run check` 全绿（912 文件、803/803 tests、全部 typecheck/build）；隔离真实 Electron renderer/PDF QA
+  通过（单页 96.11%、最低尾行 76.79%、A4/字体/文本层/postflight/导出通过，截图无裁切或重叠）；
+  `git diff --check` 因现有 Git pack `early EOF / far too short` 以 exit 139 失败，只读 `verify-pack` 判 bad，
+  未擅自修复 Git 对象。未做真实模型 Electron 长链、cloud save、实际 PDF 导出、package/commit/push/发版，
+  阶段总状态不变；完整实现与证据见 S4.5.1。
+- 新增 JD 工具依赖体验修复：真实对话证实 `search_jds` 与
+  `find_resume_reuse_candidates(targetJdId="__pending__")` 被模型同批并行提交；目标 JD 实际为本地
+  `clean/upsert`、无 Outbox，后续真实 ID 全链成功，不是资产未保存。继续复用 Pi Core 0.84.2 原生 parallel
+  loop 和 `afterToolCall`，仅把“同批搜索 + 占位 ID + 原调用失败”转换为非错误 `deferred_dependency`，下一
+  模型轮使用 search 真实结果继续；工具 fast path 同时保证占位 ID 不进入 sync/JD Store，真实 UUID 缺失仍
+  报错。Renderer 无新协议，标准 `tool.completed` 直接显示完成态，不再出现红色“工具调用出现问题”，prompt
+  v138 同步禁止占位 ID。`npm run check` 全绿（913 文件、806/806 tests、全部 typecheck/build）；development
+  Electron/CDP 复验因用户现有 preview 占用单实例而未
+  产生 page，smoke 未发送消息或修改数据，精确实机模型分支待可独占实例时补验。完整证据见 S4.5.1。
+- “写简历”真实运行中的 5 次 apply 被 UI 报为连续重复；诊断证明其中 4 次正式推进 revision 0→4，最终单页
+  95.41%/26 bindings，只有 1 次 line expansion 未推进。实际循环在后续补材边界：模型把权威问题的 `“”`
+  改成 `"`，两个宿主边界判断仍用整句 `includes()` 精确匹配，因而至少 12 次重复显示同一问题并持续注入
+  internal follow-up，最后达到 governor 轮次上限；统一错误文案错误地归因于工具重复。本轮只诊断未修复，
+  草稿和 `critical_skill/awaiting_response` 均保留，详细证据见 S4.5.1。
+- 材料边界三项修复完成：成功 workspace 工具产生 `request_more_material` 后，产品 `shouldStopAfterTurn` 先于
+  governor 立即停止；宿主直接按 request ID 追加唯一权威问题，不再让模型复述或用整句 `includes()` 判断；
+  新边界文字 follow-up 已删除，旧边界用户回答仍由 add/confirm/decline 工具纠偏。Governor 按真实 reason
+  区分相同结果、无正式进展、工具错误、轮次上限与模型中断。Prompt 升至 v139。`npm run check` 全绿
+  （914 文件、810/810 tests、全部 typecheck/build）。真实 Electron 同 JD 运行最终无 runError、11 个工具全
+  completed，但样本走 72.54% best-effort 路径而未命中引号边界；测试草稿/对话已精确删除，精确分支由完整
+  Agent/宿主确定性回归覆盖。详细实现与验收边界见 S4.5.1。
+- 2026-08-29 按用户确认的最小路线，将新 Resume workspace 的相关性主指标从固定 bullet 数切换为
+  Experience 总正文行数：`main/secondary/utility` 只按 `3/2/1` 权重分配 `itemLineBudgets`，bullet 由独立
+  工作/项目/报告数量决定，同一工作单元允许多 evidence 合并成一条长 bullet。继续使用一个自然语言 Agent、
+  原三个工具、Pi 0.84.2 原生循环和原 Renderer/tail/save/PDF 链；旧草稿保留 legacy 条数兼容。
+  `npm run check` 全绿（918 个业务/样式源文件均 ≤250 行、813/813 tests、全部 typecheck/build），
+  `git diff --check` 通过。一次有效 development Electron 真实生成在 514 秒达到 revision 27、单页
+  95.96%、0 violation、`ready_for_approval`，保存/导出启用；真实草稿包含 main 仅 2 条 bullet 但共 6 行，
+  证明条数不再是相关性门槛。该次模型没有选中目标研究报告，且无补材收尾仍有重复连接语，因此只将 L1–L5
+  标为完成、L6 标为“已执行但场景覆盖不完整”，不声明研究报告端到端问题已完全关闭。详细 artifact、行数
+  和边界见 S4.5.1；未 cloud save、实际导出、package、commit/push、上传或发版，阶段总状态不变。
+- 用户随后指定 YSL 护肤产品营销、复星财富战略投资、安克欧洲官网销售运营、申万策略、腾讯商业分析五份
+  JD 做补充真实 Electron 单例。五份均走 `item-lines-v1`，但整份机器门槛只有安克 1/5 通过；YSL 86.83%、
+  复星 77.75%、申万 89.53%、腾讯 71.86% 均正确禁用保存/导出。研究报告覆盖的三份中，复星和腾讯把 SiC
+  与 Slack 两个独立报告各写一条，申万却把同一份《SiC 东风已来》的“报告/市场空间”与“建模参数/公司
+  梳理”拆成两条，真实复现原问题，因此 L6 更新为未通过。安克虽达到 96.30%/最低尾行 70.39%/0 violation，
+  但出现 14 个事实中性片段、模板化连接语、重复标点和删除来源“虚构”限定词，人工文字/事实验收不通过；
+  腾讯持久化已在 188 秒失败收口，可见 UI 却继续停在检索状态数分钟，另暴露事件显示滞后。5 份测试 JD 与
+  本地草稿保留，未保存 Resume 到云端、未实际导出或投递、未改业务代码、未 package/commit/push/发版；
+  完整 ID、行数和终态见 S4.5.1，阶段总状态不变。
+- 新生成 `resume-standard` 正文随后按用户要求由 9.75pt 调整为五号 10.5pt：只把新 skeleton 的
+  `body_font_scale` 设为 `10.5/9.75`，旧草稿、模板 profile/source lock、sparse 模板与保存/PDF 合同不变。
+  五号字体使旧容量 fixture 不再合格后，未降低任何质量阈值，而是把 Renderer QA 内容基线减至适合五号
+  单页的 19 个 grounded bindings，并新增实测 14px 断言。最终 `npm run check` 全绿（918 文件、813/813
+  tests、全部 typecheck/build）；真实 Chromium/PDF QA 为 14px、行高 16.52px、单页 92.98%、A4、字体/
+  文本层和 G6 导出全部通过。未做新模型长链、package、commit/push/发版；完整证据见 S4.5.1。
+- 2026-08-30 按用户确认新增“用户原文件投递资产”：PDF/DOCX 原始字节进入按账号隔离、safeStorage
+  加密的本地仓库，使用 SHA-256 做完整性校验和重复导入去重；首份默认标星，重命名/默认选择只改元数据，
+  外部源文件后续变化不会改变已保存副本。该资产不是 Resume、ResumeDraft、Experience 来源或
+  `baseResumeId`，不进入 `list_resumes`、相关性、质量门、生成、修改或历史复用；用户明确指定后，Agent
+  只调用独立选择工具并回复使用该文件投递，不继续写简历。
+- 求职仓库“简历”视角新增独立“投递文件”分组、用户源文件筛选、详情、重命名/删除与“用于投递”；每个
+  JD 详情均展示相同的全量本地投递文件并明确“与相关性无关”，不创建 `Resume.jdId` 或另一套简历关系。
+  首次引导将“原样保存用于投递”和“解析经历用于写简历”拆成两个入口；只要已有投递文件，即跳过通用简历
+  生成引导进入岗位链路。网页/Webmail 可通过宿主解析 file ID 并原样挂载，模型与 Renderer 永远拿不到路径，
+  邮件发送仍由用户点击。
+- 自动门禁覆盖不可变字节、格式/20MB、hash 去重、跨重启、默认切换、全岗位不过滤、工具隔离、路径隐藏、
+  onboarding、投递文件筛选与清除本地数据；`npm run check` 全绿（955 个源文件均 ≤250 行、843/843 tests、Node/
+  Preload/Vue typecheck、Node/Electron production build）。真实 development Electron 使用无用户数据的
+  合成 PDF 验证系统选择器、独立分组/详情、两个不同 JD 的相同可用列表、窄窗口、用户源文件筛选和 200%
+  缩放；未点击“用于投递”、未调用真实模型、未打开外部站点或发送邮件。合成文件与本地测试资产已清理，
+  本地测试仓库移入废纸篓可恢复；未 package、commit、push、上传或发版，S4.5 总状态不变。
+- 同日用户真实操作发现聊天回形针仍只能解析附件：根因是临时 `SelectedFileRegistry` 与持久投递文件仓库之间
+  没有桥接写工具，附件 notice 也只声明了解析路径。现新增
+  `save_selected_file_as_delivery_resume`，从用户本轮明确选择的 fileId 读取并再次验证原始字节，直接调用
+  同一加密仓库的 `importContent`，保存后设为首选；“作为/保存为原始简历、源文件、投递文件、保持原样、
+  不要修改”优先走该工具并硬禁 `parse_selected_file`、经历导入和全部写作工具。附件事件同步显示 `saved`。
+  先以三个确定性失败锁定工具缺失、notice 误导和状态未完成，修复后专项 16/16 通过。完整重启后的真实
+  development Electron 使用无用户数据 PDF 和自然指令“请把这个作为原始简历，保持原文件不做任何修改”
+  直接回复已原样保存，可用于任意岗位；未进入解析、经历导入或生成。两条测试对话、PDF 和本地投递资产均
+  已清理并移入废纸篓可恢复；邮件/外部站点未打开，未 package、commit、push、上传或发版。
+- 随后用户真实文件再次出现“附件已失效或被替换”：桥接工具虽然存在，但 `SelectedFileRegistry` 只保存
+  路径和 stat 身份，直到 Agent 工具执行才读取字节；系统临时路径回收、替换或文件物化会在选择与保存之间
+  形成 TOCTOU 窗口。现改为选择时通过同一已打开文件句柄完成类型/20MB、前后 stat 和原始字节读取，注册表
+  只保留不可变内存快照，后续解析和原样保存均返回副本，不再重新读取外部路径；会话删除、附件移除和账号
+  清理仍释放快照。回归测试先稳定复现删除原路径后的同一错误，修复后验证路径删除及内容替换均继续使用
+  选择时字节；附件专项 24/24、全量 852/852 tests、957 个源文件行数门禁、Node/Preload/Renderer
+  typecheck、Node/Electron production build 与 `git diff --check` 全绿。未 package、commit、push 或发版。
+- 用户随后确认原始简历应在“求职仓库 → 简历资产”中可见，但继续与 Resume 业务隔离，并且每个账号最多
+  支持三份。Manifest 升级为 `delivery-resume-files-v2`，新增与 `preferred` 独立的稳定 `slot=1/2/3`：
+  新 hash 占用最小空槽，第四份拒绝，重复 hash 不占槽，删除释放原槽且不重排其它编号；v1 按创建时间和
+  ID 稳定迁移，历史超限项保留为 `slot=null`，不自动删除。Renderer 恢复独立“原始简历（N/3）”分组、
+  `★1/★2/★3` 文本标识、当前首选、筛选、详情、重命名/删除/用于投递及 `delivery:<id>` 导航；达到三份
+  只禁用新增。原始文件仍不进入 `JobRepositoryResume`、`list_resumes`、JD 关系、Application `resumeId`、
+  生成、修改、质量门或历史复用。Agent 只按宿主 slot 报告编号和真实可见位置。专项 20/20、全量
+  855/855 tests、957 个源文件行数门禁、Node/Preload/Renderer typecheck、Node/Electron production
+  build 与 `git diff --check` 全绿；真实当前账号只读验证“添加原始简历（1/3）”、`★1` 列表、当前首选
+  和详情均可访问，未新增、删除、改首选或投递。未 package、commit、push 或发版。
+- 2026-08-30 按用户确认完成全账号一次性真实页面引导：新老账号只要没有当前版本完成记录，登录后即锁定
+  普通导航并创建本机加密的“开始使用 Coolto”对话；每一步由用户点击同意，宿主把带“示例操作”标记的
+  固定中英文消息写入真实对话历史，不调用 Agent/LLM、不消耗额度。Renderer 通过临时 Desktop API override
+  让现有经历仓库、求职仓库、聊天/A4 与 Tracker 读取完全虚构的 Profile、3 条 Experience、Nova Labs JD、
+  固定一页 Resume 和一条 Application；所有写 API fail-closed，样例从不进入 LocalSyncStore、Outbox 或云端。
+  浏览器阶段使用真实 Browser Shell、受信任展示地址 `coolto://onboarding/example-application`、本地 data page、
+  固定临时 PDF、既有字段写入与页内接受/拒绝 Overlay；没有外部站点、提交或邮箱扫描。审核结束后自动回到
+  Tracker；完成动作先关闭浏览器并删除临时文件，再持久化 completed。真实 development Electron 在后端离线
+  下从既有账号完整走通并重启复验：示例 Resume/Application 已从正式页面消失，临时目录无文件，引导对话保留，
+  第二次启动不再强制出现。自动门禁 `npm run check` 全绿：973 个源文件均 ≤250 行、861/861 tests、Node/
+  Preload/Renderer typecheck、Node/Electron production build 与 `git diff --check` 通过。当前 Browser Enhance BE5、
+  S4.5 生成质量状态与邮箱/Calendar 路线均未改变；未 package、commit、push、上传或发版。
+- 同日按用户确认收口首次体验与新对话入口：引导结束不再把粘贴 JD 与经历材料并列，而是先提示建立真实
+  经历仓库；主操作清理示例后进入新的真实对话，上传文档、粘贴网页链接和直接讲述分别复用现有附件、
+  Composer 草稿与 Agent 路径，“稍后再说”仍可只完成清理。只要 Experience 为空，即使已有原始投递文件也
+  不再跳过经历沉淀入口。活跃求职空状态删除“准备面试问题”和“整理我的经历”两个泛化 prompt，改为同一行
+  的“浏览求职网站 / 管理岗位与简历 / 查看投递进度”，点击直接进入既有 Browser、求职仓库与 Tracker，
+  不创建聊天消息或调用模型。真实 development Electron 已确认三个入口可见且求职仓库导航生效；完整引导
+  重放未再次执行。`npm run check` 全绿：977 个源文件均 ≤250 行、862/862 tests、Node/Preload/Renderer
+  typecheck、Node/Electron production build 与 `git diff --check` 通过；未 package、commit、push、上传或发版。
+- 同日用户进一步确认放弃独立 ExperienceEvidence，统一以 Experience 当前 revision 的长纯文本作为未来
+  简历职业事实源。现新增宿主管理的材料沉淀状态机：PDF 保留页级边界，DOCX/TXT/Markdown 和当前网页按
+  最多 6000 字分块，直接用户长文本走同一路径；材料正文最多 180,000 字，超过时明确要求拆分，不再沿用
+  80,000 字静默截断。`begin_experience_material_ingestion` 固定材料快照并逐块返回全部数量短语、关键产出
+  候选和最低详细度；`record_experience_material_chunk` 要求短块完整保留，长块至少达到原块 80%（上限
+  5000 字），数字必须连同单位/限定词保留，报告、模型、系统、方案、论文、数据集、合同、营收、转化、
+  结论等关键产出句的完整原始信息必须进入正文，否则宿主拒绝推进同一块。最低字符数只是防止过度压缩，
+  不是 Agent 的总结目标；JD/岗位描述和原样投递文件明确排除在经历材料自动沉淀之外。
+  多经历材料不会整份复制到每个 Experience：Agent 必须逐段提交相关的连续原文片段，宿主逐字验证片段
+  确实存在于固定材料快照后才进入对应经历，避免串库和模型补造；直接聊天文本强制要求原文片段，
+  不允许把“请保存/沉淀”等操作指令一并写入经历正文。
+  全部分块通过后才一次合并为带材料标题/日期/页标签的正文块，经内部 Experience Proposal 自动进入
+  LocalSyncStore/Outbox，并且每个目标 Experience 只创建一个 `source=import` revision；材料 hash 嵌入隐藏
+  标记用于跨重启重复导入去重，Renderer 和简历 source snapshot 均过滤该标记。用户明确目标时直接关联，
+  无可靠匹配时可自动创建新 Experience；一份材料涉及多段经历时逐段运行。现有简历补材也按 Experience
+  分组自动追加正文，不再弹同步确认卡；旧 `prepare_experience_sync` 仅保留历史兼容。独立 Evidence 的
+  App/Backend WIP 已从当前实现路线撤回，后端不需要新表或新同步实体。十页 PDF fixture 已验证 10 个页级
+  分块全部接受前零写入、最后只提交一次；超过旧 80,000 字边界的长文本不截断，网页、直接文本、数字缺失、
+  关键产出缺失、并发正文漂移、跨经历原文片段和重复材料均有回归测试。真实 development Electron 经干净
+  重启后，以 QA Byte Lab「产品运营实习生」跑通直接文本：搜索 → 固定原文片段 → 宿主覆盖检查 → 自动
+  Experience Proposal，最终新增 397 字、1 个分块、完整保留 6 个数量短语，当前版本显示来源“导入”；
+  聊天操作指令未进入正文，内部材料指纹在当前正文和历史视图均不可见。再次发送同一材料返回
+  `duplicate=true / addedCharacters=0`，没有产生第二个 revision。首次验收暴露的陈旧主进程工具与文本指令
+  污染已通过干净重启和宿主强制 `selectedTexts` 修复；缺少片段现在返回可恢复回执而非可见工具异常，QA
+  正文先恢复再以正确材料重跑。最终 `npm run check` 全绿：984 个源文件均 ≤250 行、875/875 tests、
+  Node/Preload/Renderer typecheck、Node/Electron production
+  build 与 `git diff --check` 通过。真实写入已进入 LocalSyncStore/Outbox；本轮后端离线，云端 replay 未复验，
+  但没有新增或修改后端契约。未 package、commit、push、上传或发版。
+
 ## 明确不进入本路线
 
-- ResumeDraft/checkpoint 和原始文件云端同步；
+- ResumeDraft/checkpoint 和用户原始投递文件的云端同步；
 - Experience 归属于 JD/Resume/Application 的永久绑定；
 - JD 或 Resume 自己保存第二套投递状态；
-- FactBank、事实证据/RAG UI、云端材料库、图片关联或原始文件上传；
+- 通用 FactBank、RAG/向量库、云端材料库、图片关联或原始文件上传；
 - LLM/Agent 后端化；
 - 支付链路、正式定价和订阅 Provider；
 - 浏览器自动投递、邮箱读取和招聘网站自动化。

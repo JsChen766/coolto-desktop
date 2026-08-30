@@ -9,7 +9,11 @@ export function parseDesktopChatArgs(args) {
       parsed.acceptResumeAugmentation = true;
     }
     else if (key === "--open-resume-preview") parsed.openResumePreview = true;
+    else if (key === "--stop-after-reuse-workspace") {
+      parsed.stopAfterReuseWorkspace = true;
+    }
     else if (key === "--message") parsed.message = requireValue(args, ++index, key);
+    else if (key === "--jd-id") parsed.jdId = requireValue(args, ++index, key);
     else if (key === "--file") parsed.file = requireValue(args, ++index, key);
     else if (key === "--screenshot") parsed.screenshot = requireValue(args, ++index, key);
     else if (key === "--cdp") parsed.cdp = requireValue(args, ++index, key);
@@ -24,7 +28,7 @@ export function parseDesktopChatArgs(args) {
 }
 
 export function desktopChatUsage() {
-  return "Usage: node scripts/run-desktop-chat-smoke.mjs --message <text> [--new-chat] [--require-resume-ready] [--accept-resume-augmentation] [--open-resume-preview] [--file <path>] [--timeout <ms>] [--screenshot <png>] [--cdp <url>]";
+  return "Usage: node scripts/run-desktop-chat-smoke.mjs --message <text> [--jd-id <id>] [--new-chat] [--require-resume-ready] [--accept-resume-augmentation] [--open-resume-preview] [--stop-after-reuse-workspace] [--file <path>] [--timeout <ms>] [--screenshot <png>] [--cdp <url>]";
 }
 
 function requireValue(args, index, key) {

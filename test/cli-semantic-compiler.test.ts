@@ -23,7 +23,7 @@ test("calibrated semantic compiler flags short drafts and tail violations", asyn
   assert.ok(codes.includes("page_underfilled"), codes.join(","));
 });
 
-test("calibrated semantic compiler reports tail lines below the 70% gate", async () => {
+test("calibrated semantic compiler reports tail lines below the V2 two-thirds gate", async () => {
   const compiler = new CliSemanticCompiler();
   const structure = qualifiedChinese();
   const firstItem = structure.sections.flatMap((section) => section.items)[0]!;

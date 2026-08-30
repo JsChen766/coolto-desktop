@@ -32,11 +32,13 @@ const {
     :error="resumeWorkspace.error.value"
     :local-save-state="resumeWorkspace.localSaveState.value"
     :repository-preview="repositoryResumePreview"
+    :line-spacing-percent="resumeWorkspace.lineSpacing.percent.value"
     @edit="resumeWorkspace.edit"
     @autosave="resumeWorkspace.autosave"
     @restore="resumeWorkspace.restore"
     @accept="resumeWorkspace.resolvePending('accept')"
     @reject="resumeWorkspace.resolvePending('reject')"
     @back="returnToJobRepository"
+    @line-spacing-maximum="resumeWorkspace.lineSpacing.updateMaximum"
   />
 </template>

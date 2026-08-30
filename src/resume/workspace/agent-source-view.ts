@@ -36,6 +36,7 @@ export function buildAgentSourceView(workspace: ResumeWorkspace): object {
   );
   return {
     source: {
+      generationStrategy: projection.generationStrategy,
       profile: projection.profile,
       jd: projection.jd,
       experiences: projection.experiences,

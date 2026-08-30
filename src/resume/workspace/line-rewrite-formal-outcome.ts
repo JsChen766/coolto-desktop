@@ -59,7 +59,7 @@ function formalRejection(
     ? `正式内容校验未通过（${error.code}）：${error.message}`
     : `正式内容校验未通过：${rejected?.reason ?? "改写未落地"}`;
   return {
-    bulletId: entry.bulletId,
+    ...entry,
     status: "rejected",
     failureType: "content_validation_failed",
     reason: `${reason}；保留最新 currentText，只修正该问题后重新扩写一次`,

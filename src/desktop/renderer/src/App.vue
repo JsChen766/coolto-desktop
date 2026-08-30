@@ -2,14 +2,11 @@
 import { nextTick, ref, watch } from "vue";
 
 import {
-  ApplicationTrackerView,
   ConversationDialog,
-  ExperienceLibraryView,
-  JobRepositoryView,
   LoginScreen,
   Sidebar,
 } from "./app/app-components";
-import AppChatWorkspace from "./app/AppChatWorkspace.vue";
+import AppMainWorkspace from "./app/AppMainWorkspace.vue";
 import { useAppShell } from "./app/use-app-shell";
 import ResumePreviewChoiceDialog from "./components/ResumePreviewChoiceDialog.vue";
 import CloudResumeCopyDialog from "./components/CloudResumeCopyDialog.vue";
@@ -19,9 +16,11 @@ import SettingsDialog from "./components/SettingsDialog.vue";
 import CreditsHost from "./components/CreditsHost.vue";
 import WindowTitleBar from "./components/WindowTitleBar.vue";
 import ForcedUpdateDialog from "./components/ForcedUpdateDialog.vue";
+import OnboardingWorkspace from "./onboarding/OnboardingWorkspace.vue";
+import { useOnboarding } from "./onboarding/use-onboarding";
 
 const shell = useAppShell();
-const experienceLibraryView = ref<InstanceType<typeof ExperienceLibraryView>>();
+const mainWorkspace = ref<InstanceType<typeof AppMainWorkspace>>();
 const profileDialogOpen = ref(false);
 const profileTrigger = ref<HTMLElement>();
 const settingsDialogOpen = ref(false);
@@ -38,7 +37,6 @@ const {
   desktopApi,
   dialog,
   emailChallenge,
-  experienceImportFocus,
   loginBusy,
   loginError,
   logout,
@@ -49,24 +47,13 @@ const {
   openPrimaryView,
   openResumeDraft,
   openTracker,
-  openRepositoryTracker,
-  closeTracker,
-  openTrackerAsset,
-  startJdAction,
-  trackerContext,
-  jobRepositoryNavigation,
-  updateRepositoryNavigation,
   requestEmailCode,
-  requestResumePreview,
   resumePreviewChoice,
   resumeOperationContext,
   resumeWorkspace,
-  returnToImportConversation,
-  clearExperienceImportFocus,
   running,
   selectChat,
   sidebarOpen,
-  showSidebar,
   toggleTheme,
   updateChecking,
   updateState,
@@ -76,23 +63,17 @@ const {
   user,
   verifyEmailCode,
 } = shell;
-
-function recordFromRepository(
-  initial: Parameters<typeof openRepositoryTracker>[1],
-  asset: Parameters<typeof openRepositoryTracker>[0],
-): void {
-  openRepositoryTracker(asset, initial);
-}
+const onboarding = useOnboarding(shell);
 
 function guardNavigation(action: () => void | Promise<void>): void {
   void (async () => {
     if (running.value) return;
     if (activeView.value === "experiences" &&
-        (await experienceLibraryView.value?.confirmLeave()) === false) return;
+        (await mainWorkspace.value?.confirmExperienceLeave()) === false) return;
     await action();
   })();
 }
-function requestPrimaryView(view: "experiences" | "library"): void {
+function requestPrimaryView(view: "agent_tasks" | "experiences" | "library"): void {
   if (activeView.value !== view) guardNavigation(() => openPrimaryView(view));
 }
 function openProfile(trigger: HTMLElement): void {
@@ -162,7 +143,7 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
       :resume-drafts="resumeWorkspace.drafts.value"
       :current-draft-id="resumeWorkspace.activeDraft.value?.artifactId"
       :active-view="activeView"
-      :generating="running"
+      :generating="running || onboarding.blocking.value"
       :update-state="updateState"
       :update-checking="updateChecking"
       :update-up-to-date="updateUpToDate"
@@ -172,6 +153,7 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
       @select="guardNavigation(() => selectChat($event))"
       @select-draft="guardNavigation(() => openResumeDraft($event))"
       @open-experiences="requestPrimaryView('experiences')"
+      @open-agent-tasks="requestPrimaryView('agent_tasks')"
       @open-library="requestPrimaryView('library')"
       @open-tracker="guardNavigation(openTracker)"
       @rename="openDialog('rename', $event)"
@@ -192,33 +174,12 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
       @click="sidebarOpen = false"
     />
 
-    <main class="main-workspace">
-      <ApplicationTrackerView
-        v-if="activeView === 'tracker'"
-        :context="trackerContext"
-        @close="closeTracker"
-        @open-asset="openTrackerAsset"
-      />
-      <ExperienceLibraryView
-        v-else-if="activeView === 'experiences'"
-        ref="experienceLibraryView"
-        :import-focus="experienceImportFocus"
-        @return-import="returnToImportConversation"
-        @clear-import-focus="clearExperienceImportFocus"
-        @toggle-sidebar="showSidebar"
-      />
-      <JobRepositoryView
-        v-else-if="activeView === 'library'"
-        :navigation="jobRepositoryNavigation"
-        @open="requestResumePreview"
-        @toggle-sidebar="showSidebar"
-        @navigate="updateRepositoryNavigation"
-        @agent="startJdAction"
-        @record="recordFromRepository"
-        @tracker="openRepositoryTracker"
-      />
-      <AppChatWorkspace v-else :shell="shell" />
-    </main>
+    <OnboardingWorkspace
+      v-if="onboarding.blocking.value"
+      :shell="shell"
+      :controller="onboarding"
+    />
+    <AppMainWorkspace v-else ref="mainWorkspace" :shell="shell" />
 
     <ConversationDialog
       v-if="dialog"

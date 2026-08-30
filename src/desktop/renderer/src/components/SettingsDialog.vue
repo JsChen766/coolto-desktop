@@ -3,6 +3,7 @@ import { ExternalLink, IdCard, MessageSquareText, ShieldCheck, Trash2, X } from 
 import { computed, nextTick, onMounted, ref } from "vue";
 
 import type { DesktopApi } from "@desktop/types";
+import MailConnectionsSettings from "./MailConnectionsSettings.vue";
 
 const props = defineProps<{ api: DesktopApi }>();
 const emit = defineEmits<{
@@ -124,6 +125,8 @@ function keydown(event: KeyboardEvent): void {
           {{ $t('编辑个人信息') }}
         </button>
       </section>
+
+      <MailConnectionsSettings :api="api" />
 
       <section class="settings-section">
         <div class="settings-section-title icon-label">

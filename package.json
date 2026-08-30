@@ -1,6 +1,6 @@
 {
   "name": "coolto-local-agent",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "private": true,
   "type": "module",
   "main": "out/main/index.cjs",
@@ -24,6 +24,10 @@
     "verify:release:mac": "node scripts/verify-release-hardening.mjs dist-electron/mac-universal/Coolto.app",
     "desktop:typecheck": "tsc -p tsconfig.preload.json --noEmit && vue-tsc -p tsconfig.web.json --noEmit",
     "qa:resume-renderer": "npm run desktop:build && node scripts/run-resume-renderer-qa.mjs",
+    "qa:browser-agent": "npm run desktop:build && esbuild src/cli/browser-agent-qa-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/browser-agent-qa-entry.cjs && node scripts/run-browser-agent-qa.mjs",
+    "qa:agent-harness": "esbuild src/cli/agent-harness-qa-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/agent-harness-qa-entry.cjs && node scripts/run-agent-harness-qa.mjs",
+    "qa:agent-tasks-ui": "node scripts/run-agent-tasks-ui-qa.mjs",
+    "qa:job-scout": "node --import tsx scripts/run-job-scout-qa.ts",
     "smoke:resume-source": "node --import tsx scripts/run-resume-source-smoke.ts",
     "smoke:desktop-chat": "node scripts/run-desktop-chat-smoke.mjs",
     "pdf:export": "npm run desktop:build && esbuild src/cli/pdf-export-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/pdf-export-entry.cjs && electron out/cli/pdf-export-entry.cjs",

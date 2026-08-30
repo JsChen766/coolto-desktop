@@ -6,8 +6,6 @@ import type {
   NoteInput,
   Reminder,
   ReminderInput,
-  TrackerChildProposal,
-  TrackerChildTombstone,
   TrackerRecoveryProposal,
   TrackerSyncIssueSummary,
 } from "../../../tracker/child-types.js";
@@ -81,14 +79,18 @@ import type {
   LibraryRestoreCheckpointInput,
   CloudResumePreview,
   ResumeDraftDetail,
-  ResumeDraftEditInput,
+  ResumeDraftEditInput, ResumeDraftLineSpacingInput,
   ResumeDraftExportPdfInput,
   ResumeDraftExportPdfResult,
   ResumeDraftRestoreInput,
   ResumeDraftSaveInput,
 } from "./resume-library.js";
 import type { AppUpdateState, UpdateTrigger } from "./updates.js";
-
+import type { AgentTaskDesktopApi } from "./agent-tasks.js";
+import type { MailConnectionsDesktopApi } from "./mail-connections.js";
+import type { TrackerChildDesktopApi } from "./tracker-child-api.js";
+import type { DeliveryResumeFilesDesktopApi } from "./delivery-resume-files.js";
+import type { OnboardingDesktopApi } from "./onboarding.js";
 export interface DesktopApi {
   platform: DesktopPlatform;
   auth: {
@@ -107,6 +109,8 @@ export interface DesktopApi {
   shell: {
     openExternal(url: string): Promise<void>;
   };
+  mailConnections: MailConnectionsDesktopApi;
+  onboarding: OnboardingDesktopApi;
   conversations: {
     list(): Promise<ConversationSummary[]>;
     create(): Promise<ConversationDetail>;
@@ -126,6 +130,7 @@ export interface DesktopApi {
     list(): Promise<ResumeDraftSummary[]>;
     get(artifactId: string): Promise<ResumeDraftDetail>;
     edit(input: ResumeDraftEditInput): Promise<ResumeDraftDetail>;
+    setLineSpacing(input: ResumeDraftLineSpacingInput): Promise<ResumeDraftDetail>;
     restore(input: ResumeDraftRestoreInput): Promise<ResumeDraftDetail>;
     accept(artifactId: string): Promise<ResumeDraftDetail>;
     reject(artifactId: string): Promise<ResumeDraftDetail>;
@@ -144,6 +149,7 @@ export interface DesktopApi {
     resolveApproval(input: ApprovalResolveInput): Promise<ConversationDetail>;
     onEvent(listener: (conversationId: string, event: DesktopAgentEvent) => void): () => void;
   };
+  agentTasks: AgentTaskDesktopApi;
   library: {
     list(): Promise<ResumeLibraryEntry[]>;
     preview(resumeId: string): Promise<CloudResumePreview>;
@@ -153,6 +159,7 @@ export interface DesktopApi {
     getCheckpoints(artifactId: string): Promise<ResumeDraftCheckpoint[]>;
     restoreCheckpoint(input: LibraryRestoreCheckpointInput): Promise<LocalResumeDraft>;
   };
+  deliveryResumeFiles: DeliveryResumeFilesDesktopApi;
   jobAssets: {
     get(): Promise<JobRepositorySnapshot>;
   };
@@ -235,16 +242,9 @@ export interface DesktopApi {
     onCaptchaDetected(listener: (payload: { kind: "recaptcha" | "hcaptcha" | "geetest" | "slider" | "image" | "unknown"; detail?: string }) => void): () => void;
   };
 }
-
 export type WindowDraftSaveState =
   | "idle"
   | "dirty"
   | "saving"
   | "saved"
   | "error";
-export interface TrackerChildDesktopApi<T, I> {
-  prepareCreate(input: { applicationId: string; value: I }): Promise<TrackerChildProposal>;
-  prepareUpdate(input: { id: string; value: I }): Promise<TrackerChildProposal>;
-  prepareDelete(id: string): Promise<TrackerChildProposal>;
-  executeProposal(proposalId: string): Promise<T | TrackerChildTombstone>;
-}

@@ -11,6 +11,7 @@ export function createDemoJobAssetsApi(now: Date): DesktopApi["jobAssets"] {
       jds: createDemoJds(now),
       resumes: createDemoLibraryEntries(),
       applications: createDemoApplications(now),
+      deliveryResumeFiles: [],
     }),
   };
 }

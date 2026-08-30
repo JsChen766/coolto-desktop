@@ -2,39 +2,15 @@ import { RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
 import { validateTailCandidateText } from "./tail-content-validation.js";
 import type { ResumeCompiler } from "./compiler-port.js";
 import type { TailRepairFeedback } from "./tail-repair-processor.js";
-import {
-  tailGrowthFingerprint,
-  updateTailReflowProgress,
-  type TailReflowProgressOutcome,
-  type TailRepairProgressState,
-} from "./tail-repair-state.js";
+import { updateTailReflowProgress, type TailReflowProgressOutcome } from
+  "./tail-reflow-progress.js";
+import { tailGrowthFingerprint } from "./tail-repair-state.js";
 import { tailRepairBatch } from "./tail-repair-targets.js";
 import type { ResumeWorkspace } from "./types.js";
-
-export interface TailReflowInput {
-  bulletId: string;
-  revisedText: string;
-}
-
-export interface TailReflowDiagnostics {
-  requestedTargetCount: number;
-  measuredTargetCount: number;
-  appliedTargetCount: number;
-  passedTargetCount: number;
-  rejectedTargetCount: number;
-  validationRejectedTargetCount: number;
-  lineCountRejectedTargetCount: number;
-  tailRejectedTargetCount: number;
-  pageRejectedTargetCount: number;
-}
-
-export interface TailReflowBatchResult {
-  updates: Array<{ bulletId: string; text: string }>;
-  feedback: TailRepairFeedback[];
-  progress: TailRepairProgressState;
-  diagnostics: TailReflowDiagnostics;
-  writeRejectedReason?: string;
-}
+import { tailReflowDeficitReason } from "./tail-reflow-feedback.js";
+import { validateFactNeutralTailEdit } from "./fact-neutral-tail-validation.js";
+import type { TailReflowBatchResult, TailReflowInput } from "./tail-reflow-types.js";
+export type { TailReflowDiagnostics, TailReflowInput } from "./tail-reflow-types.js";
 
 interface Candidate {
   bulletId: string;
@@ -77,6 +53,7 @@ export async function processTailReflowBatch(
       if (prior?.rejectedReflowFingerprints?.includes(rewriteFingerprint)) {
         throw new Error(`bullet ${input.bulletId} 的 revisedText 已被拒绝，请更换插入位置或表达`);
       }
+      validateFactNeutralTailEdit(workspace, { ...input, appliedText: revisedText });
       candidates.push({
         bulletId: input.bulletId,
         currentText: target.currentText,
@@ -96,8 +73,16 @@ export async function processTailReflowBatch(
   ]));
   const validated = candidates.filter((candidate) => {
     try {
+      const submitted = inputs.find((input) =>
+        input.bulletId === candidate.bulletId
+      );
+      const validationWorkspace = validateFactNeutralTailEdit(workspace, {
+        bulletId: candidate.bulletId,
+        appliedText: candidate.revisedText,
+        ...(submitted?.contentMode ? { contentMode: submitted.contentMode } : {}),
+      });
       validateTailCandidateText(
-        workspace,
+        validationWorkspace,
         candidate.bulletId,
         candidate.revisedText,
         candidateTexts,
@@ -137,7 +122,7 @@ export async function processTailReflowBatch(
       reason = `等价展开必须保持当前实测的 ${candidate.currentLineCount} 行，不能改为 ${observed.lineCount} 行`;
     } else if (!observed.passed) {
       tailRejected += 1;
-      reason = "等价展开后的尾行仍未达到正式门槛";
+      reason = tailReflowDeficitReason(observed);
     }
     const applied = !reason;
     if (applied) updates.push({

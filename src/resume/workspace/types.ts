@@ -11,7 +11,30 @@ import type {
 } from "../quality/types.js";
 import type { EvidenceRepairAction } from "./evidence-auto-repair.js";
 import type { TailRepairProgressState } from "./tail-repair-state.js";
-
+import type { ResumeBulletLinePlans } from "./bullet-line-plan.js";
+import type {
+  ResumeFactNeutralAuthorization,
+  ResumeFactNeutralFragment,
+} from "./fact-neutral-types.js";
+import type { ResumeMaterialFollowUpPending, ResumeMaterialRequest } from "./material-request-types.js";
+import type { ResumeReuseAdaptation, ResumeReuseBase } from "./reuse-adaptation-types.js";
+import type { ResumeEvidenceAssessmentState } from "./evidence-assessment-types.js";
+import type { ResumeWorkUnitMap } from "./work-unit-types.js";
+import type { ResumeSelectionPolicy, UserDirectedResumeSelection } from "./selection-policy.js";
+import type {
+  ResumeBulletConfirmation,
+  ResumeBulletOrigin,
+  ResumeBulletProvenance,
+  ResumeItemLineBudget,
+  ResumeItemTier,
+} from "./item-content-types.js";
+export type {
+  ResumeBulletConfirmation,
+  ResumeBulletOrigin,
+  ResumeBulletProvenance,
+  ResumeItemLineBudget,
+  ResumeItemTier,
+} from "./item-content-types.js";
 export type ResumeCandidateLanguage = "zh-CN" | "en-US";
 export type ResumeWorkspaceStatus =
   | "writing"
@@ -19,7 +42,6 @@ export type ResumeWorkspaceStatus =
   | "layout_qualified"
   | "ready_for_approval"
   | "needs_user_decision";
-
 export interface ResumeCandidateSnapshot {
   revision: number;
   structure: ResumeStructure;
@@ -27,7 +49,6 @@ export interface ResumeCandidateSnapshot {
   compileResult: ResumeCompileResult;
   qualityReport?: ResumeQualityReport;
 }
-
 export interface ResumeOperationReport {
   status: "success" | "partial_success";
   attempted: number;
@@ -35,29 +56,27 @@ export interface ResumeOperationReport {
   repairs: EvidenceRepairAction[];
   rejected: Array<{ index: number; message: string }>;
 }
-
-/**
- * 生成前由真实 Chromium 布局测量得到的物理预算：write_bullet 的默认
- * targetChars 和指令提示都以此动态给出，首稿长度不再依赖固定默认区间。
- */
+/** Legacy Chromium budget retained for older workspace drafts. */
 export interface ResumeLayoutBudget {
   /** 每行真实字符数（真实 Chromium 测量）。 */
   charsPerLine: number;
   /** 达到最低占用率所需的 bullet 行数（固定行已扣除）。 */
   requiredBulletLinesAtMinimum: number;
-  /** 所选经历的可写 bullet 容量（一条独立证据可写一条 bullet，不按类别写死）。 */
+  /** Legacy planner capacity; current item-lines workspaces do not equate evidence with bullets. */
   writableBulletCapacity: number;
   maxBulletLines: 2 | 3;
 }
-
 export interface ResumeWorkspace {
   candidateId: string;
   revision: number;
   patchCount: number;
-  /** Number of complete-content writes since the latest source selection. */
   contentApplyCount?: number;
   status: ResumeWorkspaceStatus;
   sourceSnapshot: ResumeSourceSnapshot;
+  selectionPolicy?: ResumeSelectionPolicy;
+  userDirectedSelection?: UserDirectedResumeSelection;
+  reuseBase?: ResumeReuseBase;
+  reuseAdaptation?: ResumeReuseAdaptation;
   structure: ResumeStructure;
   bindings: BulletEvidenceBinding[];
   compileResult: ResumeCompileResult;
@@ -69,8 +88,8 @@ export interface ResumeWorkspace {
   repairHistory: RepairRoundDiagnostic[];
   qualityReport?: ResumeQualityReport;
   lastOperationReport?: ResumeOperationReport;
-  /** Maximum bullet height in lines (2 or 3); defaults to 3. */
   maxBulletLines?: 2 | 3;
+  bulletLinePlans?: ResumeBulletLinePlans;
   /** 真实版面物理预算（prepare 阶段测定），write_bullet 动态 target 的数据源。 */
   layoutBudget?: ResumeLayoutBudget;
   /** 规则 6：Agent 补充的特质内容（无证据来源，依据 JD 要求）。 */
@@ -83,49 +102,36 @@ export interface ResumeWorkspace {
   awaitingUserConfirmation?: { note: string } | null;
   /** Agent 为已有事实 bullet 添加的无直接证据修饰语，按片段确认或回退。 */
   augmentedFragments?: ResumeAugmentedFragment[];
-  /** Agent declares relevance tiers; the host only enforces their counts. */
+  /** Agent declares relevance tiers; the host allocates item body lines. */
   itemTiers?: Record<string, ResumeItemTier>;
+  /** New workspaces express relevance through item body-line allocation. */
+  lineBudgetVersion?: "item-lines-v1";
+  itemLineBudgets?: Record<string, ResumeItemLineBudget>;
+  workUnitMap?: ResumeWorkUnitMap;
   /** Provenance for the current complete bullet lists. */
   bulletProvenance?: ResumeBulletProvenance[];
   /** User-provided facts added after the immutable source snapshot was locked. */
   supplementalEvidence?: ResumeSupplementalEvidence[];
   /** Material pause declared by the Agent or a deterministic host gate. */
-  materialRequest?: {
-    kind?:
-      | "agent_declared"
-      | "critical_skill"
-      | "bullet_count_insufficient"
-      | "page_fill_stalled"
-      | "tail_repair_stalled";
-    reason: string;
-    question: string;
-    targetExperienceId?: string;
-    requestedAt: string;
-  };
-  /** Bounded no-progress state for each unresolved formal bullet. */
+  materialRequest?: ResumeMaterialRequest;
+  materialFollowUpPending?: ResumeMaterialFollowUpPending;
+  /** User ended the supplement loop and authorized final closure. */
+  factNeutralAuthorization?: ResumeFactNeutralAuthorization;
+  /** Two bounded, progressively relaxed evidence reassessment rounds. */
+  evidenceAssessment?: ResumeEvidenceAssessmentState;
+  /** Resume-local neutral additions; never persisted back to Experience. */
+  factNeutralFragments?: ResumeFactNeutralFragment[];
   tailRepairProgress?: TailRepairProgressState;
-  /** Consecutive measured page-fill rounds that landed no real height growth. */
+  /** Consecutive line-rewrite rounds that landed no phase-relevant growth. */
+  lineRewriteProgress?: {
+    phase: "bullet_depth" | "page_fill";
+    consecutiveZeroGrowthRounds: number;
+  };
+  /** Target-branch page-fill progress used by the phase-driven writer. */
   pageFillProgress?: {
     consecutiveZeroGrowthRounds: number;
   };
 }
-
-export type ResumeItemTier = "main" | "secondary" | "utility";
-export type ResumeBulletOrigin = "grounded" | "agent_augmented";
-export type ResumeBulletConfirmation =
-  | "not_required"
-  | "pending"
-  | "confirmed";
-
-export interface ResumeBulletProvenance {
-  bulletId: string;
-  itemId: string;
-  origin: ResumeBulletOrigin;
-  evidenceIds: string[];
-  requirementIds: string[];
-  confirmation: ResumeBulletConfirmation;
-}
-
 export interface ResumeAugmentedFragment {
   bulletId: string;
   baseText: string;
@@ -134,7 +140,6 @@ export interface ResumeAugmentedFragment {
   requirementIds: string[];
   confirmation: Exclude<ResumeBulletConfirmation, "not_required">;
 }
-
 export interface ResumeSupplementalEvidence {
   evidenceId: string;
   experienceId: string;
@@ -142,14 +147,12 @@ export interface ResumeSupplementalEvidence {
   sourceMessageTimestamp: number;
   createdAt: string;
 }
-
 export interface PrepareResumeCandidateInput {
   jdId: string;
   experienceIds: string[];
   language: ResumeCandidateLanguage;
   initialBindings?: EvidenceBindingInput[];
 }
-
 /**
  * Model-facing binding input: the model only authors the bullet text and
  * cites stable `evidenceId` values from the latest `availableEvidence`. The
@@ -206,7 +209,6 @@ export type ResumePatchOperationInput =
       evidenceIds: readonly string[];
     }
   | { op: "trim_text"; bulletId: string; keepChars: number };
-
 export type ResumePatchOperation =
   | {
       op: "add_bullet";
@@ -225,13 +227,11 @@ export type ResumePatchOperation =
       bulletId: string;
       afterBulletId?: string | null;
     };
-
 export interface PatchResumeCandidateInput {
   candidateId: string;
   expectedRevision: number;
   operations: ResumePatchOperationInput[];
 }
-
 export interface RepairResumeCandidateInput {
   candidateId: string;
   expectedRevision: number;

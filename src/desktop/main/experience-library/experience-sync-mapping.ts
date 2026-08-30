@@ -31,7 +31,7 @@ export function toExperienceWritePayload(
     endDate: input.endDate ?? null,
     tags: input.tags ?? [],
     status: input.status ?? "active",
-    source: "manual",
+    source: input.revisionSource ?? "manual",
   };
 }
 
@@ -65,7 +65,7 @@ export function buildLocalExperience(
       id: revisionId,
       experienceId: id,
       content: input.content,
-      source: "manual",
+      source: input.revisionSource ?? "manual",
       revisionHash: sha256(input.content),
       revisionNumber: 1,
       createdAt: now,

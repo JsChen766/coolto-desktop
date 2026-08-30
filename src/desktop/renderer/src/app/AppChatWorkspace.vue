@@ -2,10 +2,8 @@
 import { computed } from "vue";
 import type { ChatMessage } from "@desktop/types";
 import {
-  ApprovalCard,
   ChatHeader,
   ChatMessageView,
-  Composer,
   EmptyState,
   ExperienceImportResultCard,
   FillProgressCard,
@@ -21,8 +19,20 @@ import type { AppShell } from "./use-app-shell";
 import { useStreamingElapsed } from "../chat/use-streaming-elapsed";
 import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
-
-const props = defineProps<{ shell: AppShell }>();
+import ChatPendingAction from "./ChatPendingAction.vue";
+import ChatComposerHost from "./ChatComposerHost.vue";
+import { publishComposerDraft } from "../chat/composer-draft-channel";
+const props = defineProps<{
+  shell: AppShell;
+  composerDisabled?: boolean;
+  composerGuided?: boolean;
+  composerGuidedText?: string | undefined;
+  composerGuidedHighlight?: boolean;
+}>();
+defineEmits<{
+  composerFocus: [];
+  composerSend: [text: string];
+}>();
 const emptyStages = useEmptyStateStages();
 const {
   activeArtifactType,
@@ -33,7 +43,6 @@ const {
   browser,
   conversationAttachment,
   current,
-  desktopApi,
   draftCloudState,
   exportResume,
   fillProgress,
@@ -45,12 +54,8 @@ const {
   openMatchPanel,
   openPrimaryView,
   openResumeDraft,
-  openTracker,
+  openTracker, importDeliveryResumeFile,
   pendingApproval,
-  cloudCopyRequested,
-  clearResumeOperationContext,
-  requestCloudResumeCopy,
-  resumeOperationContext,
   resolveApproval,
   resumeWorkspace,
   runError,
@@ -64,7 +69,6 @@ const {
   toggleBrowser,
   toolRuns,
 } = props.shell;
-
 /** 合并附件实时状态到消息卡片；liveVersion 保证事件到来时重渲染。 */
 const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
   void conversationAttachment.liveVersion.value;
@@ -77,10 +81,10 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
     },
   );
 });
-
 const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
+const GENERAL_RESUME_PROMPT =
+  "请基于我的全部经历生成一份不关联任何 JD 的高质量一页通用简历。";
 </script>
-
 <template>
       <ChatHeader
         :title="!current || current.title === '新对话' ? $t('新对话') : current.title"
@@ -92,14 +96,15 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
         :export-message="resumeWorkspace.exportMessage.value"
         :saving-to-library="resumeWorkspace.savingToLibrary.value"
         :save-message="resumeWorkspace.saveMessage.value"
+        :line-spacing-percent="resumeWorkspace.lineSpacing.percent.value" :line-spacing-maximum="resumeWorkspace.lineSpacing.maximumPercent.value" :line-spacing-saving="resumeWorkspace.lineSpacing.saving.value"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
         @toggle-artifact="toggleArtifact"
         @toggle-browser="toggleBrowser"
         @save-resume="saveResumeToCloud"
         @export-resume="exportResume"
+        @preview-line-spacing="resumeWorkspace.lineSpacing.preview" @commit-line-spacing="resumeWorkspace.lineSpacing.commit"
         @rename="current && openDialog('rename', { id: current.id, title: current.title, createdAt: current.createdAt, updatedAt: current.updatedAt, messageCount: current.messageCount })"
       />
-
       <div class="workspace-body">
         <section class="chat-pane">
           <div ref="scroller" class="message-scroller">
@@ -107,12 +112,13 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
               <EmptyState
                 v-if="current.messages.length === 0 && !running"
                 :stage="emptyStages.stage.value"
+                @draft-prompt="publishComposerDraft"
                 @use-prompt="send"
                 @open-experiences="openPrimaryView('experiences')"
                 @open-library="openPrimaryView('library')"
                 @open-tracker="openTracker"
                 @open-browser="toggleBrowser"
-                @import-resume="conversationAttachment.select"
+                @import-resume="conversationAttachment.select" @save-delivery-resume="importDeliveryResumeFile"
               />
               <template v-for="message in messagesWithLiveStatus" :key="message.id">
                 <ChatMessageView :message="message" />
@@ -148,6 +154,7 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
                   :key="artifact.proposalId"
                   :artifact="artifact"
                   @open="openExperienceImportResult(current.id, $event)"
+                  @generate-general="send(GENERAL_RESUME_PROMPT)"
                 />
               </template>
               <article
@@ -194,9 +201,10 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
                 :key="artifact.proposalId"
                 :artifact="artifact"
                 @open="openExperienceImportResult(current.id, $event)"
+                @generate-general="send(GENERAL_RESUME_PROMPT)"
               />
               <p v-if="runError" class="run-error" data-testid="chat-run-error">{{ runError }}</p>
-              <ApprovalCard
+              <ChatPendingAction
                 v-if="pendingApproval"
                 :request="pendingApproval"
                 :busy="approvalBusy"
@@ -216,24 +224,16 @@ const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
               />
             </div>
           </div>
-          <Composer
-            :disabled="!current"
-            :running="running"
-            :attachment="conversationAttachment.attachment.value"
-            :attachment-busy="conversationAttachment.selecting.value"
-            :attachment-error="conversationAttachment.error.value"
-            :resume-context="resumeOperationContext"
-            :cloud-copy-requested="cloudCopyRequested"
-            @send="send"
-            @cancel="desktopApi.agent.cancel"
-            @select-attachment="conversationAttachment.select"
-            @select-attachment-path="conversationAttachment.selectPath"
-            @remove-attachment="conversationAttachment.remove"
-            @clear-resume-context="clearResumeOperationContext"
-            @request-local-copy="requestCloudResumeCopy"
+          <ChatComposerHost
+            :shell="shell"
+            :disabled="composerDisabled || !current"
+            :guided="composerGuided"
+            :guided-text="composerGuidedText"
+            :guided-highlight="composerGuidedHighlight"
+            @guided-focus="$emit('composerFocus')"
+            @guided-send="$emit('composerSend', $event)"
           />
         </section>
-
         <ResumePreviewOutlet
           v-if="artifactOpen && activeArtifactType === 'resume'"
           :shell="shell"

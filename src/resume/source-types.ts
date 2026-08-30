@@ -67,16 +67,36 @@ export interface ResumeSourceExperienceSnapshot {
 
 export interface ResumeSourceSnapshot {
   schemaVersion: typeof RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION;
+  generationStrategy?: "tailored" | "general";
   capturedAt: string;
   sourceFingerprint: string;
   profile: Readonly<ResumeSourceProfileSnapshot>;
-  jd: Readonly<ResumeSourceJdSnapshot>;
+  jd: Readonly<ResumeSourceJdSnapshot> | null;
   experiences: readonly Readonly<ResumeSourceExperienceSnapshot>[];
   template: Readonly<ResumeTemplateSnapshot>;
 }
 
+export interface TailoredResumeSourceSnapshot extends ResumeSourceSnapshot {
+  generationStrategy?: "tailored";
+  jd: Readonly<ResumeSourceJdSnapshot>;
+}
+
+export interface GeneralResumeSourceSnapshot extends ResumeSourceSnapshot {
+  generationStrategy: "general";
+  jd: null;
+}
+
+export type ResumeGenerationSourceSnapshot =
+  | TailoredResumeSourceSnapshot
+  | GeneralResumeSourceSnapshot;
+
 export interface ResumeSourceSnapshotInput {
   jdId: string;
+  experienceIds: readonly string[];
+  template: ResumeTemplateSnapshot;
+}
+
+export interface GeneralResumeSourceSnapshotInput {
   experienceIds: readonly string[];
   template: ResumeTemplateSnapshot;
 }

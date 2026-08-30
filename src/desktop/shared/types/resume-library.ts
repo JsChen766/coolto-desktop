@@ -23,6 +23,7 @@ export interface ResumeDraftCheckpointView {
 export interface ResumeDraftQualityView {
   pageUsageRatio: number;
   minimumBulletTailRatio: number | null;
+  minimumBulletTailTargetRatio: number | null;
   factIntegrity: "passed" | "needs_review" | "failed";
   jdCoverage: { covered: number; total: number; ratio: number } | null;
 }
@@ -36,6 +37,7 @@ export interface ResumeDraftDetail extends ResumeDraftSummary {
   generationReadiness: {
     ready: boolean;
     blockers: ResumeGenerationBlocker[];
+    warnings: ResumeGenerationBlocker[];
   };
   checkpoints: ResumeDraftCheckpointView[];
   pendingChange: {
@@ -73,6 +75,12 @@ export interface ResumeDraftEditInput {
     | { type: "raw_text"; itemId: string };
   text: string;
   createCheckpoint?: boolean;
+}
+
+export interface ResumeDraftLineSpacingInput {
+  artifactId: string;
+  expectedRevision: number;
+  scalePercent: number;
 }
 
 export interface ResumeDraftRestoreInput {

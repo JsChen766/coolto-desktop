@@ -61,4 +61,3 @@ export function applyEducationCoursework(
 function normalize(value: string): string {
   return value.normalize("NFKC");
 }
-

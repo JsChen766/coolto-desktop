@@ -3,21 +3,52 @@ import type {
   BeforeToolCallResult,
 } from "@earendil-works/pi-agent-core";
 
+const DOMAIN_GOVERNED_OR_READ_ONLY_TOOLS = new Set([
+  "create_resume_workspace",
+  "apply_resume_content",
+  "get_resume_workspace",
+  "search_jds",
+  "get_jd",
+  "search_experiences",
+]);
+
 /** Blocks the second exact call unless the first result was transient. */
 export function createRepetitionGuard(limit = 2) {
   let lastKey: string | undefined;
   let consecutive = 0;
   let transientRetryUsed = false;
+  let runMarker: string | undefined;
+  const experienceReads = new Set<string>();
   return async (
     context: BeforeToolCallContext,
   ): Promise<BeforeToolCallResult | undefined> => {
+    const marker = latestUserMarker(context.context.messages);
+    if (marker !== runMarker) {
+      runMarker = marker;
+      experienceReads.clear();
+      lastKey = undefined;
+      consecutive = 0;
+      transientRetryUsed = false;
+    }
+    const key = `${context.toolCall.name}\u0000${stableStringify(context.args)}`;
+    if (context.toolCall.name === "get_experience") {
+      if (!experienceReads.has(key)) {
+        experienceReads.add(key);
+        return undefined;
+      }
+      return {
+        block: true,
+        reason:
+          "detected_repetition：本轮已成功读取同一条 Experience，请直接使用已有结果推进当前 nextAction，不得再次读取。",
+      };
+    }
     // Resume writes are optimistic-lock protected, while workspace recovery
     // returns a compact directive on a same-state repeat. Let those
     // domain-specific recoveries run; the turn governor still stops unchanged
     // outcomes.
-    if (context.toolCall.name === "apply_resume_content" ||
-      context.toolCall.name === "get_resume_workspace") return undefined;
-    const key = `${context.toolCall.name}\u0000${stableStringify(context.args)}`;
+    if (DOMAIN_GOVERNED_OR_READ_ONLY_TOOLS.has(context.toolCall.name)) {
+      return undefined;
+    }
     if (key === lastKey) {
       if (!transientRetryUsed && lastToolResultWasTransient(context)) {
         transientRetryUsed = true;
@@ -37,6 +68,17 @@ export function createRepetitionGuard(limit = 2) {
         "请停止重试同一操作，基于当前结果继续或结束任务。",
     };
   };
+}
+
+function latestUserMarker(
+  messages: BeforeToolCallContext["context"]["messages"],
+): string {
+  const user = [...messages].reverse().find((message) =>
+    message.role === "user" && "content" in message &&
+    !stableStringify(message.content).includes("<coolto_internal_continuation>")
+  );
+  return user && "content" in user
+    ? `${user.timestamp}\u0000${stableStringify(user.content)}` : "none";
 }
 
 function lastToolResultWasTransient(context: BeforeToolCallContext): boolean {

@@ -8,6 +8,9 @@ import type {
   WorkspaceBulletValidationError,
 } from "./agent-workspace-view.js";
 import type { ResumeWorkspace } from "./types.js";
+import { supplementalNumericEvidenceForBullet } from
+  "./agent-content-state.js";
+import { assertWorkUnitsUnused } from "./work-unit-ownership.js";
 
 type ResumeItem =
   ResumeWorkspace["structure"]["sections"][number]["items"][number];
@@ -42,6 +45,10 @@ export function validateAgentItemBullets(input: {
       .flatMap((entry) => entry.evidenceIds)
       .filter((evidenceId) => supplemental.has(evidenceId)),
   );
+  const usedWorkUnits = new Set(
+    input.provenance.filter((entry) => entry.itemId !== input.item.id)
+      .flatMap((entry) => entry.workUnitIds ?? []),
+  );
   let retainedIds = new Set(input.retainedIds);
   let retainedTexts = [...input.retainedTexts];
   const acceptedBindings = [...baseBindings];
@@ -60,6 +67,7 @@ export function validateAgentItemBullets(input: {
         retainedIds: nextIds,
         retainedTexts: nextTexts,
       });
+      assertWorkUnitsUnused(entry.provenance.workUnitIds, usedWorkUnits);
       assertSupplementalAvailable(entry.provenance.evidenceIds, {
         supplemental,
         usedSupplemental,
@@ -67,12 +75,17 @@ export function validateAgentItemBullets(input: {
       validateBindings(input.source, [
         ...acceptedBindings,
         ...(entry.binding ? [entry.binding] : []),
+      ], [
+        ...input.provenance,
+        ...built.map((accepted) => accepted.provenance),
+        entry.provenance,
       ]);
       built.push(entry);
       if (entry.binding) acceptedBindings.push(entry.binding);
       entry.provenance.evidenceIds
         .filter((evidenceId) => supplemental.has(evidenceId))
         .forEach((evidenceId) => usedSupplemental.add(evidenceId));
+      entry.provenance.workUnitIds?.forEach((id) => usedWorkUnits.add(id));
       retainedIds = nextIds;
       retainedTexts = nextTexts;
     } catch (error: unknown) {
@@ -93,9 +106,15 @@ export function validateAgentItemBullets(input: {
 function validateBindings(
   workspace: ResumeWorkspace,
   bindings: ResumeWorkspace["bindings"],
+  provenance: ResumeWorkspace["bulletProvenance"],
 ): void {
   const ledger = new EvidenceLedger(workspace.sourceSnapshot);
-  bindings.forEach((binding) => ledger.reserve(binding));
+  bindings.forEach((binding) => ledger.reserve(
+    binding,
+    supplementalNumericEvidenceForBullet(
+      workspace, provenance, binding.bulletId, binding.sourceExperienceId,
+    ),
+  ));
 }
 
 function assertSupplementalAvailable(

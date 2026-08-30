@@ -151,16 +151,19 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
     this.gate.touch();
   }
 
-  public async uploadFile(fillId: string): Promise<FileUploadOutcome> {
+  public async uploadFile(fillId: string, registeredPaths?: readonly string[]):
+  Promise<FileUploadOutcome> {
     const ctx = this.#requireGranted();
     const probe = await probeFileInput(ctx.webContents, fillId);
     if (!probe.ok) {
       throw new Error(this.#uploadReason(probe.reason));
     }
-    const paths = await this.filePicker.pick({
-      accept: probe.accept,
-      multiple: probe.multiple,
-    });
+    const paths = registeredPaths?.length
+      ? [...registeredPaths]
+      : await this.filePicker.pick({
+          accept: probe.accept,
+          multiple: probe.multiple,
+        });
     if (paths.length === 0) return { cancelled: true };
     const result = await setFileInputFiles(ctx.webContents, fillId, paths);
     this.gate.touch();

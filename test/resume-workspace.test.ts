@@ -33,6 +33,10 @@ test("preparer creates the fixed resume skeleton and returns a real pixel budget
   assert.equal(workspace.structure.sections[0]?.items[0]?.id, "item-edu-1");
   assert.equal(workspace.structure.sections[1]?.items[0]?.id, "item-work-1");
   assert.equal(workspace.structure.layout_template_id, "resume-standard");
+  assert.equal(
+    workspace.structure.layout_tuning?.body_font_scale,
+    10.5 / 9.75,
+  );
   assert.equal(compiler.structures.length, 1);
   assert.equal(projection.budget.pxToMinimum, 200);
   assert.equal(projection.budget.estimatedBodyLinesRemaining, 14);
@@ -56,7 +60,7 @@ test("needs_user_decision instruction explains the evidence gap and the relaxed 
   assert.match(projection.instruction, /不得降低任何质量门槛/);
 });
 
-test("underfilled workspace becomes terminal when all source evidence is consumed", async () => {
+test("underfilled workspace can expand cited facts after source evidence is consumed", async () => {
   const builder = createWorkspaceSnapshotBuilder();
   const snapshot = await buildSnapshot(builder);
   const baseCompiler = new FixtureResumeCompiler();
@@ -89,22 +93,13 @@ test("underfilled workspace becomes terminal when all source evidence is consume
   });
   const payload = projectResumeWorkspace(workspace) as Record<string, any>;
 
-  assert.equal(workspace.status, "needs_user_decision");
+  assert.equal(workspace.status, "writing");
   assert.equal(payload.writePlan.every((item: any) => item.missing === 0), true);
-  assert.match(payload.instruction, /素材不足/);
-  const patcher = new ResumeCandidatePatcher(compiler, store);
-  await assert.rejects(
-    patcher.patch({
-      candidateId: workspace.candidateId,
-      expectedRevision: workspace.revision,
-      operations: [{ op: "remove_bullet", bulletId: "bl-0" }],
-    }),
-    (error: unknown) =>
-      error instanceof ResumeWorkspaceError && error.code === "workspace_terminal",
-  );
+  assert.match(payload.instruction, /未消费证据已耗尽/);
+  assert.match(payload.instruction, /扩写/);
 });
 
-test("tail-violation workspace with exhausted evidence is also terminal", async () => {
+test("tail violations remain repairable after source evidence is consumed", async () => {
   const builder = createWorkspaceSnapshotBuilder();
   const snapshot = await buildSnapshot(builder);
   const baseCompiler = new FixtureResumeCompiler();
@@ -116,7 +111,7 @@ test("tail-violation workspace with exhausted evidence is also terminal", async 
         qualified: false,
         usageRatio: 0.85,
         usedHeightPx: 850,
-        // 所有 bullet 都已顶到单条最大行数：补长天花板 = 85% < 92% → 终态
+        // 行数由当前规划决定；尾行仍应先尝试基于已引用事实定向扩写。
         bullets: result.bullets.map((bullet) => ({
           ...bullet,
           lineCount: 3,
@@ -150,10 +145,10 @@ test("tail-violation workspace with exhausted evidence is also terminal", async 
 
   assert.equal(
     workspace.status,
-    "needs_user_decision",
-    "尾行违规 + 证据耗尽 + 补长天花板不足必须立即 terminal",
+    "needs_revision",
+    "尾行违规应进入确定性的结构成分扩写，而不是因旧 3 行上限直接终止",
   );
-  assert.match(payload.instruction, /素材不足/);
+  assert.match(payload.instruction, /扩写/);
 });
 
 test("instruction stops mid-writing as soon as evidence runs out", async () => {
@@ -327,7 +322,7 @@ test("a worse revision does not replace the best qualified candidate", async () 
   assert.equal(worse.bestSnapshot.compileResult.qualified, true);
   const projection = projectResumeWorkspace(worse) as Record<string, any>;
   assert.equal(projection.bulletTailDiagnostics[0].bulletId, "bl-1");
-  assert.equal(projection.bulletTailDiagnostics[0].deficitPx, 220);
+  assert.equal(projection.bulletTailDiagnostics[0].deficitPx, 200);
 });
 
 test("move and remove patches preserve stable IDs and evidence coverage", async () => {

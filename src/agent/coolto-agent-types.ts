@@ -1,16 +1,20 @@
 import type {
   AgentMessage,
   AgentTool,
+  AfterToolCallContext,
+  AfterToolCallResult,
   BeforeToolCallContext,
   BeforeToolCallResult,
   ShouldStopAfterTurnContext,
   StreamFn,
+  ThinkingLevel,
 } from "@earendil-works/pi-agent-core";
-import type { Api, Model, ThinkingLevel } from "@earendil-works/pi-ai";
+import type { Api, Model } from "@earendil-works/pi-ai";
 
 import type { ApprovalManager } from "../approvals/approval-manager.js";
 import type { CooltoAgentEvent } from "./events.js";
-import type { TurnGovernor } from "./turn-governor.js";
+import type { TurnGovernor, TurnGovernorStopReason } from "./turn-governor.js";
+import type { OutputRepetitionReason } from "./output-repetition-guard.js";
 
 export interface CooltoAgentOptions {
   model: Model<Api>;
@@ -23,6 +27,10 @@ export interface CooltoAgentOptions {
     context: BeforeToolCallContext,
     signal?: AbortSignal,
   ) => Promise<BeforeToolCallResult | undefined>;
+  afterToolCall?: (
+    context: AfterToolCallContext,
+    signal?: AbortSignal,
+  ) => Promise<AfterToolCallResult | undefined>;
   transformContext?: (
     messages: AgentMessage[],
     signal?: AbortSignal,
@@ -31,9 +39,25 @@ export interface CooltoAgentOptions {
     context: ShouldStopAfterTurnContext,
     signal?: AbortSignal,
   ) => boolean | Promise<boolean>;
-  automaticFollowUp?: (promptSequence: number) => string | undefined;
+  automaticFollowUp?: (
+    promptSequence: number,
+    message: AgentMessage,
+  ) => string | AutomaticFollowUpInstruction | undefined;
+  outputRepetitionRecovery?: (
+    promptSequence: number,
+    reason: OutputRepetitionReason,
+  ) => string | undefined;
+  turnGovernorRecovery?: (
+    promptSequence: number,
+    reason: TurnGovernorStopReason,
+  ) => string | undefined;
   turnGovernor?: TurnGovernor;
   approvalManager?: ApprovalManager;
+}
+
+export interface AutomaticFollowUpInstruction {
+  instruction: string;
+  requireToolCall: boolean;
 }
 
 export type CooltoAgentListener = (

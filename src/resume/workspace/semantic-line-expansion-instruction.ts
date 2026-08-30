@@ -1,2 +1,2 @@
 export const SEMANTIC_LINE_EXPANSION_REQUIRED_EDIT =
-  "基于 currentText 和 sourceQuotes 把现有成果链明显扩写为唯一完整 bullet，宁长勿短；不要计算字符或行数，也不要照抄或只替换近义词。保留事实、数字、对象和结果，只补充来源支持的具体背景、专业方法、行动范围、交付物或结果；来源缺少的环节可以省略。";
+  "锁定 currentText，不得改写、删减或重交全文；从 context、method、action、result 中选择一个 sourceQuotes 支持且尚未表达的部分，只提交 placement、必要的唯一 anchor 与 insertText。宿主会确定性插入并按 plannedLines 与单页容量验收。";

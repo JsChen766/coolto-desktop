@@ -123,6 +123,11 @@ export interface AgentPromptInput {
   text: string;
   resumeReference?: ResumeChatReference;
   jdReference?: JdChatReference;
+  usageContext?: {
+    operationType?: string;
+    scenarioRunId?: string;
+    operationRunId?: string;
+  };
 }
 
 export interface JdChatReference {

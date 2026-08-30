@@ -2,8 +2,11 @@ import type {
   ResumeDraftDetail,
   ResumeDraftQualityView,
 } from "../../shared/types.js";
+import { resumeSourceRequirements } from "../../../resume/source-strategy.js";
 import { summarizeDraft } from "../../../resume/draft/projection.js";
 import type { LocalResumeDraft } from "../../../resume/draft/types.js";
+import type { ResumeBulletMeasurement } from "../../../resume/compiler-types.js";
+import { resolveTailPolicy } from "../../../resume/tail-policy.js";
 import type { ResumeWorkspace } from "../../../resume/workspace/types.js";
 import { resumeGenerationReadiness } from "../../../resume/workspace/generation-readiness.js";
 
@@ -37,11 +40,12 @@ export function toResumeDraftDetail(
 }
 
 function qualityView(workspace: ResumeWorkspace): ResumeDraftQualityView {
-  const tails = workspace.compileResult.bullets.map(
-    (bullet) => bullet.lastLineRatio,
-  );
+  const minimumTail = workspace.compileResult.bullets.reduce<
+    ResumeBulletMeasurement | undefined
+  >((current, bullet) => !current || bullet.lastLineRatio < current.lastLineRatio
+    ? bullet : current, undefined);
   const requirementIds = new Set(
-    workspace.sourceSnapshot.jd.requirements.map(
+    resumeSourceRequirements(workspace.sourceSnapshot).map(
       (requirement) => requirement.id,
     ),
   );
@@ -52,7 +56,10 @@ function qualityView(workspace: ResumeWorkspace): ResumeDraftQualityView {
   );
   return {
     pageUsageRatio: workspace.compileResult.usageRatio,
-    minimumBulletTailRatio: tails.length ? Math.min(...tails) : null,
+    minimumBulletTailRatio: minimumTail?.lastLineRatio ?? null,
+    minimumBulletTailTargetRatio: minimumTail
+      ? resolveTailPolicy(minimumTail.tailPolicyVersion).hardMinRatio
+      : null,
     factIntegrity: factIntegrity(workspace),
     jdCoverage: requirementIds.size
       ? {

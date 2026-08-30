@@ -5,14 +5,12 @@ import { buildAgentWorkspaceReceipt } from "../../resume/workspace/agent-workspa
 import { resumeAgentNextAction } from "../../resume/workspace/agent-next-action.js";
 import { resumeWriteRejection } from "../../resume/workspace/agent-write-rejection.js";
 import { selectLineRewrites } from "../../resume/workspace/line-rewrite-selector.js";
+import { pageFillExpansionRewrites } from "../../resume/workspace/page-fill-expansion-input.js";
 import { formalLineRewriteOutcome } from "../../resume/workspace/line-rewrite-formal-outcome.js";
-import type { TailRepairFeedback } from
-  "../../resume/workspace/tail-repair-processor.js";
+import { attachRejectedLineExpansionAttempts } from "../../resume/workspace/line-expansion-attempt-feedback.js";
+import type { SemanticTailRewriteFeedback } from "../../resume/workspace/semantic-tail-rewrite-types.js";
 import type { TailRepairProgressState } from "../../resume/workspace/tail-repair-state.js";
-import {
-  processTailWrite,
-  type TailWriteDiagnostics,
-} from "../../resume/workspace/tail-write-processor.js";
+import { processTailWrite, type TailWriteDiagnostics, type TailWriteResult } from "../../resume/workspace/tail-write-processor.js";
 import { workspaceWithTailRepairProgress } from "../../resume/workspace/tail-repair-workspace.js";
 import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
@@ -23,17 +21,15 @@ import { recordPageFillOutcome } from "../../resume/workspace/page-fill-progress
 import { resumeWriteResultForModel } from "./resume-write-result-for-model.js";
 import { resumeWriteLoopGuardKey } from "../../resume/workspace/resume-write-loop-key.js";
 import { syncAugmentedApproval } from "./sync-augmented-approval.js";
-
-export function createApplyResumeContentTool(
-  compiler: ResumeCompiler,
-  store: ResumeWorkspaceStore,
-  approvalManager?: ApprovalManager,
-): AgentTool<typeof parameters> {
+import { mergeFactNeutralFragments, safeFactNeutralFragmentsForWrite } from "./fact-neutral-write.js";
+import { isFirstResumeGeneration } from "../../resume/workspace/first-generation-policy.js";
+import { tryApplyWorkUnitGrouping } from "./apply-work-unit-grouping.js";
+export function createApplyResumeContentTool(compiler: ResumeCompiler, store: ResumeWorkspaceStore, approvalManager?: ApprovalManager): AgentTool<typeof parameters> {
   return {
     name: "apply_resume_content",
     label: "批量写入简历内容",
     description:
-      "批量写入并真实测量简历。严格执行 nextAction.requiredInput 且一次只传一种写入模式；轻微溢出只能用 bulletRemovals 每轮删除一个高于最低条数的低价值 bullet；repair_bullet_depth 用一次 lineRewrites 覆盖全部短 bullet并应用全部有效增长，篇幅阶段按单页容量选择跨行结果。",
+      "先提交 WorkUnit 语义分组，再批量写入并真实测量简历。首稿提交 workUnitIds 与 plannedLines；篇幅阶段用 lineExpansions；尾行阶段用 tailRewrites。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {
@@ -46,29 +42,31 @@ export function createApplyResumeContentTool(
       }
       const action = resumeAgentNextAction(workspace);
       const pageFillAttempt = action.mode === "increase_usage";
-      const modeCount = [params.items, params.bulletUpdates,
-        params.bulletRemovals,
-        params.bulletAdditions, params.tailGrowths, params.lineRewrites]
+      const modeCount = [params.workUnits, params.items, params.bulletUpdates,
+        params.bulletRemovals, params.bulletAdditions, params.tailGrowths,
+        params.lineExpansions, params.lineRewrites, params.tailRewrites]
         .filter((value) => value?.length).length;
       if (modeCount !== 1) {
         return resumeWriteRejectedResult(
           workspace,
-          "items、bulletUpdates、bulletRemovals、bulletAdditions、tailGrowths、lineRewrites 必须且只能提供一种",
+          "workUnits、items、bulletUpdates、bulletRemovals、bulletAdditions、tailGrowths、lineExpansions、lineRewrites、tailRewrites 必须且只能提供一种",
         );
       }
       const rejectedReason = resumeWriteRejection(workspace, params);
-      if (rejectedReason) {
-        return resumeWriteRejectedResult(workspace, rejectedReason);
-      }
+      if (rejectedReason) return resumeWriteRejectedResult(workspace, rejectedReason);
+      const grouped = tryApplyWorkUnitGrouping(workspace, params.workUnits, store);
+      if (grouped) return grouped;
       let resolved: Parameters<typeof resolveResumeContentChanges>[1] = params;
       let rewriteWarning: string | undefined;
-      let tailRepairFeedback: TailRepairFeedback[] | undefined;
+      let tailRepairFeedback: SemanticTailRewriteFeedback[] | undefined;
       let tailRepairDiagnostics: TailWriteDiagnostics | undefined;
       let tailRepairProgress: TailRepairProgressState | undefined;
       let lineRewriteDiagnostics;
       let pageFillProgressMade: boolean | undefined;
+      let tailNeutralFragments: TailWriteResult["factNeutralFragments"];
       let tailWriteHandled = false;
-      if (params.tailGrowths || action.mode === "batch_tail_reflow") {
+      const tailWriteRequested = Boolean(params.tailRewrites?.length);
+      if (tailWriteRequested) {
         let processed;
         try {
           processed = await processTailWrite(
@@ -86,13 +84,14 @@ export function createApplyResumeContentTool(
         if (!processed) {
           return resumeWriteRejectedResult(
             workspace,
-            "当前尾行阶段缺少对应的 tailGrowths 或 lineRewrites",
+            "当前尾行阶段缺少对应的 tailRewrites",
           );
         }
         tailWriteHandled = true;
         tailRepairFeedback = processed.feedback;
         tailRepairDiagnostics = processed.diagnostics;
         tailRepairProgress = processed.progress;
+        tailNeutralFragments = processed.factNeutralFragments;
         if (!processed.updates.length) {
           const retryWorkspace = store.replace(
             workspaceWithTailRepairProgress(workspace, processed.progress),
@@ -100,7 +99,7 @@ export function createApplyResumeContentTool(
           );
           return resumeWriteRejectedResult(
             retryWorkspace,
-            processed.writeRejectedReason ?? "tailGrowths 没有产生真实尾行进展",
+            processed.writeRejectedReason ?? "尾行写入没有产生真实进展",
             {
               tailRepairFeedback,
               tailRepairDiagnostics: processed.diagnostics,
@@ -110,21 +109,25 @@ export function createApplyResumeContentTool(
         rewriteWarning = processed.writeRejectedReason;
         resolved = { bulletUpdates: processed.updates };
       }
-      if (params.lineRewrites && !tailWriteHandled) {
+      if ((params.lineExpansions || params.lineRewrites) && !tailWriteHandled) {
+        let rewriteInputs = params.lineRewrites;
+        try {
+          rewriteInputs ??= params.lineExpansions
+            ? pageFillExpansionRewrites(workspace, params.lineExpansions)
+            : undefined;
+        } catch (error: unknown) {
+          return resumeWriteRejectedResult(
+            workspace,
+            error instanceof Error ? error.message : String(error),
+          );
+        }
         const selected = await selectLineRewrites(
-          workspace,
-          params.lineRewrites,
-          compiler,
-          {
-            goal: action.mode === "repair_bullet_depth"
-              ? "bullet_depth"
-              : "page_fill",
-            ...(action.mode === "repair_bullet_depth"
-              ? { minimumLines: action.minimumLines }
-              : {}),
-          },
+          workspace, rewriteInputs ?? [], compiler, { goal: "page_fill" },
         );
-        lineRewriteDiagnostics = selected.diagnostics;
+        lineRewriteDiagnostics = attachRejectedLineExpansionAttempts(
+          selected.diagnostics,
+          params.lineExpansions,
+        );
         if (!selected.updates.length) {
           const retryWorkspace = pageFillAttempt
             ? store.replace(
@@ -153,7 +156,16 @@ export function createApplyResumeContentTool(
           error instanceof Error ? error.message : String(error),
         );
       }
-      if (action.mode === "repair_bullet_counts") {
+      const neutralWrite = safeFactNeutralFragmentsForWrite(
+        workspace, params, resolved.bulletUpdates, pageFillAttempt,
+      );
+      if (neutralWrite.error) {
+        return resumeWriteRejectedResult(workspace, neutralWrite.error);
+      }
+      const factNeutralFragments = mergeFactNeutralFragments(
+        tailNeutralFragments, neutralWrite.fragments,
+      );
+      if (action.mode === "write_item_lines") {
         const supplied = new Set(items.map((item) => item.itemId));
         const missing = action.itemIds.filter((itemId) => !supplied.has(itemId));
         const attemptsCountRepair = action.itemIds.some((itemId) =>
@@ -162,7 +174,7 @@ export function createApplyResumeContentTool(
         if (attemptsCountRepair && missing.length) {
           return resumeWriteRejectedResult(
             workspace,
-            `repair_bullet_counts 必须在一次 items 调用中覆盖全部 itemTargets；missing=${missing.join(",")}`,
+            `write_item_lines 必须在一次 items 调用中覆盖全部 itemTargets；missing=${missing.join(",")}`,
           );
         }
       }
@@ -176,8 +188,12 @@ export function createApplyResumeContentTool(
         ...(pageFillProgressMade === undefined
           ? {}
           : { pageFillProgressMade }),
+        ...(factNeutralFragments.length
+          ? { factNeutralFragments } : {}),
+        allowPartialItemProgress: isFirstResumeGeneration(workspace) && (action.mode === "write_item_lines" || action.mode === "integrate_supplemental_evidence"),
       });
-      if (params.lineRewrites && lineRewriteDiagnostics) {
+      if ((params.lineExpansions || params.lineRewrites) &&
+        lineRewriteDiagnostics) {
         const formal = formalLineRewriteOutcome(
           workspace, lineRewriteDiagnostics, applied.operation,
         );
@@ -208,7 +224,8 @@ export function createApplyResumeContentTool(
         ...(tailWriteHandled && tailRepairDiagnostics
           ? { tailRepairDiagnostics }
           : {}),
-        ...(params.lineRewrites && lineRewriteDiagnostics
+        ...((params.lineExpansions || params.lineRewrites) &&
+          lineRewriteDiagnostics
           ? { lineRewriteDiagnostics }
           : {}),
         ...(approvalRequestId ? { approvalRequestId } : {}),
@@ -224,9 +241,7 @@ export function createApplyResumeContentTool(
             applied.workspace,
             applied.operation,
           ),
-          ...(["batch_tail_repair", "batch_tail_reflow"].includes(
-              resumeAgentNextAction(applied.workspace).mode,
-            )
+          ...(tailWriteHandled
             ? { turnGovernorPhaseKey: "resume_tail_repair" } : {}),
         },
       };

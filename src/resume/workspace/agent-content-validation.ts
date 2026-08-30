@@ -4,7 +4,11 @@ import { findResumePaddingIssue } from "../planning/text-padding.js";
 import { resolveGroundedEvidence } from "./agent-workspace-evidence.js";
 import type { AgentBulletContentInput } from "./agent-content-types.js";
 import type { ResumeBulletProvenance, ResumeWorkspace } from "./types.js";
-import { minimumResumeBulletCount } from "./bullet-count-rules.js";
+import { plannedBulletLines } from "./bullet-line-plan.js";
+import { matchingFactNeutralFragment } from "./fact-neutral-fragments.js";
+import { validateFactNeutralFragment } from "./fact-neutral-validation.js";
+import { validatedBulletWorkUnitIds } from "./work-unit-ownership.js";
+import { resumeSourceRequirements } from "../source-strategy.js";
 
 export function buildValidatedBullet(input: {
   source: ResumeWorkspace;
@@ -19,17 +23,29 @@ export function buildValidatedBullet(input: {
   if (hasTrailingPunctuation(text)) throw new Error("bullet 末尾不得有句末标点");
   const repeated = findRepeatedFragment(text);
   if (repeated) throw new Error(`bullet 包含重复片段：${repeated}`);
-  const paddingIssue = findResumePaddingIssue(text);
-  if (paddingIssue) {
-    throw new Error(
-      `bullet 包含${paddingIssue}；新增内容必须具体修饰已有动作、对象、方法或结果`,
-    );
-  }
   const previousId = input.item.bullets[input.index]?.id;
   const bulletId =
     input.bullet.bulletId?.trim() ||
     previousId ||
     `${input.item.id}-bullet-${input.index + 1}`;
+  const neutralFragment = matchingFactNeutralFragment(
+    input.source,
+    bulletId,
+    text,
+  );
+  const evidenceText = neutralFragment?.baseText ?? text;
+  if (neutralFragment) {
+    validateFactNeutralFragment(
+      neutralFragment.fragmentText,
+      input.source.structure.language,
+    );
+  }
+  const paddingIssue = findResumePaddingIssue(evidenceText);
+  if (paddingIssue) {
+    throw new Error(
+      `bullet 包含${paddingIssue}；新增内容必须具体修饰已有动作、对象、方法或结果`,
+    );
+  }
   const previousBullet = input.item.bullets.find((item) => item.id === bulletId);
   const previousProvenance = (input.source.bulletProvenance ?? []).find(
     (item) => item.bulletId === bulletId,
@@ -49,7 +65,7 @@ export function buildValidatedBullet(input: {
       supplemental: input.source.supplementalEvidence ?? [],
       item: input.item,
       bulletId,
-      text,
+      text: evidenceText,
       evidenceIds: input.bullet.evidenceIds ?? [],
       requirementIds,
     });
@@ -66,10 +82,19 @@ export function buildValidatedBullet(input: {
       throw new Error("agent_augmented bullet 不得包含未确认数字或 XX 占位符");
     }
   }
+  const workUnitIds = validatedBulletWorkUnitIds({
+    workspace: input.source,
+    itemId: input.item.id,
+    origin: input.bullet.origin,
+    evidenceIds,
+    ...(input.bullet.workUnitIds
+      ? { workUnitIds: input.bullet.workUnitIds } : {}),
+  });
   const provenance: ResumeBulletProvenance = {
     bulletId,
     itemId: input.item.id,
     origin: input.bullet.origin,
+    ...(workUnitIds?.length ? { workUnitIds } : {}),
     evidenceIds,
     requirementIds,
     confirmation:
@@ -102,32 +127,16 @@ export function buildValidatedBullet(input: {
     },
     provenance,
     binding,
+    plannedLines: plannedBulletLines(
+      input.bullet.plannedLines ??
+        input.source.bulletLinePlans?.[bulletId]?.plannedLines,
+    ),
   };
-}
-
-export function assertMinimumBulletCount(
-  workspace: ResumeWorkspace,
-  itemId: string,
-  count: number,
-): void {
-  const section = workspace.structure.sections.find((entry) =>
-    entry.items.some((item) => item.id === itemId)
-  );
-  if (!section) throw new Error(`item ${itemId} 不在当前工作区`);
-  const tier = workspace.itemTiers?.[itemId];
-  const minimum = minimumResumeBulletCount({
-    sectionType: section.type,
-    itemId,
-    ...(tier ? { tier } : {}),
-  });
-  if (count < minimum) {
-    throw new Error(`${tier ?? section.type} 内容至少需要 ${minimum} 条 bullet`);
-  }
 }
 
 function assertRequirementIds(workspace: ResumeWorkspace, ids: string[]): void {
   const allowed = new Set(
-    workspace.sourceSnapshot.jd.requirements.map((item) => item.id),
+    resumeSourceRequirements(workspace.sourceSnapshot).map((item) => item.id),
   );
   const unknown = ids.filter((id) => !allowed.has(id));
   if (unknown.length) throw new Error(`未知 JD requirementId：${unknown.join("、")}`);

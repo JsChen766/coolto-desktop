@@ -40,7 +40,7 @@ export interface ResumeSaveApprovalPayload {
   candidateRevision: number;
   title: string;
   targetRole: string | null;
-  jdId: string;
+  jdId: string | null;
   resumeId?: string;
   expectedContentHash?: string;
   sourceFingerprint: string;

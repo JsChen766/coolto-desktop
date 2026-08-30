@@ -1,0 +1,5 @@
+{
+  "name": "coolto-browser-agent-qa",
+  "version": "1.0.0",
+  "main": "../../../out/cli/browser-agent-qa-entry.cjs"
+}

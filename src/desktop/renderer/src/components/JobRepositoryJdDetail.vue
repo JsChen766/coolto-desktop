@@ -10,7 +10,10 @@ import {
 } from "@lucide/vue";
 import { computed } from "vue";
 
-import type { JobRepositoryJd, JobRepositoryResume } from "@desktop/types";
+import type {
+  JobRepositoryJd,
+  JobRepositoryResume,
+} from "@desktop/types";
 import { translate } from "../i18n/locale";
 import { STATUS_LABELS } from "../tracker/application-labels";
 import {
@@ -36,10 +39,8 @@ defineEmits<{
 }>();
 
 const targetedResumes = computed(() => {
-  const ids = new Set(props.jd.targetedResumeIds);
-  return props.resumes.filter((resume) =>
-    resume.resumeId ? ids.has(resume.resumeId) : false,
-  );
+  const ids = new Set(props.jd.targetedResumeEntryIds);
+  return props.resumes.filter((resume) => ids.has(resume.entry.entryId));
 });
 const recentApplications = computed(() => props.jd.applications.slice(0, 3));
 const relatedResumeCount = computed(
@@ -80,7 +81,7 @@ function resumeEntryId(resumeId: string | null): string | undefined {
       </div>
       <div class="repository-detail-actions">
         <button class="primary-button icon-label" type="button" @click="$emit('generate')">
-          <Sparkles :size="14" aria-hidden="true" />{{ $t('生成针对性简历') }}
+          <Sparkles :size="14" aria-hidden="true" />{{ $t('准备岗位简历') }}
         </button>
         <button class="secondary-button icon-label" type="button" @click="$emit('record')">
           <Send :size="14" aria-hidden="true" />{{ $t('记录投递') }}
@@ -124,7 +125,7 @@ function resumeEntryId(resumeId: string | null): string | undefined {
             <FileText :size="15" aria-hidden="true" />
             <span>
               <strong>{{ resume.entry.displayTitle }}</strong>
-              <small>{{ resume.entry.cloud?.targetRole ?? $t('未填写目标岗位') }}</small>
+              <small>{{ resume.entry.cloud?.targetRole ?? resume.entry.local?.targetRole ?? $t('未填写目标岗位') }}</small>
             </span>
             <span class="repository-reference-badges">
               <span class="repository-relation-badge">{{ $t('针对本岗位') }}</span>
@@ -160,7 +161,7 @@ function resumeEntryId(resumeId: string | null): string | undefined {
           </button>
         </div>
         <p v-else class="repository-section-empty">
-          {{ $t('暂无关联简历，可先生成针对性简历。') }}
+          {{ $t('暂无关联简历，可先准备这份岗位的简历。') }}
         </p>
       </section>
 

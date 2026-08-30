@@ -118,6 +118,10 @@ function registerShellHandlers(
   ipcMain.on(S.minimize, () => manager.minimize());
   ipcMain.on(S.toggleMaximize, () => manager.toggleMaximize());
   ipcMain.on(S.closeWindow, () => manager.close());
+  ipcMain.on(S.pauseAgent, () => void manager.agentStatus.command("pause").catch(() => {}));
+  ipcMain.on(S.resumeAgent, () => void manager.agentStatus.command("resume").catch(() => {}));
+  ipcMain.on(S.takeoverAgent, () => void manager.agentStatus.command("takeover").catch(() => {}));
+  ipcMain.on(S.stopAgent, () => void manager.agentStatus.command("stop").catch(() => {}));
 }
 
 function broadcastShellState(

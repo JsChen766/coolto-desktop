@@ -11,6 +11,7 @@ import type {
   DesktopAgentEvent,
   DesktopApi,
 } from "../shared/types.js";
+import { onboardingPreloadApi } from "./onboarding-api.js";
 
 const api: DesktopApi = {
   platform: process.platform,
@@ -60,6 +61,8 @@ const api: DesktopApi = {
     list: () => ipcRenderer.invoke("resume-drafts:list"),
     get: (artifactId) => ipcRenderer.invoke("resume-drafts:get", artifactId),
     edit: (input) => ipcRenderer.invoke("resume-drafts:edit", input),
+    setLineSpacing: (input) =>
+      ipcRenderer.invoke("resume-drafts:set-line-spacing", input),
     restore: (input) => ipcRenderer.invoke("resume-drafts:restore", input),
     accept: (artifactId) =>
       ipcRenderer.invoke("resume-drafts:accept", artifactId),
@@ -86,6 +89,13 @@ const api: DesktopApi = {
       ipcRenderer.invoke("library:get-checkpoints", artifactId),
     restoreCheckpoint: (input) =>
       ipcRenderer.invoke("library:restore-checkpoint", input),
+  },
+  deliveryResumeFiles: {
+    list: () => ipcRenderer.invoke("delivery-resume-files:list"),
+    importFile: () => ipcRenderer.invoke("delivery-resume-files:import"),
+    rename: (input) => ipcRenderer.invoke("delivery-resume-files:rename", input),
+    select: (input) => ipcRenderer.invoke("delivery-resume-files:select", input),
+    delete: (input) => ipcRenderer.invoke("delivery-resume-files:delete", input),
   },
   jobAssets: {
     get: () => ipcRenderer.invoke("job-assets:get"),
@@ -158,6 +168,27 @@ const api: DesktopApi = {
       ipcRenderer.on("agent:event", handler);
       return () => ipcRenderer.removeListener("agent:event", handler);
     },
+  },
+  mailConnections: {
+    providers: () => ipcRenderer.invoke("mail-connections:providers"),
+    list: () => ipcRenderer.invoke("mail-connections:list"),
+    connect: (provider) => ipcRenderer.invoke("mail-connections:connect", provider),
+    disconnect: (connectionId) =>
+      ipcRenderer.invoke("mail-connections:disconnect", connectionId),
+  },
+  onboarding: onboardingPreloadApi,
+  agentTasks: {
+    list: () => ipcRenderer.invoke("agent-tasks:list"),
+    get: (taskId) => ipcRenderer.invoke("agent-tasks:get", taskId),
+    prepare: (input) => ipcRenderer.invoke("agent-tasks:prepare", input),
+    executeProposal: (id) => ipcRenderer.invoke("agent-tasks:execute-proposal", id),
+    start: (id) => ipcRenderer.invoke("agent-tasks:start", id),
+    resume: (id) => ipcRenderer.invoke("agent-tasks:resume", id),
+    pause: (id) => ipcRenderer.invoke("agent-tasks:pause", id),
+    cancel: (id) => ipcRenderer.invoke("agent-tasks:cancel", id),
+    revoke: (id) => ipcRenderer.invoke("agent-tasks:revoke", id),
+    submissionReceipt: (id) =>
+      ipcRenderer.invoke("agent-tasks:submission-receipt", id),
   },
   window: {
     minimize: () => ipcRenderer.invoke("window:minimize"),

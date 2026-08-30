@@ -1,6 +1,7 @@
 # B6：集成交付
 
-> 状态：待实施  
+> 状态：已停止作为独立阶段推进；范围由
+> [Browser Enhance 路线](../../browser-enhance/README.md) BE4、BE5、BE8 吸收
 > 前置：B1–B5 全部通过阶段质检
 
 ## 目标

@@ -1,21 +1,15 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
-import type {
-  ChatMessage,
-  ConversationDetail,
-  ConversationSummary,
-  DesktopApprovalDecision,
-  DesktopApprovalRequest,
-  JdChatReference,
-  MessageAttachment,
-  ResumeChatReference,
-} from "@desktop/types";
+import type { ChatMessage, ConversationDetail, ConversationSummary,
+  DesktopApprovalDecision, DesktopApprovalRequest, JdChatReference,
+  MessageAttachment, ResumeChatReference } from "@desktop/types";
 import type { ToolRun } from "./tool-run-state";
 import { desktopApi } from "../lib/desktop-api";
 import type { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { findReusableEmptyConversation } from "./conversation-list";
 import { useJdArtifacts } from "./use-jd-artifacts";
 import { useMatchReports } from "./use-match-reports";
+import { startApprovedAgentTask } from "./start-approved-agent-task";
 import { createAgentEventHandler } from "./agent-event-handler";
 import {
   createArtifactAnchorer,
@@ -24,6 +18,8 @@ import {
 } from "./chat-session-helpers";
 import { desktopErrorMessage } from "./desktop-error-message";
 import { useChatAuth } from "./use-chat-auth";
+import { plainJdChatReference, plainResumeChatReference } from
+  "./chat-reference-payload";
 
 type ResumeWorkspace = ReturnType<typeof useResumeWorkspace>;
 
@@ -36,6 +32,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   const toolRuns = ref<ToolRun[]>([]);
   const pendingApproval = ref<DesktopApprovalRequest>();
   const approvalBusy = ref(false);
+  const authenticatedReady = ref(false);
   const dialog = ref<{
     mode: "rename" | "delete";
     conversation: ConversationSummary;
@@ -67,19 +64,16 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     match,
     resumeWorkspace,
   });
-
   onMounted(async () => {
     unsubscribeEvents = desktopApi.agent.onEvent(handleAgentEvent);
     await auth.restore();
   });
-
   onBeforeUnmount(() => unsubscribeEvents?.());
-
   async function cancelRunning(): Promise<void> {
     if (running.value) await desktopApi.agent.cancel();
   }
-
   function clearAuthenticatedState(): void {
+    authenticatedReady.value = false;
     current.value = undefined;
     conversations.value = [];
     approvalByConversation.clear();
@@ -88,15 +82,14 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     clearRunState();
     resumeWorkspace.clear();
   }
-
   async function loadConversations(): Promise<void> {
     conversations.value = await desktopApi.conversations.list();
     await resumeWorkspace.loadDrafts();
     const first = conversations.value[0];
     if (first) await selectConversation(first.id);
     else await createConversation();
+    authenticatedReady.value = true;
   }
-
   async function refreshConversationList(): Promise<void> {
     conversations.value = await desktopApi.conversations.list();
   }
@@ -122,13 +115,17 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     }
   }
 
-  async function selectConversation(conversationId: string): Promise<void> {
-    if (running.value || current.value?.id === conversationId) return;
+  async function selectConversation(
+    conversationId: string,
+    force = false,
+  ): Promise<void> {
+    if (running.value || (!force && current.value?.id === conversationId)) return;
     current.value = await desktopApi.conversations.get(conversationId);
     clearRunState();
     pendingApproval.value = approvalByConversation.get(conversationId);
     jd.switchConversation(conversationId);
     match.switchConversation(conversationId);
+    if (force) await refreshConversationList();
   }
 
   function openDialog(
@@ -184,8 +181,10 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       current.value = await desktopApi.agent.prompt({
         conversationId,
         text,
-        ...(resumeReference ? { resumeReference } : {}),
-        ...(jdReference ? { jdReference } : {}),
+        ...(resumeReference ? {
+          resumeReference: plainResumeChatReference(resumeReference),
+        } : {}),
+        ...(jdReference ? { jdReference: plainJdChatReference(jdReference) } : {}),
       });
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();
@@ -203,6 +202,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
   ): Promise<void> {
     if (!current.value || !pendingApproval.value) return;
     const conversationId = current.value.id;
+    const actionType = pendingApproval.value.actionType;
     const previousMessageIds = new Set(
       current.value.messages.map((message) => message.id),
     );
@@ -216,6 +216,10 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
       anchorResponseArtifacts(conversationId, previousMessageIds);
       clearLiveResponse();
       await refreshConversationList();
+      if (decision.type === "accept" && actionType === "agent_task.provision") {
+        current.value = await startApprovedAgentTask(desktopApi, conversationId);
+        clearLiveResponse();
+      }
     } catch (error: unknown) {
       runError.value = desktopErrorMessage(error);
     } finally {
@@ -225,14 +229,9 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
 
   return {
     ...auth,
-    conversations,
-    current,
-    running,
-    streamingText,
-    runError,
-    toolRuns,
-    pendingApproval,
-    approvalBusy,
+    conversations, current, running,
+    streamingText, runError, toolRuns,
+    pendingApproval, approvalBusy, authenticatedReady,
     dialog,
     jdArtifacts: jd.jdArtifacts,
     activeJd: jd.activeJd,
@@ -240,6 +239,7 @@ export function useChatSession(resumeWorkspace: ResumeWorkspace) {
     activeMatchReport: match.activeMatchReport,
     createConversation,
     selectConversation,
+    reloadConversation: (id: string) => selectConversation(id, true),
     openDialog,
     confirmDialog,
     send,

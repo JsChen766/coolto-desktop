@@ -22,8 +22,8 @@ export function resumeWriteResultForModel(
     return {
       ...authoritative,
       terminalInstruction: question
-        ? `立即停止所有工具调用，直接向用户提出这个问题：${question}`
-        : "立即停止所有工具调用，直接向用户询问一个最有价值的具体事实。",
+        ? `立即停止所有工具调用；面向用户只能原样输出这个问题本身，不得输出计划、英文过程说明或内部状态：${question}`
+        : "立即停止所有工具调用；面向用户只能输出一个最有价值的具体事实问题，不得输出计划、英文过程说明或内部状态。",
     };
   }
   if (!Array.isArray(result.tailRepairFeedback)) return result;
@@ -45,13 +45,26 @@ export function resumeWriteResultForModel(
     tailRepairFeedback: _tailRepairFeedback,
     ...authoritative
   } = result;
+  const neutralTailMode = nextActionUsesNeutralMode(nextAction);
   return {
     ...authoritative,
     ...(rejected.length ? { tailRepairFeedback: rejected } : {}),
-    tailRepairReminder: nextAction?.mode === "batch_tail_reflow"
-      ? "一次 lineRewrites 覆盖最新 bulletIds 的全部目标。逐条执行 requiredEdit：currentText 的每个原字符必须按原顺序完整保留，只能插入事实中性的定语、补语、连接语或既有关系表达；提交一份完整 revisedText，不得删除、替换、调序、加入新事实或生成候选。rejectedReflows 只用于避免复读，宿主会执行正式内容校验与 Chromium 门禁"
-      : "一次 tailGrowths 覆盖最新 bulletIds 的全部目标。currentText 是锁定的正式基线，禁止改写或重交全文；逐条执行 requiredEdit，只提交一个可直接接在 currentText 后的 growthText。增长片段从 sourceQuotes 中选择尚未充分表达的方法、对象、指标、范围、过程、交付物或结果，不得编造；rejectedGrowths 只用于避免复读。宿主会确定性拼接、执行正式内容校验并用 Chromium 验收，禁止候选和多版本",
+    tailRepairReminder: neutralTailMode
+      ? "batch_tail_rewrite 必须一次覆盖最新全部 bulletIds，并优先逐字复制各目标的 suggestedNeutralCandidates 作为 revisedText；这些候选已逐字保留 currentText，并优先把连接放在背景、能力或方法、行动与结果之间。每个候选都传 contentMode=fact_neutral，禁止传 additionalEvidenceIds；三分之二只用于排版验收，不得默认在句尾填充或跨 bullet 重复同类中性表述"
+      : "batch_tail_rewrite 用一次 tailRewrites 覆盖最新 bulletIds；每条提交 1–2 份完整事实等价改写，可吸收 availableEvidence，但必须附对应 additionalEvidenceIds。保留事实、数字、专名、工具、对象和结果，不得追加固定尾缀或重交已拒绝候选",
   };
+}
+
+function nextActionUsesNeutralMode(
+  nextAction: Record<string, unknown> | undefined,
+): boolean {
+  if (!nextAction || !Array.isArray(nextAction.tailRewriteTargets)) {
+    return false;
+  }
+  return nextAction.tailRewriteTargets.some((target) =>
+    target && typeof target === "object" &&
+    (target as { contentMode?: unknown }).contentMode === "fact_neutral"
+  );
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {

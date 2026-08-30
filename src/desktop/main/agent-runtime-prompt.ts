@@ -11,6 +11,21 @@ import {
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { buildAttachmentNotice } from "./conversation-attachments.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+import {
+  appendResumeRunFeedback,
+  resumeRunFeedbackState,
+} from "./resume-run-feedback.js";
+import { canonicalizeResumeBoundaryResponse } from
+  "./resume-boundary-response.js";
+import { tailoredResumeFallbackDecision } from
+  "../../resume/strategy/tailored-fallback.js";
+import { requestResumeStrategyChoice } from
+  "../../resume/strategy/choice-approval.js";
+import { replaceFailedResumeRunWithStrategyMessage } from
+  "./resume-strategy-messages.js";
+
+const STRATEGY_FALLBACK_MESSAGE =
+  "现有经历与这个岗位的匹配度太低，无法在不编造事实的前提下生成可信的针对性简历。你可以直接使用通用简历继续投递，或者不继续投递这个岗位。";
 
 export interface AgentPromptExecutionInput {
   prompt: AgentPromptInput;
@@ -62,18 +77,45 @@ export async function executeAgentPrompt(
     input.pendingAttachments.length > 0
       ? buildAttachmentNotice(input.pendingAttachments)
       : "";
+  const messageStartIndex = context.agent.getMessages().length;
   // pi-agent-core owns the complete model -> tool -> model loop. A real user
   // message maps to exactly one prompt; the host never injects phase prompts
   // or re-prompts a half-finished resume workspace.
   context.currentUserMessage.timestamp = Date.now();
+  context.currentUserMessage.text = prompt.text;
   await context.agent.prompt(promptText + attachmentNotice);
   const runStopError = context.agent.runStopError;
+  const proposed = context.workspaceStore.latest();
+  const strategyFallback = tailoredResumeFallbackDecision(
+    proposed,
+    context.agent.runGuardStopReason,
+  );
+  if (runStopError && proposed && strategyFallback) {
+    await requestResumeStrategyChoice(
+      context.approvalManager,
+      proposed,
+      strategyFallback,
+    );
+    const messages = replaceFailedResumeRunWithStrategyMessage(
+      context.agent.getMessages(),
+      STRATEGY_FALLBACK_MESSAGE,
+    );
+    context.agent.replaceMessages(messages);
+    return {
+      messages,
+      attachTimestamp: lastUserMessageTimestamp(messages),
+    };
+  }
   if (runStopError) {
     discardFailedRunMessages(context);
     throw new Error(runStopError);
   }
-  const attachTimestamp = lastUserMessageTimestamp(context.agent.getMessages());
-  const proposed = context.workspaceStore.latest();
+  const canonicalMessages = canonicalizeResumeBoundaryResponse(
+    context.agent.getMessages(),
+    proposed,
+    messageStartIndex,
+  );
+  context.agent.replaceMessages(canonicalMessages);
   if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
     await input.resumeDrafts.proposeChange({
       artifactId: editBase.artifactId,
@@ -82,8 +124,15 @@ export async function executeAgentPrompt(
       summary: context.activeEdit?.summary ?? "AI 修改简历内容",
     });
   }
+  const messagesWithFeedback = appendResumeRunFeedback({
+    messages: canonicalMessages,
+    userText: prompt.text,
+    state: resumeRunFeedbackState(proposed),
+  });
+  context.agent.replaceMessages(messagesWithFeedback);
+  const attachTimestamp = lastUserMessageTimestamp(messagesWithFeedback);
   return {
-    messages: context.agent.getMessages(),
+    messages: messagesWithFeedback,
     attachTimestamp,
   };
 }

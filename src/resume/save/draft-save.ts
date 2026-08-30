@@ -5,6 +5,7 @@ import { resumeGenerationReadiness } from "../workspace/generation-readiness.js"
 import { ResumeWorkspaceError } from "../workspace/errors.js";
 import { toBrowserLayoutObservation } from "./layout-observation.js";
 import type { ResumeSaveApprovalPayload } from "./types.js";
+import { resumeSourceJd } from "../source-strategy.js";
 
 export function buildDraftSavePayload(input: {
   draft: LocalResumeDraft;
@@ -37,14 +38,15 @@ export function buildDraftSavePayload(input: {
   structured.quality_status = "passed";
   structured.quality_issues = [];
   const cloud = draft.cloudLink;
+  const jd = resumeSourceJd(workspace.sourceSnapshot);
   return {
     proposalId,
     mode: cloud ? "replace_resume" : "new_resume",
     candidateId: workspace.candidateId,
     candidateRevision: workspace.revision,
     title: draft.title,
-    targetRole: workspace.sourceSnapshot.jd.targetRole,
-    jdId: workspace.sourceSnapshot.jd.id,
+    targetRole: jd?.targetRole ?? null,
+    jdId: jd?.id ?? null,
     ...(cloud
       ? { resumeId: cloud.resumeId, expectedContentHash: cloud.contentHash }
       : {}),

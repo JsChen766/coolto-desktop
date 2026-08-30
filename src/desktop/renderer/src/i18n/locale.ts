@@ -3,11 +3,14 @@ import { ref } from "vue";
 import { commonMessages } from "./catalog-common.js";
 import { copyMessages } from "./catalog-copy.js";
 import { creditMessages } from "./catalog-credits.js";
+import { agentTaskMessages } from "./catalog-agent-tasks.js";
 import { detailMessages } from "./catalog-details.js";
 import { formatMessages } from "./catalog-format.js";
 import { domainMessages } from "./catalog-domain.js";
 import { feedbackMessages } from "./catalog-feedback.js";
 import { resumeAgentMessages } from "./catalog-resume-agent.js";
+import { onboardingMessages } from "./catalog-onboarding.js";
+import { deliveryResumeMessages } from "./catalog-delivery-resume.js";
 
 export type AppLocale = "zh-CN" | "en-US";
 
@@ -38,6 +41,9 @@ const messages: Record<string, string> = {
   ...feedbackMessages,
   ...resumeAgentMessages,
   ...creditMessages,
+  ...agentTaskMessages,
+  ...onboardingMessages,
+  ...deliveryResumeMessages,
 };
 let storageListening = false;
 

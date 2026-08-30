@@ -9,6 +9,12 @@ import { parseExperienceImportResult } from "../../import/result-artifact.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import { extractInsufficientCreditsDetail } from "./insufficient-credits-detect.js";
 import { traceStopReason, traceToolMetadata } from "./agent-runtime-trace.js";
+import { syncDraftSupplementalMaterial } from
+  "./resume-drafts/resume-experience-sync-service.js";
+import { tailoredResumeFallbackDecision } from
+  "../../resume/strategy/tailored-fallback.js";
+import type { ExperienceMaterialCommitter } from
+  "../../experience/material-ingestion-types.js";
 
 export class AgentRuntimeEvents {
   public constructor(
@@ -16,6 +22,7 @@ export class AgentRuntimeEvents {
     private readonly store: ConversationStore,
     private readonly resumeDrafts: ResumeDraftService,
     private readonly traces: ResumeGenerationTraceStore,
+    private readonly materialCommitter: ExperienceMaterialCommitter,
   ) {}
 
   public subscribe(
@@ -40,6 +47,7 @@ export class AgentRuntimeEvents {
         return;
       }
       if (event.type === "run.failed") {
+        if (tailoredResumeFallbackDecision(context.workspaceStore.latest(), context.agent.runGuardStopReason)) return;
         this.traces.recordModelCompleted(conversationId, "error");
         this.traces.recordStopReason(
           conversationId,
@@ -73,7 +81,13 @@ export class AgentRuntimeEvents {
         isResumeWorkspaceTool(event.name) &&
         !event.isError
       ) {
-        this.emit(conversationId, { type: "resume.draft.saving" });
+        const workspace = context.workspaceStore.latest();
+        this.emit(conversationId, {
+          type: "resume.draft.saving",
+          replacePreview: event.name === "create_resume_workspace" && Boolean(
+            workspace && !context.artifactIdByCandidate.has(workspace.candidateId),
+          ),
+        });
         try {
           await this.syncLatestWorkspace(conversationId, context);
         } catch (error: unknown) {
@@ -81,6 +95,7 @@ export class AgentRuntimeEvents {
             type: "resume.draft.save-failed",
             message: error instanceof Error ? error.message : String(error),
           });
+          throw error;
         }
       }
       if (
@@ -123,6 +138,21 @@ export class AgentRuntimeEvents {
       jdId,
     });
   }
+  public emitAssistantNotice(
+    conversationId: string,
+    text: string,
+    timestamp: number,
+  ): void {
+    this.emit(conversationId, {
+      type: "assistant.notice",
+      message: {
+        id: `assistant-notice-${timestamp}`,
+        role: "assistant",
+        content: text,
+        createdAt: new Date(timestamp).toISOString(),
+      },
+    });
+  }
 
   public async syncLatestWorkspace(
     conversationId: string,
@@ -130,41 +160,32 @@ export class AgentRuntimeEvents {
   ): Promise<void> {
     const workspace = context.workspaceStore.latest();
     if (!workspace) return;
-    if (context.activeEdit) {
-      const draft = await this.resumeDrafts.proposeChange({
-        artifactId: context.activeEdit.artifactId,
-        base: context.activeEdit.base,
+    const editing = context.activeEdit;
+    let draft: Awaited<ReturnType<ResumeDraftService["get"]>>;
+    if (editing) {
+      draft = await this.resumeDrafts.proposeChange({
+        artifactId: editing.artifactId,
+        base: editing.base,
         proposed: workspace,
-        summary: context.activeEdit.summary,
+        summary: editing.summary,
       });
-      this.notifyDraftUpdated(conversationId, draft.artifactId);
-      this.traces.recordDraftSaved(conversationId);
-      if (workspace.status === "ready_for_approval") {
-        this.traces.recordQualifiedPreviewDelivered(conversationId);
-      }
-      return;
+    } else {
+      const artifactId = context.artifactIdByCandidate.get(workspace.candidateId);
+      const synced = await this.resumeDrafts.syncWorkspace({
+        conversationId, workspace, ...(artifactId ? { artifactId } : {}),
+      });
+      context.artifactIdByCandidate.set(workspace.candidateId, synced.draft.artifactId);
+      draft = synced.draft;
     }
-    const artifactId = context.artifactIdByCandidate.get(workspace.candidateId);
-    const synced = await this.resumeDrafts.syncWorkspace({
-      conversationId,
-      workspace,
-      ...(artifactId ? { artifactId } : {}),
-    });
-    context.artifactIdByCandidate.set(
-      workspace.candidateId,
-      synced.draft.artifactId,
-    );
-    const draft =
-      synced.created && workspace.status === "ready_for_approval"
-        ? await this.resumeDrafts.ensureGeneratedCheckpoint(
-            synced.draft.artifactId,
-          )
-        : synced.draft;
-    await this.store.addResumeArtifact(
-      conversationId,
-      this.resumeDrafts.artifactReference(draft),
-    );
-    this.notifyDraftUpdated(conversationId, draft.artifactId);
+    const draftWithSync = await syncDraftSupplementalMaterial({
+      draft, drafts: this.resumeDrafts, committer: this.materialCommitter,
+    }).catch(() => draft);
+    if (!editing) {
+      await this.store.addResumeArtifact(
+        conversationId, this.resumeDrafts.artifactReference(draftWithSync),
+      );
+    }
+    this.showDraft(conversationId, draftWithSync.artifactId);
     this.traces.recordDraftSaved(conversationId);
     if (workspace.status === "ready_for_approval") {
       this.traces.recordQualifiedPreviewDelivered(conversationId);
@@ -200,7 +221,7 @@ export class AgentRuntimeEvents {
     });
   }
 
-  private notifyDraftUpdated(
+  public showDraft(
     conversationId: string,
     artifactId: string,
   ): void {
@@ -222,5 +243,8 @@ function isResumeWorkspaceTool(name: string): boolean {
     "create_resume_workspace",
     "apply_resume_content",
     "add_resume_material",
+    "confirm_no_resume_material",
+    "pause_resume_for_material",
+    "decline_resume_material",
   ].includes(name);
 }

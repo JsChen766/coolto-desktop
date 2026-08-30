@@ -5,6 +5,7 @@ import { unwrittenExperienceItemIds } from "./candidate-content.js";
 import { rankAvailableEvidence } from "../quality/evidence-candidates.js";
 import { maxReachableUsageRatio } from "./workspace-status.js";
 import type { ResumeWorkspace } from "./types.js";
+import { resolveTailPolicy } from "../tail-policy.js";
 
 export function bulletTailDiagnostics(
   workspace: Pick<ResumeWorkspace, "compileResult" | "structure">,
@@ -26,7 +27,9 @@ export function bulletTailDiagnostics(
     )
     .map((violation) => {
       const measurement = byId.get(violation.bulletId);
-      const requiredWidthPx = (measurement?.availableLineWidthPx ?? 0) * 0.7;
+      const policy = resolveTailPolicy(measurement?.tailPolicyVersion);
+      const requiredWidthPx =
+        (measurement?.availableLineWidthPx ?? 0) * policy.hardMinRatio;
       const deficitPx = Math.max(
         0,
         requiredWidthPx - (measurement?.lastLineWidthPx ?? 0),
@@ -38,13 +41,14 @@ export function bulletTailDiagnostics(
         availableLineWidthPx: measurement?.availableLineWidthPx ?? 0,
         requiredWidthPx: round(requiredWidthPx),
         deficitPx: round(deficitPx),
+        hardDeficitCjk: measurement?.ceuPx ? round(deficitPx / measurement.ceuPx) : null,
         // +2 chars margin absorbs font/punctuation approximation error so a
         // single append clears the gate instead of leaving shortBy=1 loops.
-        shortByChars: Math.max(1, Math.round(deficitPx / charsPerUnit) + 2),
+        shortByChars: Math.max(1,
+          Math.round(deficitPx / (measurement?.ceuPx ?? charsPerUnit)) + 2),
       };
     });
 }
-
 export function overflowDiagnostic(workspace: ResumeWorkspace): object | null {
   const overflowPx = workspace.compileResult.overflowPx;
   if (overflowPx <= 0) return null;
@@ -123,16 +127,13 @@ export function instructionFor(workspace: ResumeWorkspace): string {
   ) {
     const usage = (workspace.compileResult.usageRatio * 100).toFixed(1);
     const minimum = workspace.compileResult.effectiveTargetBand.minimum;
-    const maxReachable = maxReachableUsageRatio(
-      workspace.compileResult,
-      workspace.maxBulletLines ?? 3,
-    );
+    const maxReachable = maxReachableUsageRatio(workspace.compileResult);
     if (maxReachable >= minimum) {
       // 素材耗尽但补长可达标：用已引用证据补长，不需要未消费证据。
-      return `未消费证据已耗尽，但把现有 bullet 补长到单条最多 ${workspace.maxBulletLines ?? 3} 行即可达到 ${(minimum * 100).toFixed(0)}%（当前 ${usage}%，补长天花板约 ${(maxReachable * 100).toFixed(0)}%）。立即停止写新 bullet，用 patch_resume_candidate 的 append_text / replace_substring 把每条 bullet 基于其已引用证据补长（补充方法、对象、规模、结果、责任归属等细节），目标每条约 ${bulletCharTarget(workspace)}；不得字面重复，不得编造；补长到 ≥${(minimum * 100).toFixed(0)}% 后调用 inspect_resume_draft 完成最终校验。`;
+      return `未消费证据已耗尽，但仍可在既定行数规划内扩写现有 bullet 达到 ${(minimum * 100).toFixed(0)}%（当前 ${usage}%，页面物理上限约 ${(maxReachable * 100).toFixed(0)}%）。立即停止写新 bullet，基于已引用证据扩写背景、方法、行动或结果细节；不得字面重复，不得编造；补长到 ≥${(minimum * 100).toFixed(0)}% 后调用 inspect_resume_draft 完成最终校验。`;
     }
     // 素材耗尽 + 补长天花板不足：数学上无路可走，立即停止并交还用户。
-    return `素材已耗尽（页面占用率 ${usage}%，补长到每条最多 ${workspace.maxBulletLines ?? 3} 行也仅约 ${(maxReachable * 100).toFixed(0)}%，需 ≥${(minimum * 100).toFixed(0)}%）：当前素材物理上无法写满一页。立即停止一切 write_bullet / patch_resume_candidate 操作，不得字面重复或强行追加同一内容；先调用 inspect_resume_draft 完成校验收尾，然后如实说明缺口并引导用户补充经历/项目细节/量化成果/技术栈；若用户要求放宽匹配条件，调用 search_experiences 以更宽条件搜索。不得降低任何质量门槛，不得编造证据。`;
+    return `素材已耗尽（页面占用率 ${usage}%，当前版面可达上限约 ${(maxReachable * 100).toFixed(0)}%，需 ≥${(minimum * 100).toFixed(0)}%）：当前素材物理上无法写满一页。立即停止写作操作，不得字面重复或强行追加同一内容；先调用 inspect_resume_draft 完成校验收尾，然后如实说明缺口并引导用户补充经历/项目细节/量化成果/技术栈；若用户要求放宽匹配条件，调用 search_experiences 以更宽条件搜索。不得降低任何质量门槛，不得编造证据。`;
   }
   if (workspace.qualityReviewStarted) {
     return "Use only the reported repairTargets and bounded alternativeTargets. Do not modify frozen bullets or bypass the three-round limit.";

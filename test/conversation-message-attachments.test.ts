@@ -110,8 +110,12 @@ test("attachment notice names the files and is stripped from presentation", () =
     { fileId: "attachment-b", filename: "经历.md", type: "markdown", sizeBytes: 20, status: "pending" },
   ]);
   assert.match(notice, /<attachment_notice>/u);
+  assert.match(notice, /尽可能完整沉淀/u);
+  assert.match(notice, /begin_experience_material_ingestion/u);
   assert.match(notice, /resume\.pdf（PDF）/u);
   assert.match(notice, /parse_selected_file/u);
+  assert.match(notice, /save_selected_file_as_delivery_resume/u);
+  assert.match(notice, /此路径不得解析或修改文件/u);
 
   const presented = presentConversationContent(
     `请导入简历\n\n${notice}`,

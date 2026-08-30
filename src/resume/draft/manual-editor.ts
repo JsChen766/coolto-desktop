@@ -1,8 +1,12 @@
 import type { ResumeCompiler } from "../workspace/compiler-port.js";
+import { RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
+import { withResumeLineSpacing } from "../layout-line-spacing.js";
 import { applyCandidatePatch } from "../workspace/candidate-patch.js";
 import { ResumeWorkspaceError } from "../workspace/errors.js";
 import { generationWorkspaceStatus } from "../workspace/generation-readiness.js";
 import type { ResumeWorkspace } from "../workspace/types.js";
+import { supplementalNumericEvidenceForBullet } from
+  "../workspace/agent-content-state.js";
 
 export type ResumeManualEditTarget =
   | { type: "bullet"; bulletId: string }
@@ -22,8 +26,48 @@ export class ResumeManualEditor {
       target.type === "bullet"
         ? editBullet(source, target.bulletId, text)
         : editRawText(source, target.itemId, text);
-    const structure = clearQualityMetadata(edited.structure);
+    return this.compileEdit(
+      source,
+      clearQualityMetadata(edited.structure),
+      edited.bindings,
+    );
+  }
+
+  public async setLineSpacing(
+    source: ResumeWorkspace,
+    scalePercent: number,
+  ): Promise<ResumeWorkspace> {
+    const structure = clearQualityMetadata(
+      withResumeLineSpacing(source.structure, scalePercent),
+    );
+    return this.compileEdit(
+      source,
+      structure,
+      structuredClone(source.bindings),
+      true,
+    );
+  }
+
+  private async compileEdit(
+    source: ResumeWorkspace,
+    structure: ResumeWorkspace["structure"],
+    bindings: ResumeWorkspace["bindings"],
+    rejectPageOverflow = false,
+  ): Promise<ResumeWorkspace> {
     const compileResult = await this.compiler.compile(structure);
+    if (
+      rejectPageOverflow &&
+      (
+        compileResult.pageCount > 1 ||
+        compileResult.overflowPx > RESUME_LAYOUT_TOLERANCE_PX ||
+        compileResult.usageRatio > compileResult.effectiveTargetBand.maximum
+      )
+    ) {
+      throw new ResumeWorkspaceError(
+        "layout_line_spacing_overflow",
+        "继续增大行间距将超过一页，已保持原行间距",
+      );
+    }
     const revision = source.revision + 1;
     const { qualityReport: _qualityReport, ...withoutQuality } = source;
     const updated: ResumeWorkspace = {
@@ -32,13 +76,13 @@ export class ResumeManualEditor {
       patchCount: source.patchCount + 1,
       status: "writing",
       structure,
-      bindings: edited.bindings,
+      bindings,
       compileResult,
       compileObservedRevision: revision,
       bestSnapshot: {
         revision,
         structure: structuredClone(structure),
-        bindings: structuredClone(edited.bindings),
+        bindings: structuredClone(bindings),
         compileResult: structuredClone(compileResult),
       },
       qualityReviewStarted: false,
@@ -75,6 +119,13 @@ function editBullet(
         binding: { ...structuredClone(binding), bulletText: text },
       },
     ],
+    new Map(source.bindings.flatMap((candidate) => {
+      const evidence = supplementalNumericEvidenceForBullet(
+        source, source.bulletProvenance, candidate.bulletId,
+        candidate.sourceExperienceId,
+      );
+      return evidence ? [[candidate.bulletId, evidence]] : [];
+    })),
   );
 }
 

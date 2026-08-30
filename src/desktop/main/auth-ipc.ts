@@ -5,7 +5,7 @@ import type { DesktopAuthService } from "./auth-service.js";
 export function registerAuthIpc(
   ipcMain: IpcMain,
   auth: DesktopAuthService,
-  resetUserServices: () => void,
+  resetUserServices: () => void | Promise<void>,
 ): void {
   ipcMain.handle("auth:current", async () => {
     const user = await auth.restore();
@@ -23,12 +23,12 @@ export function registerAuthIpc(
         challengeId,
         code.trim(),
       );
-      resetUserServices();
+      await resetUserServices();
       return { id: user.id, email: user.email };
     },
   );
   ipcMain.handle("auth:logout", async () => {
-    resetUserServices();
+    await resetUserServices();
     await auth.logout();
   });
   ipcMain.handle("auth:sync-now", () => auth.syncNow());

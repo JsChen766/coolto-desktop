@@ -1,10 +1,13 @@
 import type {
   AgentMessage,
   AgentTool,
+  AfterToolCallContext,
+  AfterToolCallResult,
   BeforeToolCallContext,
   BeforeToolCallResult,
   ShouldStopAfterTurnContext,
   StreamFn,
+  ThinkingLevel,
 } from "@earendil-works/pi-agent-core";
 import { randomUUID } from "node:crypto";
 import {
@@ -24,6 +27,10 @@ import { COOLTO_SYSTEM_PROMPT } from "./system-prompt.js";
 import { createTurnGovernor } from "./turn-governor.js";
 import { createRepetitionGuard } from "./repetition-guard.js";
 import { hasAuthoritativeResumeCompletion } from "./terminal-resume-result.js";
+import type { OutputRepetitionReason } from "./output-repetition-guard.js";
+import type { TurnGovernorStopReason } from "./turn-governor.js";
+import { recoverDeferredToolDependency } from
+  "./tool-dependency-recovery.js";
 
 export const DEFAULT_MODEL_ID = "deepseek-v4-flash";
 export const DEFAULT_PROVIDER_ID = "deepseek";
@@ -34,11 +41,15 @@ export interface CreateAgentOptions {
   modelId?: string;
   systemPrompt?: string;
   tools?: AgentTool[];
-  thinkingLevel?: import("@earendil-works/pi-ai").ThinkingLevel;
+  thinkingLevel?: ThinkingLevel;
   beforeToolCall?: (
     context: BeforeToolCallContext,
     signal?: AbortSignal,
   ) => Promise<BeforeToolCallResult | undefined>;
+  afterToolCall?: (
+    context: AfterToolCallContext,
+    signal?: AbortSignal,
+  ) => Promise<AfterToolCallResult | undefined>;
   transformContext?: (
     messages: AgentMessage[],
     signal?: AbortSignal,
@@ -47,7 +58,21 @@ export interface CreateAgentOptions {
     context: ShouldStopAfterTurnContext,
     signal?: AbortSignal,
   ) => boolean | Promise<boolean>;
-  automaticFollowUp?: (promptSequence: number) => string | undefined;
+  automaticFollowUp?: (
+    promptSequence: number,
+    message: AgentMessage,
+  ) => string | {
+    instruction: string;
+    requireToolCall: boolean;
+  } | undefined;
+  outputRepetitionRecovery?: (
+    promptSequence: number,
+    reason: OutputRepetitionReason,
+  ) => string | undefined;
+  turnGovernorRecovery?: (
+    promptSequence: number,
+    reason: TurnGovernorStopReason,
+  ) => string | undefined;
   approvalManager?: ApprovalManager;
 }
 export interface AgentDependencies {
@@ -169,6 +194,16 @@ export function createCooltoAgent(
           },
         }
       : { beforeToolCall: repetitionGuard }),
+    afterToolCall: async (
+      context: AfterToolCallContext,
+      signal?: AbortSignal,
+    ): Promise<AfterToolCallResult | undefined> => {
+      const configured = await options.afterToolCall?.(context, signal);
+      const recovered = recoverDeferredToolDependency(context);
+      return configured || recovered
+        ? { ...configured, ...recovered }
+        : undefined;
+    },
     transformContext:
       options.transformContext ??
       (async (messages: AgentMessage[]) =>
@@ -178,11 +213,17 @@ export function createCooltoAgent(
       signal?: AbortSignal,
     ) =>
       hasAuthoritativeResumeCompletion(context) ||
-      defaultTurnGovernor.evaluate(context) ||
-      Boolean(await options.shouldStopAfterTurn?.(context, signal)),
+      Boolean(await options.shouldStopAfterTurn?.(context, signal)) ||
+      defaultTurnGovernor.evaluate(context),
     turnGovernor: defaultTurnGovernor,
     ...(options.automaticFollowUp
       ? { automaticFollowUp: options.automaticFollowUp }
+      : {}),
+    ...(options.outputRepetitionRecovery
+      ? { outputRepetitionRecovery: options.outputRepetitionRecovery }
+      : {}),
+    ...(options.turnGovernorRecovery
+      ? { turnGovernorRecovery: options.turnGovernorRecovery }
       : {}),
     ...(options.approvalManager
       ? { approvalManager: options.approvalManager }

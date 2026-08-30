@@ -24,6 +24,7 @@ defineEmits<{
   open: [entry: ResumeLibraryEntry];
   record: [];
   tracker: [];
+  jd: [id: string];
 }>();
 
 const showPrimaryJd = computed(
@@ -127,7 +128,13 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
           <span>{{ relatedJobCount }}</span>
         </div>
         <div v-if="relatedJobCount" class="repository-reference-list">
-          <div v-if="showPrimaryJd" :class="resume.primaryJd.state">
+          <button
+            v-if="showPrimaryJd"
+            :class="resume.primaryJd.state"
+            type="button"
+            :disabled="resume.primaryJd.state !== 'linked' || !resume.primaryJd.id"
+            @click="resume.primaryJd.id && $emit('jd', resume.primaryJd.id)"
+          >
             <Link2Off v-if="resume.primaryJd.state !== 'linked'" :size="15" aria-hidden="true" />
             <Link v-else :size="15" aria-hidden="true" />
             <span>
@@ -137,11 +144,14 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
             <span class="repository-relation-badge">
               {{ primaryWasApplied ? $t('主要目标 · 实际投递') : $t('主要目标') }}
             </span>
-          </div>
-          <div
+          </button>
+          <button
             v-for="jd in otherAppliedJds"
             :key="`${jd.state}:${jd.id ?? jd.title}`"
             :class="jd.state"
+            type="button"
+            :disabled="jd.state !== 'linked' || !jd.id"
+            @click="jd.id && $emit('jd', jd.id)"
           >
             <Link2Off v-if="jd.state !== 'linked'" :size="15" aria-hidden="true" />
             <Link v-else :size="15" aria-hidden="true" />
@@ -150,7 +160,7 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
               <small v-if="jd.state === 'missing'">{{ $t('引用资产已缺失') }}</small>
             </span>
             <span class="repository-relation-badge">{{ $t('实际投递') }}</span>
-          </div>
+          </button>
         </div>
         <p v-else class="repository-section-empty">
           {{ resume.kind === 'generic' ? $t('通用简历，尚未用于投递。') : $t('尚未关联岗位。') }}

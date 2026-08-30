@@ -2,7 +2,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import type { BrowserPageOperator } from "../../browser/types.js";
-import { isError, preflightWriteAccess } from "./write-tool-helpers.js";
+import { preflightWriteAccess } from "./write-tool-helpers.js";
 
 const parameters = Type.Object({
   note: Type.Optional(
@@ -32,26 +32,15 @@ export function createBrowserStartReviewTool(
       "在 fillLog 为空、写权限未授予或已处于审核中时会返回 isError。",
     parameters,
     execute: async (_toolCallId, params) => {
-      const pre = preflightWriteAccess(operator);
-      if (pre) return pre;
+      preflightWriteAccess(operator);
       if (operator.isReviewing()) {
-        return isError(
-          "已有一轮审核尚未完成。请等待用户在 Overlay 上处理完所有字段。",
-        );
+        throw new Error("已有一轮审核尚未完成。请等待用户在 Overlay 上处理完所有字段。");
       }
       const log = operator.getFillLog();
       if (log.length === 0) {
-        return isError(
-          "当前没有可审核的写入记录。请先用 browser_fill_field 等工具写入字段。",
-        );
+        throw new Error("当前没有可审核的写入记录。请先用 browser_fill_field 等工具写入字段。");
       }
-      try {
-        operator.enterReview();
-      } catch (error: unknown) {
-        return isError(
-          error instanceof Error ? error.message : String(error),
-        );
-      }
+      operator.enterReview();
       const summary = {
         recordCount: log.length,
         fillIds: log.map((r) => r.fillId),

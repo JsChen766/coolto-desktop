@@ -1,4 +1,5 @@
 import type { ResumeSourceSnapshot } from "../source-types.js";
+import { requireResumeSourceJd } from "../source-strategy.js";
 import { writableEvidenceCandidates } from "../quality/evidence-candidates.js";
 import type { ResumeLayoutBudget } from "../workspace/types.js";
 import {
@@ -101,7 +102,7 @@ export function buildLayoutContext(
       };
     });
   return {
-    jdId: snapshot.jd.id,
+    jdId: requireResumeSourceJd(snapshot).id,
     language,
     maxBulletLines,
     requiredBulletLinesAtMinimum: bulletLineBudget,

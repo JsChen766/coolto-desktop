@@ -28,6 +28,7 @@ export function registerApplicationIpc(
   ipcMain: IpcMain,
   getStore: () => Promise<ApplicationSyncStore>,
   getProposals: () => Promise<ApplicationProposalService>,
+  onDeleted?: (applicationId: string) => Promise<void>,
 ): void {
   ipcMain.handle(
     "applications:list",
@@ -79,7 +80,10 @@ export function registerApplicationIpc(
       );
     },
   );
-  ipcMain.handle("applications:delete", async (_event, raw: unknown) =>
-    (await getStore()).deleteApplication(parseApplicationId(raw)),
-  );
+  ipcMain.handle("applications:delete", async (_event, raw: unknown) => {
+    const applicationId = parseApplicationId(raw);
+    const result = await (await getStore()).deleteApplication(applicationId);
+    await onDeleted?.(applicationId);
+    return result;
+  });
 }

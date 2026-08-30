@@ -3,6 +3,7 @@ import {
   type ResumeBulletMeasurement,
   type ResumeCompileViolation,
 } from "../../../../resume/compiler-types";
+import type { ResumeTailPolicy } from "../../../../resume/tail-policy";
 import { measureResumeBullets } from "./bullet-measurement";
 
 export interface ResumeDomMeasurement {
@@ -15,6 +16,18 @@ export interface ResumeDomMeasurement {
   usageRatio: number;
   bullets: ResumeBulletMeasurement[];
   violations: ResumeCompileViolation[];
+}
+
+export interface ResumePageGeometry {
+  nodesPresent: boolean;
+  valid: boolean;
+  pageCount: number;
+  overflowPx: number;
+  usedHeightPx: number;
+  availableHeightPx: number;
+  bodyLineHeightPx: number;
+  bodyFontSizePx: number;
+  usageRatio: number;
 }
 
 function lastMeaningfulBottom(content: HTMLElement, contentTop: number): number {
@@ -34,11 +47,11 @@ function lastMeaningfulBottom(content: HTMLElement, contentTop: number): number 
 
 export function measureResumeDom(
   page: HTMLElement,
-  gateRatio: number,
+  policy: ResumeTailPolicy,
+  language: string,
 ): ResumeDomMeasurement {
-  const box = page.querySelector<HTMLElement>(".resume-document-content-box");
-  const content = page.querySelector<HTMLElement>(".resume-document-content");
-  if (!box || !content) {
+  const geometry = measureResumePageGeometry(page);
+  if (!geometry.nodesPresent) {
     return {
       pageCount: 1,
       overflowPx: 0,
@@ -56,6 +69,39 @@ export function measureResumeDom(
       ],
     };
   }
+  const bulletResult = measureResumeBullets(page, policy, language);
+  const violations = [...bulletResult.violations];
+  if (!geometry.valid) {
+    violations.push({
+      code: "invalid_page_geometry",
+      message: "Resume page has invalid DOM geometry.",
+    });
+  }
+  return {
+    ...geometry,
+    bullets: bulletResult.bullets,
+    violations,
+  };
+}
+
+export function measureResumePageGeometry(
+  page: HTMLElement,
+): ResumePageGeometry {
+  const box = page.querySelector<HTMLElement>(".resume-document-content-box");
+  const content = page.querySelector<HTMLElement>(".resume-document-content");
+  if (!box || !content) {
+    return {
+      nodesPresent: false,
+      valid: false,
+      pageCount: 1,
+      overflowPx: 0,
+      usedHeightPx: 0,
+      availableHeightPx: 0,
+      bodyLineHeightPx: measureBodyLineHeight(page),
+      bodyFontSizePx: measureBodyFontSize(page),
+      usageRatio: 0,
+    };
+  }
   const availableHeightPx = box.clientHeight;
   const bodyLineHeightPx = measureBodyLineHeight(page);
   const bodyFontSizePx = measureBodyFontSize(content);
@@ -71,24 +117,16 @@ export function measureResumeDom(
     ),
   );
   const usageRatio = availableHeightPx > 0 ? usedHeightPx / availableHeightPx : 0;
-  const bulletResult = measureResumeBullets(page, gateRatio);
-  const violations = [...bulletResult.violations];
-  if (
-    ![
-      availableHeightPx,
-      usedHeightPx,
-      scrollHeight,
-      overflowPx,
-      usageRatio,
-    ].every(Number.isFinite) ||
-    availableHeightPx <= 0
-  ) {
-    violations.push({
-      code: "invalid_page_geometry",
-      message: "Resume page has invalid DOM geometry.",
-    });
-  }
+  const valid = [
+    availableHeightPx,
+    usedHeightPx,
+    scrollHeight,
+    overflowPx,
+    usageRatio,
+  ].every(Number.isFinite) && availableHeightPx > 0;
   return {
+    nodesPresent: true,
+    valid,
     pageCount,
     overflowPx,
     usedHeightPx,
@@ -96,8 +134,6 @@ export function measureResumeDom(
     bodyLineHeightPx,
     bodyFontSizePx,
     usageRatio,
-    bullets: bulletResult.bullets,
-    violations,
   };
 }
 

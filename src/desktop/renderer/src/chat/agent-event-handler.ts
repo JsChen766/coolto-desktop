@@ -30,7 +30,6 @@ interface AgentEventState {
 }
 
 export function createAgentEventHandler(state: AgentEventState) {
-  let suppressIntermediateText = false;
   return (conversationId: string, event: DesktopAgentEvent): void => {
     if (event.type === "approval.required") {
       state.approvalByConversation.set(conversationId, event.request);
@@ -91,21 +90,16 @@ export function createAgentEventHandler(state: AgentEventState) {
       return;
     }
     if (conversationId !== state.current.value?.id) return;
-    if (event.type === "run.started") {
-      suppressIntermediateText = state.toolRuns.value.length > 0;
-    }
     if (event.type === "tool.started") {
-      suppressIntermediateText = true;
       state.streamingText.value = "";
     }
-    handleCurrentConversationEvent(state, event, suppressIntermediateText);
+    handleCurrentConversationEvent(state, event);
   };
 }
 
 function handleCurrentConversationEvent(
   state: AgentEventState,
   event: DesktopAgentEvent,
-  suppressIntermediateText: boolean,
 ): void {
   switch (event.type) {
     case "run.started":
@@ -113,7 +107,11 @@ function handleCurrentConversationEvent(
       state.runError.value = undefined;
       return;
     case "message.delta":
-      if (!suppressIntermediateText) state.streamingText.value += event.text;
+      // Model narration is an internal execution detail. The completed,
+      // projected assistant message is loaded after the run settles.
+      return;
+    case "assistant.notice":
+      state.current.value?.messages.push(event.message);
       return;
     case "tool.started": {
       const argumentsValue = event.arguments as { label?: string } | undefined;
@@ -137,7 +135,7 @@ function handleCurrentConversationEvent(
       void state.resumeWorkspace.openDraft(event.artifactId);
       return;
     case "resume.draft.saving":
-      state.resumeWorkspace.markLocalSaving();
+      state.resumeWorkspace.markLocalSaving(event.replacePreview);
       return;
     case "resume.draft.save-failed":
       state.resumeWorkspace.markLocalSaveFailed(event.message);

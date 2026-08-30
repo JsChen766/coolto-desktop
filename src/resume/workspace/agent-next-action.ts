@@ -1,240 +1,220 @@
-import {
-  RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
-  RESUME_LAYOUT_TOLERANCE_PX,
-} from "../compiler-types.js";
+import { RESUME_LAYOUT_TOLERANCE_PX } from "../compiler-types.js";
 import { resumeGenerationReadiness } from "./generation-readiness.js";
-import {
-  groundedAdditionTargets,
-  type GroundedAdditionTarget,
-} from "./grounded-addition-targets.js";
-import {
-  lineExpansionTargets,
-  type LineExpansionTarget,
-} from "./line-expansion-targets.js";
 import { tailRepairBatch } from "./tail-repair-targets.js";
-import { tailGrowthInstruction } from "./tail-repair-instruction.js";
-import { TAIL_REFLOW_REQUIRED_EDIT } from "./tail-reflow-instruction.js";
-import {
-  type TailGrowthFailureType,
-} from "./tail-repair-state.js";
+import type { TailLengthBudget } from "./tail-length-budget.js";
 import type { ResumeWorkspace } from "./types.js";
 import { hasPendingAugmentedContent } from "./augmentation-state.js";
 import { criticalSkillMaterialRequest } from "./critical-skill-gate.js";
-import {
-  bulletDepthRewriteTargets,
-  MAX_TIERED_BULLET_LINES,
-  MIN_TIERED_BULLET_LINES,
-  type BulletDepthRewriteTarget,
-} from "./bullet-depth-targets.js";
+import { initialMaterialQuestion } from "./material-question.js";
+import { semanticTailRewriteInstruction } from
+  "./semantic-tail-rewrite-instruction.js";
+import type { SemanticTailEvidence } from "./semantic-tail-evidence.js";
 import {
   overflowReductionPlan,
   type OverflowReductionPlan,
 } from "./overflow-reduction-plan.js";
+import { FACT_NEUTRAL_REWRITE_INSTRUCTION } from
+  "./fact-neutral-rewrite-instruction.js";
+import { nextFactNeutralRewriteOptions } from
+  "./fact-neutral-rewrite-options.js";
 import {
-  bulletCountRepairPlan,
-  type BulletCountRepairTarget,
-} from "./bullet-count-repair.js";
-const MIN_GROUNDED_ADDITION_OPTIONS = 12;
-const MAX_MODEL_TAIL_GROWTH_TARGETS = 4;
-
-interface AgentTailRepairTarget {
+  supplementalIntegrationTargets,
+  type SupplementalIntegrationTarget,
+} from "./supplemental-integration-targets.js";
+import {
+  itemLineWriteTargets,
+  type ItemLineWriteTarget,
+} from "./item-line-plan.js";
+import type { ResumeMaterialNextAction } from "./material-next-action.js";
+import { normalizeResumeMaterialRequest } from "./material-request.js";
+import { reuseAdaptationNextAction, type ResumeReuseAdaptationAction } from
+  "./reuse-adaptation-next-action.js";
+import {
+  factNeutralClosureActive,
+  hasPendingFirstGenerationGroundedWork,
+  isFirstResumeGeneration,
+} from "./first-generation-policy.js";
+import {
+  evidenceAssessmentNextAction,
+  type ResumeEvidenceAssessmentAction,
+} from "./evidence-assessment.js";
+import {
+  resumeUsageNextAction,
+  type ResumeUsageNextAction,
+} from "./usage-next-action.js";
+import { workUnitGroupingAction } from "./work-unit-map.js";
+const MAX_MODEL_TAIL_REWRITE_TARGETS = 4;
+interface AgentSemanticTailRewriteTarget {
   requiredEdit: string;
   bulletId: string;
   currentText: string;
-  growthHint: string;
+  currentLineCount: number;
+  currentLastLineRatio: number;
+  lengthBudget?: TailLengthBudget;
   sourceQuotes: string[];
-  rejectedGrowths: string[];
-  lastFailureType?: TailGrowthFailureType;
+  availableEvidence: SemanticTailEvidence[];
+  rejectedCandidates: string[];
+  contentMode?: "fact_neutral";
+  suggestedNeutralCandidates?: string[];
 }
-
-interface AgentTailReflowTarget {
-  requiredEdit: string;
-  bulletId: string;
-  currentText: string;
-  sourceQuotes: string[];
-  rejectedReflows: string[];
-}
-
 export type ResumeAgentNextAction =
   | { mode: "stop" }
-  | {
-    mode: "request_more_material";
-    question?: string;
-    targetExperienceId?: string;
-  }
+  | NonNullable<ReturnType<typeof workUnitGroupingAction>>
+  | ResumeReuseAdaptationAction | ResumeMaterialNextAction
+  | ResumeEvidenceAssessmentAction
   | { mode: "await_augmented_confirmation" }
-  | ({ mode: "reduce_overflow" } & OverflowReductionPlan)
   | {
-    mode: "repair_bullet_counts";
+    mode: "integrate_supplemental_evidence";
     requiredInput: "items";
     itemIds: string[];
-    itemTargets: BulletCountRepairTarget[];
+    itemTargets: SupplementalIntegrationTarget[];
   }
+  | ({ mode: "reduce_overflow" } & OverflowReductionPlan)
   | {
-    mode: "repair_bullet_depth";
-    requiredInput: "lineRewrites";
+    mode: "write_item_lines";
+    requiredInput: "items";
+    itemIds: string[];
+    itemTargets: ItemLineWriteTarget[];
+  }
+  | ResumeUsageNextAction
+  | {
+    mode: "batch_tail_rewrite";
     bulletIds: string[];
-    minimumLines: 2;
-    maximumLines: 3;
-    lineRewriteTargets: BulletDepthRewriteTarget[];
-  }
-  | {
-    mode: "increase_usage";
-    additionalBodyLinesToMinimum: number;
-    requiredInput:
-      | "bulletAdditions"
-      | "lineRewrites"
-      | "bulletAdditionsOrLineRewrites";
-    maximumAddedBullets: number;
-    targetExpandedBullets: number;
-    groundedAdditionTargets: GroundedAdditionTarget[];
-    lineExpansionTargets: LineExpansionTarget[];
-  }
-  | {
-    mode: "batch_tail_repair";
-    bulletIds: string[];
-    tailRepairTargets: AgentTailRepairTarget[];
+    tailRewriteTargets: AgentSemanticTailRewriteTarget[];
     remainingTailCount: number;
-    requiredInput: "tailGrowths";
-  }
-  | {
-    mode: "batch_tail_reflow";
-    bulletIds: string[];
-    tailReflowTargets: AgentTailReflowTarget[];
-    remainingTailCount: number;
-    requiredInput: "lineRewrites";
+    requiredInput: "tailRewrites";
   }
   | { mode: "inspect_blockers" };
 
 export function resumeAgentNextAction(
   workspace: ResumeWorkspace,
 ): ResumeAgentNextAction {
+  const workUnitAction = workUnitGroupingAction(workspace);
+  const compile = workspace.compileResult;
+  if (workUnitAction && workspace.status !== "needs_user_decision" &&
+    (compile.pageCount !== 1 ||
+    compile.overflowPx > RESUME_LAYOUT_TOLERANCE_PX)) {
+    return { mode: "reduce_overflow", ...overflowReductionPlan(workspace) };
+  }
+  if (workUnitAction && workspace.status !== "needs_user_decision") {
+    return workUnitAction;
+  }
+  const reuseAction = reuseAdaptationNextAction(workspace);
+  if (reuseAction) return reuseAction;
   const criticalSkillRequest = criticalSkillMaterialRequest(workspace);
-  if (criticalSkillRequest) {
+  if (criticalSkillRequest &&
+    !hasPendingFirstGenerationGroundedWork(workspace)) {
+    const request = normalizeResumeMaterialRequest(
+      workspace.candidateId,
+      criticalSkillRequest,
+    );
+    if (request.status === "declined") {
+      return {
+        mode: "stop_insufficient_material",
+        requestId: request.id,
+        reason: request.reason,
+      };
+    }
     return {
       mode: "request_more_material",
-      question: criticalSkillRequest.question,
+      requestId: request.id,
+      question: initialMaterialQuestion(criticalSkillRequest.question),
     };
   }
   if (workspace.status === "needs_user_decision") {
+    const request = workspace.materialRequest
+      ? normalizeResumeMaterialRequest(
+          workspace.candidateId,
+          workspace.materialRequest,
+        )
+      : undefined;
+    if (request?.status === "declined") {
+      return {
+        mode: "stop_insufficient_material",
+        requestId: request.id,
+        reason: request.reason,
+      };
+    }
     return {
       mode: "request_more_material",
+      ...(request ? { requestId: request.id } : {}),
       ...(workspace.materialRequest?.question
-        ? { question: workspace.materialRequest.question }
+        ? { question: workspace.materialRequest.discoveryStage &&
+            workspace.materialRequest.discoveryStage !== "guidance"
+            ? workspace.materialRequest.question
+            : initialMaterialQuestion(workspace.materialRequest.question) }
         : {}),
       ...(workspace.materialRequest?.targetExperienceId
         ? { targetExperienceId: workspace.materialRequest.targetExperienceId }
         : {}),
     };
   }
-  if (resumeGenerationReadiness(workspace).ready) return { mode: "stop" };
+  const supplementalTargets = supplementalIntegrationTargets(workspace);
+  if (supplementalTargets.length) {
+    return {
+      mode: "integrate_supplemental_evidence",
+      requiredInput: "items",
+      itemIds: supplementalTargets.map((target) => target.itemId),
+      itemTargets: supplementalTargets,
+    };
+  }
+  const evidenceAction = evidenceAssessmentNextAction(workspace);
+  if (evidenceAction) return evidenceAction;
+  const usageAction = resumeUsageNextAction(workspace);
+  if (
+    resumeGenerationReadiness(workspace).ready &&
+    !(isFirstResumeGeneration(workspace) && usageAction)
+  ) return { mode: "stop" };
 
-  const compile = workspace.compileResult;
   if (
     compile.pageCount !== 1 ||
     compile.overflowPx > RESUME_LAYOUT_TOLERANCE_PX
   ) return { mode: "reduce_overflow", ...overflowReductionPlan(workspace) };
 
-  const countPlan = bulletCountRepairPlan(workspace);
-  if (countPlan.mode === "request_more_material") {
-    return {
-      mode: "request_more_material",
-      question: countPlan.question,
-      targetExperienceId: countPlan.targetExperienceId,
-    };
-  }
-  if (countPlan.targets.length) {
-    return {
-      mode: "repair_bullet_counts",
-      requiredInput: "items",
-      itemIds: countPlan.targets.map((target) => target.itemId),
-      itemTargets: countPlan.targets,
-    };
-  }
+  const lineTargets = itemLineWriteTargets(workspace);
+  if (lineTargets.length) return itemLineAction(lineTargets);
 
-  const depthTargets = bulletDepthRewriteTargets(workspace);
-  if (depthTargets.length) {
-    return {
-      mode: "repair_bullet_depth",
-      requiredInput: "lineRewrites",
-      bulletIds: depthTargets.map((target) => target.bulletId),
-      minimumLines: MIN_TIERED_BULLET_LINES,
-      maximumLines: MAX_TIERED_BULLET_LINES,
-      lineRewriteTargets: depthTargets,
-    };
-  }
-
-  const heightDeficitPx = Math.max(
-    0,
-    compile.availableHeightPx * RESUME_GLOBAL_MINIMUM_USAGE_RATIO -
-      compile.usedHeightPx - RESUME_LAYOUT_TOLERANCE_PX,
-  );
-  if (heightDeficitPx > 0) {
-    const targetBodyLines = Math.ceil(
-      heightDeficitPx / Math.max(1, compile.bodyLineHeightPx),
-    );
-    const targets = lineExpansionTargets(workspace);
-    const tieredItemIds = new Set(Object.keys(workspace.itemTiers ?? {}));
-    const additionTargets = groundedAdditionTargets(
-      workspace,
-      Math.max(MIN_GROUNDED_ADDITION_OPTIONS, targetBodyLines * 4),
-    ).filter((target) => tieredItemIds.has(target.itemId));
-    return {
-      mode: "increase_usage",
-      additionalBodyLinesToMinimum: targetBodyLines,
-      requiredInput: additionTargets.length && targets.length
-        ? "bulletAdditionsOrLineRewrites"
-        : additionTargets.length ? "bulletAdditions" : "lineRewrites",
-      maximumAddedBullets: Math.min(targetBodyLines, additionTargets.length),
-      groundedAdditionTargets: additionTargets,
-      targetExpandedBullets: targets.length,
-      lineExpansionTargets: targets,
-    };
-  }
+  if (usageAction) return usageAction;
 
   const tailBatch = tailRepairBatch(workspace);
   if (tailBatch.remainingTailCount) {
     const activeTargets = tailBatch.targets.filter((target) =>
-      !target.exhausted && target.mode === "growth"
-    ).slice(0, MAX_MODEL_TAIL_GROWTH_TARGETS);
+      !target.exhausted
+    ).slice(0, MAX_MODEL_TAIL_REWRITE_TARGETS);
     if (activeTargets.length) {
       return {
-        mode: "batch_tail_repair",
+        mode: "batch_tail_rewrite",
         bulletIds: activeTargets.map((target) => target.bulletId),
-        tailRepairTargets: activeTargets.map((target) => ({
-          requiredEdit: tailGrowthInstruction(
-            target.lastFailureType,
-            target.growthHint,
-          ),
+        tailRewriteTargets: activeTargets.map((target) => ({
+          requiredEdit: factNeutralClosureActive(workspace)
+            ? FACT_NEUTRAL_REWRITE_INSTRUCTION
+            : semanticTailRewriteInstruction(target.lengthBudget),
           bulletId: target.bulletId,
           currentText: target.currentText,
-          growthHint: target.growthHint,
+          currentLineCount: target.currentLineCount,
+          currentLastLineRatio: target.currentLastLineRatio,
+          ...(target.lengthBudget
+            ? { lengthBudget: target.lengthBudget }
+            : {}),
           sourceQuotes: target.sourceQuotes,
-          rejectedGrowths: target.rejectedGrowths,
-          ...(target.lastFailureType
-            ? { lastFailureType: target.lastFailureType }
+          availableEvidence: target.availableEvidence,
+          rejectedCandidates: target.rejectedReflows,
+          ...(factNeutralClosureActive(workspace)
+            ? {
+                contentMode: "fact_neutral" as const,
+                suggestedNeutralCandidates: nextFactNeutralRewriteOptions({
+                  bulletId: target.bulletId,
+                  currentText: target.currentText,
+                  language: workspace.structure.language,
+                  rejected: target.rejectedReflows,
+                  ...(target.lengthBudget
+                    ? { budget: target.lengthBudget } : {}),
+                }),
+              }
             : {}),
         })),
         remainingTailCount: tailBatch.remainingTailCount,
-        requiredInput: "tailGrowths",
-      };
-    }
-    const reflowTargets = tailBatch.targets.filter((target) =>
-      !target.exhausted && target.mode === "reflow"
-    ).slice(0, MAX_MODEL_TAIL_GROWTH_TARGETS);
-    if (reflowTargets.length) {
-      return {
-        mode: "batch_tail_reflow",
-        bulletIds: reflowTargets.map((target) => target.bulletId),
-        tailReflowTargets: reflowTargets.map((target) => ({
-          requiredEdit: TAIL_REFLOW_REQUIRED_EDIT,
-          bulletId: target.bulletId,
-          currentText: target.currentText,
-          sourceQuotes: target.sourceQuotes,
-          rejectedReflows: target.rejectedReflows,
-        })),
-        remainingTailCount: tailBatch.remainingTailCount,
-        requiredInput: "lineRewrites",
+        requiredInput: "tailRewrites",
       };
     }
   }
@@ -242,4 +222,13 @@ export function resumeAgentNextAction(
     return { mode: "await_augmented_confirmation" };
   }
   return { mode: "inspect_blockers" };
+}
+
+function itemLineAction(targets: ItemLineWriteTarget[]) {
+  return {
+    mode: "write_item_lines" as const,
+    requiredInput: "items" as const,
+    itemIds: targets.map((target) => target.itemId),
+    itemTargets: targets,
+  };
 }

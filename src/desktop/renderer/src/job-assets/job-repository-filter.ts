@@ -1,8 +1,12 @@
-import type { JobRepositoryJd, JobRepositoryResume } from "@desktop/types";
+import type { DeliveryResumeFile } from
+  "../../../../delivery-resume-files/types.js";
+import type { JobRepositoryJd, JobRepositoryResume } from
+  "../../../../job-assets/repository-types.js";
 
 export type RepositoryView = "jobs" | "resumes";
 export type JobFilter = "" | "with_resumes" | "without_resumes" | "applied" | "conflict";
-export type ResumeFilter = "" | "targeted" | "generic" | "archived" | "local_only" | "conflict";
+export type ResumeFilter = "" | "targeted" | "generic" | "archived" |
+  "local_only" | "user_original" | "conflict";
 
 export function filterJds(
   jds: readonly JobRepositoryJd[],
@@ -14,12 +18,28 @@ export function filterJds(
     if (needle && !normalize([jd.title, jd.company, jd.targetRole].join(" ")).includes(needle)) {
       return false;
     }
-    if (filter === "with_resumes") return jd.targetedResumeIds.length > 0;
-    if (filter === "without_resumes") return jd.targetedResumeIds.length === 0;
+    if (filter === "with_resumes") return jd.targetedResumeEntryIds.length > 0;
+    if (filter === "without_resumes") return jd.targetedResumeEntryIds.length === 0;
     if (filter === "applied") return jd.applicationSummary.total > 0;
     if (filter === "conflict") return jd.syncStatus === "conflict";
     return true;
   });
+}
+
+export function filterDeliveryResumeFiles(
+  files: readonly DeliveryResumeFile[],
+  query: string,
+  filter: ResumeFilter,
+): DeliveryResumeFile[] {
+  if (filter && filter !== "user_original" && filter !== "local_only") return [];
+  const needle = normalize(query);
+  return files.filter((file) => !needle || normalize([
+    file.title,
+    file.originalFilename,
+    "原始简历",
+    file.slot,
+  ].join(" ")).includes(needle)).sort((left, right) =>
+    (left.slot ?? 99) - (right.slot ?? 99) || left.id.localeCompare(right.id));
 }
 
 export function filterResumes(
@@ -29,10 +49,12 @@ export function filterResumes(
 ): JobRepositoryResume[] {
   const needle = normalize(query);
   return resumes.filter((resume) => {
+    if (filter === "user_original") return false;
     const cloud = resume.entry.cloud;
     if (needle && !normalize([
       resume.entry.displayTitle,
       cloud?.targetRole,
+      resume.entry.local?.targetRole,
       resume.primaryJd.title,
     ].join(" ")).includes(needle)) return false;
     if (filter === "targeted") return resume.kind === "targeted";

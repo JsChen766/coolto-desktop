@@ -1,6 +1,7 @@
 import type { ResumeSourceSnapshot } from "../source-types.js";
 import { resumeAgentNextAction } from "./agent-next-action.js";
 import type { ResumeItemTier, ResumeWorkspace } from "./types.js";
+import { sameResumeGenerationTarget } from "../source-strategy.js";
 
 /** Keeps whole-experience loss behind the bullet-level overflow fallback. */
 export function overflowSourceReselectionIssue(
@@ -10,7 +11,7 @@ export function overflowSourceReselectionIssue(
   nextItemTiers: Readonly<Record<string, ResumeItemTier>>,
 ): string | undefined {
   if (
-    workspace.sourceSnapshot.jd.id !== next.jd.id ||
+    !sameResumeGenerationTarget(workspace.sourceSnapshot, next) ||
     workspace.structure.language !== language
   ) return undefined;
   const action = resumeAgentNextAction(workspace);

@@ -1,14 +1,8 @@
 import { BrowserWindow, type WebContents } from "electron";
 
-import type {
-  BrowserOpenInput,
-  BrowserState,
-} from "../../shared/types.js";
-import type {
-  BrowserPageOperator,
-  BrowserPageReader,
-  PageSnapshot,
-} from "../../../browser/types.js";
+import type { BrowserOpenInput, BrowserShellState, BrowserState } from "../../shared/types.js";
+import type { BrowserPageOperator } from "../../../browser/types.js";
+import type { BrowserAgentController } from "../../../browser/agent-control-types.js";
 import {
   BrowserActiveOriginTracker,
   activeTabContext,
@@ -24,12 +18,11 @@ import {
   type WriteAccessLifecycle,
 } from "./browser-page-operator.js";
 import { BrowserReviewOrchestrator } from "./browser-review-orchestrator.js";
-import {
-  createBrowserWindow,
-  deriveShellState,
-} from "./browser-window-factory.js";
+import { createBrowserWindow, deriveShellState } from "./browser-window-factory.js";
 import { BrowserWriteAccessGate } from "./browser-write-access-gate.js";
 import { BrowserTabManager } from "./browser-tab-manager.js";
+import { BrowserAgentControllerImpl } from "./browser-agent-controller.js";
+import { BrowserAgentStatusBridge } from "./browser-agent-status-bridge.js";
 import {
   IDLE_BROWSER_STATE,
   type BrowserWindowEmitters,
@@ -37,20 +30,17 @@ import {
 
 export type { BrowserWindowEmitters } from "./browser-window-state.js";
 
-/**
- * B1（B0-D1 修订）: 内置浏览器窗口。主 webContents 加载 Vue chrome
- * （标签栏 + 地址栏 + 导航 + 嵌入式窗口控制按钮），页面内容用多个
- * WebContentsView 承载。单例：同一时间只允许一个浏览器窗口。
- * 无原生边框/菜单栏，与 App 主窗口一致的嵌入式设计。
- */
-export class BrowserWindowManager implements BrowserPageReader {
+export class BrowserWindowManager {
   #window: BrowserWindow | undefined;
   #tabs: BrowserTabManager | undefined;
   #pendingUrl: string | undefined;
+  #pendingDisplayUrl: string | undefined;
   #theme: "light" | "dark" = "light";
   readonly #emitters: BrowserWindowEmitters;
   readonly #writeAccess = new BrowserWriteAccessGate();
   readonly #operator: BrowserPageOperatorImpl;
+  readonly #agentController: BrowserAgentControllerImpl;
+  readonly #agentStatus = new BrowserAgentStatusBridge(() => this.pushState());
   readonly #originTracker: BrowserActiveOriginTracker;
   readonly #review: BrowserReviewOrchestrator;
 
@@ -78,6 +68,12 @@ export class BrowserWindowManager implements BrowserPageReader {
       filePicker,
     );
     this.#originTracker = new BrowserActiveOriginTracker(this.#writeAccess);
+    this.#agentController = new BrowserAgentControllerImpl({
+      tabs: () => this.#tabs,
+      activeContext: () => this.#resolveActive(),
+      requireControlAccess: () => this.#requireControlAccess(),
+      readPage: (context) => readPageSnapshot(context.webContents),
+    });
     this.#review = new BrowserReviewOrchestrator({
       operator: this.#operator,
       activeWebContents: () => activeTabContext(this.#tabs)?.webContents,
@@ -93,18 +89,32 @@ export class BrowserWindowManager implements BrowserPageReader {
     return this.#operator;
   }
 
+  public get agentController(): BrowserAgentController {
+    return this.#agentController;
+  }
+
+  public get agentStatus(): BrowserAgentStatusBridge {
+    return this.#agentStatus;
+  }
+
   public open(input?: BrowserOpenInput): BrowserState {
     if (input?.theme) this.#theme = input.theme;
     const url = input?.url?.trim();
     if (this.#window && !this.#window.isDestroyed()) {
       this.#window.focus();
-      if (url) this.#tabs?.newTab(url);
+      if (url) this.#tabs?.newTab(url, this.#pendingDisplayUrl);
+      this.#pendingDisplayUrl = undefined;
       this.pushState();
       return this.getState();
     }
     this.#pendingUrl = url;
     this.#window = this.#createWindow();
     return this.getState();
+  }
+
+  public openOnboardingDemo(url: string, theme: "light" | "dark"): BrowserState {
+    this.#pendingDisplayUrl = "coolto://onboarding/example-application";
+    return this.open({ url, theme });
   }
 
   public close(): void {
@@ -151,18 +161,6 @@ export class BrowserWindowManager implements BrowserPageReader {
     return this.#tabs.browserState();
   }
 
-  /** B2: 只读读取当前活跃标签页快照；浏览器未打开或无活跃标签则抛错。 */
-  public async readActivePage(): Promise<PageSnapshot> {
-    if (!this.#window || this.#window.isDestroyed() || !this.#tabs) {
-      throw new Error("浏览器尚未打开，请先让用户打开要读取的页面");
-    }
-    const active = this.#tabs.activeTab();
-    if (!active) {
-      throw new Error("浏览器没有活跃标签页，请先让用户打开要读取的页面");
-    }
-    return readPageSnapshot(active.view.webContents);
-  }
-
   // ---------- 内部：活跃标签解析 + 导航联动 ----------
 
   #resolveActive(): ActiveTabContext {
@@ -177,6 +175,11 @@ export class BrowserWindowManager implements BrowserPageReader {
     return this.#window && !this.#window.isDestroyed()
       ? this.#window
       : undefined;
+  }
+
+  #requireControlAccess(): void {
+    const check = this.#operator.checkWriteAccess();
+    if (!check.ok) throw new Error(check.message);
   }
 
   public pushState(): void {
@@ -195,6 +198,7 @@ export class BrowserWindowManager implements BrowserPageReader {
 
   public dispose(): void {
     this.#review.dispose();
+    this.#agentController.dispose();
     this.#tabs?.destroyAll();
     this.#tabs = undefined;
     if (this.#window && !this.#window.isDestroyed()) this.#window.destroy();
@@ -207,8 +211,9 @@ export class BrowserWindowManager implements BrowserPageReader {
       this.pushState();
       return;
     }
-    this.#tabs.newTab(this.#pendingUrl);
+    this.#tabs.newTab(this.#pendingUrl, this.#pendingDisplayUrl);
     this.#pendingUrl = undefined;
+    this.#pendingDisplayUrl = undefined;
   }
 
   #shellState(): BrowserShellState {
@@ -216,6 +221,7 @@ export class BrowserWindowManager implements BrowserPageReader {
       this.#tabs,
       this.#theme,
       this.#window?.isMaximized() ?? false,
+      this.#agentStatus.get(),
     );
   }
 

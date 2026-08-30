@@ -1,0 +1,5 @@
+{
+  "name": "coolto-agent-tasks-ui-qa",
+  "version": "1.0.0",
+  "main": "../../../out/cli/agent-tasks-ui-qa-entry.cjs"
+}

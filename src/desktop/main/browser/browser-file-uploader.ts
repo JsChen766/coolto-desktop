@@ -48,7 +48,7 @@ export async function probeFileInput(
   )) as Partial<FileInputProbe> | null;
   return {
     ok: Boolean(raw?.ok),
-    reason: raw?.reason,
+    ...(raw?.reason ? { reason: raw.reason } : {}),
     accept: String(raw?.accept ?? ""),
     multiple: Boolean(raw?.multiple),
   };

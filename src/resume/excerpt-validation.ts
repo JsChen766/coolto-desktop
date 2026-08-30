@@ -92,8 +92,14 @@ export function validateSoftExcerpt(
   validateRangeAndQuote(binding, ownExperience, excerpt, bulletId);
 }
 
-export function validateNumbers(binding: BulletEvidenceBinding): void {
-  const citedText = binding.excerpts.map((excerpt) => excerpt.sourceQuote).join("\n");
+export function validateNumbers(
+  binding: BulletEvidenceBinding,
+  additionalEvidence = "",
+): void {
+  const citedText = [
+    binding.excerpts.map((excerpt) => excerpt.sourceQuote).join("\n"),
+    additionalEvidence,
+  ].filter(Boolean).join("\n");
   const sourceNumbers = extractEvidenceNumbers(citedText);
   const unsupported = extractEvidenceNumbers(binding.bulletText).filter(
     (value) => !sourceNumbers.includes(value),

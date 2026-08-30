@@ -12,6 +12,7 @@ import { ResumeSourceSnapshotError } from "./source-snapshot-error.js";
 import { sha256, stableStringify } from "./stable-snapshot.js";
 import { experienceEvidenceEligibility } from "../experience/evidence-eligibility.js";
 import { normalizeResumeSection } from "./contracts/section-contract.js";
+import { stripMaterialMarkers } from "../experience/material-content.js";
 
 /**
  * The deployed profile sync protocol does not carry contactEmail, so the
@@ -120,6 +121,7 @@ export function normalizeSourceExperience(
     sectionKey: experience.resumeSectionKey ?? null,
     sectionLabel: experience.resumeSectionLabel ?? null,
   });
+  const content = stripMaterialMarkers(revision.content);
   return {
     id: experience.id,
     category: experience.category,
@@ -134,8 +136,8 @@ export function normalizeSourceExperience(
     resumeSectionLabel: section.sectionLabel,
     revisionId: revision.id,
     serverRevisionHash: cleanOptional(revision.revisionHash),
-    contentHash: sha256(revision.content),
-    content: revision.content,
+    contentHash: sha256(content),
+    content,
     createdAt: experience.createdAt,
     updatedAt: experience.updatedAt,
   };

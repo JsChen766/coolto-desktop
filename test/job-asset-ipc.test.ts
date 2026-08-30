@@ -6,7 +6,7 @@ import { registerJobAssetIpc } from "../src/desktop/main/job-assets/job-asset-ip
 test("job-assets:get delegates to the current user's read service", async () => {
   let channel = "";
   let handler: (() => Promise<unknown>) | undefined;
-  const expected = { jds: [], resumes: [] };
+  const expected = { jds: [], resumes: [], deliveryResumeFiles: [] };
   const ipcMain = {
     handle(name: string, callback: () => Promise<unknown>) {
       channel = name;

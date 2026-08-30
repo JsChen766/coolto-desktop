@@ -1,14 +1,17 @@
-import type { ResumeWorkspace } from "./types.js";
+import { observedWorkspaceItemLines } from "./item-line-budget.js";
+import type { ResumeItemTier, ResumeWorkspace } from "./types.js";
 
 export interface OverflowBulletRemovalTarget {
   bulletId: string;
   itemId: string;
   itemTitle: string;
-  tier: "main" | "secondary";
+  tier: ResumeItemTier;
   currentText: string;
   lineCount: number;
   currentBulletCount: number;
-  minimumBulletCount: number;
+  minimumBulletCount?: number;
+  currentItemLines?: number;
+  minimumItemLines?: number;
   maximumRemovableFromItem: number;
 }
 
@@ -41,35 +44,68 @@ export function overflowReductionPlan(
   const measurements = new Map(
     compile.bullets.map((bullet) => [bullet.bulletId, bullet]),
   );
-  const eligibleTargets = workspace.structure.sections.flatMap((section) =>
-    section.items.flatMap((item) => {
+  const observedItemLines = observedWorkspaceItemLines(workspace);
+  const eligibleTargets: OverflowBulletRemovalTarget[] = [];
+  for (const section of workspace.structure.sections) {
+    for (const item of section.items) {
       const tier = workspace.itemTiers?.[item.id];
-      if (tier !== "main" && tier !== "secondary") return [];
+      if (!tier) continue;
+      if (workspace.lineBudgetVersion === "item-lines-v1") {
+        const budget = workspace.itemLineBudgets?.[item.id];
+        const currentItemLines = observedItemLines[item.id] ?? 0;
+        if (!budget || item.bullets.length <= 1) continue;
+        for (const bullet of item.bullets) {
+          const lineCount = measurements.get(bullet.id)?.lineCount ?? 0;
+          if (currentItemLines - lineCount < budget.minimumLines) continue;
+          eligibleTargets.push({
+            bulletId: bullet.id,
+            itemId: item.id,
+            itemTitle: item.title ?? "",
+            tier,
+            currentText: bullet.text,
+            lineCount,
+            currentBulletCount: item.bullets.length,
+            currentItemLines,
+            minimumItemLines: budget.minimumLines,
+            maximumRemovableFromItem: item.bullets.length - 1,
+          });
+        }
+        continue;
+      }
+      if (tier !== "main" && tier !== "secondary") continue;
       const minimumBulletCount = tier === "main" ? 3 : 2;
       const maximumRemovableFromItem = item.bullets.length - minimumBulletCount;
-      if (maximumRemovableFromItem <= 0) return [];
-      return item.bullets.map((bullet) => ({
-        bulletId: bullet.id,
-        itemId: item.id,
-        itemTitle: item.title ?? "",
-        tier,
-        currentText: bullet.text,
-        lineCount: measurements.get(bullet.id)?.lineCount ?? 0,
-        currentBulletCount: item.bullets.length,
-        minimumBulletCount,
-        maximumRemovableFromItem,
-      }));
-    })
+      if (maximumRemovableFromItem <= 0) continue;
+      eligibleTargets.push(...item.bullets.map((bullet) => ({
+          bulletId: bullet.id,
+          itemId: item.id,
+          itemTitle: item.title ?? "",
+          tier,
+          currentText: bullet.text,
+          lineCount: measurements.get(bullet.id)?.lineCount ?? 0,
+          currentBulletCount: item.bullets.length,
+          minimumBulletCount,
+          maximumRemovableFromItem,
+        })));
+    }
+  }
+  const preferredTier = eligibleTargets.reduce<ResumeItemTier | undefined>(
+    (current, target) => !current || tierRank(target.tier) < tierRank(current)
+      ? target.tier : current,
+    undefined,
   );
-  const measuredLineCounts = eligibleTargets
+  const tierTargets = preferredTier
+    ? eligibleTargets.filter((target) => target.tier === preferredTier)
+    : eligibleTargets;
+  const measuredLineCounts = tierTargets
     .map((target) => target.lineCount)
     .filter((lineCount) => lineCount > 0);
   const smallestLineCount = measuredLineCounts.length
     ? Math.min(...measuredLineCounts)
     : undefined;
   const bulletRemovalTargets = smallestLineCount === undefined
-    ? eligibleTargets
-    : eligibleTargets.filter((target) => target.lineCount === smallestLineCount);
+    ? tierTargets
+    : tierTargets.filter((target) => target.lineCount === smallestLineCount);
   const shared = {
     overflowPx: round(overflowPx),
     bodyLinesToRemove: Math.max(
@@ -89,6 +125,10 @@ export function overflowReductionPlan(
         requiredInput: "reselectWithoutOneExperience",
         maximumRemovedExperiences: 1,
       };
+}
+
+function tierRank(tier: ResumeItemTier): number {
+  return tier === "utility" ? 0 : tier === "secondary" ? 1 : 2;
 }
 
 function round(value: number): number {

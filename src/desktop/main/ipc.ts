@@ -1,7 +1,10 @@
 import { app, type BrowserWindow, type IpcMain } from "electron";
 import { join } from "node:path";
 
-import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
+import type { BrowserAgentController } from "../../browser/agent-control-types.js";
+import type { BrowserPageOperator } from "../../browser/types.js";
+import type { BrowserAgentStatusBridge } from "./browser/browser-agent-status-bridge.js";
+import { bindBrowserAgentCommands } from "./agent-task/bind-browser-agent-commands.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import { DesktopAuthService } from "./auth-service.js";
 import { registerClearLocalDataIpc } from "./clear-local-data.js";
@@ -52,13 +55,32 @@ import {
   WINDOW_CLOSE_IPC_CHANNELS,
   WindowCloseGuard,
 } from "./window-close-guard.js";
+import {
+  AGENT_TASK_IPC_CHANNELS,
+  registerAgentTaskIpc,
+} from "./agent-task/agent-task-ipc.js";
+import {
+  MAIL_CONNECTION_IPC_CHANNELS,
+  registerMailConnectionIpc,
+} from "./mail-connections/mail-connection-ipc.js";
+import {
+  DELIVERY_RESUME_FILE_IPC_CHANNELS,
+  registerDeliveryResumeFileIpc,
+} from "./delivery-resume-files/delivery-resume-file-ipc.js";
+import type { BrowserWindowManager } from "./browser/browser-window-manager.js";
+import {
+  ONBOARDING_IPC_CHANNELS,
+  registerOnboardingIpc,
+} from "./onboarding/onboarding-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
   window: BrowserWindow,
   resumeCompiler: ResumePdfCompiler,
-  browserPageReader: BrowserPageReader,
+  browserAgentController: BrowserAgentController,
   browserPageOperator: BrowserPageOperator,
+  browserAgentStatus: BrowserAgentStatusBridge,
+  browserWindow: BrowserWindowManager,
 ): void {
   for (const channel of [
     ...AUTH_IPC_CHANNELS,
@@ -75,6 +97,10 @@ export function registerDesktopIpc(
     ...PROFILE_IPC_CHANNELS,
     ...UPDATE_IPC_CHANNELS,
     ...WINDOW_CLOSE_IPC_CHANNELS,
+    ...AGENT_TASK_IPC_CHANNELS,
+    ...MAIL_CONNECTION_IPC_CHANNELS,
+    ...DELIVERY_RESUME_FILE_IPC_CHANNELS,
+    ...ONBOARDING_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -84,14 +110,17 @@ export function registerDesktopIpc(
     auth,
     window,
     resumeCompiler,
-    browserPageReader,
+    browserAgentController,
     browserPageOperator,
+    browserAgentStatus,
+    browserWindow,
   );
   window.once("closed", () => {
-    services.clear();
+    void services.clear("window_closed");
     void auth.dispose();
   });
   const servicesForCurrentUser = () => services.get();
+  bindBrowserAgentCommands(browserAgentStatus, servicesForCurrentUser);
   registerQuitFlush(services);
   // Snapshot the in-flight transcript while the runtime is still alive: the
   // closed handler clears services (cancelling the agent) right after, and
@@ -99,9 +128,15 @@ export function registerDesktopIpc(
   window.on("close", () => {
     pendingQuitFlush = services.flushPending().catch(() => {});
   });
-  registerAuthIpc(ipcMain, auth, () => services.clear());
+  registerAuthIpc(ipcMain, auth, () => services.clear("account_changed"));
   registerCheckoutIpc(ipcMain, auth);
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
+  registerMailConnectionIpc(ipcMain, servicesForCurrentUser);
+  registerDeliveryResumeFileIpc(
+    ipcMain,
+    window,
+    async () => (await servicesForCurrentUser()).deliveryResumeFiles,
+  );
 
   const updateService = new ElectronUpdateService(electronUpdaterDriver, {
     feedUrl:
@@ -149,12 +184,15 @@ export function registerDesktopIpc(
       current.jds,
       await resumeLibraryForCurrentUser(),
       current.applications,
+      current.deliveryResumeFiles,
     );
   });
   registerApplicationIpc(
     ipcMain,
     async () => (await servicesForCurrentUser()).applications,
     async () => (await servicesForCurrentUser()).applicationProposals,
+    async (applicationId) => (await servicesForCurrentUser())
+      .agentHarness.submissions.deleteByApplication(applicationId),
   );
   registerExperienceIpc(
     ipcMain,
@@ -168,6 +206,8 @@ export function registerDesktopIpc(
     async () => (await servicesForCurrentUser()).profileProposals,
   );
   registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
+  registerAgentTaskIpc(ipcMain, servicesForCurrentUser);
+  registerOnboardingIpc(ipcMain, servicesForCurrentUser);
 }
 
 /** In-flight transcript snapshot started on window close; before-quit waits

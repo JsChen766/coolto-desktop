@@ -13,7 +13,7 @@ test("tool progress projects only bounded resume receipt facts", () => {
     details: {
       revision: 8,
       readiness: { ready: false },
-      nextAction: { mode: "batch_tail_repair", remainingTailCount: 12 },
+      nextAction: { mode: "batch_tail_rewrite", remainingTailCount: 12 },
       layout: { usageRatio: 0.934, pageCount: 1 },
       tailRepairFeedback: [
         { bulletId: "a", status: "applied" },
@@ -21,20 +21,12 @@ test("tool progress projects only bounded resume receipt facts", () => {
       ],
       tailRepairDiagnostics: {
         requestedTargetCount: 2,
-        measuredTargetCount: 2,
+        requestedCandidateCount: 4,
+        measuredCandidateCount: 3,
         appliedTargetCount: 1,
-        passedTargetCount: 1,
-        progressedTargetCount: 0,
-        rejectedTargetCount: 1,
-        validationRejectedTargetCount: 1,
-        lineCountRejectedTargetCount: 0,
-        insufficientGainRejectedTargetCount: 0,
-        validationReasonCounts: {
-          unchangedOrRepeated: 1,
-          contentQuality: 0,
-          unsupportedEvidence: 0,
-          other: 0,
-        },
+        validationRejectedCandidateCount: 1,
+        repetitionRejectedCandidateCount: 1,
+        layoutRejectedCandidateCount: 1,
       },
       resume: { privateText: "must not enter the renderer event" },
     },
@@ -47,19 +39,10 @@ test("tool progress projects only bounded resume receipt facts", () => {
     pageCount: 1,
     remainingTailCount: 12,
     repairedTailCount: 1,
-    progressedTailCount: 0,
-    measuredTailCount: 2,
+    measuredTailCount: 3,
     appliedTailCount: 1,
-    rejectedTailCount: 1,
+    rejectedTailCount: 2,
     validationRejectedTailCount: 1,
-    lineCountRejectedTailCount: 0,
-    insufficientGainRejectedTailCount: 0,
-    validationReasonCounts: {
-      unchangedOrRepeated: 1,
-      contentQuality: 0,
-      unsupportedEvidence: 0,
-      other: 0,
-    },
     requestedTargetCount: 2,
   });
   assert.doesNotMatch(JSON.stringify(progress), /privateText/u);
@@ -70,13 +53,12 @@ test("tail progress exposes semantic growth hints", () => {
     details: {
       readiness: { ready: false },
       nextAction: {
-        mode: "batch_tail_repair",
+        mode: "batch_tail_rewrite",
         remainingTailCount: 1,
-        tailRepairTargets: [{
-          requiredEdit: "必须把 currentText 写长",
+        tailRewriteTargets: [{
+          requiredEdit: "提交完整事实等价改写",
           bulletId: "bullet-1",
           currentText: "一".repeat(70),
-          growthHint: "补充有来源支持的具体方法或结果",
           sourceQuotes: [],
         }],
       },
@@ -85,7 +67,7 @@ test("tail progress exposes semantic growth hints", () => {
 
   assert.deepEqual(progress?.nextTailTargets, [{
     bulletId: "bullet-1",
-    growthHint: "补充有来源支持的具体方法或结果",
+    growthHint: "事实等价展开",
   }]);
 });
 
@@ -95,12 +77,12 @@ test("tool progress labels describe factual generation milestones", () => {
     "正在检索经历库中的相关经历",
   );
   assert.equal(
-    startedToolProgressLabel("apply_resume_content", { tailGrowths: [{}] }),
-    "正在批量实测尾行增长",
+    startedToolProgressLabel("apply_resume_content", { tailRewrites: [{}] }),
+    "正在生成并实测自然的完整尾行改写",
   );
   assert.equal(
-    startedToolProgressLabel("apply_resume_content", { lineRewrites: [{}] }),
-    "正在批量扩写 bullet 并重新排版",
+    startedToolProgressLabel("apply_resume_content", { lineExpansions: [{}] }),
+    "正在按内容结构扩写 bullet 并重新排版",
   );
   assert.equal(
     startedToolProgressLabel("apply_resume_content", { bulletRemovals: [{}] }),
@@ -123,7 +105,7 @@ test("overflow progress reports one bullet removal instead of source loss", () =
     details: {
       revision: 11,
       readiness: { ready: false },
-      nextAction: { mode: "batch_tail_repair", remainingTailCount: 4 },
+      nextAction: { mode: "batch_tail_rewrite", remainingTailCount: 4 },
       layout: { usageRatio: 0.972, pageCount: 1 },
       overflowReductionDiagnostics: { removedBulletCount: 1 },
     },
@@ -142,7 +124,7 @@ test("depth rewrite progress is not mislabeled as page filling", () => {
     details: {
       revision: 4,
       readiness: { ready: false },
-      nextAction: { mode: "repair_bullet_depth" },
+      nextAction: { mode: "increase_usage" },
       layout: { usageRatio: 0.84, pageCount: 1 },
       lineRewriteDiagnostics: {
         phase: "bullet_depth",
@@ -195,7 +177,7 @@ test("rewrite diagnostics keep the completed operation phase during transition",
     details: {
       revision: 6,
       readiness: { ready: false },
-      nextAction: { mode: "batch_tail_repair", remainingTailCount: 17 },
+      nextAction: { mode: "batch_tail_rewrite", remainingTailCount: 17 },
       layout: { usageRatio: 0.9302, pageCount: 1 },
       lineRewriteDiagnostics: {
         requestedTargetCount: 8,
@@ -224,7 +206,7 @@ test("tail progress does not report a zero-measurement batch", () => {
       repairedTailCount: 0,
       measuredTailCount: 0,
     }),
-    "页面占用率 93.2%，正在准备下一批尾行增长，剩余 9 条",
+    "页面占用率 93.2%，正在准备下一批完整尾行改写，剩余 9 条",
   );
 });
 
@@ -294,7 +276,7 @@ test("exhausted tail growth is reported as a material request", () => {
   assert.equal(progress?.phase, "tail_repair");
   assert.equal(
     completedToolProgressLabel(progress),
-    "页面占用率 92.6%，正在准备下一批尾行增长，剩余 0 条",
+    "页面占用率 92.6%，正在准备下一批完整尾行改写，剩余 0 条",
   );
 });
 

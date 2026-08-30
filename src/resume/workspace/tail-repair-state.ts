@@ -1,27 +1,41 @@
 import { tailGrowthFingerprint } from "./tail-repair-fingerprint.js";
+import { RESUME_TAIL_POLICY_V2 } from "../tail-policy.js";
+import type { TailAttemptFeedback } from "./tail-attempt-feedback.js";
+import type { TailLengthBudget } from "./tail-length-budget.js";
+import {
+  appendBounded,
+  growthAttemptCount,
+  migrateTailProgress,
+  rejectionCount,
+} from "./tail-repair-progress-helpers.js";
 
+export type { TailAttemptFeedback } from "./tail-attempt-feedback.js";
 export { tailGrowthFingerprint } from "./tail-repair-fingerprint.js";
-
-export const MAX_TAIL_GROWTH_REJECTIONS = 4;
+export const MAX_TAIL_GROWTH_REJECTIONS = RESUME_TAIL_POLICY_V2.maxGrowthAttempts;
 export const MAX_TAIL_REFLOW_ATTEMPTS = 2;
-
 export type TailRepairMode = "growth" | "reflow";
-
 export type TailGrowthFailureType =
   | "too_long"
   | "insufficient_growth"
   | "invalid_content"
   | "duplicate";
-
 export interface TailRepairBulletProgress {
   mode?: TailRepairMode;
+  growthAttempts?: number;
   consecutiveRejects: number;
   rejectedGrowthFingerprints?: string[];
   rejectedGrowths?: string[];
   lastFailureType?: TailGrowthFailureType;
+  lastFailureReason?: string;
+  lastAttemptFeedback?: TailAttemptFeedback;
   reflowAttempts?: number;
   rejectedReflowFingerprints?: string[];
   rejectedReflows?: string[];
+  /** Best valid measured rewrite below the hard gate; never a formal revision. */
+  workingText?: string;
+  workingLineCount?: number;
+  workingLastLineRatio?: number;
+  workingLengthBudget?: TailLengthBudget;
   /** Legacy fields are read from persisted drafts and are no longer written. */
   zeroProgressRounds?: number;
   rejectedTextFingerprints?: string[];
@@ -39,13 +53,8 @@ export interface TailRepairProgressOutcome {
   growthFingerprint: string;
   rejectedGrowth?: string;
   failureType?: TailGrowthFailureType;
-}
-
-export interface TailReflowProgressOutcome {
-  bulletId: string;
-  applied: boolean;
-  rewriteFingerprint: string;
-  rejectedRewrite?: string;
+  failureReason?: string;
+  attemptFeedback?: TailAttemptFeedback;
 }
 
 export function updateTailRepairProgress(
@@ -62,19 +71,30 @@ export function updateTailRepairProgress(
     const prior = previous?.byBulletId[bulletId];
     const outcome = outcomeById.get(bulletId);
     if (!outcome) {
-      if (prior) byBulletId[bulletId] = migrateProgress(prior);
+      if (prior) byBulletId[bulletId] = migrateTailProgress(prior);
       continue;
     }
     if (outcome.applied) {
+      const growthAttempts = nextGrowthAttempts(prior);
       byBulletId[bulletId] = {
-        mode: "reflow",
+        mode: growthAttempts >= MAX_TAIL_GROWTH_REJECTIONS
+          ? "reflow"
+          : "growth",
+        growthAttempts,
         consecutiveRejects: 0,
         reflowAttempts: 0,
+        ...(outcome.attemptFeedback
+          ? { lastAttemptFeedback: outcome.attemptFeedback }
+          : {}),
       };
       continue;
     }
+    const growthAttempts = nextGrowthAttempts(prior);
     byBulletId[bulletId] = {
-      mode: "growth",
+      mode: growthAttempts >= MAX_TAIL_GROWTH_REJECTIONS
+        ? "reflow"
+        : "growth",
+      growthAttempts,
       consecutiveRejects: Math.min(
         MAX_TAIL_GROWTH_REJECTIONS,
         rejectionCount(prior) + 1,
@@ -94,56 +114,9 @@ export function updateTailRepairProgress(
         }
         : {}),
       ...(outcome.failureType ? { lastFailureType: outcome.failureType } : {}),
-    };
-  }
-  return {
-    byBulletId,
-    stalled: failedBulletIds.size > 0 && [...failedBulletIds].every(
-      (bulletId) => isTailRepairExhausted(byBulletId[bulletId]),
-    ),
-  };
-}
-
-export function updateTailReflowProgress(
-  previous: TailRepairProgressState | undefined,
-  outcomes: readonly TailReflowProgressOutcome[],
-  failedBulletIds: ReadonlySet<string>,
-): TailRepairProgressState {
-  const outcomeById = new Map(outcomes.map((outcome) => [
-    outcome.bulletId,
-    outcome,
-  ]));
-  const byBulletId: Record<string, TailRepairBulletProgress> = {};
-  for (const bulletId of failedBulletIds) {
-    const prior = previous?.byBulletId[bulletId];
-    const outcome = outcomeById.get(bulletId);
-    if (!outcome) {
-      if (prior) byBulletId[bulletId] = migrateProgress(prior);
-      continue;
-    }
-    const migrated = migrateProgress(prior ?? { consecutiveRejects: 0 });
-    byBulletId[bulletId] = {
-      ...migrated,
-      mode: "reflow",
-      reflowAttempts: outcome.applied
-        ? migrated.reflowAttempts ?? 0
-        : Math.min(
-            MAX_TAIL_REFLOW_ATTEMPTS,
-            (migrated.reflowAttempts ?? 0) + 1,
-          ),
-      ...(outcome.rejectedRewrite
-        ? {
-          rejectedReflowFingerprints: appendBounded(
-            migrated.rejectedReflowFingerprints,
-            outcome.rewriteFingerprint,
-            MAX_TAIL_REFLOW_ATTEMPTS,
-          ),
-          rejectedReflows: appendBounded(
-            migrated.rejectedReflows,
-            outcome.rejectedRewrite,
-            MAX_TAIL_REFLOW_ATTEMPTS,
-          ),
-        }
+      ...recoveryReason(prior, outcome),
+      ...(outcome.attemptFeedback
+        ? { lastAttemptFeedback: outcome.attemptFeedback }
         : {}),
     };
   }
@@ -173,7 +146,7 @@ export function retainFailedTailProgress(
   if (!state) return undefined;
   const byBulletId = Object.fromEntries(Object.entries(state.byBulletId)
     .filter(([bulletId]) => failedBulletIds.has(bulletId))
-    .map(([bulletId, progress]) => [bulletId, migrateProgress(progress)]));
+    .map(([bulletId, progress]) => [bulletId, migrateTailProgress(progress)]));
   if (!Object.keys(byBulletId).length) return undefined;
   return {
     byBulletId,
@@ -201,45 +174,24 @@ export function isTailGrowthExhausted(
   progress: TailRepairBulletProgress | undefined,
 ): boolean {
   return tailRepairMode(progress) === "growth" &&
-    rejectionCount(progress) >= MAX_TAIL_GROWTH_REJECTIONS;
+    growthAttemptCount(progress) >= MAX_TAIL_GROWTH_REJECTIONS;
 }
 
-function rejectionCount(progress: TailRepairBulletProgress | undefined): number {
-  return progress?.consecutiveRejects ?? progress?.zeroProgressRounds ?? 0;
+function nextGrowthAttempts(
+  progress: TailRepairBulletProgress | undefined,
+): number {
+  return Math.min(
+    MAX_TAIL_GROWTH_REJECTIONS,
+    growthAttemptCount(progress) + 1,
+  );
 }
 
-function migrateProgress(progress: TailRepairBulletProgress): TailRepairBulletProgress {
-  return {
-    mode: progress.mode ?? "growth",
-    consecutiveRejects: rejectionCount(progress),
-    ...(progress.rejectedGrowthFingerprints?.length ||
-        progress.rejectedTextFingerprints?.length
-      ? {
-        rejectedGrowthFingerprints:
-          progress.rejectedGrowthFingerprints ?? progress.rejectedTextFingerprints,
-      }
-      : {}),
-    ...(progress.rejectedGrowths?.length || progress.rejectedAttempts?.length
-      ? { rejectedGrowths: progress.rejectedGrowths ?? progress.rejectedAttempts }
-      : {}),
-    ...(progress.lastFailureType ? { lastFailureType: progress.lastFailureType } : {}),
-    ...(progress.reflowAttempts !== undefined
-      ? { reflowAttempts: progress.reflowAttempts }
-      : {}),
-    ...(progress.rejectedReflowFingerprints?.length
-      ? { rejectedReflowFingerprints: progress.rejectedReflowFingerprints }
-      : {}),
-    ...(progress.rejectedReflows?.length
-      ? { rejectedReflows: progress.rejectedReflows }
-      : {}),
-  };
-}
-
-function appendBounded(
-  previous: readonly string[] | undefined,
-  value: string,
-  limit: number,
-): string[] {
-  return [...(previous ?? []).filter((entry) => entry !== value), value]
-    .slice(-limit);
+function recoveryReason(
+  prior: TailRepairBulletProgress | undefined,
+  outcome: TailRepairProgressOutcome,
+): Pick<TailRepairBulletProgress, "lastFailureReason"> | object {
+  const reason = outcome.failureType === "duplicate"
+    ? prior?.lastFailureReason ?? outcome.failureReason
+    : outcome.failureReason;
+  return reason ? { lastFailureReason: reason } : {};
 }

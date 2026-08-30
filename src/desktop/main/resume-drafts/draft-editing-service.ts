@@ -1,6 +1,7 @@
 import type {
   ResumeDraftDetail,
   ResumeDraftEditInput,
+  ResumeDraftLineSpacingInput,
   ResumeDraftRestoreInput,
 } from "../../shared/types.js";
 import { updateDraftWorkspace } from "../../../resume/draft/projection.js";
@@ -42,6 +43,37 @@ export class ResumeDraftEditingService {
         updated.artifactId,
         "manual_edit",
         "手动修改",
+      ),
+    );
+  }
+
+  public async setLineSpacing(
+    input: ResumeDraftLineSpacingInput,
+  ): Promise<ResumeDraftDetail> {
+    const current = await this.drafts.get(input.artifactId);
+    if (current.workspace.revision !== input.expectedRevision) {
+      throw new Error(
+        `简历已变化到修订 ${current.workspace.revision}，请重新调整行间距`,
+      );
+    }
+    if (current.pendingChange) {
+      throw new Error("请先接受或拒绝当前 AI 修改");
+    }
+    const workspace = await this.editor.setLineSpacing(
+      current.workspace,
+      input.scalePercent,
+    );
+    const updated = updateDraftWorkspace(
+      current,
+      requireConversationId(current.conversationIds),
+      workspace,
+    );
+    await this.drafts.save(updated);
+    return toResumeDraftDetail(
+      await this.drafts.checkpoint(
+        updated.artifactId,
+        "manual_edit",
+        "调整行间距",
       ),
     );
   }

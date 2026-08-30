@@ -23,6 +23,17 @@ export function createUnavailableDesktopApi(): DesktopApi {
     shell: {
       openExternal: unavailable,
     },
+    mailConnections: {
+      providers: unavailable, list: unavailable,
+      connect: unavailable, disconnect: unavailable,
+    },
+    onboarding: {
+      status: unavailable,
+      start: unavailable,
+      advance: unavailable,
+      openBrowserDemo: unavailable,
+      complete: unavailable,
+    },
     conversations: {
       list: unavailable,
       create: unavailable,
@@ -41,6 +52,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
       list: unavailable,
       get: unavailable,
       edit: unavailable,
+      setLineSpacing: unavailable,
       restore: unavailable,
       accept: unavailable,
       reject: unavailable,
@@ -59,6 +71,18 @@ export function createUnavailableDesktopApi(): DesktopApi {
       resolveApproval: unavailable,
       onEvent: () => () => undefined,
     },
+    agentTasks: {
+      list: unavailable,
+      get: unavailable,
+      prepare: unavailable,
+      executeProposal: unavailable,
+      start: unavailable,
+      resume: unavailable,
+      pause: unavailable,
+      cancel: unavailable,
+      revoke: unavailable,
+      submissionReceipt: unavailable,
+    },
     library: {
       list: unavailable,
       preview: unavailable,
@@ -67,6 +91,13 @@ export function createUnavailableDesktopApi(): DesktopApi {
       deleteDraft: unavailable,
       getCheckpoints: unavailable,
       restoreCheckpoint: unavailable,
+    },
+    deliveryResumeFiles: {
+      list: unavailable,
+      importFile: unavailable,
+      rename: unavailable,
+      select: unavailable,
+      delete: unavailable,
     },
     jobAssets: {
       get: unavailable,

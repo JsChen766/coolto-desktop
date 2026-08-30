@@ -8,6 +8,7 @@ import {
   RESUME_DEFAULT_TARGET_USAGE_RATIO,
   RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
 } from "../compiler-types.js";
+import { defaultResumeBodyLineHeight } from "../layout-line-spacing.js";
 import { projectEducationRawText } from "../education-details.js";
 import { compareEducation } from "../education-order.js";
 import { ResumeWorkspaceError } from "./errors.js";
@@ -17,6 +18,10 @@ import {
   resumeSectionRegistry,
 } from "./section-registry.js";
 import { compareResumeExperienceRecency } from "./experience-recency.js";
+import { RESUME_TAIL_POLICY_V2 } from "../tail-policy.js";
+
+/** resume-standard 9.75pt -> Chinese 五号 10.5pt; renderer cap is 1.08. */
+const STANDARD_FIVE_POINT_BODY_SCALE = 10.5 / 9.75;
 
 export function buildResumeSkeleton(
   snapshot: ResumeSourceSnapshot,
@@ -56,9 +61,12 @@ export function buildResumeSkeleton(
     layout_template_id: snapshot.template.templateId,
     layout_profile_version: snapshot.template.profileVersion,
     layout_profile_hash: snapshot.template.profileHash,
+    tail_policy_version: RESUME_TAIL_POLICY_V2.version,
     layout_tuning: {
-      body_font_scale: 1,
-      body_line_height: 1.18,
+      body_font_scale: snapshot.template.templateId === "resume-standard"
+        ? STANDARD_FIVE_POINT_BODY_SCALE
+        : 1,
+      body_line_height: defaultResumeBodyLineHeight(snapshot.template.templateId),
       section_gap_scale: 1,
       item_gap_scale: 1,
       bullet_gap_scale: 1,

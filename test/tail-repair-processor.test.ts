@@ -9,21 +9,22 @@ import type { ResumeCompiler } from
   "../src/resume/workspace/compiler-port.js";
 import { resumeTailRepairLoopGuardKey } from
   "../src/resume/workspace/resume-write-loop-key.js";
-import { composeTailGrowth } from
+import { composeTailExpansion, composeTailGrowth } from
   "../src/resume/workspace/tail-repair-input.js";
 import { tailGrowthInstruction } from
   "../src/resume/workspace/tail-repair-instruction.js";
 import { processTailRepairBatch } from
   "../src/resume/workspace/tail-repair-processor.js";
-import { processTailReflowBatch } from
-  "../src/resume/workspace/tail-reflow-processor.js";
 import {
   MAX_TAIL_GROWTH_REJECTIONS,
   MAX_TAIL_REFLOW_ATTEMPTS,
   tailGrowthFingerprint,
   updateTailRepairProgress,
-  updateTailReflowProgress,
 } from "../src/resume/workspace/tail-repair-state.js";
+import { updateTailReflowProgress } from
+  "../src/resume/workspace/tail-reflow-progress.js";
+import type { TailRepairProgressState } from
+  "../src/resume/workspace/tail-repair-state.js";
 import { tailRepairBatch } from
   "../src/resume/workspace/tail-repair-targets.js";
 import { workspaceWithTailRepairProgress } from
@@ -45,6 +46,19 @@ test("host composes one growth fragment without rewriting the baseline", () => {
   assert.equal(
     composeTailGrowth("完成重点公司分析，", "覆盖核心指标。", "zh-CN"),
     "完成重点公司分析，覆盖核心指标",
+  );
+});
+
+test("host inserts one component after a unique anchor", () => {
+  assert.equal(
+    composeTailExpansion("负责行业研究并形成报告", {
+      bulletId: "a",
+      component: "method",
+      placement: "after",
+      anchor: "行业研究",
+      insertText: "，结合财务指标交叉验证",
+    }, "zh-CN"),
+    "负责行业研究，结合财务指标交叉验证并形成报告",
   );
 });
 
@@ -134,6 +148,7 @@ test("a rejected growth cannot be replayed", async () => {
     growthText: "补充TINY",
   }], compiler);
   workspace.tailRepairProgress = first.progress;
+  const initialReason = first.progress.byBulletId.a?.lastFailureReason;
   const before = compiler.compileCount;
 
   const second = await processTailRepairBatch(workspace, [{
@@ -144,10 +159,12 @@ test("a rejected growth cannot be replayed", async () => {
   assert.equal(compiler.compileCount, before);
   assert.equal(second.progress.byBulletId.a?.consecutiveRejects, 2);
   assert.equal(second.progress.byBulletId.a?.lastFailureType, "duplicate");
+  assert.ok(initialReason);
+  assert.equal(second.progress.byBulletId.a?.lastFailureReason, initialReason);
   assert.match(second.feedback[0]?.reason ?? "", /已经被拒绝/u);
 });
 
-test("a successful growth moves only that unresolved bullet to reflow", () => {
+test("the second growth outcome advances only that bullet to reflow", () => {
   const failed = new Set(["a", "b"]);
   let progress = updateTailRepairProgress(undefined, [{
     bulletId: "a",
@@ -170,62 +187,36 @@ test("a successful growth moves only that unresolved bullet to reflow", () => {
 
   assert.equal(progress.byBulletId.a?.consecutiveRejects, 0);
   assert.equal(progress.byBulletId.a?.mode, "reflow");
-  assert.equal(progress.byBulletId.a?.reflowAttempts, 0);
   assert.equal(progress.byBulletId.b?.consecutiveRejects, 1);
   assert.equal(progress.byBulletId.b?.mode, "growth");
   assert.equal(progress.stalled, false);
 });
 
-test("reflow inserts fact-neutral wording without deleting the formal baseline", async () => {
+test("a second measured growth attempt routes the remaining bullet to reflow", async () => {
   const compiler = new TailCompiler();
   const workspace = await createWorkspace(compiler, [
     "完成行业研究并形成报告",
     "已通过尾行一PASS",
     "已通过尾行二PASS",
   ]);
-  workspace.tailRepairProgress = updateTailRepairProgress(undefined, [{
+  const result = await processTailRepairBatch(workspace, [{
     bulletId: "a",
-    applied: true,
-    growthFingerprint: "accepted-growth",
-  }], new Set(["a"]));
-
-  const result = await processTailReflowBatch(workspace, [{
-    bulletId: "a",
-    revisedText: "系统完成行业研究并形成结构化报告PASS",
+    growthText: "采用结构化分析NEAR",
   }], compiler);
-
-  assert.deepEqual(result.updates, [{
+  workspace.tailRepairProgress = result.progress;
+  const second = await processTailRepairBatch(workspace, [{
     bulletId: "a",
-    text: "系统完成行业研究并形成结构化报告PASS",
-  }]);
+    growthText: "补充投资框架NEAR",
+  }], compiler);
+  assert.equal(second.progress.byBulletId.a?.mode, "reflow");
   assert.equal(result.diagnostics.appliedTargetCount, 1);
 });
 
-test("reflow cannot delete or replace characters from the formal baseline", async () => {
-  const compiler = new TailCompiler();
-  const workspace = await createWorkspace(compiler, ["完成行业研究并形成报告"]);
-  workspace.tailRepairProgress = updateTailRepairProgress(undefined, [{
-    bulletId: "a",
-    applied: true,
-    growthFingerprint: "accepted-growth",
-  }], new Set(["a"]));
-
-  const result = await processTailReflowBatch(workspace, [{
-    bulletId: "a",
-    revisedText: "完成行业分析并形成结构化报告PASS",
-  }], compiler);
-
-  assert.deepEqual(result.updates, []);
-  assert.match(result.feedback[0]?.reason ?? "", /原字符.*顺序/u);
-  assert.equal(result.progress.byBulletId.a?.reflowAttempts, 1);
-});
-
-test("two rejected reflows exhaust the fact-equivalent fallback", () => {
-  let progress = updateTailRepairProgress(undefined, [{
-    bulletId: "a",
-    applied: true,
-    growthFingerprint: "accepted-growth",
-  }], new Set(["a"]));
+test("legacy reflow rejection history remains bounded", () => {
+  let progress: TailRepairProgressState = {
+    byBulletId: { a: { mode: "reflow" as const, consecutiveRejects: 0 } },
+    stalled: false,
+  };
   for (let index = 0; index < MAX_TAIL_REFLOW_ATTEMPTS; index += 1) {
     progress = updateTailReflowProgress(progress, [{
       bulletId: "a",
@@ -239,7 +230,7 @@ test("two rejected reflows exhaust the fact-equivalent fallback", () => {
   assert.equal(progress.stalled, true);
 });
 
-test("next action switches to one complete fact-equivalent reflow batch", async () => {
+test("next action requests complete semantic rewrites after real progress", async () => {
   const compiler = new TailCompiler();
   const workspace = await createWorkspace(compiler, [
     "完成行业研究并形成报告",
@@ -254,14 +245,15 @@ test("next action switches to one complete fact-equivalent reflow batch", async 
 
   const action = resumeAgentNextAction(workspace);
 
-  assert.equal(action.mode, "batch_tail_reflow");
-  if (action.mode !== "batch_tail_reflow") return;
-  assert.equal(action.requiredInput, "lineRewrites");
+  assert.equal(action.mode, "batch_tail_rewrite");
+  if (action.mode !== "batch_tail_rewrite") return;
+  assert.equal(action.requiredInput, "tailRewrites");
   assert.deepEqual(action.bulletIds, ["a"]);
-  assert.match(action.tailReflowTargets[0]?.requiredEdit ?? "", /原字符.*顺序/u);
+  assert.equal(action.tailRewriteTargets[0]?.lengthBudget?.unit,
+    "cjk_visual_unit");
 });
 
-test("four rejected fragments exhaust a bullet and all exhausted tails stop", () => {
+test("two growth attempts switch a bullet to ordered reflow", () => {
   let progress = updateTailRepairProgress(undefined, [], new Set(["a"]));
   for (let index = 0; index < MAX_TAIL_GROWTH_REJECTIONS; index += 1) {
     progress = updateTailRepairProgress(progress, [{
@@ -273,9 +265,10 @@ test("four rejected fragments exhaust a bullet and all exhausted tails stop", ()
     }], new Set(["a"]));
   }
 
-  assert.equal(progress.byBulletId.a?.consecutiveRejects, 4);
-  assert.deepEqual(progress.byBulletId.a?.rejectedGrowths, ["片段2", "片段3"]);
-  assert.equal(progress.stalled, true);
+  assert.equal(progress.byBulletId.a?.growthAttempts, 2);
+  assert.deepEqual(progress.byBulletId.a?.rejectedGrowths, ["片段0", "片段1"]);
+  assert.equal(progress.byBulletId.a?.mode, "reflow");
+  assert.equal(progress.stalled, false);
 });
 
 test("stalled tail growth becomes one neutral material request", async () => {
@@ -291,6 +284,14 @@ test("stalled tail growth becomes one neutral material request", async () => {
       failureType: "invalid_content" as const,
     }], new Set(["a"]));
   }
+  for (let index = 0; index < MAX_TAIL_REFLOW_ATTEMPTS; index += 1) {
+    progress = updateTailReflowProgress(progress, [{
+      bulletId: "a",
+      applied: false,
+      rewriteFingerprint: `rewrite-${index}`,
+      rejectedRewrite: `改写${index}`,
+    }], new Set(["a"]));
+  }
 
   const stopped = workspaceWithTailRepairProgress(workspace, progress);
 
@@ -299,7 +300,35 @@ test("stalled tail growth becomes one neutral material request", async () => {
   assert.equal(resumeAgentNextAction(stopped).mode, "request_more_material");
 });
 
-test("next action exposes at most four fragment targets and no rewrite protocol", async () => {
+test("authorized final tail closure stops after bounded neutral attempts", async () => {
+  const compiler = new TailCompiler();
+  const workspace = await createWorkspace(compiler, ["正式基底"]);
+  workspace.factNeutralAuthorization = {
+    sourceRequestKind: "tail_repair_stalled",
+    confirmedAt: "2026-08-27T00:00:00.000Z",
+    confirmedMessageTimestamp: 100,
+  };
+  workspace.itemTiers = { "item-1": "utility" };
+  let progress = updateTailReflowProgress(undefined, [], new Set(["a"]));
+  for (let index = 0; index < MAX_TAIL_REFLOW_ATTEMPTS; index += 1) {
+    progress = updateTailReflowProgress(progress, [{
+      bulletId: "a",
+      applied: false,
+      rewriteFingerprint: `final-rewrite-${index}`,
+      rejectedRewrite: `最终改写${index}`,
+    }], new Set(["a"]));
+  }
+
+  const stopped = workspaceWithTailRepairProgress(workspace, progress);
+
+  assert.equal(stopped.status, "needs_user_decision");
+  assert.equal(stopped.materialRequest?.status, "declined");
+  assert.equal(stopped.materialRequest?.resolution, "best_effort_stalled");
+  assert.equal(stopped.tailRepairProgress?.stalled, true);
+  assert.equal(resumeAgentNextAction(stopped).mode, "stop_insufficient_material");
+});
+
+test("next action batches at most four semantic tail rewrite targets", async () => {
   const compiler = new TailCompiler();
   const workspace = await createWorkspace(
     compiler,
@@ -308,14 +337,14 @@ test("next action exposes at most four fragment targets and no rewrite protocol"
 
   const action = resumeAgentNextAction(workspace);
 
-  assert.equal(action.mode, "batch_tail_repair");
-  if (action.mode !== "batch_tail_repair") return;
-  assert.equal(action.requiredInput, "tailGrowths");
-  assert.equal(action.tailRepairTargets.length, 4);
-  assert.ok(action.tailRepairTargets.every((target) =>
-    typeof target.growthHint === "string" &&
-    Array.isArray(target.rejectedGrowths) &&
-    !("currentLineCount" in target) &&
+  assert.equal(action.mode, "batch_tail_rewrite");
+  if (action.mode !== "batch_tail_rewrite") return;
+  assert.equal(action.requiredInput, "tailRewrites");
+  assert.equal(action.tailRewriteTargets.length, 4);
+  assert.ok(action.tailRewriteTargets.every((target) =>
+    typeof target.requiredEdit === "string" &&
+    Array.isArray(target.rejectedCandidates) &&
+    target.lengthBudget?.unit === "cjk_visual_unit" &&
     !("protocolRecoveryLevel" in target) &&
     !("expansionGoal" in target)
   ));
@@ -342,7 +371,7 @@ test("rejected bullets rotate behind untouched bullets", async () => {
   assert.equal(rotated.at(-1), initial[0]);
 });
 
-test("model receipt asks only for source-grounded growth fragments", () => {
+test("model receipt asks for complete fact-equivalent tail rewrites", () => {
   const result = resumeWriteResultForModel({
     revision: 8,
     nextAction: { mode: "batch_tail_repair" },
@@ -357,31 +386,49 @@ test("model receipt asks only for source-grounded growth fragments", () => {
     status: "rejected",
     reason: "too long",
   }]);
-  assert.match(String(result.tailRepairReminder), /tailGrowths/u);
-  assert.match(String(result.tailRepairReminder), /growthText/u);
-  assert.match(String(result.tailRepairReminder), /锁定/u);
-  assert.doesNotMatch(String(result.tailRepairReminder), /revisedText|候选方案/u);
+  assert.match(String(result.tailRepairReminder), /tailRewrites/u);
+  assert.match(String(result.tailRepairReminder), /完整事实等价改写/u);
+  assert.match(String(result.tailRepairReminder), /固定尾缀/u);
 });
 
-test("model receipt asks for one ordered fact-equivalent reflow", () => {
+test("model receipt keeps the semantic rewrite protocol authoritative", () => {
   const result = resumeWriteResultForModel({
     revision: 9,
-    nextAction: { mode: "batch_tail_reflow" },
+    nextAction: { mode: "batch_tail_repair" },
     tailRepairFeedback: [
       { bulletId: "a", status: "rejected", reason: "tail short" },
     ],
   });
 
-  assert.match(String(result.tailRepairReminder), /lineRewrites/u);
-  assert.match(String(result.tailRepairReminder), /每个原字符.*原顺序/u);
-  assert.match(String(result.tailRepairReminder), /revisedText/u);
-  assert.doesNotMatch(String(result.tailRepairReminder), /growthText/u);
+  assert.match(String(result.tailRepairReminder), /batch_tail_rewrite/u);
+  assert.match(String(result.tailRepairReminder), /tailRewrites/u);
+});
+
+test("model receipt preserves the exact neutral insertion protocol", () => {
+  const result = resumeWriteResultForModel({
+    revision: 10,
+    nextAction: {
+      mode: "batch_tail_rewrite",
+      tailRewriteTargets: [{
+        bulletId: "a",
+        contentMode: "fact_neutral",
+      }],
+    },
+    tailRepairFeedback: [
+      { bulletId: "a", status: "rejected", reason: "changed source text" },
+    ],
+  });
+
+  assert.match(String(result.tailRepairReminder), /逐字保留 currentText/u);
+  assert.match(String(result.tailRepairReminder), /contentMode=fact_neutral/u);
+  assert.match(String(result.tailRepairReminder), /禁止传 additionalEvidenceIds/u);
+  assert.doesNotMatch(String(result.tailRepairReminder), /吸收 availableEvidence/u);
 });
 
 test("failure guidance is finite and directly actionable", () => {
   assert.match(
     tailGrowthInstruction("too_long", "补一个具体短语"),
-    /更短.*growthText/u,
+    /更短/u,
   );
   assert.match(
     tailGrowthInstruction("insufficient_growth", "补一个具体短语"),
@@ -390,6 +437,16 @@ test("failure guidance is finite and directly actionable", () => {
   assert.match(
     tailGrowthInstruction("duplicate", "补一个具体短语"),
     /更换增长方向/u,
+  );
+  assert.match(
+    tailGrowthInstruction(
+      "duplicate",
+      "补一个具体短语",
+      undefined,
+      undefined,
+      "空泛效果结尾",
+    ),
+    /具体对象、范围、方法或数字/u,
   );
 });
 
@@ -455,6 +512,21 @@ function measurement(bulletId: string, text: string) {
     lastLineWidthPx,
     availableLineWidthPx: 600,
     lastLineRatio: lastLineWidthPx / 600,
+    fontSizePx: 13,
+    ceuPx: 10,
+    noWrapTextWidthPx: [...text].length * 10,
+    noWrapTextCjk: [...text].length,
+    tailPolicyVersion: "resume-tail-v2" as const,
+    tailProbe: {
+      styleSignature: "test-simsun-13",
+      separatorText: "，",
+      separatorWidthPx: 10,
+      hardCjk: 4,
+      minCjk: 5,
+      idealCjk: 6,
+      maxCjk: 10,
+      wrapRisk: "low" as const,
+    },
     passed,
   };
 }
@@ -465,6 +537,7 @@ async function createWorkspace(
 ): Promise<ResumeWorkspace> {
   const structure = {
     language: "zh-CN",
+    tail_policy_version: "resume-tail-v2",
     sections: [{
       id: "work",
       type: "work",

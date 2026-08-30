@@ -1,13 +1,15 @@
 import type { BrowserWindow } from "electron";
 
-import type { BrowserPageOperator, BrowserPageReader } from "../../browser/types.js";
+import type { CooltoApiClient } from "../../api/coolto-api-client.js";
+import type { BrowserAgentController } from "../../browser/agent-control-types.js";
+import type { BrowserPageOperator } from "../../browser/types.js";
+import type { BrowserAgentStatusBridge } from "./browser/browser-agent-status-bridge.js";
 import { ResumeManualEditor } from "../../resume/draft/manual-editor.js";
 import type { ResumePdfCompiler } from "../../resume/export/types.js";
 import { DesktopAgentRuntime } from "./agent-runtime.js";
 import { ApplicationSyncStore } from "./application-library/application-sync-store.js";
 import { ApplicationProposalService } from "./application-library/application-proposal-service.js";
 import { DesktopAuthService } from "./auth-service.js";
-import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import { ConversationStore } from "./conversation-store.js";
 import { ElectronResumePdfSaveDialog } from "./electron-pdf-save-dialog.js";
 import { ExperienceSyncStore } from "./experience-library/experience-sync-store.js";
@@ -33,55 +35,43 @@ import { ReminderSyncStore } from "./tracker/reminder-sync-store.js";
 import { StatusEventReader } from "./tracker/status-event-reader.js";
 import { ReminderNotificationScheduler } from "./tracker/reminder-notification-scheduler.js";
 import { TrackerRecoveryService } from "./tracker/tracker-recovery-service.js";
-
-export interface UserServices {
-  ownerId: string;
-  conversations: ConversationStore;
-  resumeDrafts: ResumeDraftService;
-  resumeDraftEditing: ResumeDraftEditingService;
-  resumePdfExports: ResumePdfExportService;
-  agent: DesktopAgentRuntime;
-  selectedFiles: ConversationSelectedFiles;
-  resumes: ResumeSyncStore;
-  jds: JdSyncStore;
-  applications: ApplicationSyncStore;
-  applicationProposals: ApplicationProposalService;
-  experiences: ExperienceSyncStore;
-  profiles: ProfileSyncStore;
-  profileProposals: ProfileProposalService;
-  experienceHistory: ExperienceHistoryService;
-  experienceProposals: ExperienceProposalService;
-  trackerDetail: ApplicationTrackerDetailService;
-  interviews: InterviewSyncStore;
-  interviewProposals: InterviewProposalService;
-  notes: NoteSyncStore;
-  noteProposals: NoteProposalService;
-  reminders: ReminderSyncStore;
-  reminderProposals: ReminderProposalService;
-  reminderScheduler: ReminderNotificationScheduler;
-  trackerRecovery: TrackerRecoveryService;
-}
-
+import { createElectronAgentHarness } from "./agent-task/create-electron-agent-harness.js";
+import { createAgentTaskRuntime } from "./agent-task/create-agent-task-runner.js";
+import { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
+import { clearUserServices } from "./clear-user-services.js";
+import { ElectronMailConnectionService } from "./mail-connections/electron-mail-connection-service.js";
+import { createUserFileServices } from "./user-file-services.js";
+import type { BrowserWindowManager } from "./browser/browser-window-manager.js";
+import { createOnboardingServices } from
+  "./onboarding/create-onboarding-services.js";
+import type { UserServices } from "./user-services-contract.js";
+export type { UserServices } from "./user-services-contract.js";
 export class UserServicesResolver {
   private services: UserServices | undefined;
-
   public constructor(
     private readonly auth: DesktopAuthService,
     private readonly window: BrowserWindow,
     private readonly resumeCompiler: ResumePdfCompiler,
-    private readonly browserPageReader: BrowserPageReader,
+    private readonly browserAgentController: BrowserAgentController,
     private readonly browserPageOperator: BrowserPageOperator,
+    private readonly browserAgentStatus: BrowserAgentStatusBridge,
+    private readonly browserWindow: BrowserWindowManager,
   ) {}
 
   public async get(): Promise<UserServices> {
     const user = this.auth.requireCurrentUser();
     if (this.services?.ownerId === user.id) return this.services;
     const conversations = new ConversationStore(user.id);
+    const { onboarding, onboardingBrowser } = createOnboardingServices({
+      ownerId: user.id, conversations, browserWindow: this.browserWindow,
+      browserPageOperator: this.browserPageOperator,
+    });
+    const agentHarness = await createElectronAgentHarness(user.id);
     const resumeDrafts = new ResumeDraftService(
       user.id,
       createElectronResumeDraftRepository(user.id),
     );
-    const selectedFiles = new ConversationSelectedFiles();
+    const { selectedFiles, deliveryResumeFiles } = createUserFileServices(user.id);
     const draftRepository = createElectronResumeDraftRepository(user.id);
     const draftLinker = new ResumeDraftCloudLinker(draftRepository);
     const syncStore = this.auth.requireSyncStore();
@@ -116,7 +106,9 @@ export class UserServicesResolver {
       waitForInitialSync,
     );
     const applicationProposals = new ApplicationProposalService(syncStore, applications);
+    const mailConnections = new ElectronMailConnectionService(user.id);
     const interviews = new InterviewSyncStore(syncStore, triggerSync, waitForInitialSync);
+    const interviewProposals = new InterviewProposalService(interviews);
     const notes = new NoteSyncStore(syncStore, triggerSync, waitForInitialSync);
     const reminders = new ReminderSyncStore(syncStore, triggerSync, waitForInitialSync);
     const trackerDetail = new ApplicationTrackerDetailService(
@@ -129,6 +121,19 @@ export class UserServicesResolver {
       this.resumeCompiler,
       new ElectronResumePdfSaveDialog(this.window),
     );
+    const agentTaskProposals = new AgentTaskProposalService(agentHarness);
+    const agent = new DesktopAgentRuntime(
+      this.auth.apiClient, conversations, resumeDrafts, this.window.webContents,
+      this.resumeCompiler, selectedFiles, this.browserAgentController,
+      this.browserPageOperator, agentHarness, agentTaskProposals,
+      resumes, applications, applicationProposals, deliveryResumeFiles, mailConnections,
+      interviews, interviewProposals, experiences, jds, profiles,
+      profileProposals, experienceProposals,
+      () => readCompactionThreshold(this.auth.apiClient),
+      () => runSyncNow(this.auth),
+    );
+    const { agentTasks, agentTaskScheduler } = await createAgentTaskRuntime(
+      agentHarness, agent, this.browserAgentStatus, this.browserPageOperator);
     this.services = {
       ownerId: user.id,
       conversations,
@@ -138,25 +143,13 @@ export class UserServicesResolver {
         new ResumeManualEditor(this.resumeCompiler),
       ),
       resumePdfExports,
-      agent: new DesktopAgentRuntime(
-        this.auth.apiClient,
-        conversations,
-        resumeDrafts,
-        this.window.webContents,
-        this.resumeCompiler,
-        selectedFiles,
-        this.browserPageReader,
-        this.browserPageOperator,
-        resumes,
-        experiences,
-        jds,
-        profiles,
-        profileProposals,
-        experienceProposals,
-        () => readCompactionThreshold(this.auth.apiClient),
-        () => runSyncNow(this.auth),
-      ),
+      agent,
+      agentHarness,
+      agentTasks,
+      agentTaskProposals,
+      agentTaskScheduler,
       selectedFiles,
+      deliveryResumeFiles,
       resumes,
       jds,
       applications,
@@ -168,7 +161,7 @@ export class UserServicesResolver {
       experienceProposals,
       trackerDetail,
       interviews,
-      interviewProposals: new InterviewProposalService(interviews),
+      interviewProposals,
       notes,
       noteProposals: new NoteProposalService(notes),
       reminders,
@@ -177,15 +170,22 @@ export class UserServicesResolver {
       trackerRecovery: new TrackerRecoveryService(
         syncStore, triggerSync, waitForInitialSync, () => this.auth.syncNow(),
       ),
+      mailConnections,
+      onboarding,
+      onboardingBrowser,
     };
     return this.services;
   }
 
-  public clear(): void {
-    this.services?.agent.cancel();
-    this.services?.selectedFiles.clear();
-    this.services?.reminderScheduler.dispose();
+  public async clear(
+    reason: "window_closed" | "account_changed" = "window_closed",
+  ): Promise<void> {
+    const current = this.services;
     this.services = undefined;
+    await clearUserServices({
+      current, reason, browser: this.browserPageOperator,
+      status: this.browserAgentStatus,
+    });
   }
 
   /** Best-effort snapshot of the in-flight agent transcript. No-op when no
@@ -195,8 +195,6 @@ export class UserServicesResolver {
     await this.services?.agent.flushPending();
   }
 }
-
-
 /**
  * Reads the context-compaction threshold from the server app-config once and
  * caches it; any failure falls back to the client default so conversation
@@ -217,8 +215,6 @@ async function readCompactionThreshold(
   }
   return compactionThresholdCache;
 }
-
-
 /** Agent sync_now tool: runs one sync round and reports the outcome. */
 async function runSyncNow(auth: DesktopAuthService): Promise<{ ok: boolean; message: string }> {
   try {

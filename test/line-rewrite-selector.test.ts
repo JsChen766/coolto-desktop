@@ -73,19 +73,22 @@ test("bullet-depth mode applies every crossing rewrite in one batch", async () =
   assert.equal(selected.diagnostics.heightGrowthCount, 2);
 });
 
-test("bullet-depth mode explains an overlong rewrite instead of returning only skipped", async () => {
+test("a locked line plan rejects an overlong page-fill rewrite", async () => {
   const compiler = new UnderfillCompiler();
   const structure = createStructure();
   const compileResult = await compiler.compile(structure);
   const workspace = createWorkspace(structure, compileResult);
+  workspace.bulletLinePlans = {
+    a: { plannedLines: 3, lockedLines: 3 },
+  };
 
   const selected = await selectLineRewrites(workspace, [
     { bulletId: "a", revisedText: "TOO_LONG_DEPTH_REWRITE" },
-  ], compiler, { goal: "bullet_depth", minimumLines: 2 });
+  ], compiler);
 
   assert.deepEqual(selected.updates, []);
   assert.equal(selected.diagnostics.feedback[0]?.failureType, "crossed_line_limit");
-  assert.match(selected.diagnostics.feedback[0]?.reason ?? "", /超过最多 3 行/u);
+  assert.match(selected.diagnostics.feedback[0]?.reason ?? "", /已锁定的行数/u);
   assert.match(selected.writeRejectedReason ?? "", /少补一个/u);
 });
 

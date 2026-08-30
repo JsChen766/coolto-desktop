@@ -54,6 +54,7 @@ test("desktop chat smoke exposes its command-line contract", () => {
   assert.match(result.stdout, /--require-resume-ready/u);
   assert.match(result.stdout, /--accept-resume-augmentation/u);
   assert.match(result.stdout, /--open-resume-preview/u);
+  assert.match(result.stdout, /--stop-after-reuse-workspace/u);
   assert.match(result.stdout, /--file <path>/u);
 });
 
@@ -69,6 +70,7 @@ test("desktop chat smoke bounds stalled CDP requests", async () => {
   assert.match(source, /preview-toggle/u);
   assert.match(source, /progressMessages: observedProgress/u);
   assert.match(source, /resume-generation-progress/u);
+  assert.match(source, /baseDraftArtifactId/u);
 });
 
 test("desktop chat smoke parses an explicit new-chat run", () => {
@@ -77,6 +79,9 @@ test("desktop chat smoke parses an explicit new-chat run", () => {
     "--require-resume-ready",
     "--accept-resume-augmentation",
     "--open-resume-preview",
+    "--stop-after-reuse-workspace",
+    "--jd-id",
+    "jd-1",
     "--message",
     "generate",
     "--timeout",
@@ -86,6 +91,8 @@ test("desktop chat smoke parses an explicit new-chat run", () => {
     requireResumeReady: true,
     acceptResumeAugmentation: true,
     openResumePreview: true,
+    stopAfterReuseWorkspace: true,
+    jdId: "jd-1",
     message: "generate",
     timeout: 300_000,
   });
@@ -132,6 +139,22 @@ test("desktop chat components expose the stable smoke contract", async () => {
     "../src/desktop/renderer/src/chat/agent-event-handler.ts",
     import.meta.url,
   ), "utf8");
+  const resumeWorkspace = await readFile(new URL(
+    "../src/desktop/renderer/src/resume-workspace/use-resume-workspace.ts",
+    import.meta.url,
+  ), "utf8");
+  const runtimeEvents = await readFile(new URL(
+    "../src/desktop/main/agent-runtime-events.ts",
+    import.meta.url,
+  ), "utf8");
+  const appShell = await readFile(new URL(
+    "../src/desktop/renderer/src/app/use-app-shell.ts",
+    import.meta.url,
+  ), "utf8");
+  const resumeStyle = await readFile(new URL(
+    "../src/desktop/renderer/src/resume-renderer/style.css",
+    import.meta.url,
+  ), "utf8");
 
   for (const selector of [
     "chat-composer-input",
@@ -152,4 +175,16 @@ test("desktop chat components expose the stable smoke contract", async () => {
   assert.match(approvalCard, /data-approval-action-type/u);
   assert.match(approvalCard, /data-testid="approval-accept"/u);
   assert.match(eventHandler, /case "run\.started":[\s\S]+runError\.value = undefined/u);
+  assert.match(eventHandler, /case "message\.delta":[\s\S]{0,240}?return;/u);
+  assert.match(eventHandler, /case "assistant\.notice":[\s\S]{0,240}?messages\.push/u);
+  assert.match(eventHandler, /markLocalSaving\(event\.replacePreview/u);
+  assert.match(resumeWorkspace, /if \(replacePreview\) activeDraft\.value = undefined/u);
+  assert.match(runtimeEvents, /replacePreview:[\s\S]{0,160}?create_resume_workspace/u);
+  assert.match(runtimeEvents, /resume\.draft\.save-failed[\s\S]{0,240}?throw error/u);
+  assert.match(appShell, /activeDraft\.value[\s\S]{0,360}?activeArtifactType\.value = "resume"[\s\S]{0,160}?artifactOpen\.value = true/u);
+  assert.doesNotMatch(eventHandler, /streamingText\.value \+= event\.text/u);
+  assert.match(
+    resumeStyle,
+    /\.resume-document-bullet-text\s*\{[^}]*text-align:\s*justify;[^}]*text-align-last:\s*auto;[^}]*text-justify:\s*inter-character;/su,
+  );
 });

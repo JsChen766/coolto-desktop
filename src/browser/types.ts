@@ -125,7 +125,10 @@ export interface BrowserPageOperator {
    * 手动选取（Agent 不能自行指定任意本地路径），选中后经 CDP 注入。
    * 用户取消选择时返回 { cancelled: true }，不视为错误。
    */
-  uploadFile(fillId: string): Promise<FileUploadOutcome>;
+  uploadFile(
+    fillId: string,
+    registeredPaths?: readonly string[],
+  ): Promise<FileUploadOutcome>;
 
   /**
    * B4: 审核阶段控制。enterReview 前 fillLog 必须非空；进入后 gate 转为

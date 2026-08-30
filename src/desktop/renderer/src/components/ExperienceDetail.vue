@@ -10,6 +10,7 @@ import {
 } from "../../../../experience/timeline-labels";
 import { translateDateRange } from "../i18n/locale";
 import ExperienceHistory from "./ExperienceHistory.vue";
+import { stripMaterialMarkers } from "../../../../experience/material-content";
 
 defineProps<{ experience: ExperienceDetail; busy?: boolean }>();
 const emit = defineEmits<{
@@ -143,7 +144,7 @@ function closeMenu(): void {
       <section class="experience-detail-section experience-content">
         <h3>{{ $t('经历内容') }}</h3>
         <p v-if="experience.currentRevision?.content">
-          {{ experience.currentRevision.content }}
+          {{ stripMaterialMarkers(experience.currentRevision.content) }}
         </p>
         <p v-else class="experience-content-missing">{{ $t('当前内容不可用。') }}</p>
       </section>

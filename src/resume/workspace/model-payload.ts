@@ -6,6 +6,7 @@ import {
 import { calculateResumeBudget, requirementCoverage } from "./candidate-budget.js";
 import { unwrittenExperienceItemIds } from "./candidate-content.js";
 import type { ResumeWorkspace } from "./types.js";
+import { resolveTailPolicy } from "../tail-policy.js";
 import {
   bulletTailDiagnostics,
   idIndex,
@@ -26,6 +27,7 @@ export function buildModelPayload(workspace: ResumeWorkspace): object {
     candidateId: workspace.candidateId,
     revision: workspace.revision,
     status: workspace.status,
+    reuseBase: workspace.reuseBase ?? null,
     continuation: continuationState(workspace),
     sourceFingerprint: workspace.sourceSnapshot.sourceFingerprint,
     structure: idIndex(workspace.structure),
@@ -92,14 +94,12 @@ function compactEvidenceBindings(workspace: ResumeWorkspace): Array<{
 }
 
 /**
- * Measured typography facts (host measures, the agent decides). The bullet
- * tail gate requires the last line of every bullet to use more than 70% of
- * the available line width; charsPerLine lets the agent pick a tail-aware
- * target length when writing: for an n-line bullet aim at
- * (n-1)*charsPerLine + 0.75*charsPerLine characters (last line ~75% full).
+ * Measured typography facts. Tail policy is versioned and Chromium remains
+ * authoritative; charsPerLine is only a first-draft planning hint.
  */
 function typographyDiagnostic(workspace: ResumeWorkspace): object {
   const result = workspace.compileResult;
+  const tailPolicy = resolveTailPolicy(workspace.structure.tail_policy_version);
   const widthPx =
     result.bullets[0]?.availableLineWidthPx ??
     (workspace.structure.language === "zh-CN" ? 711 : 900);
@@ -113,7 +113,7 @@ function typographyDiagnostic(workspace: ResumeWorkspace): object {
     availableLineWidthPx: round(widthPx),
     bodyFontSizePx: fontSize,
     lineHeightPx: result.bodyLineHeightPx,
-    bulletTailGateRatio: 0.7,
+    bulletTailGateRatio: tailPolicy.hardMinRatio,
   };
 }
 

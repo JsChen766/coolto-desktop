@@ -17,17 +17,13 @@ type EvidenceState = Pick<ResumeWorkspace, "sourceSnapshot" | "bindings">;
  */
 export function maxReachableUsageRatio(
   result: ResumeCompileResult,
-  maxBulletLines: 2 | 3,
 ): number {
   const lineHeight = result.bodyLineHeightPx > 0 ? result.bodyLineHeightPx : 20;
   const usedHeightPx =
     result.usedHeightPx > 0
       ? result.usedHeightPx
       : result.usageRatio * Math.max(1, result.availableHeightPx);
-  const lengthenablePx = result.bullets.reduce((total, bullet) => {
-    const lines = bullet.lineCount ?? 1;
-    return total + Math.max(0, maxBulletLines - lines) * lineHeight;
-  }, 0);
+  const lengthenablePx = Math.max(0, result.availableHeightPx - usedHeightPx);
   return (
     (usedHeightPx + lengthenablePx) / Math.max(1, result.availableHeightPx)
   );
@@ -37,7 +33,6 @@ export function deriveWorkspaceStatus(
   result: ResumeCompileResult,
   structure: ResumeStructure,
   evidenceState?: EvidenceState,
-  maxBulletLines: 2 | 3 = 3,
 ): ResumeWorkspaceStatus {
   if (result.qualified && hasMinimumGeneratedContent(structure)) {
     return "layout_qualified";
@@ -60,7 +55,7 @@ export function deriveWorkspaceStatus(
     exhausted &&
     !result.qualified &&
     !result.violations.some((violation) => violation.code === "page_overflow") &&
-    maxReachableUsageRatio(result, maxBulletLines) <
+    maxReachableUsageRatio(result) <
       result.effectiveTargetBand.minimum
   ) {
     return "needs_user_decision";

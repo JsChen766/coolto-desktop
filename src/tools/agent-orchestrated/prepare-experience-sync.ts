@@ -9,6 +9,8 @@ import {
 import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import { ResumeWorkspaceError } from "../../resume/workspace/errors.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
+import { prepareExperienceSyncProposals } from
+  "../../resume/material/experience-sync-preparer.js";
 
 const parameters = Type.Object({
   candidateId: Type.String({ minLength: 1 }),
@@ -25,7 +27,7 @@ export function createPrepareExperienceSyncTool(
     name: "prepare_experience_sync",
     label: "准备同步补充经历",
     description:
-      "用户明确同意后调用。一次把所选经历的用户补充事实准备为经历仓库更新确认卡；接受前不写入，原始 source snapshot 保持不变。",
+      "仅兼容旧草稿中已经存在的历史审批，不用于新材料。正常 add_resume_material 后宿主会自动追加 Experience 纯文本正文，不再准备同步确认卡；除非权威回执明确要求恢复旧审批，否则禁止调用。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {
@@ -36,35 +38,11 @@ export function createPrepareExperienceSyncTool(
           `Candidate revision changed from ${params.expectedRevision} to ${workspace.revision}.`,
         );
       }
-      const ids = [...new Set(params.experienceIds.map((id) => id.trim()))];
-      if (ids.length !== params.experienceIds.length) {
-        throw new Error("experienceIds 含重复或空值");
-      }
-      const prepared = [];
-      try {
-        for (const id of ids) {
-          const source = workspace.sourceSnapshot.experiences.find(
-            (item) => item.id === id,
-          );
-          if (!source) throw new Error(`经历 ${id} 不在当前工作区`);
-          const facts = (workspace.supplementalEvidence ?? [])
-            .filter((item) => item.experienceId === id)
-            .map((item) => item.text)
-            .filter((fact) => !source.content.includes(fact));
-          if (!facts.length) throw new Error(`经历 ${id} 没有待同步的补充事实`);
-          const proposal = await proposals.prepareUpdate(id, {
-            content: [source.content.trimEnd(), ...facts].join("\n"),
-          });
-          if (proposal.current?.content !== source.content) {
-            proposals.discard(proposal.id);
-            throw new Error(`经历 ${id} 已变化，请重新生成工作区后再同步`);
-          }
-          prepared.push(proposal);
-        }
-      } catch (error) {
-        for (const proposal of prepared) proposals.discard(proposal.id);
-        throw error;
-      }
+      const prepared = await prepareExperienceSyncProposals(
+        workspace,
+        proposals,
+        params.experienceIds,
+      );
       const approval = await approvals.request(
         createExperienceSyncApprovalDraft(prepared),
         createExperienceSyncPayload(prepared),

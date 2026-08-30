@@ -3,16 +3,15 @@ import {
   RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
   RESUME_LAYOUT_TOLERANCE_PX,
 } from "../compiler-types.js";
+import { resolveTailPolicy } from "../tail-policy.js";
 import type { ResumeWorkspace } from "./types.js";
-import {
-  MAX_TIERED_BULLET_LINES,
-  MIN_TIERED_BULLET_LINES,
-} from "./bullet-depth-targets.js";
 import { minimumResumeBulletCount } from "./bullet-count-rules.js";
+import { observedWorkspaceItemLines } from "./item-line-budget.js";
 
 /** Real-layout capacity for the Agent's next whole-page writing batch. */
 export function wholePageWritingBudget(workspace: ResumeWorkspace): object {
   const compile = workspace.compileResult;
+  const tailPolicy = resolveTailPolicy(workspace.structure.tail_policy_version);
   const lineHeight = Math.max(1, compile.bodyLineHeightPx);
   const minimumBodyLinesToAdd = linesToRatio(
     compile.usedHeightPx,
@@ -28,7 +27,24 @@ export function wholePageWritingBudget(workspace: ResumeWorkspace): object {
     RESUME_DEFAULT_TARGET_USAGE_RATIO,
     0,
   );
-  const itemMinimums = workspace.structure.sections.flatMap((section) =>
+  const observedLines = observedWorkspaceItemLines(workspace);
+  const itemLineBudgets = workspace.lineBudgetVersion === "item-lines-v1"
+    ? Object.entries(workspace.itemLineBudgets ?? {}).map(
+        ([itemId, budget]) => ({
+          itemId,
+          tier: budget.tier,
+          currentLines: observedLines[itemId] ?? 0,
+          targetLines: budget.targetLines,
+          minimumLines: budget.minimumLines,
+          remainingLines: Math.max(
+            0,
+            budget.targetLines - (observedLines[itemId] ?? 0),
+          ),
+        }),
+      )
+    : [];
+  const itemMinimums = workspace.lineBudgetVersion === "item-lines-v1"
+    ? [] : workspace.structure.sections.flatMap((section) =>
     section.items.flatMap((item) => {
       const tier = workspace.itemTiers?.[item.id];
       const minimumBulletCount = minimumResumeBulletCount({
@@ -50,11 +66,17 @@ export function wholePageWritingBudget(workspace: ResumeWorkspace): object {
   return {
     basis: "current_real_chromium_layout",
     currentUsageRatio: compile.usageRatio,
-    minimumLinesPerTieredBullet: MIN_TIERED_BULLET_LINES,
-    maximumLinesPerTieredBullet: MAX_TIERED_BULLET_LINES,
+    formalTailGateRatio: tailPolicy.hardMinRatio,
+    preferredTailTargetRatio: tailPolicy.repairSoftMaxRatio,
+    linePlanning: {
+      minimumLinesPerBullet: 1,
+      fixedMaximumLinesPerBullet: null,
+      allocationRule:
+        "由 Agent 按 JD 匹配度、经历重要性和可用证据深度逐条规划",
+    },
     minimumBodyLinesForMinimumBullets: itemMinimums.reduce(
       (total, item) =>
-        total + item.minimumBulletCount * MIN_TIERED_BULLET_LINES,
+        total + item.minimumBulletCount,
       0,
     ),
     minimumBodyLinesToAdd,
@@ -67,6 +89,7 @@ export function wholePageWritingBudget(workspace: ResumeWorkspace): object {
       0,
     ),
     itemMinimums,
+    itemLineBudgets,
   };
 }
 
