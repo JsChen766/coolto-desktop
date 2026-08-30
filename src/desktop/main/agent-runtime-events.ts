@@ -44,7 +44,7 @@ export class AgentRuntimeEvents {
         return;
       }
       if (event.type === "run.failed") {
-        if (tailoredResumeFallbackDecision(context.workspaceStore.latest(), context.agent.outputRepetitionReason)) return;
+        if (tailoredResumeFallbackDecision(context.workspaceStore.latest(), context.agent.runGuardStopReason)) return;
         this.traces.recordModelCompleted(conversationId, "error");
         this.traces.recordStopReason(
           conversationId,
@@ -185,7 +185,7 @@ export class AgentRuntimeEvents {
         conversationId, this.resumeDrafts.artifactReference(draftWithSync),
       );
     }
-    this.notifyDraftUpdated(conversationId, draftWithSync.artifactId);
+    this.showDraft(conversationId, draftWithSync.artifactId);
     this.traces.recordDraftSaved(conversationId);
     if (workspace.status === "ready_for_approval") {
       this.traces.recordQualifiedPreviewDelivered(conversationId);
@@ -221,7 +221,7 @@ export class AgentRuntimeEvents {
     });
   }
 
-  private notifyDraftUpdated(
+  public showDraft(
     conversationId: string,
     artifactId: string,
   ): void {

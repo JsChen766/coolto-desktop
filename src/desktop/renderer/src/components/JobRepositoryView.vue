@@ -4,7 +4,6 @@ import { computed, nextTick, ref, watch } from "vue";
 
 import type {
   ApplicationCreateInput,
-  DeliveryResumeFile,
   JobRepositoryJd,
   JobRepositoryResume,
   ResumeLibraryEntry,
@@ -23,11 +22,6 @@ import JobRepositoryAssetList from "./JobRepositoryAssetList.vue";
 import JobRepositoryHeader from "./JobRepositoryHeader.vue";
 import JobRepositoryJdDetail from "./JobRepositoryJdDetail.vue";
 import JobRepositoryResumeDetail from "./JobRepositoryResumeDetail.vue";
-import DeliveryResumeFileDetail from "./DeliveryResumeFileDetail.vue";
-import {
-  deliveryResumeFileEntryId,
-  useDeliveryResumeFiles,
-} from "../job-assets/use-delivery-resume-files";
 
 const props = defineProps<{ navigation: JobRepositoryNavigationState }>();
 const emit = defineEmits<{
@@ -37,8 +31,7 @@ const emit = defineEmits<{
   agent: [action: "generate" | "match", jdId: string, title: string];
   record: [initial: Partial<ApplicationCreateInput>, asset: TrackerAssetTarget];
   tracker: [asset: TrackerAssetTarget];
-  general: [];
-  delivery: [file: DeliveryResumeFile, jd?: JobRepositoryJd];
+  applications: [];
 }>();
 
 const repository = useJobRepository();
@@ -56,29 +49,16 @@ const filteredJds = computed(() =>
 const filteredResumes = computed(() =>
   filterResumes(repository.snapshot.value.resumes, query.value, resumeFilter.value),
 );
-const deliveryFiles = useDeliveryResumeFiles({
-  snapshot: repository.snapshot,
-  selectedEntryId: selectedResumeId,
-  view,
-  query,
-  resumeFilter,
-  hasRegularResumeResults: () => filteredResumes.value.length > 0,
-  load: repository.load,
-  setError: (value) => { repository.error.value = value; },
-  closeDetail: () => { detailOpen.value = false; },
-});
 const selectedJd = computed(() =>
   filteredJds.value.find((jd) => jd.id === selectedJdId.value) ?? filteredJds.value[0],
 );
-const selectedResume = computed(() => deliveryFiles.selected.value
-  ? undefined
-  : filteredResumes.value.find(
-      (resume) => resume.entry.entryId === selectedResumeId.value,
-    ) ?? filteredResumes.value[0],
+const selectedResume = computed(() =>
+  filteredResumes.value.find(
+    (resume) => resume.entry.entryId === selectedResumeId.value,
+  ) ?? filteredResumes.value[0],
 );
 const allEmpty = computed(() =>
-  !repository.snapshot.value.jds.length && !repository.snapshot.value.resumes.length &&
-  !repository.snapshot.value.deliveryResumeFiles.length,
+  !repository.snapshot.value.jds.length && !repository.snapshot.value.resumes.length,
 );
 const filterActive = computed(() =>
   Boolean(query.value.trim() || (view.value === "jobs" ? jobFilter.value : resumeFilter.value)),
@@ -111,11 +91,6 @@ function selectResume(id: string): void {
   detailOpen.value = true;
 }
 
-function selectDeliveryFile(id: string): void {
-  deliveryFiles.select(id);
-  detailOpen.value = true;
-}
-
 function showResumeFromJd(entryId: string): void {
   view.value = "resumes";
   query.value = "";
@@ -124,6 +99,14 @@ function showResumeFromJd(entryId: string): void {
   void nextTick(() => {
     detailOpen.value = true;
   });
+}
+
+function showJdFromResume(jdId: string): void {
+  view.value = "jobs";
+  query.value = "";
+  jobFilter.value = "";
+  selectedJdId.value = jdId;
+  void nextTick(() => { detailOpen.value = true; });
 }
 
 function jdAsset(jd: JobRepositoryJd): TrackerAssetTarget {
@@ -158,9 +141,6 @@ function trackResume(resume: JobRepositoryResume): void {
   if (asset) emit("tracker", asset);
 }
 
-function useDeliveryFile(file: DeliveryResumeFile, jd?: JobRepositoryJd): void {
-  emit("delivery", file, jd);
-}
 </script>
 
 <template>
@@ -173,8 +153,7 @@ function useDeliveryFile(file: DeliveryResumeFile, jd?: JobRepositoryJd): void {
       :loading="repository.loading.value"
       @refresh="repository.load()"
       @toggle-sidebar="$emit('toggleSidebar')"
-      @generate-general="$emit('general')"
-      @import-delivery="deliveryFiles.importFile"
+      @applications="$emit('applications')"
     />
 
     <div v-if="repository.error.value" class="tracker-error-banner" role="alert">
@@ -196,12 +175,10 @@ function useDeliveryFile(file: DeliveryResumeFile, jd?: JobRepositoryJd): void {
           :view="view"
           :jds="filteredJds"
           :resumes="filteredResumes"
-          :delivery-resume-files="deliveryFiles.filtered.value"
-          :selected-id="view === 'jobs' ? selectedJd?.id : deliveryFiles.selected.value ? deliveryResumeFileEntryId(deliveryFiles.selected.value.id) : selectedResume?.entry.entryId"
+          :selected-id="view === 'jobs' ? selectedJd?.id : selectedResume?.entry.entryId"
           :empty-label="filterActive ? $t('没有符合当前搜索或筛选条件的结果') : view === 'jobs' ? $t('尚无 JD') : $t('尚无 Resume')"
           @select-jd="selectJd"
           @select-resume="selectResume"
-          @select-delivery-file="selectDeliveryFile"
         />
       </aside>
       <section class="repository-detail-pane">
@@ -209,14 +186,12 @@ function useDeliveryFile(file: DeliveryResumeFile, jd?: JobRepositoryJd): void {
           v-if="view === 'jobs' && selectedJd"
           :jd="selectedJd"
           :resumes="repository.snapshot.value.resumes"
-          :delivery-resume-files="repository.snapshot.value.deliveryResumeFiles"
           @back="detailOpen = false"
           @generate="$emit('agent', 'generate', selectedJd.id, selectedJd.title)"
           @match="$emit('agent', 'match', selectedJd.id, selectedJd.title)"
           @record="recordJd(selectedJd)"
           @tracker="$emit('tracker', jdAsset(selectedJd))"
           @resume="showResumeFromJd"
-          @delivery-file="useDeliveryFile($event, selectedJd)"
         />
         <JobRepositoryResumeDetail
           v-else-if="view === 'resumes' && selectedResume"
@@ -225,15 +200,7 @@ function useDeliveryFile(file: DeliveryResumeFile, jd?: JobRepositoryJd): void {
           @open="$emit('open', $event)"
           @record="recordResume(selectedResume)"
           @tracker="trackResume(selectedResume)"
-        />
-        <DeliveryResumeFileDetail
-          v-else-if="view === 'resumes' && deliveryFiles.selected.value"
-          :file="deliveryFiles.selected.value"
-          :busy="deliveryFiles.busy.value"
-          @back="detailOpen = false"
-          @use="useDeliveryFile(deliveryFiles.selected.value)"
-          @rename="deliveryFiles.rename"
-          @delete="deliveryFiles.remove"
+          @jd="showJdFromResume"
         />
         <div v-else class="repository-page-state repository-detail-empty">
           {{ filterActive ? $t('调整搜索或筛选条件后重试') : $t('选择一项查看详情') }}

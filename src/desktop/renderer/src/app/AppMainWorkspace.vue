@@ -16,8 +16,7 @@ const {
   activeView, clearExperienceImportFocus, closeTracker, desktopApi,
   experienceImportFocus, jobRepositoryNavigation, openRepositoryTracker,
   openTrackerAsset, requestResumePreview, returnToImportConversation,
-  selectChat, showSidebar, startGeneralResume, startJdAction, trackerContext,
-  startDeliveryResumeFile,
+  selectChat, showSidebar, startJdAction, trackerContext,
   updateRepositoryNavigation,
 } = props.shell;
 
@@ -64,10 +63,9 @@ defineExpose({ confirmExperienceLeave });
       @toggle-sidebar="showSidebar"
       @navigate="updateRepositoryNavigation"
       @agent="startJdAction"
-      @general="startGeneralResume"
-      @delivery="startDeliveryResumeFile"
       @record="recordFromRepository"
       @tracker="openRepositoryTracker"
+      @applications="openRepositoryTracker()"
     />
     <AppChatWorkspace v-else :shell="shell" />
   </main>

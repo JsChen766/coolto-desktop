@@ -58,6 +58,31 @@ test("keeps local-only and archived Resume entries visible", () => {
   assert.equal(snapshot.resumes[0]?.applicationSummary.total, 0);
 });
 
+test("links a local tailored draft to its source JD before cloud save", () => {
+  const snapshot = projectJobRepository({
+    jds: [repositoryJd("a")],
+    resumes: [localRepositoryResume("draft-a", "a")],
+    applications: [],
+  });
+
+  assert.equal(snapshot.resumes[0]?.kind, "targeted");
+  assert.equal(snapshot.resumes[0]?.primaryJd.id, "a");
+  assert.deepEqual(snapshot.jds[0]?.targetedResumeIds, []);
+  assert.deepEqual(snapshot.jds[0]?.targetedResumeEntryIds, ["local:draft-a"]);
+});
+
+test("keeps a local general draft independent from every JD", () => {
+  const snapshot = projectJobRepository({
+    jds: [repositoryJd("a")],
+    resumes: [localRepositoryResume("general", null, "general")],
+    applications: [],
+  });
+
+  assert.equal(snapshot.resumes[0]?.kind, "generic");
+  assert.equal(snapshot.resumes[0]?.primaryJd.state, "empty");
+  assert.deepEqual(snapshot.jds[0]?.targetedResumeEntryIds, []);
+});
+
 test("missing references retain the frozen Application title", () => {
   const snapshot = projectJobRepository({
     jds: [repositoryJd("a")],

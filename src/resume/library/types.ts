@@ -60,6 +60,9 @@ export interface ResumeLibraryCloudSummary {
 export interface ResumeLibraryLocalSummary {
   artifactId: string;
   title: string;
+  jdId: string | null;
+  jdTitle: string | null;
+  targetRole: string | null;
   updatedAt: string;
   checkpointCount: number;
   hasPendingChange: boolean;

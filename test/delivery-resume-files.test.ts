@@ -87,3 +87,18 @@ test("delivery resume import rejects unsupported or disguised files", async () =
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("an in-memory chat attachment enters the same immutable local store", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coolto-delivery-content-"));
+  try {
+    const content = Buffer.from("%PDF-1.7\nchat attachment\n%%EOF");
+    const files = new DeliveryResumeFileRepository(
+      "owner-1", join(root, "storage"), codec,
+    );
+    const imported = await files.importContent("chat-resume.pdf", content);
+    assert.equal(imported.originalFilename, "chat-resume.pdf");
+    assert.deepEqual(await readFile(await files.stage(imported.id)), content);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

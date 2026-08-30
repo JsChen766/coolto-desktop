@@ -139,6 +139,9 @@ function toLocalSummary(draft: ResumeDraftSummary): ResumeLibraryLocalSummary {
   return {
     artifactId: draft.artifactId,
     title: draft.title,
+    jdId: draft.jdId,
+    jdTitle: draft.jdTitle,
+    targetRole: draft.targetRole,
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpointCount,
     hasPendingChange: draft.hasPendingChange,
@@ -148,9 +151,13 @@ function toLocalSummary(draft: ResumeDraftSummary): ResumeLibraryLocalSummary {
 }
 
 function toLocalSummaryFromFull(draft: LocalResumeDraft): ResumeLibraryLocalSummary {
+  const jd = draft.workspace?.sourceSnapshot?.jd;
   return {
     artifactId: draft.artifactId,
     title: draft.title,
+    jdId: jd?.id ?? null,
+    jdTitle: jd?.title ?? null,
+    targetRole: jd?.targetRole ?? null,
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpoints.length,
     hasPendingChange: draft.pendingChange != null,

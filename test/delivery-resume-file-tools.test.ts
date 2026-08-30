@@ -4,12 +4,15 @@ import test from "node:test";
 import type { BrowserPageOperator } from "../src/browser/types.js";
 import type {
   DeliveryResumeFile,
-  DeliveryResumeFileSource,
+  DeliveryResumeFileStore,
 } from "../src/delivery-resume-files/types.js";
 import { createDeliveryResumeFileTools } from
   "../src/tools/delivery-resume-file-tools.js";
 import { requireToolCapability } from "../src/tools/tool-capabilities.js";
 import { createToolRegistry } from "../src/tools/registry.js";
+import { createLocalFileTools } from "../src/tools/local-file-tools.js";
+import type { SelectedFileRegistry } from
+  "../src/files/selected-file-registry.js";
 
 const file: DeliveryResumeFile = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -61,7 +64,39 @@ test("browser delivery upload resolves a host path without exposing it", async (
   assert.equal((result.details as { sha256: string }).sha256, file.sha256);
 });
 
-function fakeSource(selected: string[]): DeliveryResumeFileSource {
+test("a newly attached file can be saved unchanged as a delivery resume", async () => {
+  const imported: Array<{ filename: string; content: Uint8Array }> = [];
+  const source = {
+    ...fakeSource([]),
+    importContent: async (filename: string, content: Uint8Array) => {
+      imported.push({ filename, content });
+      return file;
+    },
+  };
+  const selectedFiles = {
+    read: async () => ({
+      metadata: {
+        id: "attachment-1",
+        filename: "resume.pdf",
+        type: "pdf" as const,
+        sizeBytes: 16,
+      },
+      content: Buffer.from("%PDF-1.7\n%%EOF"),
+    }),
+  } as unknown as SelectedFileRegistry;
+  const tool = createLocalFileTools({
+    selectedFileRegistry: selectedFiles,
+    deliveryResumeFiles: source,
+  }).find((item) => item.name === "save_selected_file_as_delivery_resume");
+
+  assert.ok(tool, "missing attachment-to-delivery-file bridge tool");
+  const result = await tool.execute("save", { fileId: "attachment-1" });
+  assert.equal(imported[0]?.filename, "resume.pdf");
+  assert.deepEqual(imported[0]?.content, Buffer.from("%PDF-1.7\n%%EOF"));
+  assert.match(result.content[0]?.type === "text" ? result.content[0].text : "", /原样保存/u);
+});
+
+function fakeSource(selected: string[]): DeliveryResumeFileStore {
   return {
     list: async () => [file],
     get: async () => file,
@@ -70,5 +105,6 @@ function fakeSource(selected: string[]): DeliveryResumeFileSource {
       return file;
     },
     stage: async () => "/host-only/staged-resume.pdf",
+    importContent: async () => file,
   };
 }

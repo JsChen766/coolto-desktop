@@ -74,9 +74,13 @@ export function appendDraftCheckpoint(
 
 export function summarizeDraft(draft: LocalResumeDraft): ResumeDraftSummary {
   const syncedRevision = draft.cloudLink?.syncedRevision;
+  const jd = resumeSourceJd(draft.workspace.sourceSnapshot);
   return {
     artifactId: draft.artifactId,
     title: draft.title,
+    jdId: jd?.id ?? null,
+    jdTitle: jd?.title ?? null,
+    targetRole: jd?.targetRole ?? null,
     conversationIds: [...draft.conversationIds],
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpoints.length,

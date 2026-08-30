@@ -19,6 +19,9 @@ export function createDemoLibraryEntries(): ResumeLibraryEntry[] {
       local: {
         artifactId: "741d9167-d87d-4a28-8b78-525d8a0a1017",
         title: "高级前端工程师简历",
+        jdId: "jd-001",
+        jdTitle: "高级前端工程师",
+        targetRole: "高级前端工程师",
         updatedAt: now,
         checkpointCount: 3,
         hasPendingChange: false,
@@ -51,6 +54,9 @@ export function createDemoLibraryEntries(): ResumeLibraryEntry[] {
       local: {
         artifactId: "draft-002",
         title: "英文自我介绍（草稿）",
+        jdId: null,
+        jdTitle: null,
+        targetRole: null,
         updatedAt: new Date(Date.now() - 172_800_000).toISOString(),
         checkpointCount: 1,
         hasPendingChange: false,
@@ -98,6 +104,9 @@ export function createDemoDraft(now: Date): ResumeDraftDetail {
   return {
     artifactId: "741d9167-d87d-4a28-8b78-525d8a0a1017",
     title: "AI 产品经理简历",
+    jdId: "jd-001",
+    jdTitle: "AI 产品经理",
+    targetRole: "AI 产品经理",
     conversationIds: [],
     updatedAt,
     checkpointCount: 1,

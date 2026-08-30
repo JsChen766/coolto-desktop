@@ -45,14 +45,14 @@ import { InboxSignalApplicationService } from "./agent-task/inbox-signal-applica
 import { InboxSignalInterviewService } from "./agent-task/inbox-signal-interview-service.js";
 import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
 import type { InterviewProposalService } from "./tracker/interview-proposal-service.js";
-import type { DeliveryResumeFileSource } from
+import type { DeliveryResumeFileStore } from
   "../../delivery-resume-files/types.js";
 
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
   resumeCompiler: ResumePdfCompiler;
   selectedFiles: ConversationSelectedFiles;
-  deliveryResumeFiles: DeliveryResumeFileSource;
+  deliveryResumeFiles: DeliveryResumeFileStore;
   browserAgentController: BrowserAgentController;
   browserPageOperator: BrowserPageOperator;
   agentHarness: AgentHarnessServices;

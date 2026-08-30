@@ -1,7 +1,7 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 
 import type { BrowserPageOperator } from "../browser/types.js";
-import type { DeliveryResumeFileSource } from
+import type { DeliveryResumeFileStore } from
   "../delivery-resume-files/types.js";
 import type { SelectedFileRegistry } from
   "../files/selected-file-registry.js";
@@ -10,7 +10,7 @@ import { createSelectedFileTools } from "./selected-files.js";
 
 export interface LocalFileToolDependencies {
   selectedFileRegistry?: SelectedFileRegistry;
-  deliveryResumeFiles?: DeliveryResumeFileSource;
+  deliveryResumeFiles?: DeliveryResumeFileStore;
   browserPageOperator?: BrowserPageOperator;
 }
 
@@ -25,6 +25,7 @@ export function createLocalFileTools(
       ? createDeliveryResumeFileTools(
           dependencies.deliveryResumeFiles,
           dependencies.browserPageOperator,
+          dependencies.selectedFileRegistry,
         )
       : []),
   ];

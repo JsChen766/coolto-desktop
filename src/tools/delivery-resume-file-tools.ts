@@ -2,8 +2,10 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import type { BrowserPageOperator } from "../browser/types.js";
-import type { DeliveryResumeFileSource } from
+import type { DeliveryResumeFileStore } from
   "../delivery-resume-files/types.js";
+import type { SelectedFileRegistry } from
+  "../files/selected-file-registry.js";
 import { runWriteOperation } from "./browser/write-tool-helpers.js";
 
 const noParameters = Type.Object({});
@@ -16,8 +18,9 @@ const uploadParameters = Type.Object({
 });
 
 export function createDeliveryResumeFileTools(
-  files: DeliveryResumeFileSource,
+  files: DeliveryResumeFileStore,
   browser?: BrowserPageOperator,
+  selectedFiles?: SelectedFileRegistry,
 ): AgentTool[] {
   const tools: AgentTool[] = [
     {
@@ -59,12 +62,44 @@ export function createDeliveryResumeFileTools(
       },
     },
   ];
+  if (selectedFiles) tools.push(saveSelectedFileTool(files, selectedFiles));
   if (browser) tools.push(browserUploadTool(files, browser));
   return tools;
 }
 
+function saveSelectedFileTool(
+  files: DeliveryResumeFileStore,
+  selectedFiles: SelectedFileRegistry,
+): AgentTool<typeof selectParameters> {
+  return {
+    name: "save_selected_file_as_delivery_resume",
+    label: "原样保存用户简历",
+    description:
+      "把本轮用户明确上传的 PDF/DOCX 原始字节保存到独立投递文件仓库。" +
+      "只用于用户明确说作为原始简历、投递文件或不要修改时；禁止先解析，也不进入简历写作。",
+    parameters: selectParameters,
+    executionMode: "sequential",
+    execute: async (_id, input) => {
+      const selected = await selectedFiles.read(input.fileId);
+      const saved = await files.importContent(
+        selected.metadata.filename,
+        selected.content,
+      );
+      const preferred = await files.setPreferred(saved.id);
+      return {
+        content: [{
+          type: "text",
+          text: `已将《${preferred.title}》原样保存为用户原始简历，` +
+            "可用于任意岗位；未解析或修改文件内容。",
+        }],
+        details: preferred,
+      };
+    },
+  };
+}
+
 function browserUploadTool(
-  files: DeliveryResumeFileSource,
+  files: DeliveryResumeFileStore,
   browser: BrowserPageOperator,
 ): AgentTool<typeof uploadParameters> {
   return {

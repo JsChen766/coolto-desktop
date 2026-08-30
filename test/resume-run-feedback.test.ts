@@ -8,6 +8,8 @@ import {
   appendResumeRunFeedback,
   type ResumeRunFeedbackState,
 } from "../src/desktop/main/resume-run-feedback.js";
+import { replaceFailedResumeRunWithStrategyMessage } from
+  "../src/desktop/main/resume-strategy-messages.js";
 
 test("controlled assistant notice is persisted as a public message", () => {
   const messages = [assistantText("准备审批", 1)];
@@ -19,6 +21,21 @@ test("controlled assistant notice is persisted as a public message", () => {
 
   assert.equal(text(result.at(-1)), "OK，已经确认要生成简历了，我现在开始生成。");
   assert.equal(result.at(-1)?.timestamp, 2);
+});
+
+test("strategy fallback removes the failed turn narration", () => {
+  const messages = [
+    { role: "user", content: "生成 YSL 简历", timestamp: 1 } as AgentMessage,
+    assistantText("WorkUnit 与 8000 字内部推演", 2),
+  ];
+  const result = replaceFailedResumeRunWithStrategyMessage(
+    messages,
+    "现有经历与岗位匹配度太低，请选择下一步。",
+  );
+
+  assert.equal(result.length, 2);
+  assert.equal(text(result.at(-1)), "现有经历与岗位匹配度太低，请选择下一步。");
+  assert.doesNotMatch(JSON.stringify(result), /WorkUnit|8000/u);
 });
 
 test("file-backed update reports only the successful user outcome", () => {

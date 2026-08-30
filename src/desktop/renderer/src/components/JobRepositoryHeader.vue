@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import {
   BriefcaseBusiness,
+  ClipboardList,
   FileText,
-  FileUp,
   Menu,
   RefreshCw,
   Search,
-  Sparkles,
 } from "@lucide/vue";
 
 import type {
@@ -29,8 +28,7 @@ defineEmits<{
   "update:resumeFilter": [value: ResumeFilter];
   refresh: [];
   toggleSidebar: [];
-  generateGeneral: [];
-  importDelivery: [];
+  applications: [];
 }>();
 </script>
 
@@ -59,25 +57,16 @@ defineEmits<{
         :class="{ active: view === 'resumes' }"
         @click="$emit('update:view', 'resumes')"
       >
-        <FileText :size="14" aria-hidden="true" />{{ $t('简历') }}
+        <FileText :size="14" aria-hidden="true" />{{ $t('简历资产') }}
       </button>
     </nav>
     <div class="repository-tools no-drag">
       <button
-        v-if="view === 'resumes'"
         class="secondary-button icon-label"
         type="button"
-        @click="$emit('importDelivery')"
+        @click="$emit('applications')"
       >
-        <FileUp :size="14" aria-hidden="true" />{{ $t('添加投递文件') }}
-      </button>
-      <button
-        v-if="view === 'resumes'"
-        class="primary-button icon-label"
-        type="button"
-        @click="$emit('generateGeneral')"
-      >
-        <Sparkles :size="14" aria-hidden="true" />{{ $t('生成通用简历') }}
+        <ClipboardList :size="14" aria-hidden="true" />{{ $t('投递记录') }}
       </button>
       <label class="repository-search">
         <Search :size="15" aria-hidden="true" />
@@ -110,8 +99,6 @@ defineEmits<{
         <option value="targeted">{{ $t('针对性') }}</option>
         <option value="generic">{{ $t('通用') }}</option>
         <option value="archived">{{ $t('归档') }}</option>
-        <option value="local_only">{{ $t('仅本机') }}</option>
-        <option value="user_original">{{ $t('用户源文件') }}</option>
         <option value="conflict">{{ $t('同步冲突') }}</option>
       </select>
       <button

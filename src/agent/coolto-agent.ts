@@ -95,11 +95,11 @@ export class CooltoAgent {
   public get isRunning(): boolean { return this.#agent.state.isStreaming; }
   /** Total assistant model calls across all prompts since construction. */
   public get modelCallCount(): number { return this.#modelCallCount; }
-  public get stoppedForOutputRepetition(): boolean {
-    return this.#stoppedForOutputRepetition;
-  }
-  public get outputRepetitionReason(): OutputRepetitionReason | undefined {
-    return this.#outputRepetitionReason;
+  public get stoppedForOutputRepetition(): boolean { return this.#stoppedForOutputRepetition; }
+  public get outputRepetitionReason(): OutputRepetitionReason | undefined { return this.#outputRepetitionReason; }
+  public get runGuardStopReason() {
+    return this.#stoppedForOutputRepetition
+      ? this.#outputRepetitionReason : this.#turnGovernor?.stopReason;
   }
   public get runStopError(): string | undefined {
     const guardError = this.#guardStopError;

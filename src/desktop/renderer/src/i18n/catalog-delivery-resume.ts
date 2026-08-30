@@ -31,4 +31,6 @@ export const deliveryResumeMessages: Record<string, string> = {
     "Use a user source file, general resume, or tailored resume. User source files are available regardless of role relevance.",
   "已有满意简历时，可以原样保存在本机用于任意岗位投递；需要写简历时，再单独导入经历或告诉我真实成果。":
     "If you already have a satisfactory resume, keep it unchanged on this device and use it for any role. Import experience separately only when you want help writing a resume.",
+  "保存为用户原始简历失败，请查看上方错误并重试":
+    "Could not save the user source resume. Review the error above and try again.",
 };

@@ -125,11 +125,6 @@ const genericSuggestions: Suggestion[] = [
     title: "整理我的经历",
     prompt: "请读取我的经历，并帮我找出最值得写进简历的内容。",
   },
-  {
-    icon: Sparkles,
-    title: "生成自我介绍",
-    prompt: "请根据我的全部经历，写一段简洁有力的自我介绍。",
-  },
 ];
 
 const suggestions = computed(() => [

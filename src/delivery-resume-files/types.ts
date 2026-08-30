@@ -30,3 +30,10 @@ export interface DeliveryResumeFileSource {
   setPreferred(fileId: string): Promise<DeliveryResumeFile>;
   stage(fileId: string): Promise<string>;
 }
+
+export interface DeliveryResumeFileStore extends DeliveryResumeFileSource {
+  importContent(
+    filename: string,
+    content: Uint8Array,
+  ): Promise<DeliveryResumeFile>;
+}

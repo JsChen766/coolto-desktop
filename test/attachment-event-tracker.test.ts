@@ -129,6 +129,26 @@ test("attachment tracker turns an interrupted parse into a retryable error", () 
   assert.match(tracker.get("conversation-1")?.message ?? "", /重新发送/u);
 });
 
+test("attachment tracker marks an unchanged delivery-file save as complete", () => {
+  const tracker = new AttachmentEventTracker();
+  tracker.sync("conversation-1", attachment);
+  tracker.handle("conversation-1", {
+    type: "tool.started",
+    callId: "delivery-save",
+    name: "save_selected_file_as_delivery_resume",
+    arguments: { fileId: attachment.id },
+  });
+  tracker.handle("conversation-1", {
+    type: "tool.completed",
+    callId: "delivery-save",
+    name: "save_selected_file_as_delivery_resume",
+    isError: false,
+  });
+
+  assert.equal(tracker.get("conversation-1")?.status, "saved");
+  assert.equal(tracker.statusFor("conversation-1", attachment.id), "saved");
+});
+
 function markParsed(tracker: AttachmentEventTracker): void {
   tracker.handle("conversation-1", {
     type: "tool.started",

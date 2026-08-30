@@ -1,7 +1,10 @@
 import type { ResumeFull } from "../../../resume/types.js";
 import type { CloudResumePreview } from "../../shared/types.js";
 import type { LocalResumeDraft, ResumeDraftCheckpoint } from "../../../resume/draft/types.js";
-import { appendDraftCheckpoint } from "../../../resume/draft/projection.js";
+import {
+  appendDraftCheckpoint,
+  summarizeDraft,
+} from "../../../resume/draft/projection.js";
 import { buildLibraryEntries, buildEntryFromFull } from "../../../resume/library/projection.js";
 import type { ResumeLibraryEntry } from "../../../resume/library/types.js";
 import type { ResumeDraftFileRepository } from "../resume-drafts/draft-file-repository.js";
@@ -18,7 +21,7 @@ export class ResumeLibraryService {
 	  this.resumes.listResumes(signal),
       this.draftRepo.list(),
     ]);
-	const entries = buildLibraryEntries(clouds, drafts.map(summarizeDraftForProjection));
+	const entries = buildLibraryEntries(clouds, drafts.map(summarizeDraft));
 	return entries.map((entry) => {
 		const resumeId = entry.cloud?.resumeId;
 		return resumeId && this.resumes.syncStatus(resumeId) === "conflict"
@@ -97,27 +100,4 @@ export class ResumeLibraryService {
     ]);
     return buildEntryFromFull(cloud, draft);
   }
-}
-
-function summarizeDraftForProjection(draft: LocalResumeDraft) {
-  const syncedRevision = draft.cloudLink?.syncedRevision;
-  return {
-    artifactId: draft.artifactId,
-    title: draft.title,
-    conversationIds: [...draft.conversationIds],
-    updatedAt: draft.updatedAt,
-    checkpointCount: draft.checkpoints.length,
-    hasPendingChange: draft.pendingChange !== null,
-    cloudState: (
-      syncedRevision === undefined
-        ? "local_only"
-        : syncedRevision === draft.workspace.revision
-          ? "synced"
-          : "local_changes"
-    ) as "local_only" | "synced" | "local_changes",
-	cloudResumeId: draft.cloudLink?.resumeId ?? null,
-  generationStrategy: draft.workspace.sourceSnapshot.generationStrategy === "general"
-    ? "general" as const : "tailored" as const,
-  generationReady: draft.workspace.status === "ready_for_approval",
-  };
 }

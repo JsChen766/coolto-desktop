@@ -801,6 +801,7 @@ test("agent reports a failed run after four calls without measured progress", as
 
   assert.equal(faux.state.callCount, 4);
   assert.match(agent.runStopError ?? "", /没有产生新的正式内容或版面进展/u);
+  assert.equal(agent.runGuardStopReason, "same_tool_sequence");
   const failed = events.find((event) => event.type === "run.failed");
   assert.equal(failed?.type, "run.failed");
   if (failed?.type === "run.failed") {

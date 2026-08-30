@@ -1,5 +1,6 @@
 export const agentTaskMessages: Record<string, string> = {
   "Agent 任务": "Agent tasks",
+  "后台任务": "Background tasks",
   "Agent 任务列表": "Agent task list",
   "本机任务 · 仅在 App 打开时运行": "Local tasks · Runs only while the App is open",
   "正在读取本机 Agent 任务…": "Loading local Agent tasks…",

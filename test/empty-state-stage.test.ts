@@ -63,6 +63,9 @@ test("a ready local general draft completes onboarding before cloud save", () =>
     local: {
       artifactId: "general",
       title: "通用简历",
+      jdId: null,
+      jdTitle: null,
+      targetRole: null,
       updatedAt: "2026-08-29T00:00:00.000Z",
       checkpointCount: 1,
       hasPendingChange: false,

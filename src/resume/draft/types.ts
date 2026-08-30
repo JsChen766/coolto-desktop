@@ -71,6 +71,9 @@ export interface ResumeDraftArtifactReference {
 export interface ResumeDraftSummary {
   artifactId: string;
   title: string;
+  jdId: string | null;
+  jdTitle: string | null;
+  targetRole: string | null;
   conversationIds: string[];
   updatedAt: string;
   checkpointCount: number;

@@ -18,8 +18,8 @@ export function filterJds(
     if (needle && !normalize([jd.title, jd.company, jd.targetRole].join(" ")).includes(needle)) {
       return false;
     }
-    if (filter === "with_resumes") return jd.targetedResumeIds.length > 0;
-    if (filter === "without_resumes") return jd.targetedResumeIds.length === 0;
+    if (filter === "with_resumes") return jd.targetedResumeEntryIds.length > 0;
+    if (filter === "without_resumes") return jd.targetedResumeEntryIds.length === 0;
     if (filter === "applied") return jd.applicationSummary.total > 0;
     if (filter === "conflict") return jd.syncStatus === "conflict";
     return true;
@@ -52,6 +52,7 @@ export function filterResumes(
     if (needle && !normalize([
       resume.entry.displayTitle,
       cloud?.targetRole,
+      resume.entry.local?.targetRole,
       resume.primaryJd.title,
     ].join(" ")).includes(needle)) return false;
     if (filter === "targeted") return resume.kind === "targeted";

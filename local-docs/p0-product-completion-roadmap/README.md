@@ -656,6 +656,25 @@ Desktop API/demo、IPC 注册、Vue 状态和样式，禁止创建新的 `Manage
   副本确认弹窗、取消零写入、手动清理不关闭预览、切换对话自动清理均通过，1402px 宽屏和等效
   876px 窄屏无横向溢出。当前账号只有两份 `cloud_only` Resume，故没有为测试创建或修改业务数据，
   最终“确认创建”写入未在真实账号执行；本轮没有 commit/push。
+- 2026-08-30 用户确认再次按岗位中心收敛求职仓库。本地 `ResumeDraftSummary` 与仓库本地摘要保留
+  source snapshot 中已经冻结的 `jdId`、JD 标题和目标岗位；只读聚合使用逻辑 entry ID 将尚未保存到
+  云端的 tailored 草稿展示到对应 JD，云端 Resume ID 与 Application 实际使用关系仍分开计算。通用
+  草稿继续保持 `jdId=null`，已关联云端 Resume 仍以云端当前关系优先，没有新增关系表、业务写路径或
+  Renderer 直写。
+- 求职仓库默认岗位视角保持不变，“简历”改为次级“简历资产”；仓库顶部移除“生成通用简历”和
+  “添加投递文件”，JD 主操作改为“准备岗位简历”。用户原始投递文件的底层加密保存、聊天入口和浏览器
+  上传能力继续存在，但不再混入 Resume 列表或重复出现在每个 JD 详情；Resume→JD 改为可点击的反向
+  关系导航。首次实现曾将 Tracker 与 Agent 任务移出主导航；用户对照原页面后明确这两个成熟入口必须
+  保留，现已恢复侧栏“Agent 任务”和“投递追踪”，仓库内“投递记录”继续作为上下文快捷入口。暂停、
+  继续、撤销授权及 Tracker 全视图均未删除；恢复后 Renderer typecheck、行数门禁、production build 与
+  `git diff --check` 通过。
+- 权限与写入边界未改变：Resume 保存仍需质量门与不可变 Proposal，Application 仍要求真实 `resumeId`
+  并冻结 `resumeContentHashSnapshot`，Tracker/Experience/JD 写入继续走审批、Outbox 与乐观锁。新增本地
+  tailored/general 关系回归后，专项 28/28、全量 851/851 tests、957 个源文件行数门禁、Node/Preload/
+  Renderer typecheck、Node 与 Electron production build、`git diff --check` 全绿。首次 Electron 构建因
+  上级目录 dataless `package.json` 被 esbuild 读取而返回 `EPERM`；门禁期间仅以带 `trap` 的精确临时改名
+  绕过并已原位恢复，文件内容和属性未改变。真实本地 Electron 已启动到隐私知情同意页；未代用户接受，
+  因此登录后岗位/简历关系与窄窗口的本轮人工验收仍待用户完成隐私同意后复验。本轮没有 commit/push。
 
 ### E0–E6：独立经历仓库
 
@@ -3404,11 +3423,20 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   生成引导进入岗位链路。网页/Webmail 可通过宿主解析 file ID 并原样挂载，模型与 Renderer 永远拿不到路径，
   邮件发送仍由用户点击。
 - 自动门禁覆盖不可变字节、格式/20MB、hash 去重、跨重启、默认切换、全岗位不过滤、工具隔离、路径隐藏、
-  onboarding、投递文件筛选与清除本地数据；`npm run check` 全绿（955 个源文件均 ≤250 行、840/840 tests、Node/
+  onboarding、投递文件筛选与清除本地数据；`npm run check` 全绿（955 个源文件均 ≤250 行、843/843 tests、Node/
   Preload/Vue typecheck、Node/Electron production build）。真实 development Electron 使用无用户数据的
   合成 PDF 验证系统选择器、独立分组/详情、两个不同 JD 的相同可用列表、窄窗口、用户源文件筛选和 200%
   缩放；未点击“用于投递”、未调用真实模型、未打开外部站点或发送邮件。合成文件与本地测试资产已清理，
   本地测试仓库移入废纸篓可恢复；未 package、commit、push、上传或发版，S4.5 总状态不变。
+- 同日用户真实操作发现聊天回形针仍只能解析附件：根因是临时 `SelectedFileRegistry` 与持久投递文件仓库之间
+  没有桥接写工具，附件 notice 也只声明了解析路径。现新增
+  `save_selected_file_as_delivery_resume`，从用户本轮明确选择的 fileId 读取并再次验证原始字节，直接调用
+  同一加密仓库的 `importContent`，保存后设为首选；“作为/保存为原始简历、源文件、投递文件、保持原样、
+  不要修改”优先走该工具并硬禁 `parse_selected_file`、经历导入和全部写作工具。附件事件同步显示 `saved`。
+  先以三个确定性失败锁定工具缺失、notice 误导和状态未完成，修复后专项 16/16 通过。完整重启后的真实
+  development Electron 使用无用户数据 PDF 和自然指令“请把这个作为原始简历，保持原文件不做任何修改”
+  直接回复已原样保存，可用于任意岗位；未进入解析、经历导入或生成。两条测试对话、PDF 和本地投递资产均
+  已清理并移入废纸篓可恢复；邮件/外部站点未打开，未 package、commit、push、上传或发版。
 
 ## 明确不进入本路线
 

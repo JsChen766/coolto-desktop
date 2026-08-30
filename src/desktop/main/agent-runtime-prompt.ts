@@ -21,10 +21,11 @@ import { tailoredResumeFallbackDecision } from
   "../../resume/strategy/tailored-fallback.js";
 import { requestResumeStrategyChoice } from
   "../../resume/strategy/choice-approval.js";
-import { appendControlledAssistantMessage } from "./resume-run-feedback.js";
+import { replaceFailedResumeRunWithStrategyMessage } from
+  "./resume-strategy-messages.js";
 
 const STRATEGY_FALLBACK_MESSAGE =
-  "现有经历暂时无法支持一份可信、与该岗位足够匹配的针对性简历。继续改写容易产生弱相关或空泛内容，因此我不会再继续生成。你可以改用通用简历，或者不继续投递这个岗位。";
+  "现有经历与这个岗位的匹配度太低，无法在不编造事实的前提下生成可信的针对性简历。你可以直接使用通用简历继续投递，或者不继续投递这个岗位。";
 
 export interface AgentPromptExecutionInput {
   prompt: AgentPromptInput;
@@ -87,7 +88,7 @@ export async function executeAgentPrompt(
   const proposed = context.workspaceStore.latest();
   const strategyFallback = tailoredResumeFallbackDecision(
     proposed,
-    context.agent.outputRepetitionReason,
+    context.agent.runGuardStopReason,
   );
   if (runStopError && proposed && strategyFallback) {
     await requestResumeStrategyChoice(
@@ -95,7 +96,7 @@ export async function executeAgentPrompt(
       proposed,
       strategyFallback,
     );
-    const messages = appendControlledAssistantMessage(
+    const messages = replaceFailedResumeRunWithStrategyMessage(
       context.agent.getMessages(),
       STRATEGY_FALLBACK_MESSAGE,
     );

@@ -54,7 +54,11 @@ export function repositoryResume(
   };
 }
 
-export function localRepositoryResume(id: string): ResumeLibraryEntry {
+export function localRepositoryResume(
+  id: string,
+  jdId: string | null = null,
+  generationStrategy: "tailored" | "general" = "tailored",
+): ResumeLibraryEntry {
   return {
     entryId: `local:${id}`,
     displayTitle: `Local ${id}`,
@@ -62,10 +66,13 @@ export function localRepositoryResume(id: string): ResumeLibraryEntry {
     local: {
       artifactId: id,
       title: `Local ${id}`,
+      jdId,
+      jdTitle: jdId ? `JD ${jdId}` : null,
+      targetRole: jdId ? `Role ${jdId}` : null,
       updatedAt: AT,
       checkpointCount: 1,
       hasPendingChange: false,
-      generationStrategy: "tailored",
+      generationStrategy,
       generationReady: false,
     },
     syncStatus: "local_only",

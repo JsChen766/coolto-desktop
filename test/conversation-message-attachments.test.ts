@@ -114,6 +114,8 @@ test("attachment notice names the files and is stripped from presentation", () =
   assert.match(notice, /经历仓库同步确认卡/u);
   assert.match(notice, /resume\.pdf（PDF）/u);
   assert.match(notice, /parse_selected_file/u);
+  assert.match(notice, /save_selected_file_as_delivery_resume/u);
+  assert.match(notice, /不得调用 parse_selected_file/u);
 
   const presented = presentConversationContent(
     `请导入简历\n\n${notice}`,

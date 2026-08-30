@@ -25,12 +25,12 @@ export function useJobFlowNavigation(deps: JobFlowDependencies) {
   const trackerContext = ref<TrackerNavigationContext>({});
 
   function openRepositoryTracker(
-    asset: TrackerAssetTarget,
+    asset?: TrackerAssetTarget,
     create?: Partial<ApplicationCreateInput>,
   ): void {
     deps.closeNarrowSidebar();
     trackerContext.value = {
-      asset,
+      ...(asset ? { asset } : {}),
       ...(create ? { create } : {}),
       returnToRepository: copyNavigation(jobRepositoryNavigation.value),
     };

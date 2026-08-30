@@ -34,6 +34,7 @@ import { continueAfterResumeAugmentation } from "./resume-augmentation-resolutio
 import { restoreLatestInProgressResume } from "./resume-drafts/resume-conversation-restorer.js";
 import { ConversationRunGate } from "./conversation-run-gate.js";
 import { continueAfterResumeStrategyChoice, pendingResumeStrategyChoice } from "./resume-strategy-continuation.js";
+import { activateBestAvailableGeneralResume } from "./resume-strategy-general-selection.js";
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore;
   readonly #resumeDrafts: ResumeDraftService;
@@ -53,7 +54,7 @@ export class DesktopAgentRuntime {
     browserPageOperator: BrowserPageOperator, agentHarness: AgentHarnessServices,
     agentTaskProposals: AgentTaskProposalService, resumePublications: ResumePublicationGateway,
     applications: ApplicationSyncStore, applicationProposals: ApplicationProposalService,
-    deliveryResumeFiles: import("../../delivery-resume-files/types.js").DeliveryResumeFileSource,
+    deliveryResumeFiles: import("../../delivery-resume-files/types.js").DeliveryResumeFileStore,
     mailConnections: MailConnectionRegistry, interviews: InterviewSyncStore,
     interviewProposals: InterviewProposalService, experiences: ExperienceReader & ExperienceWriter,
     jds: JdReader & JdWriter, profiles: UserProfileReader,
@@ -84,9 +85,7 @@ export class DesktopAgentRuntime {
       syncNow: this.syncNow,
     });
   }
-  public get isRunning(): boolean {
-    return this.#runGate.isRunning;
-  }
+  public get isRunning(): boolean { return this.#runGate.isRunning; }
   public async prompt(input: AgentPromptInput): Promise<ConversationDetail> {
     const conversationId = input.conversationId;
     const context = await this.#contextFor(conversationId);
@@ -160,9 +159,7 @@ export class DesktopAgentRuntime {
     ).then(() => undefined);
   }
 
-  public generationTrace(conversationId: string) {
-    return this.#traces.latestForConversation(conversationId);
-  }
+  public generationTrace(conversationId: string) { return this.#traces.latestForConversation(conversationId); }
 
   public async resolveApproval(
     conversationId: string,
@@ -223,7 +220,11 @@ export class DesktopAgentRuntime {
       }
       await continueAfterResumeStrategyChoice({ choice: resumeStrategyChoice,
         cancelled: this.#cancelRequested, agent: context.agent,
-        events: this.#events, conversationId });
+        events: this.#events, conversationId,
+        useGeneralResume: () => activateBestAvailableGeneralResume({
+          conversationId, drafts: this.#resumeDrafts, conversations: this.#store,
+          context, events: this.#events,
+        }) });
       return await this.#enqueuePersist(() =>
         this.#store.saveMessages(conversationId, context.agent.getMessages()),
       );
@@ -231,9 +232,7 @@ export class DesktopAgentRuntime {
       failed = true;
       throw error;
     } finally {
-      if (failed) {
-        await this.#persistSnapshot(conversationId, context.agent).catch(() => {});
-      }
+      if (failed) await this.#persistSnapshot(conversationId, context.agent).catch(() => {});
       this.#runGate.finish(conversationId);
     }
   }

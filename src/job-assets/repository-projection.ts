@@ -46,6 +46,7 @@ export function projectJobRepository(
     cloudEntries.map((entry) => [entry.cloud!.resumeId, entry]),
   );
   const resumeSummaryById = resumeSummaries(assets);
+  const targetedEntryIds = groupTargetedEntryIds(input.resumes);
 
   return {
     jds: assets.jds.map((asset) => buildJd(
@@ -53,6 +54,7 @@ export function projectJobRepository(
       jdById,
       resumeById,
       asset.resumes.map((resume) => resume.resume.id),
+      targetedEntryIds.get(asset.jd.id) ?? [],
       asset.applicationSummary,
       applications,
     )),
@@ -73,6 +75,7 @@ function buildJd(
   jds: ReadonlyMap<string, JdRecord>,
   resumes: ReadonlyMap<string, ResumeLibraryEntry>,
   targetedResumeIds: readonly string[],
+  targetedResumeEntryIds: readonly string[],
   applicationSummary: ApplicationSummary,
   allApplications: readonly ApplicationRecord[],
 ): JobRepositoryJd {
@@ -90,6 +93,7 @@ function buildJd(
     syncStatus: jd.syncStatus ?? "clean",
     updatedAt: jd.updatedAt,
     targetedResumeIds,
+    targetedResumeEntryIds,
     otherUsedResumes: uniqueOtherResumeReferences(
       applications,
       new Set(targetedResumeIds),
@@ -107,6 +111,7 @@ function buildResume(
   allApplications: readonly ApplicationRecord[],
 ): JobRepositoryResume {
   const resumeId = entry.cloud?.resumeId ?? null;
+  const targetJdId = resumeTargetJdId(entry);
   const applications = resumeId
     ? recentApplications(allApplications.filter((item) => item.resumeId === resumeId))
     : [];
@@ -114,8 +119,8 @@ function buildResume(
     entry,
     resumeId,
     artifactId: entry.local?.artifactId ?? null,
-    kind: resumeKind(entry, jds),
-    primaryJd: jdReference(entry.cloud?.jdId ?? null, null, jds),
+    kind: resumeKind(entry, targetJdId, jds),
+    primaryJd: jdReference(targetJdId, entry.local?.jdTitle ?? null, jds),
     appliedJds: uniqueJdReferences(applications, jds),
     applicationSummary: resumeId
       ? required(summaries.get(resumeId), `Resume summary ${resumeId} is missing`)
@@ -137,11 +142,28 @@ function resumeSummaries(
 
 function resumeKind(
   entry: ResumeLibraryEntry,
+  targetJdId: string | null,
   jds: ReadonlyMap<string, JdRecord>,
 ): JobRepositoryResumeKind {
-  if (!entry.cloud) return "local_only";
-  if (!entry.cloud.jdId) return "generic";
-  return jds.has(entry.cloud.jdId) ? "targeted" : "missing_jd";
+  if (targetJdId) return jds.has(targetJdId) ? "targeted" : "missing_jd";
+  if (entry.cloud || entry.local?.generationStrategy === "general") return "generic";
+  return "local_only";
+}
+
+function resumeTargetJdId(entry: ResumeLibraryEntry): string | null {
+  return entry.cloud?.jdId ?? entry.local?.jdId ?? null;
+}
+
+function groupTargetedEntryIds(
+  resumes: readonly ResumeLibraryEntry[],
+): Map<string, string[]> {
+  const grouped = new Map<string, string[]>();
+  for (const resume of resumes) {
+    const jdId = resumeTargetJdId(resume);
+    if (!jdId) continue;
+    grouped.set(jdId, [...(grouped.get(jdId) ?? []), resume.entryId]);
+  }
+  return grouped;
 }
 
 function recentApplications(

@@ -9,7 +9,11 @@ import {
 } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-import { validateDeliveryResumeFile } from "./file-validation.js";
+import {
+  validateDeliveryResumeContent,
+  validateDeliveryResumeFile,
+  type ValidatedDeliveryResumeFile,
+} from "./file-validation.js";
 import { replaceDeliveryResumeFile } from "./atomic-file.js";
 import {
   emptyDeliveryResumeManifest,
@@ -49,7 +53,21 @@ export class DeliveryResumeFileRepository implements DeliveryResumeFileSource {
   }
 
   public async importFile(path: string): Promise<DeliveryResumeFile> {
-    const validated = await validateDeliveryResumeFile(path);
+    return this.#importValidated(await validateDeliveryResumeFile(path));
+  }
+
+  public async importContent(
+    filename: string,
+    content: Uint8Array,
+  ): Promise<DeliveryResumeFile> {
+    return this.#importValidated(
+      validateDeliveryResumeContent(filename, content),
+    );
+  }
+
+  async #importValidated(
+    validated: ValidatedDeliveryResumeFile,
+  ): Promise<DeliveryResumeFile> {
     const manifest = await this.#readManifest();
     const duplicate = manifest.files.find(
       (file) => file.sha256 === validated.metadata.sha256,

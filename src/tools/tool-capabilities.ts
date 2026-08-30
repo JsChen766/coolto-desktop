@@ -143,6 +143,9 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
   if (tool.name === "select_delivery_resume_file") return metadata({
     scope: "delivery_resume_file.select", fresh: false,
   });
+  if (tool.name === "save_selected_file_as_delivery_resume") return metadata({
+    scope: "delivery_resume_file.create", fresh: false,
+  });
   const sequential = tool.executionMode === "sequential";
   return metadata({
     scope: `app.tool.${tool.name}`,

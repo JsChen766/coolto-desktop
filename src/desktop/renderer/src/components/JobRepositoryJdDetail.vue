@@ -7,12 +7,10 @@ import {
   Link2Off,
   Send,
   Sparkles,
-  Star,
 } from "@lucide/vue";
 import { computed } from "vue";
 
 import type {
-  DeliveryResumeFile,
   JobRepositoryJd,
   JobRepositoryResume,
 } from "@desktop/types";
@@ -29,7 +27,6 @@ import JobRepositoryApplicationList from "./JobRepositoryApplicationList.vue";
 const props = defineProps<{
   jd: JobRepositoryJd;
   resumes: readonly JobRepositoryResume[];
-  deliveryResumeFiles: readonly DeliveryResumeFile[];
 }>();
 
 defineEmits<{
@@ -39,14 +36,11 @@ defineEmits<{
   record: [];
   tracker: [];
   resume: [entryId: string];
-  deliveryFile: [file: DeliveryResumeFile];
 }>();
 
 const targetedResumes = computed(() => {
-  const ids = new Set(props.jd.targetedResumeIds);
-  return props.resumes.filter((resume) =>
-    resume.resumeId ? ids.has(resume.resumeId) : false,
-  );
+  const ids = new Set(props.jd.targetedResumeEntryIds);
+  return props.resumes.filter((resume) => ids.has(resume.entry.entryId));
 });
 const recentApplications = computed(() => props.jd.applications.slice(0, 3));
 const relatedResumeCount = computed(
@@ -87,7 +81,7 @@ function resumeEntryId(resumeId: string | null): string | undefined {
       </div>
       <div class="repository-detail-actions">
         <button class="primary-button icon-label" type="button" @click="$emit('generate')">
-          <Sparkles :size="14" aria-hidden="true" />{{ $t('生成针对性简历') }}
+          <Sparkles :size="14" aria-hidden="true" />{{ $t('准备岗位简历') }}
         </button>
         <button class="secondary-button icon-label" type="button" @click="$emit('record')">
           <Send :size="14" aria-hidden="true" />{{ $t('记录投递') }}
@@ -131,7 +125,7 @@ function resumeEntryId(resumeId: string | null): string | undefined {
             <FileText :size="15" aria-hidden="true" />
             <span>
               <strong>{{ resume.entry.displayTitle }}</strong>
-              <small>{{ resume.entry.cloud?.targetRole ?? $t('未填写目标岗位') }}</small>
+              <small>{{ resume.entry.cloud?.targetRole ?? resume.entry.local?.targetRole ?? $t('未填写目标岗位') }}</small>
             </span>
             <span class="repository-reference-badges">
               <span class="repository-relation-badge">{{ $t('针对本岗位') }}</span>
@@ -167,33 +161,8 @@ function resumeEntryId(resumeId: string | null): string | undefined {
           </button>
         </div>
         <p v-else class="repository-section-empty">
-          {{ $t('暂无关联简历，可先生成针对性简历。') }}
+          {{ $t('暂无关联简历，可先准备这份岗位的简历。') }}
         </p>
-      </section>
-
-      <section v-if="deliveryResumeFiles.length" class="repository-section">
-        <div class="repository-section-heading">
-          <h3>{{ $t('可直接用于此岗位的投递文件') }}</h3>
-          <span>{{ deliveryResumeFiles.length }}</span>
-        </div>
-        <p class="delivery-resume-section-copy">
-          {{ $t('用户源文件不参与相关性判断；你可以指定其中任何一份用于这个岗位。') }}
-        </p>
-        <div class="repository-reference-list">
-          <button
-            v-for="file in deliveryResumeFiles"
-            :key="file.id"
-            type="button"
-            @click="$emit('deliveryFile', file)"
-          >
-            <Star :size="15" :fill="file.preferred ? 'currentColor' : 'none'" aria-hidden="true" />
-            <span>
-              <strong>{{ file.title }}</strong>
-              <small>{{ file.originalFilename }} · {{ $t('仅本机') }}</small>
-            </span>
-            <span class="repository-relation-badge">{{ $t('用于投递') }}</span>
-          </button>
-        </div>
       </section>
 
       <section class="repository-section">

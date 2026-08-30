@@ -149,6 +149,7 @@ export const detailMessages: Record<string, string> = {
   "可以新建经历，也可以回到对话从现有简历导入。": "Create a new experience or return to chat to import from an existing resume.",
   "当前表单内容尚未进入确认步骤，离开后这些修改会丢失。": "These form changes have not reached confirmation and will be lost if you leave.",
   "暂无关联简历，可先生成针对性简历。": "No linked resumes. You can generate a targeted resume first.",
+  "暂无关联简历，可先准备这份岗位的简历。": "No linked resume yet. Prepare one for this role first.",
   "分": "pts",
   "好的": "OK",
   "已处理": "Resolved",

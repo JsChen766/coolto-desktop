@@ -40,6 +40,7 @@ export interface JobRepositoryJd {
   syncStatus: TrackerSyncStatus;
   updatedAt: string;
   targetedResumeIds: readonly string[];
+  targetedResumeEntryIds: readonly string[];
   otherUsedResumes: readonly JobRepositoryReference[];
   applicationSummary: ApplicationSummary;
   applications: readonly JobRepositoryApplication[];

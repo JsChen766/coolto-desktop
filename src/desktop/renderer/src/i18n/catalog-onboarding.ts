@@ -21,8 +21,8 @@ export const onboardingMessages: Record<string, string> = {
   "请选择下一步": "Choose what to do next",
   "这份岗位暂时无法生成可信的针对性简历":
     "A credible tailored resume cannot be produced for this role",
-  "现有经历与该岗位的直接匹配证据有限，继续改写容易产生弱相关或空泛内容。你可以改用通用简历，或者不继续投递这个岗位。":
-    "Your current experience has limited direct evidence for this role. Further rewriting would risk weak or generic content. You can use your general resume or stop this application.",
+  "现有经历与这个岗位的匹配度太低，继续改写容易产生弱相关或空泛内容。你可以直接使用通用简历继续投递，或者不继续投递这个岗位。":
+    "Your experience is too weakly matched to this role. Further rewriting would risk generic or irrelevant content. You can continue with your general resume or stop this application.",
   "使用通用简历": "Use general resume",
   "不继续投递": "Stop this application",
 };

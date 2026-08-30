@@ -1,5 +1,5 @@
 export const domainMessages: Record<string, string> = {
-  "投递记录": "Application",
+  "投递记录": "Applications",
   "记录一次投递": "Record an application",
   "记录投递": "Record application",
   "刷新投递记录": "Refresh applications",
@@ -154,6 +154,8 @@ export const domainMessages: Record<string, string> = {
   "岗位要求": "Job requirements",
   "JD 原始内容": "Original JD",
   "生成针对性简历": "Generate targeted resume",
+  "准备岗位简历": "Prepare role resume",
+  "简历资产": "Resume assets",
   "匹配经历": "Match experiences",
   "查看全部投递": "View all applications",
   "简历概览": "Resume overview",

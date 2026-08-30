@@ -36,9 +36,22 @@ export async function validateDeliveryResumeFile(
   if (fileStat.size > MAX_SIZE_BYTES) {
     throw new Error(`投递文件超过 20MB：${filename}`);
   }
-  const format = FILE_TYPES.get(extname(path).toLocaleLowerCase());
-  if (!format) throw new Error("用户原始简历仅支持 PDF 或 DOCX");
   const content = await readFile(path);
+  return validateDeliveryResumeContent(filename, content, now);
+}
+
+export function validateDeliveryResumeContent(
+  inputFilename: string,
+  content: Uint8Array,
+  now = new Date().toISOString(),
+): ValidatedDeliveryResumeFile {
+  const filename = basename(inputFilename);
+  const format = FILE_TYPES.get(extname(filename).toLocaleLowerCase());
+  if (!format) throw new Error("用户原始简历仅支持 PDF 或 DOCX");
+  if (content.byteLength <= 0) throw new Error(`投递文件为空：${filename}`);
+  if (content.byteLength > MAX_SIZE_BYTES) {
+    throw new Error(`投递文件超过 20MB：${filename}`);
+  }
   assertSignature(format.type, content, filename);
   return {
     metadata: {
@@ -53,7 +66,7 @@ export async function validateDeliveryResumeFile(
       createdAt: now,
       updatedAt: now,
     },
-    content,
+    content: new Uint8Array(content),
   };
 }
 
