@@ -27,7 +27,7 @@ export function createPrepareExperienceSyncTool(
     name: "prepare_experience_sync",
     label: "准备同步补充经历",
     description:
-      "兼容旧草稿的恢复工具。正常 add_resume_material 后宿主会自动展示经历仓库同步确认卡，不要重复调用；只有权威回执明确要求恢复确认卡时，才一次把所选经历的全部用户补充事实准备为更新确认。接受前不写入，原始 source snapshot 保持不变。",
+      "仅兼容旧草稿中已经存在的历史审批，不用于新材料。正常 add_resume_material 后宿主会自动追加 Experience 纯文本正文，不再准备同步确认卡；除非权威回执明确要求恢复旧审批，否则禁止调用。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {

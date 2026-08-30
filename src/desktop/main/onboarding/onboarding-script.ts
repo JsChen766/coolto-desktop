@@ -109,7 +109,7 @@ export function onboardingCompletedMessages(
       "- Preparing a resume from a JD",
       "- Using the built-in browser to assist with form filling",
       "- Viewing progress in application tracking", "",
-      "Start a new conversation with your own JD, or import real experience material.",
+      "Start by adding real experience material. Upload a resume or supporting document, paste a relevant webpage, or tell Coolto about an experience.",
     ].join("\n"), firstTimestamp + 1),
   ] as AgentMessage[];
   return [
@@ -127,7 +127,7 @@ export function onboardingCompletedMessages(
       "- 使用内置浏览器辅助填写",
       "- 在投递追踪中查看进度",
       "",
-      "接下来可以新建对话，粘贴自己的 JD，或先导入真实经历材料。",
+      "接下来先沉淀真实经历：上传简历或成果文件、粘贴相关网页链接，或者直接告诉 Coolto 一段经历。材料中的数字、关键产出和完整逻辑会自动写入经历仓库。",
     ].join("\n"), firstTimestamp + 1),
   ] as AgentMessage[];
 }

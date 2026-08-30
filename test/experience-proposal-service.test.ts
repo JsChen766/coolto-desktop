@@ -4,6 +4,10 @@ import test from "node:test";
 import { ExperienceMutationExecutor } from "../src/desktop/main/experience-library/experience-mutation-executor.js";
 import { ExperienceProposalService } from "../src/desktop/main/experience-library/experience-proposal-service.js";
 import { buildLocalExperience } from "../src/desktop/main/experience-library/experience-sync-mapping.js";
+import { toExperienceDetail } from "../src/desktop/main/experience-library/experience-sync-mapping.js";
+import { LocalExperienceMaterialCommitter } from
+  "../src/desktop/main/experience-library/experience-material-committer.js";
+import { stripMaterialMarkers } from "../src/experience/material-content.js";
 import type { LocalSyncStore } from "../src/desktop/main/sync/local-sync-store.js";
 import type {
   EnqueueMutation,
@@ -194,4 +198,41 @@ test("proposal execution rejects local-version drift", async () => {
     /经历已变化/,
   );
   assert.equal(local.writes.length, 0);
+});
+
+test("material commit auto-executes one import revision and deduplicates by source hash", async () => {
+  const local = new FakeLocalSyncStore();
+  const proposals = service(local);
+  const committer = new LocalExperienceMaterialCommitter({
+    searchExperiences: async () => ({ items: [], nextCursor: null }),
+    getExperience: async () => toExperienceDetail(local.entity),
+  }, proposals);
+  const input = {
+    target: { kind: "existing" as const, experienceId: "exp-1" },
+    sourceHash: "a".repeat(64), sourceLabel: "report.pdf",
+    capturedAt: "2026-08-30T00:00:00Z",
+    numberCount: 3, criticalOutputCount: 2,
+    sections: [
+      { label: "第 1 页", text: "完成 10 页研究报告。" },
+      { label: "第 2 页", text: "覆盖 15 家公司并输出投资建议。" },
+    ],
+  };
+  const first = await committer.commit(input);
+  assert.equal(first.sectionCount, 2);
+  assert.equal(local.writes.length, 1);
+  assert.equal(local.writes[0]?.payload.source, "import");
+  assert.match(String(local.writes[0]?.payload.content), /10 页研究报告/u);
+  assert.doesNotMatch(
+    stripMaterialMarkers(String(local.writes[0]?.payload.content)),
+    /材料指纹/u,
+  );
+  assert.equal(
+    (local.writes[0]?.localPayload?.currentRevision as { revisionNumber?: number })
+      ?.revisionNumber,
+    2,
+  );
+
+  const repeated = await committer.commit(input);
+  assert.equal(repeated.duplicate, true);
+  assert.equal(local.writes.length, 1);
 });

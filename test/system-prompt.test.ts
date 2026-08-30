@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v147");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v149");
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
@@ -56,10 +56,10 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /同名重复记录/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /绝不能用 __pending__/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /contentMode=fact_neutral/);
-  assert.match(COOLTO_SYSTEM_PROMPT, /不要先询问用户是否同步/u);
-  assert.match(COOLTO_SYSTEM_PROMPT, /全部可核验的具体事实/u);
-  assert.match(COOLTO_SYSTEM_PROMPT, /无论简历是否已经达标/u);
-  assert.match(COOLTO_SYSTEM_PROMPT, /经历仓库同步确认卡/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /begin_experience_material_ingestion/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /尽可能丰富的自然文本/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /纯文本正文/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /record_experience_material_chunk/u);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /repair_bullet_depth/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /tailExpansions/);
   assert.match(COOLTO_SYSTEM_PROMPT, /保存和导出不是 Agent 行为/);

@@ -3466,13 +3466,49 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   第二次启动不再强制出现。自动门禁 `npm run check` 全绿：973 个源文件均 ≤250 行、861/861 tests、Node/
   Preload/Renderer typecheck、Node/Electron production build 与 `git diff --check` 通过。当前 Browser Enhance BE5、
   S4.5 生成质量状态与邮箱/Calendar 路线均未改变；未 package、commit、push、上传或发版。
+- 同日按用户确认收口首次体验与新对话入口：引导结束不再把粘贴 JD 与经历材料并列，而是先提示建立真实
+  经历仓库；主操作清理示例后进入新的真实对话，上传文档、粘贴网页链接和直接讲述分别复用现有附件、
+  Composer 草稿与 Agent 路径，“稍后再说”仍可只完成清理。只要 Experience 为空，即使已有原始投递文件也
+  不再跳过经历沉淀入口。活跃求职空状态删除“准备面试问题”和“整理我的经历”两个泛化 prompt，改为同一行
+  的“浏览求职网站 / 管理岗位与简历 / 查看投递进度”，点击直接进入既有 Browser、求职仓库与 Tracker，
+  不创建聊天消息或调用模型。真实 development Electron 已确认三个入口可见且求职仓库导航生效；完整引导
+  重放未再次执行。`npm run check` 全绿：977 个源文件均 ≤250 行、862/862 tests、Node/Preload/Renderer
+  typecheck、Node/Electron production build 与 `git diff --check` 通过；未 package、commit、push、上传或发版。
+- 同日用户进一步确认放弃独立 ExperienceEvidence，统一以 Experience 当前 revision 的长纯文本作为未来
+  简历职业事实源。现新增宿主管理的材料沉淀状态机：PDF 保留页级边界，DOCX/TXT/Markdown 和当前网页按
+  最多 6000 字分块，直接用户长文本走同一路径；材料正文最多 180,000 字，超过时明确要求拆分，不再沿用
+  80,000 字静默截断。`begin_experience_material_ingestion` 固定材料快照并逐块返回全部数量短语、关键产出
+  候选和最低详细度；`record_experience_material_chunk` 要求短块完整保留，长块至少达到原块 80%（上限
+  5000 字），数字必须连同单位/限定词保留，报告、模型、系统、方案、论文、数据集、合同、营收、转化、
+  结论等关键产出句的完整原始信息必须进入正文，否则宿主拒绝推进同一块。最低字符数只是防止过度压缩，
+  不是 Agent 的总结目标；JD/岗位描述和原样投递文件明确排除在经历材料自动沉淀之外。
+  多经历材料不会整份复制到每个 Experience：Agent 必须逐段提交相关的连续原文片段，宿主逐字验证片段
+  确实存在于固定材料快照后才进入对应经历，避免串库和模型补造；直接聊天文本强制要求原文片段，
+  不允许把“请保存/沉淀”等操作指令一并写入经历正文。
+  全部分块通过后才一次合并为带材料标题/日期/页标签的正文块，经内部 Experience Proposal 自动进入
+  LocalSyncStore/Outbox，并且每个目标 Experience 只创建一个 `source=import` revision；材料 hash 嵌入隐藏
+  标记用于跨重启重复导入去重，Renderer 和简历 source snapshot 均过滤该标记。用户明确目标时直接关联，
+  无可靠匹配时可自动创建新 Experience；一份材料涉及多段经历时逐段运行。现有简历补材也按 Experience
+  分组自动追加正文，不再弹同步确认卡；旧 `prepare_experience_sync` 仅保留历史兼容。独立 Evidence 的
+  App/Backend WIP 已从当前实现路线撤回，后端不需要新表或新同步实体。十页 PDF fixture 已验证 10 个页级
+  分块全部接受前零写入、最后只提交一次；超过旧 80,000 字边界的长文本不截断，网页、直接文本、数字缺失、
+  关键产出缺失、并发正文漂移、跨经历原文片段和重复材料均有回归测试。真实 development Electron 经干净
+  重启后，以 QA Byte Lab「产品运营实习生」跑通直接文本：搜索 → 固定原文片段 → 宿主覆盖检查 → 自动
+  Experience Proposal，最终新增 397 字、1 个分块、完整保留 6 个数量短语，当前版本显示来源“导入”；
+  聊天操作指令未进入正文，内部材料指纹在当前正文和历史视图均不可见。再次发送同一材料返回
+  `duplicate=true / addedCharacters=0`，没有产生第二个 revision。首次验收暴露的陈旧主进程工具与文本指令
+  污染已通过干净重启和宿主强制 `selectedTexts` 修复；缺少片段现在返回可恢复回执而非可见工具异常，QA
+  正文先恢复再以正确材料重跑。最终 `npm run check` 全绿：984 个源文件均 ≤250 行、875/875 tests、
+  Node/Preload/Renderer typecheck、Node/Electron production
+  build 与 `git diff --check` 通过。真实写入已进入 LocalSyncStore/Outbox；本轮后端离线，云端 replay 未复验，
+  但没有新增或修改后端契约。未 package、commit、push、上传或发版。
 
 ## 明确不进入本路线
 
 - ResumeDraft/checkpoint 和用户原始投递文件的云端同步；
 - Experience 归属于 JD/Resume/Application 的永久绑定；
 - JD 或 Resume 自己保存第二套投递状态；
-- FactBank、事实证据/RAG UI、云端材料库、图片关联或原始文件上传；
+- 通用 FactBank、RAG/向量库、云端材料库、图片关联或原始文件上传；
 - LLM/Agent 后端化；
 - 支付链路、正式定价和订阅 Provider；
 - 浏览器自动投递、邮箱读取和招聘网站自动化。

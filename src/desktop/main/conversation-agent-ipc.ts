@@ -53,10 +53,10 @@ export function registerConversationAgentIpc(
       throw new Error("Agent 回复期间不能更换附件");
     }
     const selection = await dialog.showOpenDialog(window, {
-      title: "选择简历附件",
+      title: "选择经历材料",
       properties: ["openFile"],
       filters: [{
-        name: "简历文件",
+        name: "文档材料",
         extensions: ["pdf", "docx", "txt", "md", "markdown"],
       }],
     });
@@ -120,6 +120,7 @@ export const CONVERSATION_AGENT_IPC_CHANNELS = [
   "conversations:delete",
   "attachments:list",
   "attachments:select",
+  "attachments:select-path",
   "attachments:remove",
   "agent:prompt",
   "agent:cancel",

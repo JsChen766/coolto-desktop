@@ -29,15 +29,15 @@ import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { readConfig } from "../../config.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
-import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
+import type { ExperienceProposalService } from "./experience-library/experience-proposal-service.js";
 import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
 import { restoreLatestInProgressResume } from "./resume-drafts/resume-conversation-restorer.js";
 import { ConversationRunGate } from "./conversation-run-gate.js";
 import { continueAfterResumeStrategyChoice, pendingResumeStrategyChoice } from "./resume-strategy-continuation.js";
 import { activateBestAvailableGeneralResume } from "./resume-strategy-general-selection.js";
+import { LocalExperienceMaterialCommitter } from "./experience-library/experience-material-committer.js";
 export class DesktopAgentRuntime {
-  readonly #store: ConversationStore;
-  readonly #resumeDrafts: ResumeDraftService;
+  readonly #store: ConversationStore; readonly #resumeDrafts: ResumeDraftService;
   readonly #events: AgentRuntimeEvents;
   readonly #contextFactory: AgentContextFactory;
   readonly #traces = new ResumeGenerationTraceStore();
@@ -59,14 +59,15 @@ export class DesktopAgentRuntime {
     interviewProposals: InterviewProposalService, experiences: ExperienceReader & ExperienceWriter,
     jds: JdReader & JdWriter, profiles: UserProfileReader,
     profileProposals: ProfileProposalExecutor,
-    experienceSyncProposals: ResumeExperienceSyncProposalPort,
+    experienceProposals: ExperienceProposalService,
     private readonly compactionThreshold: () => Promise<number | undefined>,
     private readonly syncNow: () => Promise<SyncNowResult>,
   ) {
     this.#store = store;
     this.#resumeDrafts = resumeDrafts;
     this.#selectedFiles = selectedFiles;
-    this.#events = new AgentRuntimeEvents(target, store, resumeDrafts, this.#traces);
+    this.#events = new AgentRuntimeEvents(target, store, resumeDrafts, this.#traces,
+      new LocalExperienceMaterialCommitter(experiences, experienceProposals));
     this.#contextFactory = new AgentContextFactory({
       apiClient,
       resumeCompiler,
@@ -79,7 +80,7 @@ export class DesktopAgentRuntime {
       jds,
       profiles,
       profileProposals,
-      experienceSyncProposals, resumeDrafts,
+      experienceProposals, resumeDrafts,
       events: this.#events,
       traces: this.#traces,
       syncNow: this.syncNow,

@@ -9,7 +9,6 @@ import { ApprovalManager } from "../approvals/approval-manager.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
 import type { ResumePublicationGateway } from "../resume/save/types.js";
-import { createGetExperienceTool } from "./get-experience.js";
 import { createGetCurrentUserTool } from "./get-current-user.js";
 import { createGetUserProfileTool } from "./get-user-profile.js";
 import { createPrepareProfileUpdateTool } from "./prepare-profile-update.js";
@@ -22,7 +21,6 @@ import {
 import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
-import { createSearchExperiencesTool } from "./search-experiences.js";
 import { createSyncNowTool, type SyncNowResult } from "./sync-now.js";
 import { createResumeReadTools } from "./resume-tools.js";
 import { MatchReportStore } from "../match/report-store.js";
@@ -37,6 +35,9 @@ import type { ProfileProposalExecutor } from "../profile/types.js";
 import { ExperienceReferenceRegistry } from "./experience-reference-registry.js";
 import { applyToolCapabilities } from "./tool-capabilities.js";
 import type { CapabilityAgentTool } from "./tool-capabilities.js";
+import { createExperienceTools } from "./experience-tool-registry.js";
+import type { ExperienceMaterialIngestionStore } from
+  "../experience/material-ingestion-store.js";
 import type { TaskLifecycleController } from "../agent-task/task-lifecycle-controller.js";
 import { createAgentTaskLifecycleTools } from "./agent-task-lifecycle.js";
 import type { AgentTaskProposalService } from "../desktop/main/agent-task/agent-task-proposal-service.js";
@@ -63,6 +64,7 @@ export interface ToolRegistryDependencies extends LocalFileToolDependencies {
   userProfileReader?: UserProfileReader;
   profileProposals?: ProfileProposalExecutor;
   experienceReader?: ExperienceReader;
+  experienceMaterialIngestion?: ExperienceMaterialIngestionStore;
   jdReader?: JdReader;
   resumeReader?: ResumePublicationGateway;
   importProposalStore?: ExperienceImportProposalStore;
@@ -128,12 +130,7 @@ export function createToolRegistry(
   if (dependencies.resumeReader) {
     businessTools.push(...createResumeReadTools(dependencies.resumeReader, dependencies.jdReader, dependencies.agentOrchestrated?.resumeDraftReader));
   }
-  if (dependencies.experienceReader) {
-    businessTools.push(
-      createSearchExperiencesTool(dependencies.experienceReader),
-      createGetExperienceTool(dependencies.experienceReader),
-    );
-  }
+  businessTools.push(...createExperienceTools(dependencies));
   if (
     dependencies.experienceReader &&
     dependencies.importProposalStore &&

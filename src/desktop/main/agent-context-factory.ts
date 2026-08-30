@@ -24,7 +24,6 @@ import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
-import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
 import type { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import {
   createResumeGenerationFollowUp,
@@ -47,6 +46,12 @@ import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
 import type { InterviewProposalService } from "./tracker/interview-proposal-service.js";
 import type { DeliveryResumeFileStore } from
   "../../delivery-resume-files/types.js";
+import type { ExperienceProposalService } from
+  "./experience-library/experience-proposal-service.js";
+import { LocalExperienceMaterialCommitter } from
+  "./experience-library/experience-material-committer.js";
+import { ExperienceMaterialIngestionStore } from
+  "../../experience/material-ingestion-store.js";
 
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
@@ -67,7 +72,7 @@ export interface AgentContextFactoryDependencies {
   jds: JdReader & JdWriter;
   profiles: UserProfileReader;
   profileProposals: ProfileProposalExecutor;
-  experienceSyncProposals: ResumeExperienceSyncProposalPort;
+  experienceProposals: ExperienceProposalService;
   resumeDrafts: ResumeDraftService;
   events: AgentRuntimeEvents;
   traces: ResumeGenerationTraceStore;
@@ -109,7 +114,7 @@ export class AgentContextFactory {
       browserPageOperator: deps.browserPageOperator,
       resumeWorkspaceStore: workspaceStore,
       resumeCompiler,
-      resumeExperienceSyncProposals: deps.experienceSyncProposals,
+      resumeExperienceSyncProposals: deps.experienceProposals,
       resumeDrafts: deps.resumeDrafts,
       agentTaskProposals: deps.agentTaskProposals,
       answerVault: deps.agentHarness.answers,
@@ -126,6 +131,12 @@ export class AgentContextFactory {
       timestamp: number | undefined;
       text?: string;
     } = { timestamp: undefined };
+    const materialIngestion = new ExperienceMaterialIngestionStore(
+      selectedFiles,
+      new LocalExperienceMaterialCommitter(deps.experiences, deps.experienceProposals),
+      deps.browserAgentController,
+      () => currentUserMessage.text,
+    );
     const modelDependencies = createConfiguredModelDependencies(
       config,
       () => deps.apiClient.getSessionToken(),
@@ -150,6 +161,7 @@ export class AgentContextFactory {
       userProfileReader: deps.profiles,
       profileProposals: deps.profileProposals,
       experienceReader: deps.experiences,
+      experienceMaterialIngestion: materialIngestion,
       jdReader: deps.jds,
       resumeReader: deps.resumePublications,
       importProposalStore: proposalStore,
@@ -178,7 +190,7 @@ export class AgentContextFactory {
         resumeDraftReader: deps.resumeDrafts,
         currentUserMessageTimestamp: () => currentUserMessage.timestamp,
         approvalManager,
-        experienceSyncProposals: deps.experienceSyncProposals,
+        experienceSyncProposals: deps.experienceProposals,
       },
       syncNow: deps.syncNow,
     });
@@ -219,7 +231,7 @@ export class AgentContextFactory {
       jdProposalStore,
       matchReportStore,
       approvalManager,
-      experienceSyncProposals: deps.experienceSyncProposals,
+      experienceSyncProposals: deps.experienceProposals,
       artifactIdByCandidate: new Map(),
       currentUserMessage,
       compaction: {

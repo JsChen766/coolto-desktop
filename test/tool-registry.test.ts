@@ -101,6 +101,26 @@ test("experience references remain stable and resolve after workspace restore", 
   assert.equal(JSON.parse(content?.type === "text" ? content.text : "{}").experienceId, priorReference);
 });
 
+test("material ingestion resolves a short target Experience reference", async () => {
+  const canonicalId = "01a00a4f-f312-7132-8036-984b133ae3ea";
+  const registry = new ExperienceReferenceRegistry();
+  const reference = registry.referenceFor(canonicalId);
+  let received = "";
+  const wrapped = registry.wrap({
+    name: "begin_experience_material_ingestion", label: "test",
+    description: "test", parameters: {} as never,
+    execute: async (_callId, params) => {
+      received = (params as { target: { experienceId: string } }).target.experienceId;
+      return { content: [{ type: "text" as const, text: "{}" }], details: {} };
+    },
+  });
+  await wrapped.execute("material", {
+    source: { kind: "text" },
+    target: { kind: "existing", experienceId: reference },
+  });
+  assert.equal(received, canonicalId);
+});
+
 test("authenticated registry exposes the current user tool", async () => {
   const tools = createToolRegistry({
     currentUserReader: {

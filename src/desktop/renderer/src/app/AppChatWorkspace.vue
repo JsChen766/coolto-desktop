@@ -21,6 +21,7 @@ import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
 import ChatPendingAction from "./ChatPendingAction.vue";
 import ChatComposerHost from "./ChatComposerHost.vue";
+import { publishComposerDraft } from "../chat/composer-draft-channel";
 const props = defineProps<{
   shell: AppShell;
   composerDisabled?: boolean;
@@ -111,6 +112,7 @@ const GENERAL_RESUME_PROMPT =
               <EmptyState
                 v-if="current.messages.length === 0 && !running"
                 :stage="emptyStages.stage.value"
+                @draft-prompt="publishComposerDraft"
                 @use-prompt="send"
                 @open-experiences="openPrimaryView('experiences')"
                 @open-library="openPrimaryView('library')"

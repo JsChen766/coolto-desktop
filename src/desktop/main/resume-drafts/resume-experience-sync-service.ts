@@ -1,23 +1,15 @@
 import { createHash } from "node:crypto";
 
-import type { ApprovalManager } from "../../../approvals/approval-manager.js";
 import type { LocalResumeDraft } from "../../../resume/draft/types.js";
-import {
-  createExperienceSyncApprovalDraft,
-  createExperienceSyncPayload,
-} from "../../../resume/material/experience-sync-approval.js";
-import { prepareExperienceSyncProposals } from
-  "../../../resume/material/experience-sync-preparer.js";
-import type { ResumeExperienceSyncProposalPort } from
-  "../../../resume/material/experience-sync-port.js";
 import type { ResumeExperienceSyncDraftPort } from
   "../../../resume/material/experience-sync-port.js";
+import type { ExperienceMaterialCommitter } from
+  "../../../experience/material-ingestion-types.js";
 
-export async function requestDraftExperienceSyncApproval(input: {
+export async function syncDraftSupplementalMaterial(input: {
   draft: LocalResumeDraft;
   drafts: ResumeExperienceSyncDraftPort;
-  proposals: ResumeExperienceSyncProposalPort;
-  approvals: ApprovalManager;
+  committer: ExperienceMaterialCommitter;
 }): Promise<LocalResumeDraft> {
   const { draft, drafts } = input;
   const evidenceFingerprint = supplementalFingerprint(draft);
@@ -25,12 +17,26 @@ export async function requestDraftExperienceSyncApproval(input: {
     draft.experienceSync?.evidenceFingerprint === evidenceFingerprint) {
     return draft;
   }
-  let prepared;
   try {
-    prepared = await prepareExperienceSyncProposals(
-      draft.workspace,
-      input.proposals,
+    const groups = Map.groupBy(
+      draft.workspace.supplementalEvidence ?? [],
+      (item) => item.experienceId,
     );
+    for (const [experienceId, items] of groups) {
+      const text = items.map((item) => item.text.trim()).filter(Boolean).join("\n");
+      if (!text) continue;
+      await input.committer.commit({
+        target: { kind: "existing", experienceId },
+        sourceHash: createHash("sha256")
+          .update(`${draft.artifactId}\0${experienceId}\0${text}`)
+          .digest("hex"),
+        sourceLabel: "对话补充材料",
+        capturedAt: new Date().toISOString(),
+        numberCount: 0,
+        criticalOutputCount: 0,
+        sections: [{ label: "用户补充", text }],
+      });
+    }
   } catch {
     return drafts.markExperienceSync(draft.artifactId, {
       evidenceFingerprint,
@@ -38,17 +44,9 @@ export async function requestDraftExperienceSyncApproval(input: {
       updatedAt: new Date().toISOString(),
     });
   }
-  const approval = await input.approvals.request(
-    createExperienceSyncApprovalDraft(prepared),
-    createExperienceSyncPayload(prepared, {
-      artifactId: draft.artifactId,
-      evidenceFingerprint,
-    }),
-  );
   return drafts.markExperienceSync(draft.artifactId, {
     evidenceFingerprint,
-    status: "pending_approval",
-    approvalRequestId: approval.id,
+    status: "accepted",
     updatedAt: new Date().toISOString(),
   });
 }

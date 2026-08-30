@@ -138,7 +138,7 @@ export function useOnboarding(shell: AppShell) {
     }
   }
 
-  async function complete(): Promise<void> {
+  async function complete(startExperience: boolean): Promise<void> {
     if (busy.value) return;
     busy.value = true;
     error.value = undefined;
@@ -153,6 +153,7 @@ export function useOnboarding(shell: AppShell) {
       shell.activeView.value = "chat";
       shell.artifactOpen.value = false;
       active.value = false;
+      if (startExperience) await shell.createChat();
     } catch (cause) {
       error.value = messageOf(cause);
     } finally {

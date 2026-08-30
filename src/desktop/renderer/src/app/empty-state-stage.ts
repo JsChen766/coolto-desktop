@@ -18,7 +18,7 @@ export interface EmptyStateFacts {
 export function resolveEmptyStateStage(
   facts: EmptyStateFacts,
 ): EmptyStateStage {
-  if (facts.experienceCount === 0 && facts.deliveryResumeFileCount === 0) {
+  if (facts.experienceCount === 0) {
     return "experience_intake";
   }
   if (

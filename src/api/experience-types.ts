@@ -95,6 +95,7 @@ export interface ExperienceCreateInput {
   resumeSectionKey?: string | null;
   resumeSectionLabel?: string | null;
   status?: "active" | "archived";
+  revisionSource?: "manual" | "import" | "app_generated";
   idempotencyKey?: string;
 }
 
@@ -111,6 +112,7 @@ export interface ExperienceUpdateInput {
   resumeSectionKey?: string | null;
   resumeSectionLabel?: string | null;
   status?: "active" | "archived";
+  revisionSource?: "manual" | "import" | "app_generated";
 }
 
 export interface ExperienceWriter {

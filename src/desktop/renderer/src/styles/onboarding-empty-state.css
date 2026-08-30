@@ -11,6 +11,16 @@
   filter: brightness(0.88);
 }
 
+.suggestion-list.is-three-column {
+  width: min(680px, 100%);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.suggestion-list.is-three-column .suggestion-card span {
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .composer.guided-highlight {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 18%, transparent);
 }

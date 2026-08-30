@@ -51,7 +51,7 @@ export function buildExperienceUpdate(
     endDate: next.endDate,
     tags: [...next.tags],
     status: next.status,
-    source: "manual",
+    source: changes.revisionSource ?? "manual",
   };
   const localPayload: Record<string, unknown> = {
     ...entity.payload,
@@ -78,7 +78,7 @@ export function buildExperienceUpdate(
       id: revisionId,
       experienceId: current.id,
       content,
-      source: "manual",
+      source: changes.revisionSource ?? "manual",
       revisionHash: nextHash,
       revisionNumber: number,
       createdAt: now,

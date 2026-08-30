@@ -66,6 +66,9 @@ export const detailMessages: Record<string, string> = {
   "使用一个便于之后查找的标题。": "Use a title that will be easy to find later.",
   "删除这个对话？": "Delete this conversation?",
   "今天想完成什么？": "What would you like to accomplish today?",
+  "管理岗位与简历": "Jobs and resumes",
+  "选择一个入口，继续寻找岗位、准备材料或跟进投递。":
+    "Choose where to continue: find roles, prepare materials, or track applications.",
   "我可以读取你的经历，并帮助你准备求职材料。": "I can review your experience and help prepare your job-search materials.",
   "按月": "Month only",
   "精确到日": "Exact date",

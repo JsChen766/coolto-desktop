@@ -1,5 +1,15 @@
 export const onboardingMessages: Record<string, string> = {
   "先建立你的专属经历仓库": "Start with your personal experience library",
+  "上传简历或成果文件": "Upload a resume or supporting document",
+  "选择经历材料": "Choose experience material",
+  "粘贴网页链接": "Paste a webpage link",
+  "体验完成。现在，先建立你的经历仓库":
+    "Tour complete. Now build your experience library",
+  "上传现有简历、实习文章或成果文件，也可以粘贴相关网页链接；详细内容会自动沉淀到经历仓库。":
+    "Upload a resume, internship article or supporting document, or paste a relevant webpage. Detailed content is automatically added to your experience library.",
+  "上传简历、文章或成果文件，也可以粘贴网页链接；可核验的求职事实会自动汇入经历仓库。":
+    "Upload a resume, article or supporting document, or paste a webpage. Verifiable career facts are automatically added to your experience library.",
+  "清理示例并开始添加经历": "Clean up samples and add experience",
   "上传现有简历，或直接告诉我每段经历中做过什么、取得了哪些成果；我会帮你整理事实，并进一步生成一份高质量通用简历。":
     "Upload an existing resume, or tell me what you did and achieved in each experience. I’ll organize the facts and then create a high-quality general resume.",
   "上传现有简历": "Upload an existing resume",

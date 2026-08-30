@@ -34,7 +34,7 @@ export function createAddResumeMaterialTool(
     name: "add_resume_material",
     label: "加入用户补充材料",
     description:
-      "把当前用户回答或附件中可核验的事实一次完整加入指定经历。工作区正在追问时必须原样传回 nextAction.requestId。尽量保留具体背景、职责、方法、对象、数据、交付物和结果，不要只提交简历最终采用的少量事实；简历可择取部分内容，但经历仓库同步确认卡会保留本批全部事实。事实会追加为稳定 evidence，不修改初始 source snapshot，也不重新编译；随后用 apply_resume_content 批量改写。",
+      "把当前用户回答中可核验的事实一次完整加入指定经历。工作区正在追问时必须原样传回 nextAction.requestId。尽量保留背景、方法、对象、数字、产出、结果和结论，不要只提交简历最终采用的少量事实；宿主会把本批事实自动追加到对应 Experience 纯文本正文并创建一个 import revision，不再弹同步确认卡。事实仍会先作为当前 workspace 的 supplemental evidence 使用；随后用 apply_resume_content 批量改写。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {

@@ -87,9 +87,10 @@ const guide = computed(() => {
       action: applicationSeen.value ? "我已经了解投递追踪" : undefined,
     };
     case "complete": return {
-      title: "全流程体验完成",
-      description: "确认后立即清理全部示例数据和临时文件，只保留这条引导对话。",
-      action: "清理示例并完成体验",
+      title: "体验完成。现在，先建立你的经历仓库",
+      description: "上传现有简历、实习文章或成果文件，也可以粘贴相关网页链接；详细内容会自动沉淀到经历仓库。",
+      action: "清理示例并开始添加经历",
+      secondary: "稍后再说",
     };
     default: return { title: "正在准备一次性体验", description: "请稍候。" };
   }
@@ -103,8 +104,13 @@ async function primaryAction(): Promise<void> {
   } else if (step.value === "tracker" && applicationSeen.value) {
     await props.controller.advance("view_sample_application");
   } else if (step.value === "complete") {
-    await props.controller.complete();
+    await props.controller.complete(true);
   }
+}
+
+async function secondaryAction(): Promise<void> {
+  if (step.value === "browser_review") await props.controller.reopenBrowserDemo();
+  else if (step.value === "complete") await props.controller.complete(false);
 }
 
 async function sendGuidedPrompt(): Promise<void> {
@@ -178,7 +184,7 @@ async function generateResume(
         :error="controller.error.value"
         :above-composer="step === 'welcome'"
         @action="primaryAction"
-        @secondary="controller.reopenBrowserDemo"
+        @secondary="secondaryAction"
       />
     </template>
   </main>

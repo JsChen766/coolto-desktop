@@ -40,6 +40,10 @@
 - 新建 Application 必须冻结 `resumeContentHash` 到 `resumeContentHashSnapshot`；仅明确变更关联时才更新快照。
 - `Interview` / `Note` / `Reminder` 归属 Application；JD 与 Resume 只能展示其对应 Application 的投递摘要。
 - 业务写入必须经 Proposal + 宿主审批 + LocalSyncStore/Outbox + 乐观锁；页面默认读本地 projection，不得 Direct 写入业务核心流程。
+- 唯一例外是用户主动上传文件、明确指定网页或直接补充经历材料：该动作视为本次材料沉淀授权。
+  APP 必须由宿主完成分块、数字/关键产出覆盖和单批次合并，可自动执行内部 Experience Proposal，
+  将详细文本追加到对应 Experience 正文并只创建一个 import revision，无需逐条审批。其他正文修改和
+  业务写入仍遵循 Proposal + 用户确认。
 - 云端是事实源。`draft / pending / checkpoint / files / chat / proposal` 数据归属本地；服务端为事实同步与规则校验中心。
 - 同步/恢复只读主流程，不在 sync kernel 内放置业务规则。
 - 文件系统与路径由宿主托管，Renderer 不得读取/持久化绝对路径；敏感凭证不能通过渲染层透传。

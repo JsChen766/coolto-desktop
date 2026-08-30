@@ -49,6 +49,7 @@ test("fixed script completes once without any model dependency", async () => {
   assert.equal(completed.status.step, "completed");
   assert.ok(completed.status.completedAt);
   assert.match(textOf(conversations.messages.at(-1)!), /示例数据已清理/u);
+  assert.match(textOf(conversations.messages.at(-1)!), /先沉淀真实经历/u);
   await service.start("zh-CN");
   assert.equal(conversations.created, 1, "completed onboarding never restarts");
 });

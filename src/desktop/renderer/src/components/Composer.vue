@@ -13,6 +13,7 @@ import IconButton from "./IconButton.vue";
 import ResumePickerPopup from "./ResumePickerPopup.vue";
 import type { ResumeChatReference } from "@desktop/types";
 import { attachmentStatus, fileSize } from "../attachments/attachment-formatters";
+import { subscribeComposerDraft } from "../chat/composer-draft-channel";
 import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
 import { translate } from "../i18n/locale";
 import { useComposerDrop } from "../chat/use-composer-drop";
@@ -38,6 +39,7 @@ const pickerOpen = ref(false);
 const textarea = useTemplateRef<HTMLTextAreaElement>("textarea");
 const effectiveReference = computed(() => reference.value ?? props.resumeContext);
 let unsubscribeReference: (() => void) | undefined;
+let unsubscribeDraft: (() => void) | undefined;
 
 const {
   dragActive,
@@ -52,15 +54,23 @@ const {
 
 onMounted(() => {
   unsubscribeReference = subscribeResumeReference(selectReference);
+  unsubscribeDraft = subscribeComposerDraft(fillDraft);
 });
 
-onBeforeUnmount(() => unsubscribeReference?.());
+onBeforeUnmount(() => {
+  unsubscribeReference?.();
+  unsubscribeDraft?.();
+});
 
 function resize(): void {
   const element = textarea.value;
   if (!element) return;
   element.style.height = "auto";
   element.style.height = `${Math.min(element.scrollHeight, 180)}px`;
+}
+function fillDraft(value: string): void {
+  text.value = value;
+  void nextTick(() => { resize(); textarea.value?.focus(); });
 }
 const guidance = useGuidedComposer({
   preset: () => props.guidedText,
@@ -196,7 +206,7 @@ function selectReference(selected: ResumeChatReference): void {
           />
           <IconButton
             :icon="Paperclip"
-            :label="$t('选择简历附件')"
+            :label="$t('选择经历材料')"
             :disabled="disabled || running || attachmentBusy || guided"
             :size="17"
             @click="$emit('selectAttachment')"

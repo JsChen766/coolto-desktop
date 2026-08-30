@@ -9,10 +9,12 @@ import { parseExperienceImportResult } from "../../import/result-artifact.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import { extractInsufficientCreditsDetail } from "./insufficient-credits-detect.js";
 import { traceStopReason, traceToolMetadata } from "./agent-runtime-trace.js";
-import { requestDraftExperienceSyncApproval } from
+import { syncDraftSupplementalMaterial } from
   "./resume-drafts/resume-experience-sync-service.js";
 import { tailoredResumeFallbackDecision } from
   "../../resume/strategy/tailored-fallback.js";
+import type { ExperienceMaterialCommitter } from
+  "../../experience/material-ingestion-types.js";
 
 export class AgentRuntimeEvents {
   public constructor(
@@ -20,6 +22,7 @@ export class AgentRuntimeEvents {
     private readonly store: ConversationStore,
     private readonly resumeDrafts: ResumeDraftService,
     private readonly traces: ResumeGenerationTraceStore,
+    private readonly materialCommitter: ExperienceMaterialCommitter,
   ) {}
 
   public subscribe(
@@ -174,11 +177,8 @@ export class AgentRuntimeEvents {
       context.artifactIdByCandidate.set(workspace.candidateId, synced.draft.artifactId);
       draft = synced.draft;
     }
-    const draftWithSync = await requestDraftExperienceSyncApproval({
-      draft,
-      drafts: this.resumeDrafts,
-      proposals: context.experienceSyncProposals,
-      approvals: context.approvalManager,
+    const draftWithSync = await syncDraftSupplementalMaterial({
+      draft, drafts: this.resumeDrafts, committer: this.materialCommitter,
     }).catch(() => draft);
     if (!editing) {
       await this.store.addResumeArtifact(

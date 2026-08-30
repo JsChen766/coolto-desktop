@@ -12,6 +12,8 @@ const REFERENCE_TOOLS = new Set([
   "add_resume_material",
   "confirm_no_resume_material",
   "prepare_experience_sync",
+  "begin_experience_material_ingestion",
+  "record_experience_material_chunk",
 ]);
 
 /** Keeps long experience UUIDs out of the model-visible resume workflow. */
@@ -85,6 +87,9 @@ export class ExperienceReferenceRegistry {
     }
     if (toolName === "get_experience") this.#captureId(details);
     if (toolName === "find_resume_reuse_candidates") {
+      this.#captureExperienceIds(details);
+    }
+    if (toolName === "record_experience_material_chunk") {
       this.#captureExperienceIds(details);
     }
     if (toolName === "create_resume_workspace" || toolName === "get_resume_workspace") {

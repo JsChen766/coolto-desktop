@@ -38,21 +38,21 @@ test("existing application journeys are not reset by the new onboarding step", (
   }), "active_search");
 });
 
-test("a user source delivery file bypasses resume-writing onboarding", () => {
+test("a delivery file never bypasses experience intake", () => {
   assert.equal(resolveEmptyStateStage({
     experienceCount: 0,
     generalResumeCount: 0,
     deliveryResumeFileCount: 1,
     jdCount: 0,
     applicationCount: 0,
-  }), "job_target");
+  }), "experience_intake");
   assert.equal(resolveEmptyStateStage({
     experienceCount: 0,
     generalResumeCount: 0,
     deliveryResumeFileCount: 1,
     jdCount: 1,
     applicationCount: 0,
-  }), "application");
+  }), "experience_intake");
 });
 
 test("a ready local general draft completes onboarding before cloud save", () => {

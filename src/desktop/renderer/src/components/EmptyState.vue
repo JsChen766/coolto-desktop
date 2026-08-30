@@ -4,7 +4,9 @@ import {
   ClipboardPaste,
   FileText,
   FileUp,
+  FolderOpen,
   Globe,
+  Link2,
   ListChecks,
   MessageSquareText,
   Send,
@@ -18,6 +20,7 @@ const props = defineProps<{ stage: EmptyStateStage }>();
 
 const emit = defineEmits<{
   usePrompt: [prompt: string];
+  draftPrompt: [prompt: string];
   openExperiences: [];
   openLibrary: [];
   openTracker: [];
@@ -30,6 +33,7 @@ type Suggestion = {
   icon: typeof FileText;
   title: string;
   prompt?: string;
+  draft?: string;
   action?: "experiences" | "library" | "tracker" | "browser" | "import" | "delivery";
   primary?: boolean;
 };
@@ -38,14 +42,15 @@ const stageSuggestions: Record<EmptyStateStage, Suggestion[]> = {
   experience_intake: [
     {
       icon: FileUp,
-      title: "保存现有简历用于投递",
-      action: "delivery",
+      title: "上传简历或成果文件",
+      action: "import",
+      draft: "请把这份材料尽可能完整地沉淀到经历仓库，保留全部数字、关键产出和逻辑链。",
       primary: true,
     },
     {
-      icon: FileText,
-      title: "导入现有简历中的经历",
-      action: "import",
+      icon: Link2,
+      title: "粘贴网页链接",
+      draft: "这是与我某段经历相关的网页链接，请把内容尽可能完整地沉淀到经历仓库，保留全部数字、关键产出和逻辑链：",
     },
     {
       icon: MessageSquareText,
@@ -107,37 +112,30 @@ const stageSuggestions: Record<EmptyStateStage, Suggestion[]> = {
   ],
   active_search: [
     {
+      icon: Globe,
+      title: "浏览求职网站",
+      action: "browser",
+    },
+    {
+      icon: FolderOpen,
+      title: "管理岗位与简历",
+      action: "library",
+    },
+    {
       icon: ListChecks,
       title: "查看投递进度",
       action: "tracker",
     },
-    {
-      icon: MessageSquareText,
-      title: "准备面试问题",
-      prompt: "请根据我的经历和目标岗位，帮我准备面试问题。",
-    },
   ],
 };
 
-const genericSuggestions: Suggestion[] = [
-  {
-    icon: FileText,
-    title: "整理我的经历",
-    prompt: "请读取我的经历，并帮我找出最值得写进简历的内容。",
-  },
-];
-
-const suggestions = computed(() => [
-  ...stageSuggestions[props.stage],
-  ...(["experience_intake", "general_resume"].includes(props.stage)
-    ? [] : genericSuggestions),
-]);
+const suggestions = computed(() => stageSuggestions[props.stage]);
 
 const stageCopy: Record<EmptyStateStage, { title: string; description: string }> = {
   experience_intake: {
     title: "先建立你的专属经历仓库",
     description:
-      "已有满意简历时，可以原样保存在本机用于任意岗位投递；需要写简历时，再单独导入经历或告诉我真实成果。",
+      "上传简历、文章或成果文件，也可以粘贴网页链接；可核验的求职事实会自动汇入经历仓库。",
   },
   general_resume: {
     title: "把真实经历整理成通用简历",
@@ -154,21 +152,19 @@ const stageCopy: Record<EmptyStateStage, { title: string; description: string }>
   },
   active_search: {
     title: "今天想完成什么？",
-    description: "我可以读取你的经历，并帮助你准备求职材料。",
+    description: "选择一个入口，继续寻找岗位、准备材料或跟进投递。",
   },
 };
 
 function run(item: Suggestion): void {
-  if (item.prompt) {
-    emit("usePrompt", item.prompt);
-    return;
-  }
   if (item.action === "experiences") emit("openExperiences");
   else if (item.action === "library") emit("openLibrary");
   else if (item.action === "tracker") emit("openTracker");
   else if (item.action === "browser") emit("openBrowser");
   else if (item.action === "import") emit("importResume");
   else if (item.action === "delivery") emit("saveDeliveryResume");
+  if (item.draft) emit("draftPrompt", item.draft);
+  else if (item.prompt) emit("usePrompt", item.prompt);
 }
 </script>
 
@@ -179,7 +175,10 @@ function run(item: Suggestion): void {
     </div>
     <h1>{{ $t(stageCopy[stage].title) }}</h1>
     <p>{{ $t(stageCopy[stage].description) }}</p>
-    <div class="suggestion-list">
+    <div
+      class="suggestion-list"
+      :class="{ 'is-three-column': stage === 'active_search' }"
+    >
       <button
         v-for="item in suggestions"
         :key="item.title"
