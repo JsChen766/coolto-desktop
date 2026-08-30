@@ -3103,6 +3103,28 @@ feed SHA-512 与独立全字节 SHA-256 校验：Windows EXE
 `5799A4A5F905A3EDD74B3F124E58771040D9705AB58764965FB6A612640AF967`。Windows 仍为 NotSigned，macOS
 仍为 ad-hoc/未 notarize；S4.5 状态不因本次反馈入口发布而改变。
 
+**0.1.21 跨平台发布完成（2026-08-31）：**远端 `三分之二+间距` 经发布准备 commit `e15ce70` 后由
+PR [#47](https://github.com/JsChen766/cv_agent_frontend/pull/47) 合入受保护 `app`（merge
+`49a672f11e75cdf603a5bcca4e5c664c74919f52`）；版本从已发布 0.1.20 升至 0.1.21。合并前清理了
+2,056 个误提交的 `node_modules 2/` 文件、Finder 元数据差异和错误模板锁哈希，并用 LF attribute 修复
+全新 Windows worktree 的模板字节门禁。npm 官方源生产依赖审计 0 漏洞；`npm run check` 全绿：984 个
+源文件满足不超过 250 行，875 项测试中 873 通过、2 项 macOS-only 跳过、0 失败，双 typecheck 与双
+production build 通过。Electron Resume Renderer/PDF、Agent Harness 16/16、Browser Agent 33/33、
+AgentTasks UI 16/16 也通过。Windows workflow
+[`33323011984`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33323011984) 成功（7m09s），
+完成 Rust 3/3、NSIS、hardening、真实安装/bootstrap 持续健康、卸载和上传；macOS workflow
+[`33323014006`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33323014006) 成功（5m17s），
+完成 x64/arm64、ZIP/DMG、双架构 hardening 与上传；官网 workflow
+[`33323401465`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33323401465) 成功。公网 feed、
+下载页和官网 bundle 均为 0.1.21；五个安装文件已完整下载并确认字节数/feed SHA-512，独立 SHA-256：
+Windows EXE `FA522E3A1D928666DFAF5138B6E442A20BB3FBF8C4CF8E2AFC5F3135182960F8`，Intel ZIP
+`3DB9FF3AEB62FE717F6694D35D82EF81E046DC3877D6C8D9DD0F7FF6BB1C36AB`，ARM64 ZIP
+`0CAF719B2833C3CD0EC67D629DFD8AC9D9604219F4EC28A94CEDD7FF9AFF68B4`，Intel DMG
+`091D4DF09DD73C00BEC9E0C41C442B33504A9588B21CAC52105F877C1CA0FE79`，ARM64 DMG
+`A329BF5EEBFD012E35BE05BF9F7CB93D67B6DCDEAFFEE78346C5652C106B6A92`。Windows 仍 NotSigned，macOS
+仍为 ad-hoc/未 notarize；本次可下载发布不替代 BE5/BE8/S4.5 的真实账号、关联准确率、长期任务和生成
+质量门禁，阶段状态不因此改变。Actions Node 20 弃用提示与官网 SSH shell quoting 警告留作独立维护项。
+
 **S4.5.1 尾行 V2 实施与实测（2026-08-25 至 08-26，尾行独测通过、整份未完成）：**尾行质量政策已
 从 layout manifest 解耦并版本化；新工作区采用严格 `2/3 + 1px` V2，历史无版本结构保留 V1。隐藏
 Chromium 新增 computed-style CEU 标定和“水 × n”换行响应曲线，Agent 每条只提交一个 `growthText`、

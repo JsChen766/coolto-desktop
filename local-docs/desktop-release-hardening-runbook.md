@@ -368,6 +368,33 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
   `87DE0D41F1F76C7E67BC511941B0AF0C13F8B0CC836A4AA38AA99FC66AE628CB`，ARM64 DMG
   `5799A4A5F905A3EDD74B3F124E58771040D9705AB58764965FB6A612640AF967`。
 
+### 10.10 已验证基线（2026-08-31，0.1.21 发布）
+
+- 发布源：PR #47 已合入受保护 `app`，merge commit 为
+  `49a672f11e75cdf603a5bcca4e5c664c74919f52`；版本来自 `package.json` 的 0.1.21。合并前清理了
+  误提交的 `node_modules 2/` 副本与 Finder 元数据差异，并固定模板快照 LF 检出规则。
+- 发布前本地 `npm run check` 全绿：984 个源文件满足不超过 250 行，875 项测试中 873 通过、2 项
+  macOS-only 跳过、0 失败，双 typecheck 与 Node/Electron production build 通过；npm 官方源生产依赖
+  审计为 0 漏洞。Electron 补充验收通过：Resume Renderer/PDF、Agent Harness 16/16、Browser Agent
+  33/33、AgentTasks UI 16/16（含深色、键盘焦点与 200% 缩放）。
+- Windows workflow `33323011984` 成功（7m09s）：Rust native 3/3、protected desktop bundle、NSIS、
+  release hardening、真实安装/bootstrap 持续健康、卸载与上传全部通过；payload 为 1,305,960 bytes，
+  native 为 266,240 bytes，fuses verified。公网 EXE 的 Authenticode 仍为 NotSigned。
+- macOS workflow `33323014006` 成功（5m17s）：x64/arm64 native、双架构 ZIP/DMG、两端 release
+  hardening 与上传全部通过；两端 payload 均为 1,305,960 bytes，native 均为 764,176 bytes，fuses
+  verified；签名为 ad-hoc（identity `-`），notarization 明确跳过。
+- 官网 workflow `33323401465` 成功；公网 `latest.yml` / `latest-mac.yml`、下载页与官网 bundle 均为
+  0.1.21。五个公网文件均完成无 query URL 的全字节下载，精确字节数与 feed SHA-512 全部匹配；独立
+  SHA-256 为：Windows EXE 133,409,772 bytes，
+  `FA522E3A1D928666DFAF5138B6E442A20BB3FBF8C4CF8E2AFC5F3135182960F8`；Intel ZIP 188,654,472 bytes，
+  `3DB9FF3AEB62FE717F6694D35D82EF81E046DC3877D6C8D9DD0F7FF6BB1C36AB`；Apple Silicon ZIP
+  185,094,869 bytes，`0CAF719B2833C3CD0EC67D629DFD8AC9D9604219F4EC28A94CEDD7FF9AFF68B4`；Intel DMG
+  191,535,684 bytes，`091D4DF09DD73C00BEC9E0C41C442B33504A9588B21CAC52105F877C1CA0FE79`；Apple Silicon
+  DMG 188,019,911 bytes，`A329BF5EEBFD012E35BE05BF9F7CB93D67B6DCDEAFFEE78346C5652C106B6A92`。
+- 非阻塞维护项：Actions 提示 `actions/checkout@v4` / `setup-node@v4` 仍声明 Node 20；官网部署日志出现
+  一次 `bash: -c: option requires an argument`，但 workflow、备份、标题 smoke、公开 bundle 0.1.21
+  与下载链路均已独立验证成功，后续应单独修正 workflow 引用和 SSH shell quoting。
+
 ### 10.6 运维注意事项（坑）
 
 - **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过
