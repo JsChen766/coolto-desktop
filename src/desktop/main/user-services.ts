@@ -158,7 +158,8 @@ export class UserServicesResolver {
       () => runSyncNow(this.auth),
     );
     const { agentTasks, agentTaskScheduler } = await createAgentTaskRuntime(
-      agentHarness, agent, this.browserAgentStatus, this.browserPageOperator);
+      agentHarness, agent, this.browserAgentStatus, this.browserPageOperator,
+      this.browserAgentController);
     this.services = {
       ownerId: user.id,
       conversations,

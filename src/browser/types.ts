@@ -107,6 +107,7 @@ export interface CaptchaDetection {
 export interface BrowserPageOperator {
   /** 主进程 write-enable 标志位查询；工具执行前均检查此位。 */
   isWriteAccessGranted(): boolean;
+  subscribeState(listener: () => void): () => void;
   /**
    * 由 approval executor 在用户确认后调用；绑定当前活跃标签 + origin，
    * 空闲超时或导航到新 origin 时自动收回。

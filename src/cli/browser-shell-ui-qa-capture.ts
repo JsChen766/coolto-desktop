@@ -9,6 +9,7 @@ import type { BrowserTabManager } from "../desktop/main/browser/browser-tab-mana
 export interface ShellInspection {
   addressFontSize: string;
   agentMessageFontSize: string | null;
+  agentTargetCount: number;
   buttonLabels: string[];
   chromeHeight: number;
   clientWidth: number;
@@ -43,18 +44,19 @@ export async function inspectShell(window: BrowserWindow): Promise<ShellInspecti
   return window.webContents.executeJavaScript(`(() => {
     const chrome = document.querySelector('.browser-chrome');
     const address = document.querySelector('.address');
-    const message = document.querySelector('.agent-copy span');
+    const message = document.querySelector('.capsule-summary');
     if (!(chrome instanceof HTMLElement) || !(address instanceof HTMLElement)) return null;
     return {
       addressFontSize: getComputedStyle(address).fontSize,
       agentMessageFontSize: message instanceof HTMLElement
         ? getComputedStyle(message).fontSize : null,
+      agentTargetCount: document.querySelectorAll('.agent-tab-marker').length,
       buttonLabels: [...document.querySelectorAll('button')].map((button) =>
         button.getAttribute('aria-label') || button.textContent?.trim() || ''),
       chromeHeight: chrome.offsetHeight,
       clientWidth: document.documentElement.clientWidth,
       colorScheme: getComputedStyle(document.documentElement).colorScheme,
-      hasAgentBar: Boolean(document.querySelector('.agent-bar')),
+      hasAgentBar: Boolean(document.querySelector('.agent-capsule')),
       hasPermissionNotice: Boolean(document.querySelector('.permission-notice')),
       progressVisible: getComputedStyle(
         document.querySelector('.navigation-progress') || document.documentElement,
@@ -62,7 +64,7 @@ export async function inspectShell(window: BrowserWindow): Promise<ShellInspecti
       siteIdentityLabel: document.querySelector('.site-identity')
         ?.getAttribute('aria-label') || null,
       scrollWidth: document.documentElement.scrollWidth,
-      tabCount: document.querySelectorAll('.tab').length,
+      tabCount: document.querySelectorAll('[role="tab"]').length,
     };
   })()`, true) as Promise<ShellInspection>;
 }
@@ -120,6 +122,35 @@ export async function captureActivePage(
     imageSize: nativeImage.createFromBuffer(png).getSize(),
     inspection,
   };
+}
+
+export async function captureAgentInspector(
+  contents: Electron.WebContents,
+  artifacts: string,
+  filename: string,
+): Promise<Record<string, unknown>> {
+  let image: NativeImage;
+  let captureMode = "webContents.capturePage";
+  try {
+    image = await contents.capturePage();
+    if (image.isEmpty()) throw new Error("empty inspector capture");
+  } catch {
+    captureMode = "cdp.Page.captureScreenshot";
+    const debug = contents.debugger;
+    const owned = !debug.isAttached();
+    if (owned) debug.attach("1.3");
+    try {
+      const result = await debug.sendCommand("Page.captureScreenshot", {
+        captureBeyondViewport: false, format: "png", fromSurface: true,
+      }) as { data?: string };
+      if (!result.data) throw new Error("Inspector screenshot returned no data");
+      image = nativeImage.createFromBuffer(Buffer.from(result.data, "base64"));
+    } finally {
+      if (owned && debug.isAttached()) debug.detach();
+    }
+  }
+  await writeFile(join(artifacts, filename), image.toPNG());
+  return { captureMode, filename, imageSize: image.getSize() };
 }
 
 export async function readShellAxTree(window: BrowserWindow): Promise<unknown[]> {

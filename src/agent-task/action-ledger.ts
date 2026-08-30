@@ -79,18 +79,22 @@ export class ActionLedger {
         if (!receipt) throw new Error("ActionToken 已消费但 receipt 缺失");
         return receipt;
       }
-      const duplicate = state.actionReceipts.find((receipt) =>
-        receipt.taskId === token.taskId && receipt.runId === token.runId &&
-        receipt.requestHash === token.requestHash,
-      );
-      if (duplicate) {
-        token.consumedAt = new Date().toISOString();
-        token.receiptId = duplicate.id;
-        return duplicate;
-      }
-      const mismatch = Date.now() >= Date.parse(token.expiresAt) ||
+      const task = requireTask(state.tasks, token.taskId, this.ownerId);
+      const mismatch = task.status !== "running" || task.activeRunId !== token.runId ||
+        Date.now() >= Date.parse(token.expiresAt) ||
         token.targetOrigin !== input.targetOrigin || token.tabId !== input.tabId ||
         token.observationHash !== input.observationHash;
+      if (!mismatch) {
+        const duplicate = state.actionReceipts.find((receipt) =>
+          receipt.taskId === token.taskId && receipt.runId === token.runId &&
+          receipt.requestHash === token.requestHash,
+        );
+        if (duplicate) {
+          token.consumedAt = new Date().toISOString();
+          token.receiptId = duplicate.id;
+          return duplicate;
+        }
+      }
       const receipt = createReceipt(this.ownerId, token, input, mismatch);
       state.actionReceipts.push(receipt);
       token.consumedAt = receipt.createdAt;
@@ -134,9 +138,10 @@ export class ActionLedger {
     });
   }
 
-  public reconcileInterruptedRun(
+  public reconcileInvalidatedRun(
     taskId: string,
     runId: string,
+    errorCode: string,
   ): Promise<ActionReceiptV1[]> {
     return this.repository.update((state) => {
       requireTask(state.tasks, taskId, this.ownerId);
@@ -151,7 +156,7 @@ export class ActionLedger {
           observationHash: token.observationHash,
           status: "uncertain",
           observationAfterHash: null,
-          errorCode: "run_interrupted_before_receipt",
+          errorCode,
         }, false);
         state.actionReceipts.push(receipt);
         token.consumedAt = receipt.createdAt;

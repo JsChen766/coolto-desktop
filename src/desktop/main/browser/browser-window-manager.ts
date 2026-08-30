@@ -1,18 +1,10 @@
 import type { WebContents } from "electron";
 
-import type {
-  BrowserLocale,
-  BrowserOpenInput,
-  BrowserState,
-} from "../../shared/types.js";
-import type {
-  BrowserPageOperator,
-} from "../../../browser/types.js";
+import type { BrowserLocale, BrowserOpenInput, BrowserState } from
+  "../../shared/types.js";
+import type { BrowserPageOperator } from "../../../browser/types.js";
 import type { BrowserAgentController } from "../../../browser/agent-control-types.js";
-import {
-  BrowserActiveOriginTracker,
-  activeTabContext,
-} from "./browser-active-tab.js";
+import { BrowserActiveOriginTracker, activeTabContext } from "./browser-active-tab.js";
 import { readPageSnapshot } from "./browser-content-reader.js";
 import { pickLocalFiles } from "./browser-file-uploader.js";
 import {
@@ -31,6 +23,8 @@ import { BrowserAgentStatusBridge } from "./browser-agent-status-bridge.js";
 import { BrowserPermissionStatusBridge } from "./browser-permission-status-bridge.js";
 import { BrowserWindowPresentation } from "./browser-window-presentation.js";
 import { BrowserWindowHost } from "./browser-window-host.js";
+import { browserHomeTaskSnapshot } from "./browser-home-page.js";
+import { browserPageHandoff } from "../../../browser/browser-page-handoff.js";
 import {
   IDLE_BROWSER_STATE,
   type BrowserWindowEmitters,
@@ -44,7 +38,8 @@ export class BrowserWindowManager {
   readonly #writeAccess = new BrowserWriteAccessGate();
   readonly #operator: BrowserPageOperatorImpl;
   readonly #agentController: BrowserAgentControllerImpl;
-  readonly #agentStatus = new BrowserAgentStatusBridge(() => this.pushState());
+  readonly #agentStatus = new BrowserAgentStatusBridge(() =>
+    this.#agentProjectionChanged());
   readonly #permissionStatus: BrowserPermissionStatusBridge;
   readonly #presentation = new BrowserWindowPresentation();
   readonly #originTracker: BrowserActiveOriginTracker;
@@ -58,6 +53,8 @@ export class BrowserWindowManager {
       this.#presentation,
       () => this.pushState(),
       () => this.#emitters.emitState({ ...IDLE_BROWSER_STATE }),
+      () => browserHomeTaskSnapshot(this.#agentStatus.get()),
+      () => this.openAgentTask(),
     );
     const resolver: ActiveTabResolver = { resolve: () => this.#resolveActive() };
     const reviewStarter: ReviewStarter = {
@@ -80,16 +77,18 @@ export class BrowserWindowManager {
       lifecycle,
       filePicker,
     );
-    this.#originTracker = new BrowserActiveOriginTracker(this.#writeAccess);
+    this.#originTracker = new BrowserActiveOriginTracker(this.#writeAccess, lifecycle.onRevoked);
     this.#agentController = new BrowserAgentControllerImpl({
       tabs: () => this.#host.tabs,
       activeContext: () => this.#resolveActive(),
       requireControlAccess: () => this.#requireControlAccess(),
       readPage: (context) => readPageSnapshot(context.webContents),
+      onDownloadsChanged: () => this.pushState(),
     });
     this.#review = new BrowserReviewOrchestrator({
       operator: this.#operator,
       activeWebContents: () => activeTabContext(this.#host.tabs)?.webContents,
+      presentation: () => ({ locale: this.#presentation.locale, theme: this.#presentation.theme }),
       emitFillProgress: emitters.emitFillProgress,
       emitReviewDecision: emitters.emitReviewDecision,
       emitReviewComplete: emitters.emitReviewComplete,
@@ -106,8 +105,17 @@ export class BrowserWindowManager {
     return this.#agentController;
   }
 
-  public get agentStatus(): BrowserAgentStatusBridge {
-    return this.#agentStatus;
+  public get agentStatus(): BrowserAgentStatusBridge { return this.#agentStatus; }
+
+  public openAgentTask(): void {
+    const taskId = this.#agentStatus.taskId();
+    if (taskId) this.#emitters.openAgentTask(taskId);
+  }
+
+  public openPageInApp(): void {
+    const tab = this.#host.tabs?.activeTab()?.getState();
+    const page = tab ? browserPageHandoff(tab) : null;
+    if (page) this.#emitters.openPageInApp(page);
   }
 
   public open(input?: BrowserOpenInput): BrowserState {
@@ -149,6 +157,18 @@ export class BrowserWindowManager {
     this.#host.tabs?.stopLoading();
   }
 
+  public dismissDownload(id: string): void {
+    this.#agentController.dismissDownload(id);
+    if (this.#agentController.downloadSnapshot().length === 0) {
+      this.#host.closeDownloadPopover();
+    }
+  }
+
+  public toggleDownloadPopover(): void {
+    if (this.#agentController.downloadSnapshot().length === 0) return;
+    this.#host.toggleDownloadPopover();
+  }
+
   public dismissPermissionNotice(): void {
     this.#permissionStatus.dismiss();
     this.pushState();
@@ -165,6 +185,8 @@ export class BrowserWindowManager {
   public get tabs(): BrowserTabManager | undefined {
     return this.#host.tabs;
   }
+
+  public get shellCommands(): BrowserWindowHost { return this.#host; }
 
   public shellWebContents(): WebContents | undefined {
     return this.#host.shellWebContents();
@@ -190,10 +212,11 @@ export class BrowserWindowManager {
   }
 
   public pushState(): void {
-    this.#originTracker.sync(this.#host.tabs);
+    if (this.#originTracker.sync(this.#host.tabs)) this.#operator.contextChanged();
     this.#emitters.emitState(this.getState());
     if (this.#host.tabs) this.#emitters.emitShellState(this.#host.shellState(
-      this.#agentStatus.get(), this.#permissionStatus.get(),
+      this.#agentStatus.get(), this.#agentController.downloadSnapshot(),
+      this.#permissionStatus.get(),
     ));
   }
 
@@ -217,6 +240,11 @@ export class BrowserWindowManager {
     const changed = this.#presentation.setLocale(locale);
     if (changed) this.#host.tabs?.refreshInternalPresentation();
     if (this.#host.ensureFirstTab(this.#pendingUrl)) this.#pendingUrl = undefined;
+    this.pushState();
+  }
+
+  #agentProjectionChanged(): void {
+    this.#host.tabs?.refreshHomeTask();
     this.pushState();
   }
 }

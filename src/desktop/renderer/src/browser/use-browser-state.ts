@@ -5,6 +5,7 @@ import type {
   BrowserState,
 } from "@desktop/types";
 import { desktopApi } from "../lib/desktop-api";
+import { openPresentedBrowser } from "./open-presented-browser";
 
 const IDLE_STATE: BrowserState = {
   isOpen: false,
@@ -33,7 +34,7 @@ export function useBrowserState() {
   onBeforeUnmount(unsubscribe);
 
   async function open(input?: BrowserOpenInput): Promise<void> {
-    apply(await desktopApi.browser.open(input));
+    apply(await openPresentedBrowser(desktopApi, input));
   }
 
   async function close(): Promise<void> {

@@ -1,0 +1,10 @@
+html, body, #browser-download-popover-app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--font-ui);
+}
+
+* { box-sizing: border-box; }

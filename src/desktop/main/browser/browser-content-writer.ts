@@ -13,6 +13,10 @@ import type { ClickTargetHint } from "./browser-click-guards.js";
 import { browserSitePolicyForOrigin } from "../../../browser/site-policy-registry.js";
 import { tagAccessibleElements } from "./browser-accessibility-tagger.js";
 import { executeInSameOriginFrames } from "./browser-frame-execution.js";
+import {
+  runWithBrowserClickTargetHighlight,
+  runWithBrowserTargetHighlight,
+} from "./browser-target-highlight.js";
 
 const MAX_TAG_ELEMENTS = 200;
 
@@ -63,10 +67,9 @@ export async function fillPageField(
   fillId: string,
   value: string,
 ): Promise<WriteFieldMeta> {
-  const result = (await contents.executeJavaScript(
-    buildFillScript(fillId, value),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildFillScript(fillId, value), true),
+  ) as WriteScriptResult;
   ensureOk(result, "fillField");
   return extractMeta(result, "input");
 }
@@ -76,10 +79,9 @@ export async function selectPageOption(
   fillId: string,
   value: string,
 ): Promise<WriteFieldMeta> {
-  const result = (await contents.executeJavaScript(
-    buildSelectScript(fillId, value),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildSelectScript(fillId, value), true),
+  ) as WriteScriptResult;
   ensureOk(result, "selectOption");
   return extractMeta(result, "select");
 }
@@ -89,10 +91,9 @@ export async function setPageChecked(
   fillId: string,
   checked: boolean,
 ): Promise<WriteFieldMeta> {
-  const result = (await contents.executeJavaScript(
-    buildSetCheckedScript(fillId, checked),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildSetCheckedScript(fillId, checked), true),
+  ) as WriteScriptResult;
   ensureOk(result, "setChecked");
   return extractMeta(result, "checkbox");
 }
@@ -101,10 +102,9 @@ export async function scrollPageToElement(
   contents: WebContents,
   fillId: string,
 ): Promise<void> {
-  const result = (await contents.executeJavaScript(
-    buildScrollScript(fillId),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildScrollScript(fillId), true),
+  ) as WriteScriptResult;
   ensureOk(result, "scrollTo");
 }
 
@@ -127,10 +127,9 @@ export async function performPageClick(
   contents: WebContents,
   fillId: string,
 ): Promise<void> {
-  const result = (await contents.executeJavaScript(
-    buildClickScript(fillId, "click"),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserClickTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildClickScript(fillId, "click"), true),
+  ) as WriteScriptResult;
   ensureOk(result, "click");
 }
 

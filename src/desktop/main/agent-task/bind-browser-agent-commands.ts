@@ -12,6 +12,16 @@ export function bindBrowserAgentCommands(
       return;
     }
     if (command === "resume") {
+      if (status.controlFor(taskId) === "user") {
+        const task = await current.agentHarness.tasks.get(taskId);
+        const occurredAt = new Date().toISOString();
+        await current.agentHarness.events.enqueue({
+          taskId, source: "user", type: "user.returned_control",
+          trust: "trusted_system", occurredAt,
+          dedupeKey: `user.returned_control:${taskId}:${occurredAt}`,
+          payloadRef: null, payloadHash: task.goalHash,
+        });
+      }
       await current.agentTasks.resume(taskId);
       return;
     }
@@ -26,13 +36,5 @@ export function bindBrowserAgentCommands(
       });
     }
     await current.agentTasks.pause(taskId);
-    if (command === "takeover") {
-      const state = status.get();
-      if (state) status.set({
-        ...state, status: "paused", control: "user",
-        message: "用户已接管；交还前 Agent 不再观察或操作页面",
-        updatedAt: new Date().toISOString(),
-      });
-    }
   });
 }

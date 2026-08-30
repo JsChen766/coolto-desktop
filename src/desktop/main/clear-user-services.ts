@@ -9,7 +9,7 @@ export async function clearUserServices(input: {
   status: BrowserAgentStatusBridge;
 }): Promise<void> {
   input.browser.revokeWriteAccess(input.reason);
-  input.status.set(null);
+  input.status.clear();
   const current = input.current;
   if (!current) return;
   current.agent.cancel();

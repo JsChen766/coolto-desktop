@@ -217,6 +217,10 @@ const api: DesktopApi = {
       subscribeIpc("browser:review-complete", listener),
     onCaptchaDetected: (listener) =>
       subscribeIpc("browser:captcha-detected", listener),
+    onOpenAgentTask: (listener) =>
+      subscribeIpc("browser:open-agent-task", listener),
+    onOpenPageInApp: (listener) =>
+      subscribeIpc("browser:open-page-in-app", listener),
   },
 };
 

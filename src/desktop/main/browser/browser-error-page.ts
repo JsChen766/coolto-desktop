@@ -8,13 +8,15 @@ const ERROR_MARKER = "#coolto-browser-error";
 
 export function browserErrorUrl(input: {
   failure: BrowserNavigationFailure;
+  internalToken: string;
   locale: BrowserLocale;
+  retryUrl: string;
   theme: "light" | "dark";
 }): string {
-  const { failure, locale, theme } = input;
+  const { failure, internalToken, locale, retryUrl, theme } = input;
   const copy = errorCopy(locale, failure.code);
   const dark = theme === "dark";
-  const homeUrl = browserHomeUrl(theme, locale);
+  const homeUrl = browserHomeUrl(theme, locale, internalToken);
   const html = `<!doctype html>
 <html lang="${locale}"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -39,18 +41,22 @@ export function browserErrorUrl(input: {
 </style></head><body><main>
   <h1>${copy.title}</h1><p>${copy.detail}</p>
   <code>${escapeHtml(failure.url)}</code><code>${escapeHtml(failure.description)} (${failure.code})</code>
-  <nav><a class="primary" href="${escapeAttribute(failure.url)}">${copy.retry}</a>
+  <nav><a class="primary" href="${escapeAttribute(retryUrl)}">${copy.retry}</a>
     <a class="secondary" href="${escapeAttribute(homeUrl)}">${copy.home}</a></nav>
 </main></body></html>`;
-  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}${ERROR_MARKER}`;
+  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}${errorMarker(internalToken)}`;
 }
 
-export function isBrowserErrorUrl(url: string): boolean {
-  return url.endsWith(ERROR_MARKER);
+export function isBrowserErrorUrl(url: string, internalToken: string): boolean {
+  return url.endsWith(errorMarker(internalToken));
 }
 
-export function isBrowserInternalUrl(url: string): boolean {
-  return isBrowserErrorUrl(url) || isBrowserHomeUrl(url);
+export function isBrowserInternalUrl(url: string, internalToken: string): boolean {
+  return isBrowserErrorUrl(url, internalToken) || isBrowserHomeUrl(url, internalToken);
+}
+
+function errorMarker(internalToken: string): string {
+  return `${ERROR_MARKER}:${encodeURIComponent(internalToken)}`;
 }
 
 export function browserErrorTitle(locale: BrowserLocale): string {

@@ -1,6 +1,7 @@
 import type {
   BrowserShellState,
   BrowserState,
+  BrowserPageHandoffView,
 } from "../../shared/types.js";
 import type {
   BrowserFieldWriteRecord,
@@ -27,4 +28,6 @@ export interface BrowserWindowEmitters {
   emitReviewDecision: (fillId: string, decision: FieldReviewDecision) => void;
   emitReviewComplete: (outcome: ReviewOutcome) => void;
   emitCaptchaDetected: (detection: CaptchaDetection) => void;
+  openAgentTask: (taskId: string) => void;
+  openPageInApp: (page: BrowserPageHandoffView) => void;
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch,
+  computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch,
 } from "vue";
 
 import type {
@@ -9,11 +9,14 @@ import type {
   BrowserTabState,
 } from "@desktop/types";
 import BrowserAddressBar from "./BrowserAddressBar.vue";
+import BrowserAgentCapsule from "./BrowserAgentCapsule.vue";
+import BrowserDownloadTrigger from "./BrowserDownloadTrigger.vue";
+import BrowserFindBar from "./BrowserFindBar.vue";
+import BrowserPageHandoffButton from "./BrowserPageHandoffButton.vue";
 import BrowserTabStrip from "./BrowserTabStrip.vue";
 import BrowserWindowControls from "./BrowserWindowControls.vue";
-import BrowserAgentBar from "./BrowserAgentBar.vue";
 import BrowserNavigationProgress from "./BrowserNavigationProgress.vue";
-import { localeCode } from "../i18n/locale";
+import { localeCode, setLocale } from "../i18n/locale";
 
 const shell = window.browserShell;
 
@@ -21,28 +24,61 @@ const state = shallowRef<BrowserShellState>({
   tabs: [],
   activeTabId: null,
   theme: "light",
+  locale: localeCode() as BrowserLocale,
   platform: shell.platform,
   isMaximized: false,
+  agentInspectorOpen: false,
   agentControl: null,
+  downloadPopoverOpen: false,
+  downloads: [],
   permissionNotice: null,
 });
 const chromeEl = useTemplateRef<HTMLElement>("chromeEl");
+const addressBarRef = useTemplateRef<InstanceType<typeof BrowserAddressBar>>(
+  "addressBarRef",
+);
+const findBarRef = useTemplateRef<InstanceType<typeof BrowserFindBar>>(
+  "findBarRef",
+);
+const agentCapsuleRef = useTemplateRef<InstanceType<typeof BrowserAgentCapsule>>(
+  "agentCapsuleRef",
+);
+const downloadTriggerRef = useTemplateRef<InstanceType<typeof BrowserDownloadTrigger>>(
+  "downloadTriggerRef",
+);
 
 const activeTab = computed<BrowserTabState | undefined>(() =>
   state.value.tabs.find((tab) => tab.id === state.value.activeTabId),
 );
 
 const isMac = computed(() => state.value.platform === "darwin");
+const canHandOffPage = computed(() => /^https?:\/\//u.test(activeTab.value?.url ?? ""));
 
 const unsubscribe = shell.onStateChanged((next) => {
+  setLocale(next.locale);
   state.value = next;
   document.documentElement.classList.toggle("dark", next.theme === "dark");
+});
+const unsubscribeFocusAddress = shell.onFocusAddress(() => {
+  addressBarRef.value?.focusInput();
+});
+const unsubscribeFocusFind = shell.onFocusFind(async () => {
+  await nextTick();
+  await findBarRef.value?.focusInput();
+});
+const unsubscribeFocusAgentCapsule = shell.onFocusAgentCapsule(async () => {
+  await nextTick();
+  agentCapsuleRef.value?.focus();
+});
+const unsubscribeFocusDownloads = shell.onFocusDownloads(async () => {
+  await nextTick();
+  downloadTriggerRef.value?.focus();
 });
 
 let resizeObserver: ResizeObserver | undefined;
 
 onMounted(() => {
-  shell.ready(localeCode() as BrowserLocale);
+  shell.ready();
   shell.requestState();
   if (chromeEl.value) {
     resizeObserver = new ResizeObserver(() => reportHeight());
@@ -53,6 +89,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   unsubscribe();
+  unsubscribeFocusAddress();
+  unsubscribeFocusFind();
+  unsubscribeFocusAgentCapsule();
+  unsubscribeFocusDownloads();
   resizeObserver?.disconnect();
 });
 
@@ -74,6 +114,7 @@ function reportHeight(): void {
       <BrowserTabStrip
         :tabs="state.tabs"
         :active-tab-id="state.activeTabId"
+        :agent-control="state.agentControl"
         @select="shell.selectTab"
         @close="shell.closeTab"
         @create="shell.newTab()"
@@ -87,21 +128,33 @@ function reportHeight(): void {
       />
     </div>
 
-    <BrowserAddressBar :tab="activeTab" :permission-notice="state.permissionNotice"
+    <BrowserAddressBar ref="addressBarRef" :tab="activeTab"
+      :permission-notice="state.permissionNotice"
       @back="shell.goBack()"
       @forward="shell.goForward()" @navigate="shell.navigate($event)"
       @reload="shell.reload()" @stop="shell.stopLoading()"
-      @dismiss-permission-notice="shell.dismissPermissionNotice()" />
+      @reset-zoom="shell.resetZoom()"
+      @dismiss-permission-notice="shell.dismissPermissionNotice()">
+      <template #toolbar-end>
+        <BrowserPageHandoffButton v-if="canHandOffPage"
+          @open="shell.openPageInApp()" />
+        <BrowserDownloadTrigger ref="downloadTriggerRef" :downloads="state.downloads"
+          :open="state.downloadPopoverOpen"
+          @toggle="shell.toggleDownloadPopover()"
+          @dismiss="shell.dismissDownload($event)" />
+        <BrowserAgentCapsule v-if="state.agentControl" ref="agentCapsuleRef"
+          :state="state.agentControl" :expanded="state.agentInspectorOpen"
+          @toggle="shell.toggleAgentInspector()" />
+      </template>
+    </BrowserAddressBar>
     <BrowserNavigationProgress v-if="activeTab" :phase="activeTab.loadPhase"
       :is-loading="activeTab.isLoading" />
-    <BrowserAgentBar
-      v-if="state.agentControl"
-      :state="state.agentControl"
-      @pause="shell.pauseAgent()"
-      @resume="shell.resumeAgent()"
-      @takeover="shell.takeoverAgent()"
-      @stop="shell.stopAgent()"
-    />
+    <BrowserFindBar v-if="activeTab?.find.open" :key="activeTab.id" ref="findBarRef"
+      :state="activeTab.find"
+      @query="shell.searchFind($event)"
+      @next="shell.findNext('next')"
+      @previous="shell.findNext('previous')"
+      @close="shell.closeFind()" />
   </div>
 </template>
 

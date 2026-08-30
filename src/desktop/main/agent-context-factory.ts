@@ -123,6 +123,7 @@ export class AgentContextFactory {
     const taskLifecycle = new TaskLifecycleController(
       conversationId,
       deps.agentHarness,
+      (reason) => deps.browserPageOperator.revokeWriteAccess(reason),
     );
     const jobScout = new JobScoutController(conversationId, deps.agentHarness);
     const applicationSubmission = new ApplicationSubmissionService(
@@ -181,6 +182,7 @@ export class AgentContextFactory {
       tools,
       sitePolicyAllows: isBe2SitePolicyAllowed,
       grantBrowserAccess: (reason) => deps.browserPageOperator.grantWriteAccess(reason),
+      revokeBrowserAccess: (reason) => deps.browserPageOperator.revokeWriteAccess(reason),
     });
     const agent = createCooltoAgent({
       ...(config.apiKey ? { apiKey: config.apiKey } : {}),

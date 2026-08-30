@@ -17,4 +17,9 @@ export const pageOneHtml = `<!doctype html><title>QA Page One</title>
 <iframe src="/frame"></iframe><qa-shadow></qa-shadow></main>
 <script>customElements.define('qa-shadow',class extends HTMLElement{connectedCallback(){
  const root=this.attachShadow({mode:'open'});root.innerHTML='<button id="shadow-button" role="button">Shadow action</button>';
-}});</script>`;
+}});
+globalThis.__targetHighlightAdds=0;
+new MutationObserver((records)=>{for(const record of records){for(const node of record.addedNodes){
+ if(node instanceof Element&&(node.hasAttribute('data-coolto-agent-target')||
+ node.querySelector('[data-coolto-agent-target]')))globalThis.__targetHighlightAdds+=1;
+}}}).observe(document.documentElement,{childList:true,subtree:true});</script>`;

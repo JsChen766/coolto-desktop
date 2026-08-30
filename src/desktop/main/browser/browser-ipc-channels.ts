@@ -11,6 +11,8 @@ export const BROWSER_IPC_CHANNELS = {
   reviewDecision: "browser:review-decision",
   reviewComplete: "browser:review-complete",
   captchaDetected: "browser:captcha-detected",
+  openAgentTask: "browser:open-agent-task",
+  openPageInApp: "browser:open-page-in-app",
   abortFill: "browser:abort-fill",
 } as const;
 
@@ -36,6 +38,35 @@ export const BROWSER_SHELL_CHANNELS = {
   takeoverAgent: "browser-shell:agent-takeover",
   stopAgent: "browser-shell:agent-stop",
   dismissPermissionNotice: "browser-shell:dismiss-permission-notice",
+  dismissDownload: "browser-shell:dismiss-download",
+  toggleDownloadPopover: "browser-shell:toggle-download-popover",
+  openPageInApp: "browser-shell:open-page-in-app",
+  toggleAgentInspector: "browser-shell:toggle-agent-inspector",
+  searchFind: "browser-shell:search-find",
+  findNext: "browser-shell:find-next",
+  closeFind: "browser-shell:close-find",
+  resetZoom: "browser-shell:reset-zoom",
+  focusAddress: "browser-shell:focus-address",
+  focusFind: "browser-shell:focus-find",
+  focusAgentCapsule: "browser-shell:focus-agent-capsule",
+  focusDownloads: "browser-shell:focus-downloads",
+} as const;
+
+export const BROWSER_AGENT_INSPECTOR_CHANNELS = {
+  ready: "browser-agent-inspector:ready",
+  stateChanged: "browser-agent-inspector:state-changed",
+  focus: "browser-agent-inspector:focus",
+  close: "browser-agent-inspector:close",
+  command: "browser-agent-inspector:command",
+  openTask: "browser-agent-inspector:open-task",
+} as const;
+
+export const BROWSER_DOWNLOAD_POPOVER_CHANNELS = {
+  ready: "browser-download-popover:ready",
+  stateChanged: "browser-download-popover:state-changed",
+  focus: "browser-download-popover:focus",
+  close: "browser-download-popover:close",
+  dismiss: "browser-download-popover:dismiss",
 } as const;
 
 export type BrowserIpcChannel =

@@ -9,6 +9,7 @@ import { BrowserLeadStore } from "./browser-lead-store.js";
 import { SubmissionStore } from "./submission-store.js";
 import { AnswerVaultStore } from "./answer-vault-store.js";
 import { ExternalSignalStore } from "./external-signal-store.js";
+import { AgentRuntimeProjectionObserver } from "./runtime-projection-observer.js";
 
 export class AgentHarnessServices {
   readonly tasks: AgentTaskStore;
@@ -20,6 +21,7 @@ export class AgentHarnessServices {
   readonly submissions: SubmissionStore;
   readonly answers: AnswerVaultStore;
   readonly signals: ExternalSignalStore;
+  readonly runtimeProjection = new AgentRuntimeProjectionObserver();
 
   public constructor(
     ownerId: string,
@@ -42,5 +44,9 @@ export class AgentHarnessServices {
       this.repository.clear(),
       this.evidence?.clearAll() ?? Promise.resolve(),
     ]).then(() => undefined);
+  }
+
+  public subscribe(listener: () => void): () => void {
+    return this.repository.subscribe(listener);
   }
 }

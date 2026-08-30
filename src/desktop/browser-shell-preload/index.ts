@@ -30,8 +30,19 @@ const api: BrowserShellApi = {
   resumeAgent: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.resumeAgent),
   takeoverAgent: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.takeoverAgent),
   stopAgent: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.stopAgent),
+  dismissDownload: (downloadId) =>
+    ipcRenderer.send(BROWSER_SHELL_CHANNELS.dismissDownload, downloadId),
+  toggleDownloadPopover: () =>
+    ipcRenderer.send(BROWSER_SHELL_CHANNELS.toggleDownloadPopover),
+  openPageInApp: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.openPageInApp),
   dismissPermissionNotice: () =>
     ipcRenderer.send(BROWSER_SHELL_CHANNELS.dismissPermissionNotice),
+  toggleAgentInspector: () =>
+    ipcRenderer.send(BROWSER_SHELL_CHANNELS.toggleAgentInspector),
+  searchFind: (query) => ipcRenderer.send(BROWSER_SHELL_CHANNELS.searchFind, query),
+  findNext: (direction) => ipcRenderer.send(BROWSER_SHELL_CHANNELS.findNext, direction),
+  closeFind: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.closeFind),
+  resetZoom: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.resetZoom),
   onStateChanged: (listener: (state: BrowserShellState) => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,
@@ -41,6 +52,18 @@ const api: BrowserShellApi = {
     return () =>
       ipcRenderer.removeListener(BROWSER_SHELL_CHANNELS.stateChanged, handler);
   },
+  onFocusAddress: (listener) => subscribe(BROWSER_SHELL_CHANNELS.focusAddress, listener),
+  onFocusFind: (listener) => subscribe(BROWSER_SHELL_CHANNELS.focusFind, listener),
+  onFocusAgentCapsule: (listener) =>
+    subscribe(BROWSER_SHELL_CHANNELS.focusAgentCapsule, listener),
+  onFocusDownloads: (listener) =>
+    subscribe(BROWSER_SHELL_CHANNELS.focusDownloads, listener),
 };
+
+function subscribe(channel: string, listener: () => void): () => void {
+  const handler = (): void => listener();
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+}
 
 contextBridge.exposeInMainWorld("browserShell", api);

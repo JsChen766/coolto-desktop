@@ -120,6 +120,18 @@ test("events dedupe, redeliver until checkpoint acknowledgement", async () => {
   assert.equal((await value.events.pending(value.task.id)).length, 0);
 });
 
+test("harness repository emits invalidation without exposing state", async () => {
+  const value = harness();
+  const services = new AgentHarnessServices(ownerId, value.repository);
+  let invalidations = 0;
+  const unsubscribe = services.subscribe(() => { invalidations += 1; });
+  await services.tasks.create("conversation", "observe state changes");
+  assert.equal(invalidations, 1);
+  unsubscribe();
+  await services.tasks.create("conversation-2", "stop observing");
+  assert.equal(invalidations, 1);
+});
+
 test("action token consumption is atomic, replay-safe and context-bound", async () => {
   const value = await createGrantedTask();
   const run = await value.tasks.startRun({ taskId: value.task.id, wakeCause: "user" });
@@ -150,6 +162,21 @@ test("action token consumption is atomic, replay-safe and context-bound", async 
   });
   assert.equal(blocked.status, "blocked");
   assert.equal(blocked.errorCode, "action_token_context_mismatch_or_expired");
+
+  const previousRun = await value.ledger.issue({
+    ownerId, taskId: value.task.id, runId: run.id, toolName: "browser_navigate",
+    requestHash: "request-3", grantHash: value.grant.contentHash,
+    targetOrigin: "https://jobs.example", tabId: "tab-1",
+    observationHash: "observation-1",
+    expiresAt: new Date(Date.now() + 30_000).toISOString(),
+  });
+  await value.tasks.setHostStatus(value.task.id, "paused");
+  await value.tasks.startRun({ taskId: value.task.id, wakeCause: "user" });
+  const staleRunReceipt = await value.ledger.consume({
+    ...input, tokenId: previousRun.id, toolCallId: "tool-3",
+  });
+  assert.equal(staleRunReceipt.status, "blocked");
+  assert.equal(staleRunReceipt.errorCode, "action_token_context_mismatch_or_expired");
 });
 
 test("managed hooks block stale writes then issue and reconcile one action token", async () => {
@@ -168,9 +195,10 @@ test("managed hooks block stale writes then issue and reconcile one action token
       isActive: true, isLoading: false, canGoBack: false, canGoForward: false,
     }),
   } as BrowserAgentController;
+  const services = new AgentHarnessServices(ownerId, value.repository);
   const hooks = new ManagedTaskPolicyHooks({
     conversationId: granted.task.conversationId,
-    services: new AgentHarnessServices(ownerId, value.repository),
+    services,
     browser,
     tools,
     sitePolicyAllows: () => true,
@@ -186,12 +214,18 @@ test("managed hooks block stale writes then issue and reconcile one action token
   assert.match((await before("browser_fill_field", "fill-stale"))?.reason ?? "", /fresh_observation/u);
 
   assert.equal(await before("browser_snapshot", "snapshot"), undefined);
+  const activeRunId = (await value.tasks.get(granted.task.id)).activeRunId!;
+  assert.equal(
+    services.runtimeProjection.current(granted.task.id, activeRunId)?.tabId,
+    "tab-1",
+  );
   await hooks.afterToolCall({
     toolCall: { type: "toolCall", name: "browser_snapshot", id: "snapshot", arguments: {} },
     args: {}, assistantMessage: {} as never, context: {} as never,
     result: { content: [], details: { tab: browser.getActiveTab(), page: { text: "role" } } },
     isError: false,
   });
+  assert.equal(services.runtimeProjection.current(granted.task.id, activeRunId), null);
   assert.equal(await before("browser_fill_field", "fill-fresh"), undefined);
   await hooks.afterToolCall({
     toolCall: { type: "toolCall", name: "browser_fill_field", id: "fill-fresh", arguments: {} },
@@ -201,6 +235,10 @@ test("managed hooks block stale writes then issue and reconcile one action token
   const receipts = await value.ledger.listReceipts(granted.task.id);
   assert.deepEqual(receipts.map((receipt) => receipt.status), ["blocked", "succeeded"]);
   assert.equal((await value.repository.read((state) => state.actionTokens)).length, 1);
+  await value.tasks.setHostStatus(granted.task.id, "paused");
+  await value.tasks.startRun({ taskId: granted.task.id, wakeCause: "user" });
+  assert.match((await before("browser_fill_field", "fill-new-run"))?.reason ?? "",
+    /fresh_observation/u);
 });
 
 test("managed hooks allow a supervised user run but gate background wake", async () => {
@@ -215,7 +253,7 @@ test("managed hooks allow a supervised user run but gate background wake", async
     const hooks = new ManagedTaskPolicyHooks({
       conversationId: granted.task.conversationId,
       services: new AgentHarnessServices(ownerId, value.repository),
-      browser: { getActiveTab: () => null } as BrowserAgentController,
+      browser: { getActiveTab: () => null, listTabs: () => [] } as unknown as BrowserAgentController,
       tools, sitePolicyAllows: () => true,
     });
     const toolCall = {

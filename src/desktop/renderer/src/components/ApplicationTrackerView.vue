@@ -5,6 +5,7 @@ import { onMounted } from "vue";
 import type { TrackerNavigationContext } from "../tracker/tracker-navigation";
 import { useApplicationTrackerPage } from "../tracker/use-application-tracker-page";
 import { desktopApi } from "../lib/desktop-api";
+import { openPresentedBrowser } from "../browser/open-presented-browser";
 import { APPLICATION_BOARD_COLUMNS } from "../tracker/application-board";
 import ApplicationBoardColumn from "./ApplicationBoardColumn.vue";
 import ApplicationCalendarView from "./ApplicationCalendarView.vue";
@@ -139,7 +140,7 @@ async function childrenChanged(): Promise<void> {
       @update="updateSelected"
       @transition="prepareTransition(tracker.selected.value!, $event)"
       @delete="deleteTarget = tracker.selected.value"
-      @open-url="desktopApi.browser.open({ url: $event })"
+      @open-url="openPresentedBrowser(desktopApi, { url: $event })"
       @open-asset="openAsset"
       @children-changed="childrenChanged"
     />

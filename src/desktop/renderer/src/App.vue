@@ -26,7 +26,9 @@ const privacyConsent = ref(localStorage.getItem("coolto-privacy-consent") === "1
 const firstVisit = ref(localStorage.getItem("coolto-visited") === null);
 const {
   activeView,
+  agentTaskFocusRequest,
   booting,
+  browserPageHandoff,
   confirmDialog,
   conversations,
   createChat,
@@ -73,6 +75,11 @@ function guardNavigation(action: () => void | Promise<void>): void {
 function requestPrimaryView(view: "agent_tasks" | "experiences" | "library"): void {
   if (activeView.value !== view) guardNavigation(() => openPrimaryView(view));
 }
+async function openAgentTaskFromBrowser(): Promise<void> {
+  if (activeView.value === "experiences" &&
+      (await mainWorkspace.value?.confirmExperienceLeave()) === false) return;
+  openPrimaryView("agent_tasks");
+}
 function openProfile(trigger: HTMLElement): void {
   profileTrigger.value = trigger;
   profileDialogOpen.value = true;
@@ -94,6 +101,13 @@ function acceptPrivacy(): void {
 }
 
 watch(user, (next, previous) => { if (previous && !next) firstVisit.value = false; });
+watch(agentTaskFocusRequest, (request) => {
+  if (request) void openAgentTaskFromBrowser();
+});
+watch([browserPageHandoff, current, user], ([request, conversation, account]) => {
+  if (!request || !conversation || !account || activeView.value === "chat") return;
+  guardNavigation(() => selectChat(conversation.id));
+});
 const creditsHost = ref<InstanceType<typeof CreditsHost>>();
 </script>
 

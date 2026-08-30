@@ -1,6 +1,6 @@
 # Browser Shell AI Native 与正式浏览器体验子路线
 
-> 状态：BSF0–BSF1 已完成；BSF2 标签与浏览效率当前执行。
+> 状态：BSF0–BSF4 已完成并通过独立质检闭环；BSF5 Windows 已启动，剩余 NVDA、真实登录接管与完整任务 deep-link 门禁。
 > 讨论来源：[Browser Shell Chrome formalization 聊天记录](../browser-shell-chrome-formalization-notes.md)。
 > UI 方案：[Browser Shell UI Design Brief](./ui-design-brief.md)，用户已于 2026-08-30 确认。
 > 上级执行入口：[Browser Enhance README](../README.md)。本文件是下级实施计划，不替代上级路线的阶段状态。
@@ -199,13 +199,15 @@ Agent 恢复前必须继续遵守既有规则：重新观察页面，重新校�
 `BrowserAgentStatusBridge` 继续是 Shell 的单一桥接点，但数据必须从既有 AgentTask、Grant、Event 和 Receipt 派生。
 允许的 UI 字段包括：
 
-- `taskId`、短目标、真实 task status、Agent/用户控制权；
-- 当前步骤、当前原子动作、目标 origin；
+- 短目标、真实 task phase、Agent/用户控制权；
+- 当前原子动作、动作影响、目标 origin 和公开 Browser tab identity；
 - Grant 模式与风险摘要，不暴露内部 capability 或敏感 scope 参数；
 - 最近三条已脱敏活动摘要；
 - 等待原因和最近更新时间。
 
-Inspector 不持久化这些字段，也不自行推导业务下一步。
+`taskId/runId/grantId/toolCallId/token/hash` 不进入 Browser Renderer；主进程只在 bridge 内保留当前 task identity，
+用于已有 command handler 和“打开完整任务”深链。Inspector 不持久化这些字段，也不自行推导业务下一步；当前没有
+真实 future-action contract，因此 running 状态只展示当前阶段和正在执行的原子动作，不伪造“下一步”。
 
 ### 8.3 站点身份
 
@@ -233,8 +235,8 @@ Inspector 不持久化这些字段，也不自行推导业务下一步。
 | `BrowserAddressBar.vue` | 地址编辑、站点信息、reload-stop | active tab、draft URL | navigate/reload/stop |
 | `BrowserNavigationProgress.vue` | 离散阶段到非数值动画的映射 | load phase | 无 |
 | `BrowserFindBar.vue` | 页内查找输入和匹配导航 | find state | query/next/previous/close |
-| `BrowserAgentCapsule.vue` | 紧凑显示控制权、目标和当前步骤 | agent projection | expand/pause/takeover/resume/stop |
-| `BrowserAgentInspector.vue` | 只读展示授权摘要、下一动作和最近活动 | agent projection | open-task/control commands |
+| `BrowserAgentCapsule.vue` | 紧凑显示控制权、目标和当前步骤 | agent projection | toggle Inspector |
+| `BrowserAgentInspector.vue` | 只读展示授权摘要、当前动作和最近活动 | agent projection | open-task/control commands |
 | `BrowserDownloadPopover.vue` | 脱敏下载列表与进度 | download projections | dismiss |
 | `useBrowserShellState.ts` | 订阅和替换外部 Shell 快照 | BrowserShell API | readonly refs/computed |
 | `useBrowserShortcuts.ts` | Shell 聚焦时的键盘映射 | platform、shell state | typed commands |
@@ -382,6 +384,57 @@ props 向下、事件向上。`BrowserShell.vue` 只做组合，不承载 find�
 - 查找和 zoom 状态严格按 tab 隔离；切换 tab 不串状态；
 - 不改变外部网页滚动条或表单控件样式。
 
+**2026-08-30 BSF2 进展：**
+
+- 完成三路只读审计，冻结唯一实现边界：Renderer 标签组件不新增 IPC；快捷键统一由主进程同时接管 Shell 与
+  页面 webContents；find/zoom 按 tab 保存；native context menu 不注入页面脚本；
+- `BrowserTabStrip.vue` 拆出 `BrowserTabItem.vue` 与 `useTabStripOverflow.ts`，实现 tablist/tab 语义、唯一
+  roving tabindex、方向键/Home/End/Delete、中键关闭、关闭后邻接焦点、72px 最小宽度、固定新建/滚动按钮、
+  active/focus 自动滚入可见、favicon 错误恢复和 reduced-motion；
+- 新增纯 `browser-shortcut-policy`、`browser-zoom`、`browser-context-menu-policy`，覆盖 Windows/macOS 分类、
+  IME/keyUp/repeat/多余修饰键拒绝、Escape 优先级、25%–500% zoom ladder、危险/凭证链接和密码选区拒绝；
+- 阶段质检发现并修复两处逻辑问题：overflow 按钮出现后会占用 viewport，旧测量可能因此永远无法退出
+  overflow；现按按钮保留宽度反推无按钮可用宽度并补纯函数回归。tab ID watch 改用稳定 signature，避免
+  loading 等高频 Shell 快照替换时重复触发 nextTick/滚动测量；
+- 核对 Electron 43.2.0 `ContextMenuParams` 后确认密码字段的真实合同就是
+  `formControlType: "input-password"`，现有纯策略命名正确，不做基于错误前提的改动；
+- 主进程现以同一个 `BrowserShortcutRouter` 接管 Shell 与每个页面 webContents；Window Host 负责地址栏/find 聚焦与
+  页面焦点归还，Tab 层委托 `findInPage`、saved per-tab zoom 和 native context menu；显式 dispose 与 webContents
+  destruction 均有可重入清理路径，Renderer 没有页面级全局快捷键，也没有给外部页面增加 preload；
+- find 的“更新查询”与“上一项/下一项”使用独立 IPC，不按字符串相等猜意图；requestId 拒绝过期结果，导航/关闭/销毁
+  时清理。zoom 使用 25%–500% 固定梯度，只保存 tab factor，且仅在
+  tab 激活和当前 tab 导航后重施。Electron 43.2.0 没有 isolated zoom mode，因此专项 QA 使用两个**同源**页面，并同时
+  读取 saved state 与真实 `webContents.getZoomFactor()`，没有用不同 origin 冒充隔离；
+- Shell 增加可重复聚焦的 find bar 与非 100% zoom badge；Shell 与主窗口 Browser IPC 均校验真实 sender 和运行时
+  payload。页面导航、`window.open`、Shell 与主窗口入口统一只允许无凭证 HTTP(S)，每个 tab 的内部主页/错误页使用
+  不可预测 token，任意 `data:` 后缀不能冒充可信 Browser Chrome；
+- 右键菜单只保留已冻结的后退、前进、刷新、复制、复制链接和安全 HTTP(S)
+  新标签打开；删除未确认的“搜索所选文字”，菜单动作点击时再次校验 window/tab 存活与链接安全性；
+- 接入后的交叉审计与真实 Electron 压测发现并修复：overflow 控件挂载后二次压缩 viewport、同源 favicon 事件不重发、
+  主进程选 tab 与 roving focus 竞争、地址栏/find 的 IME 中间态与旧 query、Find/Zoom 关闭后的焦点归还、可取消 close
+  事件过早销毁 tab，以及 `data:` 内部页身份伪造与非 HTTP(S) 导航绕过；
+- 本轮阶段质检继续发现并修复四处确定性问题：错误页 F5/Ctrl+R 只重载本地 data 页而不重试原 URL；Delete 未拒绝
+  Shift/repeat；browser accelerator 在 handler 副作用前未先消费；跨错误页返回已知 origin 时 Chromium 不重发 favicon。
+  现错误页 reload 重试失败 URL，Delete 仅接受无修饰且非 repeat 的局部 tab 动作，router 先消费再 dispatch，favicon
+  按 tab/origin 缓存并在返回时恢复；
+- 终审继续分离错误页展示 DTO 与私有 exact retry URL，避免 4,096 字符展示上限截断 F5/重试目标；per-tab favicon
+  origin cache 使用 32 项 LRU 上限，既能恢复已知 origin，也不会随长生命周期跨站导航无界增长；
+- `qa:browser-shell` 已升级为 `bsf2-v2` 精确检查集合，不再使用 `passed >= N` 弱门槛；Windows Electron 43.2.0
+  全套 32/32（其中 BSF2 自动专项 13/13）：通过 page→chrome Ctrl+L、T/W/数字/Control+Tab、find 4 次匹配与方向、
+  Find 输入框 Escape→页面焦点、同源双 tab find/zoom 隔离与 110% badge、唯一 roving tabstop、完整 title+URL tooltip、
+  1/2/12/30 tabs、首/中/末 tab、Arrow/End、940/720px 与 Shell 200%；新增真实 Windows Ctrl+R/F5 错误重试、
+  loading Escape stop、Alt+Left/Right、Ctrl+A/C/V/Z 页面保留、Delete 的 Shift/repeat 拒绝及中键关闭，产物位于
+  `local-builds/functional-qa/bsf2-browser-shell-jiH8ad/`；Browser Agent 回归 35/35；
+- 相关 focused tests 35/35；最终 `npm run check` 全绿：898 个源文件均不超过 250 行，796 tests 中 794 pass、
+  2 个平台 skip、0 fail，Node/Preload/Vue typecheck、Node build 与 Electron production build 均通过；
+- 新增 `npm run qa:browser-shell:manual`，固定打开本地 fixture 供 Windows native menu 与 Microsoft 拼音候选窗验收。
+  本轮已启动真实可见 Electron 窗口，但 Computer Use 原生管道在一次重试和会话重置后仍不可用，因此没有将菜单弹出、
+  菜单选择或真实 TSF composition 写成通过；
+- **2026-08-30 阶段迁移决策：**用户明确要求暂缓真实人工验收并继续下阶段。Windows native menu 与真实中文 IME
+  两项以“未验收”状态移交 BSF5 Windows，不记为通过；BSF2 以实现、合同和 Windows Electron 自动化收口进入 BSF3。
+  macOS Cmd、交通灯、native menu 与窗口行为继续 carry 到 BSF5 macOS，不得用 Windows 合同测试冒充；
+- 本批未 commit、未 push；工作树中的 `.gitignore` 与 Markdown 渲染改动继续保持无关且未触碰。
+
 ### BSF3：Agent 可见层与人机接管
 
 目标：把既有 AgentTask、Grant、动作和控制权变成浏览器内持续可见的可信状态。
@@ -404,6 +457,82 @@ props 向下、事件向上。`BrowserShell.vue` 只做组合，不承载 find�
 - 接管后 Agent 不再观察和动作；恢复前重新校验 owner、Grant、origin 和页面状态；
 - 网页伪造相似徽章不能改变真实 Browser Chrome 状态；
 - Inspector 不产生第二份任务状态、活动时间线或业务下一步。
+
+**2026-08-30 BSF3 第一批实现与阶段质检：**
+
+- 在写可见层前先复现并修复三项接管安全边界：fresh observation 现在绑定 `runId`；ActionToken consume
+  必须仍匹配 task 当前 active run；task 进入 waiting/completed/failed/paused/canceled/revoked 时统一撤销 Browser
+  write access。接管前的 observation/token 不会跨 resume 复用；
+- `BrowserAgentStatusBridge` 不再接受任意 Renderer 状态，改为订阅既有 AgentTask repository invalidation，读取
+  Task、DelegationGrant、Event、PolicyDecision 和 Receipt 后生成脱敏 `BrowserAgentChromeView`。旧 owner 的延迟读取、
+  command 结果和 raw error 均不能覆盖新 owner；terminal projection 仅在当前 session 稳定保留，不在重启后复活；
+- 当前动作复用 `ManagedTaskPolicyHooks` 的真实 allow 后/complete 事件，新增的 observer 只保存 run-scoped transient
+  action context，不建立第二个 Agent loop、task store 或 timeline。只有实际通过 policy 的工具才显示 current action 和
+  target tab；动作结束、takeover、换 run 或 terminal 后 marker 失效；没有真实 future-action 来源时不生成 next action；
+- 旧第三行 `BrowserAgentBar` 已收敛为地址行 Capsule；只读 Inspector 使用独立可信 `WebContentsView`。1180px 为
+  360px dock、940px 为 320px dock、窄于 940px 为 overlay；Shell 200% 时统一按 CSS px → DIP 换算，并同步 Inspector
+  zoom。Inspector 使用独立非持久 partition、CSP、window-open/navigation/redirect deny，隐藏状态不能发送 command；
+- Capsule、Inspector、Grant 摘要、最近三条活动、控制条、二次 stop 确认和 tab target marker 均只消费同一 projection。
+  takeover 成功后 Inspector 自动关闭并把焦点交给页面；主动关闭返回 Capsule；projection 消失或非法 layout 时返回页面。
+  Agent/background 切 tab 不再抢走 Inspector 焦点；
+- “打开完整任务”不向 Browser Renderer 发送 taskId：Inspector 只发无参数命令，主进程从 bridge 取得 canonical taskId，
+  聚焦主 App 并深链 Agent Tasks。重复打开同一 task 使用递增 request，仍会重新选择目标；正在运行的 Agent 不阻塞只读
+  详情，但离开未保存 Experience 前继续走既有确认；
+- 阶段质检发现新增 Inspector preload 后 Rollup 会抽取 sibling chunk，而 sandbox preload 无法 `require()`，首轮真实
+  Electron 因此无法建立 Shell ready。已让 Inspector preload 保持单文件，并把 `desktop:build` 加入四个 sandbox
+  preload 必须 standalone 的硬门禁；没有以 typecheck/build 绿掩盖运行时失败；
+- Windows Electron 43.2.0 `bsf3-v1` 精确集合 36/36：原 32 项 Browser Shell 回归继续通过，新增 4 项证明 idle
+  无 Capsule/Inspector、Capsule/Inspector/target marker 同源 projection、Inspector 外部导航被阻止、720px/200%
+  下 close/pause/takeover/open-task/stop 无横向溢出且可达。独立 Inspector 1180/720/200% 截图与报告位于
+  `local-builds/functional-qa/bsf3-browser-shell-JCg1wW/`；
+- Browser Agent `bsf3-v1` 已从弱数量门槛改为 35 个 exact ordered checks，真实 Electron 路径会点击 Capsule、打开
+  canonical Inspector、从 Inspector 发出 takeover，并继续完成 Browser/Webmail/Managed Apply/Download 回归，35/35；
+- focused projection/coordinator/bridge/layout/IPC/Harness/Lifecycle tests 29/29；最终 `npm run check` 全绿：
+  924 个源文件均不超过 250 行，814 tests 为 812 pass、2 个平台 skip、0 fail，Node/Preload/Vue typecheck、
+  Node build、Electron production build 与四个 sandbox preload standalone 门禁均通过。本批未 commit、未 push，
+  `.gitignore` 与 Markdown 渲染等无关用户改动未清理、未覆盖。
+
+**2026-08-30 BSF3 第二批、安全终审与完成结论：**
+
+- 接管/恢复安全矩阵新增真实 memory Harness 回归：late run1 snapshot 不能写入 run2 observation；pause/takeover、cancel、
+  wait、complete、failed、revoke 和 app recovery 会立即关闭 Browser access、清 transient action，并把未结 ActionToken
+  统一收成 uncertain/blocked receipt。旧 prompt rejection 不再把 paused/canceled 覆盖为 failed；manual resume 即使携带
+  pending events 仍保持 `wakeCause=user`，scheduler 才使用 `environment_event`；
+- ActionLedger 先校验 active run、expiry、origin、tab 和 observation，再允许 duplicate receipt；policy allow 使用
+  `recordIfActiveRun` 原子落盘，不留下 ghost allow。navigate redirect 绑定实际 origin；new-tab/close-tab 分别按“新 id
+  事前未知”与“关闭目标已消失”的语义核验；select/close preflight 从 requested tab 取 origin。安全 focused 40/40；
+- `browser_list_tabs` 在主进程预检全部返回 tab：任一 HTTP(S) origin 不同时落入 DelegationGrant 与严格 Site Policy 就
+  整体阻止，不向模型泄露该 tab 的标题或 URL；snapshot/query/get-active 继续绑定活跃 origin。Browser Chrome 只投影
+  实际含 Browser scope 的 AgentTask；Grant revoked/expired/terminal 只保留“打开完整任务”，reviewing 不显示 takeover；
+- 真实当前动作开始前复用既有 fillId 生成一次 340ms、450ms hard max 的目标高亮；fill/select/check/click/scroll 均沿用
+  语义元素定位，完全离屏、元素消失、跨域 frame、CSP 样式阻止或 Renderer 销毁时不等待、不坐标降级，也不改变真实
+  action result。Browser Agent Electron 新增对 marker 实际插入的检查；
+- 填写审核 Overlay 改为 Chrome × Linear 中性 visual system，支持 light/dark、zh-CN/en-US、文字状态、键盘闭环、
+  focus-visible、reduced-motion、forced-colors、窄宽动态高度、离屏徽章恢复和可逆焦点/padding/listener cleanup。
+  决策状态运行在固定 isolated world `1001`，只接受 `event.isTrusted`；main-world 伪造 state/合成 click、DOM/文案/样式
+  篡改和 `__proto__` fillId 均 fail-closed；
+- 真实 Electron 质检没有隐藏失败：先发现 user-origin CSS readiness 的 DPR 1.25 取整误判，改为 visual viewport +
+  最多一个物理像素容差；随后确认 Electron 43.2 Windows 的 `cssOrigin:user` removal key 会“resolve 但不清除”。A/B
+  证明 `cssOrigin:author` 可应用关键 high-specificity/`!important` 样式且真实清除后，才改为 author origin，持续 computed
+  tamper check 不降级。失败产物 `UC3W0w/hMllgM/iv5W6m` 保留为诊断史，不冒充通过；
+- 最终 Windows Electron 43.2.0 `bsf3-v1` exact suite **48/48**：包含原 32 项回归、Capsule/Inspector/三标签
+  active-target 分离、重复 projection/单 live region、网页 spoof、Inspector Escape/自动焦点、dock/overlay bounds，以及
+  OVL-01～07 的 isolated spoof、synthetic/physical click、双主题双语言、离屏恢复与完整 CSS/DOM/focus cleanup。
+  报告位于 `local-builds/functional-qa/bsf3-browser-shell-lfIUQR/report.json`，SHA-256
+  `1F4EFB7A9D1469FB47EC53512263CDDD2EB5D81731A287761278B43503AEF61F`；
+- Browser Agent `bsf3-v1` exact **36/36**，继续通过 Browser/Webmail/Managed Apply/Download，并新增真实 Capsule→Inspector
+  takeover 与瞬时 target highlight；最终 `npm run check` 全绿：941 个源文件均不超过 250 行，872 tests 为
+  870 pass、2 个平台 skip、0 fail，Node/Preload/Vue typecheck、Node build、Electron production build 与四个
+  sandbox preload standalone 门禁均通过；
+- 页面访问状态现在有 push subscription：Grant/revoke/review/active tab/origin 变化会更新 Inspector，授权 tab 关闭或
+  origin 漂移会同步停止 Overlay/CAPTCHA 并清 fill log；Browser 打开入口统一携带主 App theme/locale，Shell state
+  再向 Inspector 传播 locale。重复 task deep-link 使用 sequence，离开未保存 Experience 仍先确认。
+
+**BSF3 完成结论：**实现、自动化、安全合同和 Windows Electron 自动矩阵已完成，当前正式进入 BSF4。按用户“真实人工
+验收先暂缓”的决定，Windows 视觉质感/动画、NVDA 动态播报、真实登录-OTP-CAPTCHA 接管→恢复、完整任务 deep-link
+人工体验，以及 BSF2 遗留的 native menu/微软拼音，全部以“未验收”状态移交 BSF5 Windows；不因本阶段自动全绿把它们
+写成通过。macOS 真实快捷键、交通灯、Inspector 焦点与窗口行为继续移交 BSF5 macOS。本批未 commit、未 push，用户的
+`.gitignore` 与 Markdown 渲染等无关改动未覆盖、未清理。
 
 ### BSF4：新标签页与下载反馈
 
@@ -434,10 +563,124 @@ props 向下、事件向上。`BrowserShell.vue` 只做组合，不承载 find�
 - 同名下载、取消、失败、大文件进度和多下载并发；
 - Renderer、模型、日志和业务状态均不出现绝对路径。
 
+**2026-08-31 BSF4 实现、运行时质检与完成结论：**
+
+- 新标签页继续使用每个 tab 独立 token 的主进程生成内部页，不向外部 `WebContentsView` 注入 preload。它只读取
+  既有 `BrowserAgentStatusBridge` 的脱敏 snapshot，覆盖无任务、运行中和等待用户；最多展示既有 projection
+  实际提供的待处理项，不补造任务、最近站点、历史、书签或统计；“继续当前任务”只从可信内部页调用 canonical
+  task deep-link，外部页面伪造同协议导航会被拒绝；
+- Browser Chrome 新增“在 App 中使用此页面”入口。宿主只转交截断标题与去掉凭据、query、fragment 的 HTTP(S)
+  URL，主 App 打开现有对话并预填 Composer，不在 Browser 内创建或启动第二个 AgentTask；重复交接使用递增
+  sequence，App 未登录时保留请求并先展示真实登录路径；
+- `BrowserDownloadTracker` 仍是唯一 `will-download` 监听器；新增的 observer 只投影文件名、来源 origin、字节、
+  进行中/完成/取消/中断状态和时间。并发同名文件的内部保存名使用宿主保留集合去重，路径从未进入 Renderer、
+  模型结果、日志或业务状态；“在文件夹中显示”、删除、移动、上传均未实现；
+- 首轮自动 DOM 检查虽绿，真实窗口截图发现 Shell DOM popover 会被原生网页 `WebContentsView` 覆盖。没有把
+  56/56 提前当成完成，而是改为独立 sandboxed `WebContentsView` 可信浮层；它使用单独非持久 partition、CSP、
+  navigation/window-open deny 与严格 sender/open 校验，继续消费同一 projection，不形成第二个下载监听器或 store。
+  面板按窗口和 zoom 布局，关闭/Escape/dismiss 恢复可信 trigger，网页 DOM 与 viewport 不被修改；
+- Windows Electron 43.2.0 `bsf4-v1` exact suite **57/57**：保留 BSF2/BSF3 全回归，并新增无任务/运行中/等待、
+  可信 task deep-link、外部页伪造拒绝、可信页面交接、深色英文离线主页、同名并发与真实进度、完成/取消/中断、
+  dismiss/Escape 和绝对路径不泄露。最终报告及窗口/内部页/独立下载浮层截图位于
+  `local-builds/functional-qa/bsf4-browser-shell-Ty64ku/`；
+- Browser Agent Electron exact **36/36**，继续覆盖 canonical Inspector takeover、Browser/Webmail/Managed Apply
+  与下载无路径结果；最终 `npm run check` 全绿：954 个源文件不超过 250 行，879 tests 为 877 pass、2 个平台 skip、
+  0 fail，Node/Preload/Vue typecheck、Node build、Electron production build 与 5 个 sandbox preload standalone
+  门禁均通过；
+- BSF2/BSF3 移交的 Windows native menu、微软拼音、视觉/动画、NVDA、真实登录/OTP/CAPTCHA takeover→resume
+  和完整任务人工 deep-link 仍是 **未验收**，继续进入 BSF5 Windows，不因 BSF4 自动矩阵通过而改写；macOS 项仍
+  留给 BSF5 macOS。本批未 commit、未 push，工作树中的 Markdown 等无关用户改动未清理、未覆盖。
+
+**BSF4 完成结论：**新标签页、可信页面交接、下载 observer/浮层、安全边界、Windows Electron 矩阵和全量门禁
+均已完成，满足进入 BSF5 Windows 的自动化前置条件；当前正式执行指针改为 BSF5 Windows，人工移交项必须逐项
+真实验收后才可进入 BE6。
+
+**2026-08-31 BSF4 独立质检校正：**上述结论只成立于实现与既有自动矩阵，不再视为完整质检通过。本轮按
+Accessibility / Performance / Responsive / Theming / Anti-pattern 五维复核，健康分 **15/20（Good）**，0 个 P0、
+3 个 P1、3 个 P2：
+
+- **P1 下载浮层键盘不可达：**真实 Windows OS 级键盘验证中，打开浮层后连续 8 次 Tab 只在 Shell 的标签、
+  窗口控制、地址栏、页面交接和下载 trigger 间循环，`关闭下载`、`移除下载记录` 从未获得焦点。原因是独立
+  `WebContentsView` 打开后没有建立可信焦点入口；现有 Escape 只能关闭，不能替代完整键盘操作；
+- **P1 小字对比度未达 WCAG AA：**下载浮层的 `--muted` 小字在 light `--surface-strong` 上为 **3.52:1**，
+  dark 上为 **3.45:1**；新标签页 light task time 为 **4.21:1**，均低于普通文字 4.5:1；
+- **P1 projection 更新打断 Inspector 焦点：**临时真实 Electron 探针每 2.5 秒更新同一 Agent projection；
+  Chromium 保留了新标签页输入值，否定“输入被清空”的初始猜测，但 `refreshHomeTask()` 的内部页 reload 会把
+  实际键盘路径从 Inspector 抢回页面，随后 Tab 只在搜索框与“继续当前任务”间循环；
+- **P2 精确页面身份损失：**页面交接会无条件删除全部 query/fragment；对以 query 保存 job ID 的站点可能只把
+  用户带回通用列表，需要产品确认敏感参数脱敏与可用性的边界；
+- **P2 Inspector 动画合同未实现：**当前只有 Capsule 的 140ms 颜色 transition，独立 Inspector host 为即时
+  show/hide，没有 UI Brief 要求的 180–220ms 开合；
+- **P2 矩阵缺口：**现有 57/57 没有覆盖 download popover 的 dark/en-US、720px/200% 与 Agent/permission
+  组合态。安全隔离、单一 tracker、路径不泄露、状态文字/图标、reduced-motion spinner、无 AI 装饰等保持通过。
+
+因此 BSF4 状态校正为“实现完成、质检未闭环”，P1 修复与回归通过前不得把 BSF5 Windows 标记完成，也不得进入 BE6。
+
 ### BSF5：真实 Electron 集成交付
 
 目标：把前四批作为一个真实浏览器外壳交付，不以组件截图或单元测试代替产品验收。BSF5 分成 Windows 门禁
 和 macOS 收口；Windows 门禁通过后进入 BE6，BE6 完成后立即完成 macOS 收口，二者均通过才标记 BSF5 完成。
+
+BSF5 Windows 继承待办：
+
+- 运行 `npm run qa:browser-shell:manual`，完成 Windows native context menu 与真实中文 IME 候选窗验收；
+- 人工检查 BSF3 Inspector/Capsule/Overlay 的视觉质感、180–220ms 开合、NVDA 动态播报与 720px/200% 键盘路径；
+- 使用一次真实登录、OTP 或 CAPTCHA 完成 takeover → 用户处理 → resume，并验证恢复前重新观察；
+- 从 Inspector 打开完整任务，覆盖同一 task 重复 deep-link、主 App 正在运行 Agent 和未保存 Experience 离开确认。
+
+这些项目在 BSF2/BSF3 仅被延后，未被自动化或阶段迁移视为人工通过。
+
+**2026-08-31 BSF5 Windows 启动记录：**当前 Codex 工具清单没有可调用的 Computer Use 桌面接口，因此没有把
+CDP、DOM 或 Electron `sendInputEvent` 冒充 Computer Use。本轮改用真实 Windows 前台窗口、Win32 鼠标/键盘输入、
+UI Automation 和屏幕捕获开始人工矩阵，证据位于
+`local-builds/functional-qa/bsf5-windows-manual-20260831/`：
+
+- `01-manual-ready.png`、`02-browser-foreground.png` 是前台切换尚未成功时误捕的 Codex 窗口，仅作失败诊断，
+  **不计验收证据**；有效 Browser 证据从 `04-browser-foreground.png` 起，并以下列逐项文件为准；
+
+- **native context menu 通过：**OS 级右键打开真实菜单；UIA 读取 `SubmenuView/MenuItemView` 的“后退/前进/
+  重新加载”，状态分别 disabled/disabled/enabled，并真实 Invoke“重新加载”后菜单关闭；截图
+  `05-native-context-menu.png`；
+- **微软拼音通过：**目标窗口线程 HKL 为 `0x0804`；真实键盘输入 `zhongwen` 出现微软拼音候选窗，选择 1 后
+  UIA `ValuePattern` 回读“中文”；截图 `06-microsoft-pinyin-candidate.png`、
+  `07-microsoft-pinyin-committed.png`；
+- **视觉与 720px/200% 部分通过：**默认 Inspector 与 720px/200% overlay 的停止/暂停/接管/完整任务按钮均
+  可见，截图 `10-agent-inspector-default.png`、`11-agent-inspector-720-zoom200.png`；但 projection 更新后的真实
+  Tab 路径被页面夺回，不能把按钮“可见”写成键盘验收通过，且 180–220ms 动画合同失败；
+- **NVDA 未验收：**本机未发现 NVDA 可执行文件，UIA 属性不能替代 NVDA 动态播报；
+- **真实登录/OTP/CAPTCHA takeover→resume 与完整任务 deep-link 未执行：**需先关闭上述 P1，再使用真实产品会话
+  和用户接管敏感输入；不得用 fixture 或旧登录进程冒充。
+
+本轮没有修改产品代码、没有 commit/push；只生成被忽略的本地 QA 探针与截图。BSF5 Windows 已启动但门禁未通过。
+
+**2026-08-31 一次性修复与复验：**用户要求一次性关闭上述审计项后，3 个 P1 与 3 个 P2 均已修复：
+
+- 下载浮层新增独立 typed focus channel，打开/ready 后把焦点送到“关闭下载”，Escape/关闭后回到 download trigger；
+  trigger 与面板使用 `aria-haspopup="dialog"`、`role="dialog"`。真实 Windows UIA 复验确认打开后关闭按钮获得焦点，
+  再按 Tab 可到达 `移除下载记录：os-focus.bin`；证据 `12-inspector-focus-fixed.png`、
+  `13-download-focus-fixed.png`；
+- 新标签页移除内容输入框的 `autofocus`，`browserHomeTaskKey()` 只在 goal/state/waiting items 变化时刷新，
+  timestamp-only projection 不再 reload。真实前台探针持续更新 3.3 秒后，Tab 仍进入 Inspector 的“关闭任务详情”；
+  Chromium 同时继续保留搜索草稿；
+- 新增 `--browser-secondary-text`，light/dark 在 `--surface-strong` 上分别为 5.07:1、5.38:1；新标签页更新时间
+  同步使用 AA 颜色。新增自动 contrast 门禁；
+- 页面交接改为保留普通 query 和非敏感 hash，只删除凭据及 token/auth/code/password/session/signature 等敏感参数；
+  jobId 等精确页面身份继续保留；
+- Inspector 对 docked/overlay 统一使用 200ms enter、160ms exit，Renderer 在 ready 时上报
+  `prefers-reduced-motion`，reduced-motion 走即时关闭；修复退场期间快速 reopen 的竞态，close(true)/close(false)
+  使用确定性的页面/trigger 焦点恢复语义；
+- 下载矩阵新增 dark/en-US、720px/200%、纵向多记录滚动和英文单数 `Downloading 1 file`，无横向溢出且核心动作
+  可见。
+
+最终 Windows Electron 43.2.0 `bsf4-v2` exact suite **61/61**，报告与新增截图位于
+`local-builds/functional-qa/bsf4-v2-browser-shell-qU6NwQ/`；Browser Agent **36/36**；`npm run check` 全绿：
+955 个源文件不超过 250 行，883 tests 为 881 pass、2 个平台 skip、0 fail，Node/Preload/Vue typecheck、Node build、
+Electron production build 与 5 个 sandbox preload standalone 门禁全部通过。Impeccable 复扫仅剩 Inter/紧凑产品字号的
+通用 warning，二者均是已确认 Product register 与 UI Brief 的既有设计选择，不计缺陷。
+
+**质检结论校正：**BSF4 的 3 个 P1 与 3 个 P2 已全部关闭，独立质检闭环恢复为通过。BSF5 Windows 不再被
+BSF4 阻塞；native menu、微软拼音、视觉/动画、720px/200% 与真实 OS 键盘焦点已通过。NVDA、真实登录/OTP/CAPTCHA
+takeover→resume 和真实完整任务 deep-link 仍未验收，BSF5 Windows 继续保持进行中，不能进入 BE6。
 
 自动化门禁：
 
@@ -492,10 +735,10 @@ props 向下、事件向上。`BrowserShell.vue` 只做组合，不承载 find�
 | --- | --- | --- | --- |
 | BSF0 | **已完成（2026-08-30）** | 用户已确认启动 | UI 决策、基线 QA、上级写回 |
 | BSF1 | **已完成（2026-08-30）** | BSF0 完成 | focused tests、Electron 导航/失败矩阵 |
-| BSF2 | **当前** | BSF1 完成 | 标签压测、双平台快捷键、find/zoom QA |
-| BSF3 | 待执行 | BSF2 完成 | Agent 状态与接管安全矩阵 |
-| BSF4 | 待执行 | BSF3 完成 | 新标签页与下载真实矩阵 |
-| BSF5 Windows | 待执行 | BSF1–BSF4 全部完成 | `npm run check`、Windows 真实 Electron 总验收 |
+| BSF2 | **已完成（2026-08-30；2 项人工门禁移交 BSF5 Windows）** | BSF1 完成 | 标签压测、跨平台快捷键合同、Windows Electron/find/zoom；移交项不计通过 |
+| BSF3 | **已完成（2026-08-30；人工体验项移交 BSF5 Windows）** | BSF2 完成 | 48/48 Shell、36/36 Browser Agent、安全 40/40、全量 872 tests |
+| BSF4 | **已完成并通过独立质检（2026-08-31）** | BSF3 完成 | 61/61 Shell、36/36 Browser Agent、全量 883 tests |
+| BSF5 Windows | **进行中** | BSF4 已闭环 | menu/拼音/视觉/动画/键盘通过；NVDA、真实接管、deep-link 待验收 |
 | BE6 | 后续阶段 | BSF5 Windows 门禁完成 | EventKit 与 macOS Calendar 门禁 |
 | BSF5 macOS | 待收口 | BE6 完成 | macOS 交通灯、快捷键和真实 BrowserWindow 验收 |
 

@@ -17,6 +17,7 @@ import { attachmentStatus, fileSize } from "../attachments/attachment-formatters
 import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
 import { translate } from "../i18n/locale";
 import { useComposerDrop } from "../chat/use-composer-drop";
+import { useComposerPageHandoff } from "../chat/use-composer-page-handoff";
 
 const props = defineProps<{
   disabled?: boolean;
@@ -68,6 +69,7 @@ function resize(): void {
   element.style.height = "auto";
   element.style.height = `${Math.min(element.scrollHeight, 180)}px`;
 }
+useComposerPageHandoff(text, textarea, resize);
 
 function send(): void {
   const value = text.value.trim();

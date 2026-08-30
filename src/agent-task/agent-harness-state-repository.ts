@@ -11,6 +11,7 @@ export interface AgentHarnessStatePersistence {
 }
 
 export class AgentHarnessStateRepository {
+  readonly #listeners = new Set<() => void>();
   #state: AgentHarnessStateV1 | undefined;
   #updates: Promise<void> = Promise.resolve();
 
@@ -20,8 +21,14 @@ export class AgentHarnessStateRepository {
   ) {}
 
   public async read<T>(select: (state: AgentHarnessStateV1) => T): Promise<T> {
+    await this.#updates;
     await this.#initialize();
     return structuredClone(select(this.#state!));
+  }
+
+  public subscribe(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
 
   public update<T>(
@@ -35,6 +42,7 @@ export class AgentHarnessStateRepository {
       next.updatedAt = new Date().toISOString();
       await this.persistence.save(next);
       this.#state = next;
+      this.#notify();
       return structuredClone(result);
     });
     this.#updates = operation.then(() => undefined, () => undefined);
@@ -45,6 +53,7 @@ export class AgentHarnessStateRepository {
     await this.#updates;
     await this.persistence.clear();
     this.#state = emptyAgentHarnessState(this.ownerId);
+    this.#notify();
   }
 
   async #initialize(): Promise<void> {
@@ -55,6 +64,12 @@ export class AgentHarnessStateRepository {
     }
     this.#state = loaded ?? emptyAgentHarnessState(this.ownerId);
     pruneAgentHarnessState(this.#state);
+  }
+
+  #notify(): void {
+    for (const listener of this.#listeners) {
+      try { listener(); } catch { /* Projection invalidation cannot fail writes. */ }
+    }
   }
 }
 

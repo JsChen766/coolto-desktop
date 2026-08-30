@@ -1,24 +1,31 @@
 <script setup lang="ts">
 import { Bot, Menu, RefreshCw } from "@lucide/vue";
-import { shallowRef } from "vue";
+import { shallowRef, watch } from "vue";
 
 import type { DesktopApi } from "@desktop/types";
 import AgentTaskInspector from "./AgentTaskInspector.vue";
 import AgentTaskList from "./AgentTaskList.vue";
 import { useAgentTasks } from "./use-agent-tasks";
 
-const props = defineProps<{ api: DesktopApi }>();
+const props = defineProps<{
+  api: DesktopApi;
+  focusRequest?: { sequence: number; taskId: string } | undefined;
+}>();
 const emit = defineEmits<{
   toggleSidebar: [];
   openConversation: [conversationId: string];
 }>();
-const tasks = useAgentTasks(props.api);
+const tasks = useAgentTasks(props.api, () => props.focusRequest?.taskId);
 const mobileDetail = shallowRef(false);
 
 async function selectTask(taskId: string): Promise<void> {
   await tasks.select(taskId);
   mobileDetail.value = true;
 }
+
+watch(() => props.focusRequest, (request) => {
+  if (request) void selectTask(request.taskId);
+});
 </script>
 
 <template>
@@ -56,7 +63,7 @@ async function selectTask(taskId: string): Promise<void> {
         :error="tasks.error.value"
         @action="tasks.act"
         @open-browser="tasks.openBrowser"
-        @open-lead="props.api.browser.open({ url: $event })"
+        @open-lead="tasks.openBrowser($event)"
         @open-conversation="emit('openConversation', $event)"
         @back="mobileDetail = false"
       />

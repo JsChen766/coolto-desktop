@@ -8,7 +8,9 @@ import type {
   DesktopPlatform,
 } from "../../shared/types.js";
 import { getBrowserSession } from "./browser-session.js";
+import type { BrowserShortcutRouter } from "./browser-shortcut-router.js";
 import { BrowserTabManager } from "./browser-tab-manager.js";
+import type { BrowserHomeTaskSnapshot } from "./browser-home-page.js";
 
 /**
  * B1: 抽离 BrowserWindow 创建 + shell 加载 + shell state 派生，
@@ -19,6 +21,10 @@ import { BrowserTabManager } from "./browser-tab-manager.js";
 export interface BrowserWindowFactoryDeps {
   theme: () => "light" | "dark";
   locale: () => BrowserLocale;
+  homeTask: () => BrowserHomeTaskSnapshot | null;
+  openTask: () => void;
+  shortcutRouter: BrowserShortcutRouter;
+  shouldFocusPage: () => boolean;
   onCreated: (tabs: BrowserTabManager, window: BrowserWindow) => void;
   onClosed: (window: BrowserWindow) => void;
   onLayoutChange: () => void;
@@ -54,7 +60,8 @@ export function createBrowserWindow(
   const tabs = new BrowserTabManager(window, deps.onLayoutChange, {
     locale: deps.locale,
     theme: deps.theme,
-  });
+    homeTask: deps.homeTask,
+  }, deps.shortcutRouter, deps.shouldFocusPage, deps.openTask);
   deps.onCreated(tabs, window);
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.on("resize", () => tabs.layout());
@@ -82,15 +89,23 @@ export function deriveShellState(
   theme: "light" | "dark",
   isMaximized: boolean,
   agentControl: BrowserShellState["agentControl"] = null,
+  downloads: BrowserShellState["downloads"] = [],
   permissionNotice: BrowserShellState["permissionNotice"] = null,
+  agentInspectorOpen = false,
+  locale: BrowserLocale = "zh-CN",
+  downloadPopoverOpen = false,
 ): BrowserShellState {
   const base = tabs?.shellState() ?? { tabs: [], activeTabId: null };
   return {
     ...base,
     theme,
+    locale,
     platform: process.platform as DesktopPlatform,
     isMaximized,
+    agentInspectorOpen,
     agentControl,
+    downloadPopoverOpen,
+    downloads,
     permissionNotice,
   };
 }

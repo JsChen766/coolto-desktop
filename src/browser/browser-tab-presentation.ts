@@ -1,4 +1,5 @@
 import type { BrowserNavigationFailure } from "../desktop/shared/types.js";
+import { normalizeBrowserNavigationUrl } from "./browser-navigation-url.js";
 
 const DATA_IMAGE_PATTERN = /^data:image\/(?:gif|jpeg|png|webp|x-icon);/iu;
 
@@ -15,6 +16,21 @@ export function sanitizeFaviconUrl(value: string): string | null {
   }
 }
 
+export function shouldResetBrowserFavicon(
+  currentUrl: string,
+  nextUrl: string,
+): boolean {
+  try {
+    const current = new URL(currentUrl);
+    const next = new URL(nextUrl);
+    const currentIsWeb = current.protocol === "http:" || current.protocol === "https:";
+    const nextIsWeb = next.protocol === "http:" || next.protocol === "https:";
+    return !currentIsWeb || !nextIsWeb || current.origin !== next.origin;
+  } catch {
+    return true;
+  }
+}
+
 export function browserNavigationFailure(
   code: number,
   description: string,
@@ -24,6 +40,17 @@ export function browserNavigationFailure(
     code,
     description: description.trim().slice(0, 300) || "Navigation failed",
     url: sanitizeVisibleUrl(url),
+  };
+}
+
+export function browserNavigationFailureRecord(
+  code: number,
+  description: string,
+  url: string,
+): { failure: BrowserNavigationFailure; retryUrl: string | null } {
+  return {
+    failure: browserNavigationFailure(code, description, url),
+    retryUrl: normalizeBrowserNavigationUrl(url),
   };
 }
 

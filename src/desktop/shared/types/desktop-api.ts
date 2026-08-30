@@ -47,13 +47,8 @@ import type {
   ExperienceWriteProposal,
 } from "../../../experience/maintenance-types.js";
 import type { DesktopAgentEvent, DesktopApprovalRequest } from "./approvals.js";
-import type {
-  BrowserFillRecordView,
-  BrowserNavigateInput,
-  BrowserOpenInput,
-  BrowserState,
-  DesktopPlatform,
-} from "./browser.js";
+import type { DesktopPlatform } from "./browser.js";
+import type { BrowserDesktopApi } from "./browser-api.js";
 import type {
   AgentPromptInput,
   ApprovalResolveInput,
@@ -223,21 +218,7 @@ export interface DesktopApi {
   data: {
     clearLocal(): Promise<void>;
   };
-  browser: {
-    open(input?: BrowserOpenInput): Promise<BrowserState>;
-    close(): Promise<void>;
-    navigate(input: BrowserNavigateInput): Promise<void>;
-    goBack(): Promise<void>;
-    goForward(): Promise<void>;
-    reload(): Promise<void>;
-    getState(): Promise<BrowserState>;
-    abortFill(): Promise<void>;
-    onStateChanged(listener: (state: BrowserState) => void): () => void;
-    onFillProgress(listener: (payload: { records: BrowserFillRecordView[]; reviewing: boolean }) => void): () => void;
-    onReviewDecision(listener: (payload: { fillId: string; decision: "accepted" | "rejected" }) => void): () => void;
-    onReviewComplete(listener: (payload: { action: "accepted" | "rejected" | "mixed"; acceptedCount: number; rejectedCount: number }) => void): () => void;
-    onCaptchaDetected(listener: (payload: { kind: "recaptcha" | "hcaptcha" | "geetest" | "slider" | "image" | "unknown"; detail?: string }) => void): () => void;
-  };
+  browser: BrowserDesktopApi;
 }
 export type WindowDraftSaveState =
   | "idle"

@@ -54,6 +54,8 @@ export type * from "../../profile/types.js";
 export type * from "./types/approvals.js";
 export type * from "./types/artifacts.js";
 export type * from "./types/browser.js";
+export type * from "./types/browser-api.js";
+export type * from "./types/browser-agent.js";
 export type * from "./types/conversations.js";
 export type * from "./types/desktop-api.js";
 export type * from "./types/resume-library.js";

@@ -11,17 +11,17 @@ import { canonicalHash } from "./canonical-hash.js";
 import { evaluateDelegationPolicy } from "./delegation-policy.js";
 import type { AgentHarnessServices } from "./agent-harness-services.js";
 import type { ActionTokenV1 } from "./receipt-types.js";
-import type { JsonValue } from "./json-types.js";
-
-interface PendingAction {
-  token: ActionTokenV1;
-  targetOrigin: string | null;
-  tabId: string | null;
-  observationHash: string | null;
-  evidenceRef: string | null;
-}
+import { ManagedTaskExecutionState } from "./managed-task-execution-state.js";
+import { constrainManagedReadSurface } from "./managed-task-read-surface.js";
+import {
+  managedTaskTargetContext,
+  toManagedTaskJson,
+} from "./managed-task-target-context.js";
 
 const TERMINAL_TOOLS = new Set(["task_wait", "task_need_user", "task_complete"]);
+const BROWSER_ACCESS_SCOPES = new Set([
+  "browser.control", "browser.write", "browser.download", "browser.submit",
+]);
 
 export interface ManagedTaskPolicyHooksOptions {
   conversationId: string;
@@ -30,20 +30,18 @@ export interface ManagedTaskPolicyHooksOptions {
   tools: CapabilityAgentTool[];
   sitePolicyAllows: (origin: string | null, toolName: string) => boolean;
   grantBrowserAccess?: (reason: string) => void;
+  revokeBrowserAccess?: (reason: string) => void;
 }
 
 export class ManagedTaskPolicyHooks {
   readonly #tools: Map<string, CapabilityAgentTool>;
-  readonly #pending = new Map<string, PendingAction>();
-  readonly #observations = new Map<string, {
-    url: string | null;
-    hash: string;
-    observedAt: number;
-    evidenceRef: string | null;
-  }>();
+  readonly #execution: ManagedTaskExecutionState;
 
   public constructor(private readonly options: ManagedTaskPolicyHooksOptions) {
     this.#tools = new Map(options.tools.map((tool) => [tool.name, tool]));
+    this.#execution = new ManagedTaskExecutionState(
+      options.conversationId, options.services, options.browser,
+    );
   }
 
   public beforeToolCall = async (
@@ -64,11 +62,16 @@ export class ManagedTaskPolicyHooks {
     const tool = this.#tools.get(context.toolCall.name);
     if (!tool) return { block: true, reason: "工具未在当前 Task Harness 注册" };
     const metadata = requireToolCapability(tool);
+    const run = await this.options.services.tasks.getActiveRun(task.id);
     const { grant, revocation } = await this.options.services.grants.getActive(task.id);
-    const target = targetContext(this.options.browser, context.toolCall.name, context.args);
-    const observationHash = this.#freshObservation(target.tabId, target.url);
-    const evidenceRef = this.#freshEvidenceRef(target.tabId, target.url);
-    const requestHash = canonicalHash(toJson({
+    const target = managedTaskTargetContext(
+      this.options.browser, context.toolCall.name, context.args,
+    );
+    const observation = this.#execution.observation(
+      task.activeRunId, target.tabId, target.url,
+    );
+    const observationHash = observation.hash;
+    const requestHash = canonicalHash(toManagedTaskJson({
       taskId: task.id,
       runId: task.activeRunId,
       toolName: context.toolCall.name,
@@ -77,7 +80,7 @@ export class ManagedTaskPolicyHooks {
       tabId: target.tabId,
       observationHash,
     }));
-    const decision = evaluateDelegationPolicy({
+    const policy = {
       ownerId: task.ownerId,
       taskId: task.id,
       runId: task.activeRunId,
@@ -88,12 +91,19 @@ export class ManagedTaskPolicyHooks {
       metadata,
       grant,
       revocation,
-      unattended: (await this.options.services.tasks.getActiveRun(task.id)).wakeCause !== "user",
+      unattended: run.wakeCause !== "user",
       freshObservation: !metadata.requiresFreshObservation || Boolean(observationHash),
       sitePolicyAllowed: this.options.sitePolicyAllows(
         target.origin,
         context.toolCall.name,
       ),
+    };
+    const decision = constrainManagedReadSurface({
+      browser: this.options.browser,
+      decision: evaluateDelegationPolicy(policy),
+      policy,
+      sitePolicyAllows: this.options.sitePolicyAllows,
+      toolName: context.toolCall.name,
     });
     if (decision.decision !== "allow") {
       await this.options.services.policyDecisions.record(task.id, decision);
@@ -113,30 +123,9 @@ export class ManagedTaskPolicyHooks {
           : `Harness 已阻止：${decision.reasonCode}`,
       };
     }
-    if (metadata.requiredScopes.some((scope) =>
-      ["browser.control", "browser.write", "browser.download", "browser.submit"]
-        .includes(scope))) {
-      try {
-        this.options.grantBrowserAccess?.(`DelegationGrant ${grant?.id ?? ""}`);
-      } catch (error) {
-        decision.decision = "block";
-        decision.reasonCode = "browser_access_unavailable";
-        await this.options.services.policyDecisions.record(task.id, decision);
-        await this.options.services.ledger.record({
-          taskId: task.id, runId: task.activeRunId,
-          toolCallId: context.toolCall.id, toolName: context.toolCall.name,
-          requestHash, targetOrigin: target.origin, status: "blocked",
-          observationBeforeHash: observationHash,
-          errorCode: "browser_access_unavailable",
-        });
-        return {
-          block: true,
-          reason: error instanceof Error ? error.message : "浏览器控制不可用",
-        };
-      }
-    }
+    let token: ActionTokenV1 | null = null;
     if (metadata.sideEffect !== "read" && metadata.evidence === "action_receipt" && grant) {
-      const token = await this.options.services.ledger.issue({
+      token = await this.options.services.ledger.issue({
         ownerId: task.ownerId, taskId: task.id, runId: task.activeRunId,
         toolName: context.toolCall.name, requestHash,
         grantHash: grant.contentHash, targetOrigin: target.origin,
@@ -144,107 +133,85 @@ export class ManagedTaskPolicyHooks {
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
       });
       decision.actionTokenId = token.id;
-      this.#pending.set(context.toolCall.id, {
-        token, targetOrigin: target.origin, tabId: target.tabId,
-        observationHash, evidenceRef,
-      });
     }
-    await this.options.services.policyDecisions.record(task.id, decision);
+    if (!await this.#execution.isActive(task.id, task.activeRunId)) {
+      await this.#recordBlock(task.id, context.toolCall.id, decision, token,
+        "run_inactive_before_execution");
+      return { block: true, reason: "AgentRun 已结束或已被用户接管" };
+    }
+    const needsBrowserAccess = metadata.requiredScopes.some(
+      (scope) => BROWSER_ACCESS_SCOPES.has(scope),
+    );
+    let accessOpened = false;
+    if (needsBrowserAccess) {
+      try {
+        this.options.grantBrowserAccess?.(`DelegationGrant ${grant?.id ?? ""}`);
+        accessOpened = Boolean(this.options.grantBrowserAccess);
+      } catch (error) {
+        this.options.revokeBrowserAccess?.("browser_access_unavailable");
+        await this.#recordBlock(task.id, context.toolCall.id, decision, token,
+          "browser_access_unavailable");
+        return {
+          block: true,
+          reason: error instanceof Error ? error.message : "浏览器控制不可用",
+        };
+      }
+    }
+    let recorded: boolean;
+    try {
+      recorded = await this.options.services.policyDecisions.recordIfActiveRun(
+        task.id, task.activeRunId, decision,
+      );
+    } catch (error) {
+      if (accessOpened) this.options.revokeBrowserAccess?.("policy_record_failed");
+      throw error;
+    }
+    if (!recorded) {
+      if (accessOpened) this.options.revokeBrowserAccess?.("run_inactive_before_execution");
+      await this.#recordBlock(task.id, context.toolCall.id, decision, token,
+        "run_inactive_before_execution");
+      return { block: true, reason: "AgentRun 已结束或已被用户接管" };
+    }
+    this.#execution.start(context.toolCall.id, {
+      taskId: task.id, runId: task.activeRunId, toolName: context.toolCall.name,
+    });
+    if (token) {
+      this.#execution.bindAction(context.toolCall.id, token, observation.evidenceRef);
+    }
+    this.options.services.runtimeProjection.start({
+      callId: context.toolCall.id,
+      runId: task.activeRunId,
+      startedAt: new Date().toISOString(),
+      tabId: target.tabId,
+      targetOrigin: target.origin,
+      taskId: task.id,
+      toolName: context.toolCall.name,
+    });
     return undefined;
   };
 
   public afterToolCall = async (
     context: AfterToolCallContext,
   ): Promise<undefined> => {
-    if (context.toolCall.name === "browser_snapshot" && !context.isError) {
-      const evidenceRef = await this.#saveObservation(context);
-      this.#recordObservation(context.result.details, evidenceRef);
+    try {
+      await this.#execution.after(context);
+      return undefined;
+    } finally {
+      this.options.services.runtimeProjection.finish(context.toolCall.id);
     }
-    const pending = this.#pending.get(context.toolCall.id);
-    if (!pending) return undefined;
-    this.#pending.delete(context.toolCall.id);
-    await this.options.services.ledger.consume({
-      tokenId: pending.token.id,
-      toolCallId: context.toolCall.id,
-      targetOrigin: pending.targetOrigin,
-      tabId: pending.tabId,
-      observationHash: pending.observationHash,
-      status: context.isError ? "failed" : "succeeded",
-      observationAfterHash: this.#activeObservationHash(),
-      errorCode: context.isError ? "tool_execution_failed" : null,
-      evidenceRefs: pending.evidenceRef ? [pending.evidenceRef] : [],
-    });
-    return undefined;
   };
 
-  #recordObservation(details: unknown, evidenceRef: string | null): void {
-    if (!details || typeof details !== "object") return;
-    const tab = (details as { tab?: { id?: unknown; url?: unknown } }).tab;
-    if (typeof tab?.id !== "string") return;
-    this.#observations.set(tab.id, {
-      url: typeof tab.url === "string" ? tab.url : null,
-      hash: canonicalHash(toJson(details)),
-      observedAt: Date.now(),
-      evidenceRef,
-    });
-  }
-
-  #freshObservation(tabId: string | null, url: string | null): string | null {
-    if (!tabId) return null;
-    const value = this.#observations.get(tabId);
-    return value && value.url === url && Date.now() - value.observedAt <= 30_000
-      ? value.hash : null;
-  }
-
-  #activeObservationHash(): string | null {
-    const tab = this.options.browser.getActiveTab();
-    return tab ? this.#freshObservation(tab.id, tab.url) : null;
-  }
-
-  #freshEvidenceRef(tabId: string | null, url: string | null): string | null {
-    if (!tabId) return null;
-    const value = this.#observations.get(tabId);
-    return value && value.url === url && Date.now() - value.observedAt <= 30_000
-      ? value.evidenceRef : null;
-  }
-
-  async #saveObservation(context: AfterToolCallContext): Promise<string | null> {
-    const evidence = this.options.services.evidence;
-    if (!evidence) return null;
-    const task = await this.options.services.tasks.findRunningByConversation(
-      this.options.conversationId,
-    );
-    if (!task?.activeRunId) return null;
-    const payload = toJson({ content: context.result.content, details: context.result.details });
-    const createdAt = new Date().toISOString();
-    const saved = await evidence.save({
-      taskId: task.id, runId: task.activeRunId, kind: "browser_observation",
-      payloadHash: canonicalHash(payload), payload, createdAt,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    });
-    return saved.id;
+  async #recordBlock(
+    taskId: string,
+    toolCallId: string,
+    decision: Awaited<ReturnType<typeof evaluateDelegationPolicy>>,
+    token: ActionTokenV1 | null,
+    reasonCode: string,
+  ): Promise<void> {
+    decision.decision = "block";
+    decision.reasonCode = reasonCode;
+    decision.decidedAt = new Date().toISOString();
+    if (token) await this.#execution.rejectAction(token, toolCallId, reasonCode);
+    await this.options.services.policyDecisions.record(taskId, decision);
   }
 }
-
-function targetContext(
-  browser: BrowserAgentController,
-  toolName: string,
-  args: unknown,
-): { tabId: string | null; url: string | null; origin: string | null } {
-  const usesBrowserContext = toolName.startsWith("browser_") ||
-    ["extract_page", "request_write_access", "prepare_application_submission", "capture_browser_mail_event"]
-      .includes(toolName);
-  if (!usesBrowserContext) return { tabId: null, url: null, origin: null };
-  const active = browser.getActiveTab();
-  const requestedUrl = ["browser_navigate", "browser_new_tab", "browser_download"]
-    .includes(toolName) && args && typeof args === "object" &&
-    typeof (args as { url?: unknown }).url === "string"
-      ? (args as { url: string }).url : null;
-  const url = requestedUrl ?? active?.url ?? null;
-  let origin: string | null = null;
-  try { origin = url ? new URL(url).origin : null; } catch { origin = null; }
-  return { tabId: active?.id ?? null, url: active?.url ?? null, origin };
-}
-
-function toJson(value: unknown): JsonValue {
-  return JSON.parse(JSON.stringify(value ?? null)) as JsonValue; }

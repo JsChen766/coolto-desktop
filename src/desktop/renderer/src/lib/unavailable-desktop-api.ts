@@ -154,6 +154,8 @@ export function createUnavailableDesktopApi(): DesktopApi {
       onReviewDecision: () => () => undefined,
       onReviewComplete: () => () => undefined,
       onCaptchaDetected: () => () => undefined,
+      onOpenAgentTask: () => () => undefined,
+      onOpenPageInApp: () => () => undefined,
     },
   };
 }

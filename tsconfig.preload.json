@@ -7,6 +7,9 @@
     "src/desktop/preload/**/*.ts",
     "src/desktop/resume-preload/**/*.ts",
     "src/desktop/browser-preload/**/*.ts",
+    "src/desktop/browser-agent-inspector-preload/**/*.ts",
+    "src/desktop/browser-download-popover-preload/**/*.ts",
+    "src/desktop/browser-shell-preload/**/*.ts",
     "src/desktop/shared/**/*.ts"
   ]
 }

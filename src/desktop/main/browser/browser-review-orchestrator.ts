@@ -1,6 +1,9 @@
 import type { WebContents } from "electron";
 
 import type {
+  BrowserLocale,
+} from "../../shared/types.js";
+import type {
   BrowserFieldWriteRecord,
   CaptchaDetection,
   FieldReviewDecision,
@@ -13,6 +16,7 @@ import type { BrowserPageOperatorImpl } from "./browser-page-operator.js";
 export interface ReviewOrchestratorDeps {
   operator: BrowserPageOperatorImpl;
   activeWebContents: () => WebContents | undefined;
+  presentation: () => { locale: BrowserLocale; theme: "light" | "dark" };
   emitFillProgress: (
     records: BrowserFieldWriteRecord[],
     reviewing: boolean,
@@ -43,7 +47,7 @@ export class BrowserReviewOrchestrator {
     const contents = this.deps.activeWebContents();
     if (!contents) throw new Error("无活跃标签，无法启动审核");
     this.deps.emitFillProgress(records, true);
-    await this.#overlay.start(contents, records, {
+    await this.#overlay.start(contents, records, this.deps.presentation(), {
       onDecision: (fillId, decision) =>
         this.deps.emitReviewDecision(fillId, decision),
       onComplete: (outcome) => {

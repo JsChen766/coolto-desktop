@@ -1,26 +1,21 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { writeFile } from "node:fs/promises";
-import { writeFileSync } from "node:fs";
-import { createServer, type Server } from "node:http";
+import type { Server } from "node:http";
 
 import { registerBrowserIpc } from "../desktop/main/browser/browser-ipc.js";
 import { getBrowserSession } from "../desktop/main/browser/browser-session.js";
 import { until, waitShell } from "./browser-agent-qa-wait.js";
 import { runManagedApplyQa } from "./browser-managed-apply-qa.js";
 import { runBrowserWebmailQa } from "./browser-webmail-qa.js";
-import { frameHtml, pageOneHtml, pageTwoHtml } from "./browser-agent-qa-fixtures.js";
-
+import { browserAgentQaView, browserTargetHighlightObserved } from "./browser-agent-qa-fixture.js";
+import { initializeBrowserAgentQaReport, writeBrowserAgentQaReport } from "./browser-agent-qa-report.js";
+import {
+  closeBrowserAgentQaServer,
+  startBrowserAgentQaServer,
+} from "./browser-agent-qa-server.js";
 interface QaResult { name: string; passed: boolean; details?: unknown }
-
+const suiteVersion = "bsf3-v1";
 const results: QaResult[] = [];
-const configuredReport = process.env.COOLTO_BROWSER_QA_REPORT;
-if (configuredReport) {
-  writeFileSync(configuredReport, JSON.stringify({
-    started: true,
-    electronAppType: typeof app,
-    electronVersion: process.versions.electron ?? null,
-  }), "utf8");
-}
+initializeBrowserAgentQaReport(typeof app);
 const keepAlive = setInterval(() => {}, 1_000);
 const diagnostics = {
   fixtureDownloadRequests: 0,
@@ -44,7 +39,9 @@ app.whenReady().then(async () => {
       diagnostics.downloadStates.push(`done:${state}`);
     });
   });
-  const fixture = await startFixtureServer();
+  const fixture = await startBrowserAgentQaServer(() => {
+    diagnostics.fixtureDownloadRequests += 1;
+  });
   server = fixture.server;
   const main = new BrowserWindow({ show: false });
   const manager = registerBrowserIpc(ipcMain, main);
@@ -58,25 +55,35 @@ app.whenReady().then(async () => {
     manager.open({ url: `${fixture.baseUrl}/page-1` });
     await until(() => browser.listTabs().length === 1);
     await browser.waitFor({ kind: "load" });
-    manager.agentStatus.set({
-      taskId: "task-qa", goal: "Find Agent roles", status: "running",
-      control: "agent", message: "Agent is browsing", updatedAt: new Date().toISOString(),
+    manager.agentStatus.setProjection({
+      taskId: "task-qa",
+      conversationId: "conversation-qa",
+      state: browserAgentQaView({
+        task: {
+          goal: "Find Agent roles", status: "running",
+          waitingReason: null, updatedAt: new Date().toISOString(),
+        },
+      }),
     });
-    await waitShell(manager, ".agent-bar");
+    await waitShell(manager, ".agent-capsule");
     expect("01 initial tab exists", browser.listTabs().length === 1);
-    expect("01a BrowserAgentBar renders task state", Boolean(
-      await manager.shellWebContents()?.executeJavaScript(
-        "document.querySelector('.agent-bar')?.textContent.includes('Find Agent roles')",
-        true,
-      ),
-    ));
     await manager.shellWebContents()?.executeJavaScript(`(() => {
-      const button = [...document.querySelectorAll('.agent-bar button')]
+      document.querySelector('.agent-capsule')?.click();
+    })()`, true);
+    await until(() => Boolean(manager.shellCommands.inspectorWebContents()));
+    const inspector = manager.shellCommands.inspectorWebContents()!;
+    await until(async () => Boolean(await inspector.executeJavaScript(
+      "document.querySelector('.agent-inspector')?.textContent.includes('Find Agent roles')",
+      true,
+    )));
+    expect("01a Agent Capsule opens the canonical task Inspector", true);
+    await inspector.executeJavaScript(`(() => {
+      const button = [...document.querySelectorAll('button')]
         .find((item) => item.textContent.includes('我来操作'));
       button?.click();
     })()`, true);
     await until(() => agentCommands.includes("takeover"));
-    expect("01b BrowserAgentBar sends takeover command", true);
+    expect("01b Agent Inspector sends takeover command", true);
     expect("02 active tab is page 1", browser.getActiveTab()?.title === "QA Page One");
 
     const observation = await browser.snapshot(true);
@@ -117,6 +124,7 @@ app.whenReady().then(async () => {
     await operator.clickElement(mailRowId!);
     const openedMail = await browser.queryElements({ selector: "[data-opened='true']" });
     expect("11a ARIA mail row is tagged and clickable", openedMail.elements.length === 1);
+    expect("11b transient target highlight precedes a semantic page action", await browserTargetHighlightObserved(operator, manager, hoverId!));
     await browser.hover(hoverId!);
     const hovered = await browser.queryElements({ selector: "[data-hovered='true']" });
     expect("12 hover event applied", hovered.elements.length === 1);
@@ -189,56 +197,24 @@ app.whenReady().then(async () => {
     expect("25 ungranted control blocked", ungrantedBlocked);
 
     const report = {
+      suiteVersion,
       passed: results.length,
       runtime: { electron: process.versions.electron, platform: process.platform },
       results,
     };
-    await writeReport(report);
+    await writeBrowserAgentQaReport(report);
   } finally {
     manager.dispose();
     if (!main.isDestroyed()) main.destroy();
-    await closeServer(server);
+    await closeBrowserAgentQaServer(server);
     clearInterval(keepAlive);
     app.quit();
   }
 }).catch(async (error: unknown) => {
-  await writeReport({ passed: results.length, results,
+  await writeBrowserAgentQaReport({ suiteVersion, passed: results.length, results,
     diagnostics,
     error: error instanceof Error ? error.stack : String(error) }).catch(() => {});
   process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`);
   clearInterval(keepAlive);
   app.exit(1);
 });
-
-function writeReport(value: unknown): Promise<void> {
-  const path = process.env.COOLTO_BROWSER_QA_REPORT;
-  return path
-    ? writeFile(path, JSON.stringify(value, null, 2), "utf8")
-    : Promise.resolve();
-}
-
-async function startFixtureServer(): Promise<{ server: Server; baseUrl: string }> {
-  const fixtureServer = createServer((request, response) => {
-    if (request.url?.startsWith("/download")) {
-      diagnostics.fixtureDownloadRequests += 1;
-      response.setHeader("content-type", "application/octet-stream");
-      response.setHeader("content-disposition", "attachment; filename=qa-download.txt");
-      const body = Buffer.from("download fixture");
-      response.setHeader("content-length", String(body.length));
-      response.end(body);
-      return;
-    }
-    response.setHeader("content-type", "text/html; charset=utf-8");
-    if (request.url?.startsWith("/frame")) response.end(frameHtml);
-    else if (request.url?.startsWith("/page-2")) response.end(pageTwoHtml);
-    else response.end(pageOneHtml);
-  });
-  await new Promise<void>((resolve) => fixtureServer.listen(0, "127.0.0.1", resolve));
-  const address = fixtureServer.address();
-  if (!address || typeof address === "string") throw new Error("QA server address unavailable");
-  return { server: fixtureServer, baseUrl: `http://127.0.0.1:${address.port}` };
-}
-
-function closeServer(value: Server | undefined): Promise<void> {
-  return new Promise((resolve) => value ? value.close(() => resolve()) : resolve());
-}

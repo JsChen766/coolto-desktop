@@ -10,6 +10,7 @@ export class TaskLifecycleController {
   public constructor(
     private readonly conversationId: string,
     private readonly services: AgentHarnessServices,
+    private readonly revokeBrowserAccess: (reason: string) => void = () => undefined,
   ) {}
 
   public async checkpoint(
@@ -45,11 +46,12 @@ export class TaskLifecycleController {
     summary: string;
   }): Promise<AgentTaskV1> {
     const task = await this.#runningTask();
+    const runId = task.activeRunId!;
     await this.services.leads.assertAllOpenLeadsEvaluated(task.id);
     await this.services.signals.assertAllMailEventsClassified(task.id);
     await this.checkpoint({ summary: input.summary });
-    return this.services.tasks.finishRun({
-      taskId: task.id, runId: task.activeRunId!, taskStatus: "waiting",
+    const waiting = await this.services.tasks.finishRun({
+      taskId: task.id, runId, taskStatus: "waiting",
       waiting: {
         reason: input.reason,
         wakeAfter: input.wakeAfter ?? null,
@@ -57,6 +59,12 @@ export class TaskLifecycleController {
       },
       stopReason: input.summary,
     });
+    this.services.runtimeProjection.clearTask(task.id, runId);
+    this.revokeBrowserAccess("task_waiting");
+    await this.services.ledger.reconcileInvalidatedRun(
+      task.id, runId, "task_waiting_before_receipt",
+    );
+    return waiting;
   }
 
   public async complete(input: {
@@ -64,14 +72,21 @@ export class TaskLifecycleController {
     summary: string;
   }): Promise<AgentTaskV1> {
     const task = await this.#runningTask();
+    const runId = task.activeRunId!;
     await this.services.leads.assertAllOpenLeadsEvaluated(task.id);
     await this.services.signals.assertAllMailEventsClassified(task.id);
     await this.checkpoint({ summary: input.summary });
-    return this.services.tasks.finishRun({
-      taskId: task.id, runId: task.activeRunId!,
+    const completed = await this.services.tasks.finishRun({
+      taskId: task.id, runId,
       taskStatus: input.partial ? "partially_completed" : "completed",
       stopReason: input.summary,
     });
+    this.services.runtimeProjection.clearTask(task.id, runId);
+    this.revokeBrowserAccess(`task_${completed.status}`);
+    await this.services.ledger.reconcileInvalidatedRun(
+      task.id, runId, `task_${completed.status}_before_receipt`,
+    );
+    return completed;
   }
 
   async #runningTask(): Promise<AgentTaskV1> {

@@ -11,10 +11,10 @@ import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useAppUpdates } from "../updates/use-app-updates";
 import { useJobFlowNavigation } from "./use-job-flow-navigation";
 import { useExperienceImportNavigation } from "./use-experience-import-navigation";
+import { useBrowserAgentTaskNavigation } from "./use-browser-agent-task-navigation";
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
 import { useResumeInstructionActions } from "./use-resume-instruction-actions";
 import { useWindowCloseSave } from "./use-window-close-save";
-
 export type AppView = "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
 export function useAppShell() {
   const sidebarOpen = ref(true);
@@ -29,6 +29,8 @@ export function useAppShell() {
   );
   const browser = useBrowserState();
   const fillProgress = useFillProgress();
+  const { page: browserPageHandoff, task: agentTaskFocusRequest } =
+    useBrowserAgentTaskNavigation();
   const scroller = ref<HTMLElement>();
   const dark = ref(localStorage.getItem("coolto-theme") === "dark");
   const narrowScreen = window.matchMedia("(max-width: 820px)");
@@ -44,7 +46,6 @@ export function useAppShell() {
     fillProgress.unmount();
     narrowScreen.removeEventListener("change", handleNarrowScreen);
   });
-
   watch(
     [
       () => session.current.value?.messages.length,
@@ -101,7 +102,6 @@ export function useAppShell() {
     closeNarrowSidebar();
     activeView.value = view;
   }
-
   function openTracker(): void {
     resumePreview.resetResumePreview();
     closeNarrowSidebar();
@@ -189,7 +189,6 @@ export function useAppShell() {
       behavior: "smooth",
     });
   }
-
   const jobFlow = useJobFlowNavigation({
     activeView,
     closeNarrowSidebar,
@@ -208,9 +207,11 @@ export function useAppShell() {
   return {
     ...session,
     activeArtifactType,
+    agentTaskFocusRequest,
     activeView,
     artifactOpen,
     browser,
+    browserPageHandoff,
     conversationAttachment,
     dark,
     desktopApi,
@@ -245,6 +246,5 @@ export function useAppShell() {
     checkUpdate: updates.checkUpdate,
     installUpdate: updates.installUpdate,
   };
-}
-
+  }
 export type AppShell = ReturnType<typeof useAppShell>;

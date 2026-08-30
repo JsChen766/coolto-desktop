@@ -3,13 +3,14 @@ import {
   ArrowLeft, ArrowRight, Globe2, RotateCw, SlidersHorizontal,
   TriangleAlert, X,
 } from "@lucide/vue";
-import { computed, shallowRef, watch } from "vue";
+import { computed, shallowRef, useTemplateRef, watch } from "vue";
 
 import type {
   BrowserPermissionNotice as PermissionNotice,
   BrowserTabState,
 } from "@desktop/types";
 import BrowserPermissionNotice from "./BrowserPermissionNotice.vue";
+import BrowserZoomBadge from "./BrowserZoomBadge.vue";
 import { translate } from "../i18n/locale";
 
 const props = defineProps<{
@@ -21,12 +22,15 @@ const emit = defineEmits<{
   forward: [];
   navigate: [url: string];
   reload: [];
+  resetZoom: [];
   stop: [];
   dismissPermissionNotice: [];
 }>();
+defineSlots<{ "toolbar-end"(): unknown }>();
 
 const draft = shallowRef("");
 const focused = shallowRef(false);
+const addressInput = useTemplateRef<HTMLInputElement>("addressInput");
 
 watch(
   () => [props.tab?.id, props.tab?.url] as const,
@@ -50,6 +54,7 @@ const siteKind = computed<"failure" | "home" | "http" | "https" | "other">(() =>
 });
 
 const siteLabel = computed(() => {
+  if (siteKind.value === "failure") return translate("页面加载失败");
   if (siteKind.value === "http") return translate("不安全");
   if (siteKind.value === "home") return translate("主页");
   return translate("站点信息");
@@ -62,6 +67,12 @@ function submit(): void {
   (document.activeElement as HTMLElement | null)?.blur();
 }
 
+function handleAddressKeydown(event: KeyboardEvent): void {
+  if (event.isComposing || event.key !== "Enter") return;
+  event.preventDefault();
+  submit();
+}
+
 function focusAddress(event: FocusEvent): void {
   focused.value = true;
   (event.target as HTMLInputElement).select();
@@ -72,10 +83,17 @@ function blurAddress(): void {
   draft.value = props.tab?.url ?? "";
 }
 
+function focusInput(): void {
+  addressInput.value?.focus();
+  addressInput.value?.select();
+}
+
+defineExpose({ focusInput });
+
 function toNavigableUrl(raw: string): string {
   const value = raw.trim();
   if (!value) return "";
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) || value.startsWith("data:")) {
+  if (/^https?:\/\//i.test(value)) {
     return value;
   }
   const domain = /^[^\s]+\.[^\s]+$/.test(value) && !value.includes(" ");
@@ -107,19 +125,22 @@ function toNavigableUrl(raw: string): string {
     </div>
 
     <div class="omnibox" :class="{ failed: siteKind === 'failure' }">
-      <span class="site-identity" :aria-label="siteLabel" :title="siteLabel">
+      <span class="site-identity" role="img" :aria-label="siteLabel" :title="siteLabel">
         <TriangleAlert v-if="siteKind === 'failure' || siteKind === 'http'"
           :size="16" :stroke-width="1.9" aria-hidden="true" />
         <SlidersHorizontal v-else-if="siteKind === 'https'"
           :size="15" :stroke-width="1.9" aria-hidden="true" />
         <Globe2 v-else :size="15" :stroke-width="1.8" aria-hidden="true" />
       </span>
-      <input class="address" type="text" :value="draft"
+      <input ref="addressInput" class="address" type="text" :value="draft"
         :placeholder="$t('搜索或输入网址')" spellcheck="false" autocomplete="off"
         :aria-label="$t('地址栏')"
         @input="draft = ($event.target as HTMLInputElement).value"
-        @focus="focusAddress" @blur="blurAddress" @keydown.enter="submit" />
+        @focus="focusAddress" @blur="blurAddress" @keydown="handleAddressKeydown" />
     </div>
+    <BrowserZoomBadge :factor="tab?.zoomFactor ?? 1"
+      @reset="emit('resetZoom')" />
+    <slot name="toolbar-end" />
     <BrowserPermissionNotice v-if="permissionNotice" :notice="permissionNotice"
       @dismiss="emit('dismissPermissionNotice')" />
   </div>

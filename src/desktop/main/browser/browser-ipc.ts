@@ -8,17 +8,20 @@ import type {
 } from "../../../browser/types.js";
 import type {
   BrowserFillRecordView,
-  BrowserLocale,
-  BrowserNavigateInput,
-  BrowserOpenInput,
   BrowserShellState,
   BrowserState,
 } from "../../shared/types.js";
 import {
+  BROWSER_AGENT_INSPECTOR_CHANNELS,
+  BROWSER_DOWNLOAD_POPOVER_CHANNELS,
   BROWSER_INVOKE_CHANNELS,
   BROWSER_IPC_CHANNELS,
   BROWSER_SHELL_CHANNELS,
 } from "./browser-ipc-channels.js";
+import { registerBrowserAgentInspectorIpc } from "./browser-agent-inspector-ipc.js";
+import { registerBrowserDownloadPopoverIpc } from "./browser-download-popover-ipc.js";
+import { registerBrowserMainIpc } from "./browser-main-ipc.js";
+import { registerBrowserShellIpc } from "./browser-shell-ipc.js";
 import { BrowserWindowManager } from "./browser-window-manager.js";
 
 /**
@@ -37,6 +40,12 @@ export function registerBrowserIpc(
     ipcMain.removeHandler(channel);
   }
   for (const channel of Object.values(BROWSER_SHELL_CHANNELS)) {
+    ipcMain.removeAllListeners(channel);
+  }
+  for (const channel of Object.values(BROWSER_AGENT_INSPECTOR_CHANNELS)) {
+    ipcMain.removeAllListeners(channel);
+  }
+  for (const channel of Object.values(BROWSER_DOWNLOAD_POPOVER_CHANNELS)) {
     ipcMain.removeAllListeners(channel);
   }
 
@@ -61,10 +70,24 @@ export function registerBrowserIpc(
       sendMain(BROWSER_IPC_CHANNELS.reviewComplete, outcome),
     emitCaptchaDetected: (detection: CaptchaDetection) =>
       sendMain(BROWSER_IPC_CHANNELS.captchaDetected, detection),
+    openAgentTask: (taskId: string) => {
+      mainWindow.show();
+      mainWindow.focus();
+      sendMain(BROWSER_IPC_CHANNELS.openAgentTask, taskId);
+    },
+    openPageInApp: (page) => {
+      mainWindow.show();
+      mainWindow.focus();
+      sendMain(BROWSER_IPC_CHANNELS.openPageInApp, page);
+    },
   });
 
-  registerMainWindowHandlers(ipcMain, manager);
-  registerShellHandlers(ipcMain, manager);
+  registerBrowserMainIpc(ipcMain, mainWindow.webContents, manager);
+  registerBrowserShellIpc(ipcMain, manager);
+  registerBrowserDownloadPopoverIpc(ipcMain, manager);
+  registerBrowserAgentInspectorIpc(ipcMain, manager, () => {
+    manager.openAgentTask();
+  });
 
   mainWindow.on("closed", () => manager.dispose());
   return manager;
@@ -78,58 +101,6 @@ function toRecordView(record: BrowserFieldWriteRecord): BrowserFillRecordView {
     writtenValue: record.valueAfter,
     decision: "pending",
   };
-}
-
-function registerMainWindowHandlers(
-  ipcMain: IpcMain,
-  manager: BrowserWindowManager,
-): void {
-  ipcMain.handle(BROWSER_IPC_CHANNELS.open, (_e, input?: BrowserOpenInput) =>
-    manager.open(input),
-  );
-  ipcMain.handle(BROWSER_IPC_CHANNELS.close, () => manager.close());
-  ipcMain.handle(
-    BROWSER_IPC_CHANNELS.navigate,
-    (_e, input: BrowserNavigateInput) => manager.navigate(input.url),
-  );
-  ipcMain.handle(BROWSER_IPC_CHANNELS.goBack, () => manager.goBack());
-  ipcMain.handle(BROWSER_IPC_CHANNELS.goForward, () => manager.goForward());
-  ipcMain.handle(BROWSER_IPC_CHANNELS.reload, () => manager.reload());
-  ipcMain.handle(BROWSER_IPC_CHANNELS.getState, () => manager.getState());
-  ipcMain.handle(BROWSER_IPC_CHANNELS.abortFill, () => manager.abortFill());
-}
-
-function registerShellHandlers(
-  ipcMain: IpcMain,
-  manager: BrowserWindowManager,
-): void {
-  const S = BROWSER_SHELL_CHANNELS;
-  ipcMain.on(S.ready, (_e, locale: unknown) =>
-    manager.onShellReady(browserLocale(locale)));
-  ipcMain.on(S.requestState, () => manager.pushState());
-  ipcMain.on(S.newTab, () => manager.tabs?.newTab());
-  ipcMain.on(S.closeTab, (_e, tabId: string) => manager.tabs?.closeTab(tabId));
-  ipcMain.on(S.selectTab, (_e, tabId: string) => manager.tabs?.select(tabId));
-  ipcMain.on(S.navigate, (_e, url: string) => manager.navigate(url));
-  ipcMain.on(S.goBack, () => manager.goBack());
-  ipcMain.on(S.goForward, () => manager.goForward());
-  ipcMain.on(S.reload, () => manager.reload());
-  ipcMain.on(S.stopLoading, () => manager.stopLoading());
-  ipcMain.on(S.chromeHeight, (_e, height: number) =>
-    manager.tabs?.setChromeHeight(height),
-  );
-  ipcMain.on(S.minimize, () => manager.minimize());
-  ipcMain.on(S.toggleMaximize, () => manager.toggleMaximize());
-  ipcMain.on(S.closeWindow, () => manager.close());
-  ipcMain.on(S.pauseAgent, () => void manager.agentStatus.command("pause").catch(() => {}));
-  ipcMain.on(S.resumeAgent, () => void manager.agentStatus.command("resume").catch(() => {}));
-  ipcMain.on(S.takeoverAgent, () => void manager.agentStatus.command("takeover").catch(() => {}));
-  ipcMain.on(S.stopAgent, () => void manager.agentStatus.command("stop").catch(() => {}));
-  ipcMain.on(S.dismissPermissionNotice, () => manager.dismissPermissionNotice());
-}
-
-function browserLocale(value: unknown): BrowserLocale | undefined {
-  return value === "zh-CN" || value === "en-US" ? value : undefined;
 }
 
 function broadcastShellState(

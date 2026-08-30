@@ -13,7 +13,7 @@ import type { AppShell } from "./use-app-shell";
 const props = defineProps<{ shell: AppShell }>();
 const experienceLibrary = ref<InstanceType<typeof ExperienceLibraryView>>();
 const {
-  activeView, clearExperienceImportFocus, closeTracker, desktopApi,
+  activeView, agentTaskFocusRequest, clearExperienceImportFocus, closeTracker, desktopApi,
   experienceImportFocus, jobRepositoryNavigation, openRepositoryTracker,
   openTrackerAsset, requestResumePreview, returnToImportConversation,
   selectChat, showSidebar, startJdAction, trackerContext,
@@ -39,6 +39,7 @@ defineExpose({ confirmExperienceLeave });
     <AgentTasksView
       v-if="activeView === 'agent_tasks'"
       :api="desktopApi"
+      :focus-request="agentTaskFocusRequest"
       @toggle-sidebar="showSidebar"
       @open-conversation="selectChat"
     />
