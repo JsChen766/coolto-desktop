@@ -1,6 +1,7 @@
 import type { BrowserWindow } from "electron";
 
 import type {
+  BrowserLocale,
   BrowserShellState,
   BrowserState,
 } from "../../shared/types.js";
@@ -30,6 +31,10 @@ export class BrowserTabManager {
   public constructor(
     private readonly window: BrowserWindow,
     private readonly onChange: () => void,
+    private readonly presentation: {
+      locale: () => BrowserLocale;
+      theme: () => "light" | "dark";
+    },
   ) {}
 
   public newTab(url?: string): BrowserTab {
@@ -38,6 +43,7 @@ export class BrowserTabManager {
       (openUrl) => {
         this.newTab(openUrl);
       },
+      this.presentation,
     );
     this.#tabs.push(tab);
     this.window.contentView.addChildView(tab.view);
@@ -57,6 +63,10 @@ export class BrowserTabManager {
     if (this.#activeId === tabId) {
       const next = this.#tabs[index] ?? this.#tabs[index - 1];
       this.#activeId = next?.id ?? null;
+    }
+    if (this.#tabs.length === 0) {
+      this.window.close();
+      return;
     }
     this.#applyVisibility();
     this.onChange();
@@ -91,6 +101,14 @@ export class BrowserTabManager {
 
   public activeTab(): BrowserTab | undefined {
     return this.#tabs.find((tab) => tab.id === this.#activeId);
+  }
+
+  public stopLoading(): void {
+    this.activeTab()?.stop();
+  }
+
+  public refreshInternalPresentation(): void {
+    for (const tab of this.#tabs) tab.refreshInternalPresentation();
   }
 
   public tab(tabId: string): BrowserTab | undefined {

@@ -8,6 +8,7 @@ import type {
 } from "../../../browser/types.js";
 import type {
   BrowserFillRecordView,
+  BrowserLocale,
   BrowserNavigateInput,
   BrowserOpenInput,
   BrowserShellState,
@@ -103,7 +104,8 @@ function registerShellHandlers(
   manager: BrowserWindowManager,
 ): void {
   const S = BROWSER_SHELL_CHANNELS;
-  ipcMain.on(S.ready, () => manager.onShellReady());
+  ipcMain.on(S.ready, (_e, locale: unknown) =>
+    manager.onShellReady(browserLocale(locale)));
   ipcMain.on(S.requestState, () => manager.pushState());
   ipcMain.on(S.newTab, () => manager.tabs?.newTab());
   ipcMain.on(S.closeTab, (_e, tabId: string) => manager.tabs?.closeTab(tabId));
@@ -112,6 +114,7 @@ function registerShellHandlers(
   ipcMain.on(S.goBack, () => manager.goBack());
   ipcMain.on(S.goForward, () => manager.goForward());
   ipcMain.on(S.reload, () => manager.reload());
+  ipcMain.on(S.stopLoading, () => manager.stopLoading());
   ipcMain.on(S.chromeHeight, (_e, height: number) =>
     manager.tabs?.setChromeHeight(height),
   );
@@ -122,6 +125,11 @@ function registerShellHandlers(
   ipcMain.on(S.resumeAgent, () => void manager.agentStatus.command("resume").catch(() => {}));
   ipcMain.on(S.takeoverAgent, () => void manager.agentStatus.command("takeover").catch(() => {}));
   ipcMain.on(S.stopAgent, () => void manager.agentStatus.command("stop").catch(() => {}));
+  ipcMain.on(S.dismissPermissionNotice, () => manager.dismissPermissionNotice());
+}
+
+function browserLocale(value: unknown): BrowserLocale | undefined {
+  return value === "zh-CN" || value === "en-US" ? value : undefined;
 }
 
 function broadcastShellState(

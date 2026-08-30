@@ -19,6 +19,26 @@ export type BrowserPageType =
   | "unknown";
 
 export type BrowserFillStatus = "idle" | "filling" | "reviewing" | "complete";
+export type BrowserLocale = "zh-CN" | "en-US";
+export type BrowserLoadPhase =
+  | "idle"
+  | "starting"
+  | "committed"
+  | "dom-ready"
+  | "complete"
+  | "failed";
+
+export interface BrowserNavigationFailure {
+  code: number;
+  description: string;
+  url: string;
+}
+
+export interface BrowserPermissionNotice {
+  createdAt: string;
+  origin: string | null;
+  permission: string;
+}
 
 export interface BrowserState {
   isOpen: boolean;
@@ -34,6 +54,7 @@ export interface BrowserState {
 export interface BrowserOpenInput {
   url?: string;
   theme?: "light" | "dark";
+  locale?: BrowserLocale;
 }
 
 export interface BrowserNavigateInput {
@@ -47,6 +68,9 @@ export interface BrowserTabState {
   isLoading: boolean;
   canGoBack: boolean;
   canGoForward: boolean;
+  faviconUrl: string | null;
+  failure: BrowserNavigationFailure | null;
+  loadPhase: BrowserLoadPhase;
 }
 
 export interface BrowserShellState {
@@ -56,6 +80,7 @@ export interface BrowserShellState {
   platform: DesktopPlatform;
   isMaximized: boolean;
   agentControl: BrowserAgentControlState | null;
+  permissionNotice: BrowserPermissionNotice | null;
 }
 
 export interface BrowserAgentControlState {
@@ -69,7 +94,7 @@ export interface BrowserAgentControlState {
 
 export interface BrowserShellApi {
   platform: DesktopPlatform;
-  ready(): void;
+  ready(locale: BrowserLocale): void;
   requestState(): void;
   newTab(): void;
   closeTab(tabId: string): void;
@@ -78,6 +103,7 @@ export interface BrowserShellApi {
   goBack(): void;
   goForward(): void;
   reload(): void;
+  stopLoading(): void;
   reportChromeHeight(height: number): void;
   minimizeWindow(): void;
   toggleMaximizeWindow(): void;
@@ -86,6 +112,7 @@ export interface BrowserShellApi {
   resumeAgent(): void;
   takeoverAgent(): void;
   stopAgent(): void;
+  dismissPermissionNotice(): void;
   onStateChanged(listener: (state: BrowserShellState) => void): () => void;
 }
 

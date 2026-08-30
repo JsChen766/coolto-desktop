@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Plus, X } from "@lucide/vue";
+import { Globe2, Plus, X } from "@lucide/vue";
 
 import type { BrowserTabState } from "@desktop/types";
 
@@ -22,10 +22,15 @@ defineEmits<{
       :key="tab.id"
       class="tab no-drag"
       :class="{ active: tab.id === activeTabId }"
-      :title="tab.title"
+      :title="tab.url ? `${tab.title}\n${tab.url}` : tab.title"
       @click="$emit('select', tab.id)"
     >
-      <span v-if="tab.isLoading" class="tab-spinner" aria-hidden="true" />
+      <span class="tab-site-icon" aria-hidden="true">
+        <Globe2 :size="14" :stroke-width="1.7" />
+        <img v-if="tab.faviconUrl && !tab.isLoading" :src="tab.faviconUrl" alt=""
+          @error="($event.currentTarget as HTMLImageElement).hidden = true" />
+        <span v-if="tab.isLoading" class="tab-spinner" />
+      </span>
       <span class="tab-title">{{ tab.title }}</span>
       <button
         class="tab-close"
@@ -89,6 +94,10 @@ defineEmits<{
   white-space: nowrap;
 }
 
+.tab-site-icon { position: relative; display: grid; place-items: center; flex: none;
+  width: 15px; height: 15px; color: var(--muted); }
+.tab-site-icon img { position: absolute; inset: 0; width: 15px; height: 15px; object-fit: contain; }
+
 .tab-close,
 .tab-new {
   display: inline-flex;
@@ -125,7 +134,7 @@ defineEmits<{
 }
 
 .tab-spinner {
-  flex: none;
+  position: absolute;
   width: 12px;
   height: 12px;
   border: 2px solid var(--border-strong);

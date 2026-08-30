@@ -5,6 +5,7 @@ import { runTerminalMessages } from "./catalog-run-terminal.js";
 import { copyMessages } from "./catalog-copy.js";
 import { creditMessages } from "./catalog-credits.js";
 import { agentTaskMessages } from "./catalog-agent-tasks.js";
+import { browserShellMessages } from "./catalog-browser-shell.js";
 import { detailMessages } from "./catalog-details.js";
 import { formatMessages } from "./catalog-format.js";
 import { domainMessages } from "./catalog-domain.js";
@@ -42,6 +43,7 @@ const messages: Record<string, string> = {
   ...resumeAgentMessages,
   ...creditMessages,
   ...agentTaskMessages,
+  ...browserShellMessages,
 };
 let storageListening = false;
 

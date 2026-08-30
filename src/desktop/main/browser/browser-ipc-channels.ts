@@ -26,6 +26,7 @@ export const BROWSER_SHELL_CHANNELS = {
   goBack: "browser-shell:go-back",
   goForward: "browser-shell:go-forward",
   reload: "browser-shell:reload",
+  stopLoading: "browser-shell:stop-loading",
   chromeHeight: "browser-shell:chrome-height",
   minimize: "browser-shell:minimize",
   toggleMaximize: "browser-shell:toggle-maximize",
@@ -34,6 +35,7 @@ export const BROWSER_SHELL_CHANNELS = {
   resumeAgent: "browser-shell:agent-resume",
   takeoverAgent: "browser-shell:agent-takeover",
   stopAgent: "browser-shell:agent-stop",
+  dismissPermissionNotice: "browser-shell:dismiss-permission-notice",
 } as const;
 
 export type BrowserIpcChannel =

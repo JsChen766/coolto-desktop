@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { app, BrowserWindow } from "electron";
 
 import type {
+  BrowserLocale,
   BrowserShellState,
   DesktopPlatform,
 } from "../../shared/types.js";
@@ -17,6 +18,7 @@ import { BrowserTabManager } from "./browser-tab-manager.js";
 
 export interface BrowserWindowFactoryDeps {
   theme: () => "light" | "dark";
+  locale: () => BrowserLocale;
   onCreated: (tabs: BrowserTabManager, window: BrowserWindow) => void;
   onClosed: (window: BrowserWindow) => void;
   onLayoutChange: () => void;
@@ -49,7 +51,10 @@ export function createBrowserWindow(
       sandbox: true,
     },
   });
-  const tabs = new BrowserTabManager(window, deps.onLayoutChange);
+  const tabs = new BrowserTabManager(window, deps.onLayoutChange, {
+    locale: deps.locale,
+    theme: deps.theme,
+  });
   deps.onCreated(tabs, window);
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.on("resize", () => tabs.layout());
@@ -77,6 +82,7 @@ export function deriveShellState(
   theme: "light" | "dark",
   isMaximized: boolean,
   agentControl: BrowserShellState["agentControl"] = null,
+  permissionNotice: BrowserShellState["permissionNotice"] = null,
 ): BrowserShellState {
   const base = tabs?.shellState() ?? { tabs: [], activeTabId: null };
   return {
@@ -85,5 +91,6 @@ export function deriveShellState(
     platform: process.platform as DesktopPlatform,
     isMaximized,
     agentControl,
+    permissionNotice,
   };
 }

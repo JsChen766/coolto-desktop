@@ -1,35 +1,36 @@
 <script setup lang="ts">
-import { ArrowLeft, ArrowRight, RotateCw } from "@lucide/vue";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch,
+} from "vue";
 
-import type { BrowserShellState, BrowserTabState } from "@desktop/types";
+import type {
+  BrowserLocale,
+  BrowserShellState,
+  BrowserTabState,
+} from "@desktop/types";
+import BrowserAddressBar from "./BrowserAddressBar.vue";
 import BrowserTabStrip from "./BrowserTabStrip.vue";
 import BrowserWindowControls from "./BrowserWindowControls.vue";
 import BrowserAgentBar from "./BrowserAgentBar.vue";
-import { translate } from "../i18n/locale";
+import BrowserNavigationProgress from "./BrowserNavigationProgress.vue";
+import { localeCode } from "../i18n/locale";
 
 const shell = window.browserShell;
 
-const state = ref<BrowserShellState>({
+const state = shallowRef<BrowserShellState>({
   tabs: [],
   activeTabId: null,
   theme: "light",
   platform: shell.platform,
   isMaximized: false,
   agentControl: null,
+  permissionNotice: null,
 });
-const chromeEl = ref<HTMLElement>();
+const chromeEl = useTemplateRef<HTMLElement>("chromeEl");
 
 const activeTab = computed<BrowserTabState | undefined>(() =>
   state.value.tabs.find((tab) => tab.id === state.value.activeTabId),
 );
-
-const addressInput = ref("");
-const addressFocused = ref(false);
-
-watch(activeTab, (tab) => {
-  if (!addressFocused.value) addressInput.value = tab?.url ?? "";
-});
 
 const isMac = computed(() => state.value.platform === "darwin");
 
@@ -41,7 +42,7 @@ const unsubscribe = shell.onStateChanged((next) => {
 let resizeObserver: ResizeObserver | undefined;
 
 onMounted(() => {
-  shell.ready();
+  shell.ready(localeCode() as BrowserLocale);
   shell.requestState();
   if (chromeEl.value) {
     resizeObserver = new ResizeObserver(() => reportHeight());
@@ -61,44 +62,6 @@ function reportHeight(): void {
   if (chromeEl.value) shell.reportChromeHeight(chromeEl.value.offsetHeight);
 }
 
-function addressText(tab: BrowserTabState | undefined): string {
-  if (!tab) return "";
-  return tab.url ?? translate("Coolto 主页");
-}
-
-/**
- * 把用户在地址栏输入的内容规范成可导航 URL：
- *  - 已带协议（http/https/file/data 等）直接用
- *  - 形如域名（含点且无空格）补 https://
- *  - 其余当作搜索词走 Bing
- */
-function toNavigableUrl(raw: string): string {
-  const value = raw.trim();
-  if (!value) return "";
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value) || value.startsWith("data:")) {
-    return value;
-  }
-  const looksLikeDomain = /^[^\s]+\.[^\s]+$/.test(value) && !value.includes(" ");
-  if (looksLikeDomain) return `https://${value}`;
-  return `https://www.bing.com/search?q=${encodeURIComponent(value)}`;
-}
-
-function submitAddress(): void {
-  const url = toNavigableUrl(addressInput.value);
-  if (!url) return;
-  shell.navigate(url);
-  (document.activeElement as HTMLElement | null)?.blur();
-}
-
-function onAddressFocus(event: FocusEvent): void {
-  addressFocused.value = true;
-  (event.target as HTMLInputElement).select();
-}
-
-function onAddressBlur(): void {
-  addressFocused.value = false;
-  addressInput.value = activeTab.value?.url ?? "";
-}
 </script>
 
 <template>
@@ -124,49 +87,13 @@ function onAddressBlur(): void {
       />
     </div>
 
-    <div class="address-row no-drag">
-      <div class="nav-actions">
-        <button
-          class="nav-button"
-          type="button"
-          :aria-label="$t('后退')"
-          :disabled="!activeTab?.canGoBack"
-          @click="shell.goBack()"
-        >
-          <ArrowLeft :size="17" :stroke-width="1.8" aria-hidden="true" />
-        </button>
-        <button
-          class="nav-button"
-          type="button"
-          :aria-label="$t('前进')"
-          :disabled="!activeTab?.canGoForward"
-          @click="shell.goForward()"
-        >
-          <ArrowRight :size="17" :stroke-width="1.8" aria-hidden="true" />
-        </button>
-        <button
-          class="nav-button"
-          type="button"
-          :aria-label="$t('刷新')"
-          @click="shell.reload()"
-        >
-          <RotateCw :size="16" :stroke-width="1.8" aria-hidden="true" />
-        </button>
-      </div>
-      <input
-        class="address"
-        type="text"
-        :value="addressInput"
-        :placeholder="addressText(activeTab) || $t('搜索或输入网址')"
-        spellcheck="false"
-        autocomplete="off"
-        :aria-label="$t('地址栏')"
-        @input="addressInput = ($event.target as HTMLInputElement).value"
-        @focus="onAddressFocus"
-        @blur="onAddressBlur"
-        @keydown.enter="submitAddress"
-      />
-    </div>
+    <BrowserAddressBar :tab="activeTab" :permission-notice="state.permissionNotice"
+      @back="shell.goBack()"
+      @forward="shell.goForward()" @navigate="shell.navigate($event)"
+      @reload="shell.reload()" @stop="shell.stopLoading()"
+      @dismiss-permission-notice="shell.dismissPermissionNotice()" />
+    <BrowserNavigationProgress v-if="activeTab" :phase="activeTab.loadPhase"
+      :is-loading="activeTab.isLoading" />
     <BrowserAgentBar
       v-if="state.agentControl"
       :state="state.agentControl"

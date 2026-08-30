@@ -25,6 +25,7 @@
     "desktop:typecheck": "tsc -p tsconfig.preload.json --noEmit && vue-tsc -p tsconfig.web.json --noEmit",
     "qa:resume-renderer": "npm run desktop:build && node scripts/run-resume-renderer-qa.mjs",
     "qa:browser-agent": "npm run desktop:build && esbuild src/cli/browser-agent-qa-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/browser-agent-qa-entry.cjs && node scripts/run-browser-agent-qa.mjs",
+    "qa:browser-shell": "node scripts/run-browser-shell-ui-qa.mjs",
     "qa:browser-webmail-live": "npm run desktop:build && esbuild src/cli/browser-webmail-live-qa-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/browser-webmail-live-qa-entry.cjs && node scripts/run-browser-webmail-live-qa.mjs",
     "qa:agent-harness": "esbuild src/cli/agent-harness-qa-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/agent-harness-qa-entry.cjs && node scripts/run-agent-harness-qa.mjs",
     "qa:agent-tasks-ui": "node scripts/run-agent-tasks-ui-qa.mjs",

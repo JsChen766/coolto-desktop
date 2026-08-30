@@ -1,8 +1,8 @@
 # Coolto P0 产品能力补齐路线
 
 > 状态：既有产品路线与完成记录保留为历史基线；后续开发已统一为一条正式执行链
-> 当前阶段：Browser Enhance BE6 macOS Calendar；BE1–BE5 已完成对应基线
-> 后续顺序：BE6 → BE7 → BE8 → S4.5 → S5 → R1
+> 当前阶段：Browser Shell Formalization BSF2 标签与浏览效率；BE1–BE5、BSF0–BSF1 已完成对应基线
+> 后续顺序：BSF0–BSF4 → BSF5 Windows 门禁 → BE6 → BSF5 macOS 收口 → BE7 → BE8 → S4.5 → S5 → R1
 > 建立日期：2026-07-24
 > 上游依赖：[简历生成交付路线](../resume-generation-roadmap/README.md) G1–G7 已完成
 
@@ -166,7 +166,8 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 → A0（已完成）→ J0（已完成）→ J1（已完成）→ J2（已完成）→ J3（已完成）
 → E0（已完成）→ E1（已完成）→ E2（已完成）→ E3（已完成）
 → E4（已完成）→ E5（已完成）→ E6（已完成）→ S4（已完成）
-→ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）→ BE6（当前）→ BE7 → BE8
+→ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）
+→ BSF0（已完成）→ BSF1（已完成）→ BSF2（当前）→ BSF3 → BSF4 → BSF5 Windows 门禁 → BE6 → BSF5 macOS 收口 → BE7 → BE8
 → S4.5 → S5 → R1
 ```
 
@@ -194,8 +195,9 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | BE3 | Managed Job Scout | App 打开期间多源搜索、去重、匹配、Shortlist 和增量巡视 | ✅ 2026-08-23 完成；Greenhouse 15×2、Lever 383×2，重复 0，673 pass/2 skip，Shortlist UI 12/12 |
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionReceipt 与 Application Proposal | ✅ 2026-08-23 机制闭环完成；685 pass/2 skip，Browser 31/31、Harness 10/10、UI 14/14；真实域名 submit 仍待 BE8 逐域验收 |
 | BE5 | Inbox Signals | 默认 Browser Webmail、可选 Gmail/Outlook 增量、Application 关联与状态/Interview Proposal | ✅ **2026-08-30 手动确认基线完成**；个人 Outlook + 163 双站点的可见 Browser、登录接管、指定邮件读取、A/B 同主题碰撞、capture 幂等、三轮六次跨标签与 163 六页分页长列表均真实通过。Application 候选读取使用独立 `tracker.application.read`、事件绑定 `app_N` 引用并拒绝猜 ID/跨邮件/版本漂移；受控实模正向/歧义、真实 Electron 0 候选、伪造 `app_999` 拒绝与单条 null signal 均通过，完整 758 tests 为 756 pass/2 skip/0 fail。当前没有 ≥100 条真实邮件—Application 标注对，关联准确率明确记为**未评估**，不以合成样本冒充 ≥99%；所有邮件关联和 Tracker/Interview 写入继续逐条 Approval。≥99% 保留为 BE8 与任何自动写启用前的硬门禁，未通过前不存在自动写模式；Gmail API Connector 按用户确认不阻塞手动基线。 |
-| BE6 | macOS Calendar | EventKit write-only、映射、改期/取消和去重 | **当前阶段**；待执行 |
-| BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | 待 BE6 完成；仅 App 打开时运行 |
+| BSF | [Browser Shell Formalization](../browser-enhance/browser-shell-formalization/README.md) | 将 Browser Window 作为独立产品面，补正式浏览器基础、Agent 可见层、新标签页、下载和跨平台验收 | **当前：BSF2**；BSF1 导航、身份、失败和权限反馈已完成真实 Electron 门禁 |
+| BE6 | macOS Calendar | EventKit write-only、映射、改期/取消和去重 | 待 BSF5 Windows 门禁完成；macOS 执行后联动完成 BSF5 macOS 收口 |
+| BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | 待 BE6 与 BSF5 macOS 收口完成；仅 App 打开时运行 |
 | BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |
 | S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | 暂停至 BE8 完成；Section A–G、G-1 已完成，[S4.5.1](./S4.5.1-phase-driven-resume-generation.md) 真实稳定性门禁仍未通过 |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |
@@ -2149,7 +2151,8 @@ must-have 和 quality review 结果不得下降；前端 DOM 结构、可见流�
   发布基础地址后重打最终分发包。本轮只完成本地 Windows 测试发行，未上传产物。
 
 - 当前严格按 A0 → J0 → J1 → J2 → J3 → E0 → E1 → E2 → E3 → E4 → E5 → E6 → S4
-  → BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）→ BE6（当前）→ BE7 → BE8
+  → BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）
+  → BSF0（已完成）→ BSF1（已完成）→ BSF2（当前）→ BSF3 → BSF4 → BSF5 Windows 门禁 → BE6 → BSF5 macOS 收口 → BE7 → BE8
   → S4.5 → S5 → R1 推进；2026-08-23 用户明确覆盖此前先回 S4.5 的顺序；
 - 每阶段先复核现状和工作树；列出的确认点必须在该阶段开始时向用户确认，不提前假设；
 - 每阶段和阶段内 section 完成后单独质检，并将真实结果、失败和遗留项写回本 README；

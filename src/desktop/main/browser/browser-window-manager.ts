@@ -1,8 +1,8 @@
-import { BrowserWindow, type WebContents } from "electron";
+import type { WebContents } from "electron";
 
 import type {
+  BrowserLocale,
   BrowserOpenInput,
-  BrowserShellState,
   BrowserState,
 } from "../../shared/types.js";
 import type {
@@ -24,14 +24,13 @@ import {
   type WriteAccessLifecycle,
 } from "./browser-page-operator.js";
 import { BrowserReviewOrchestrator } from "./browser-review-orchestrator.js";
-import {
-  createBrowserWindow,
-  deriveShellState,
-} from "./browser-window-factory.js";
 import { BrowserWriteAccessGate } from "./browser-write-access-gate.js";
 import { BrowserTabManager } from "./browser-tab-manager.js";
 import { BrowserAgentControllerImpl } from "./browser-agent-controller.js";
 import { BrowserAgentStatusBridge } from "./browser-agent-status-bridge.js";
+import { BrowserPermissionStatusBridge } from "./browser-permission-status-bridge.js";
+import { BrowserWindowPresentation } from "./browser-window-presentation.js";
+import { BrowserWindowHost } from "./browser-window-host.js";
 import {
   IDLE_BROWSER_STATE,
   type BrowserWindowEmitters,
@@ -40,20 +39,26 @@ import {
 export type { BrowserWindowEmitters } from "./browser-window-state.js";
 
 export class BrowserWindowManager {
-  #window: BrowserWindow | undefined;
-  #tabs: BrowserTabManager | undefined;
   #pendingUrl: string | undefined;
-  #theme: "light" | "dark" = "light";
   readonly #emitters: BrowserWindowEmitters;
   readonly #writeAccess = new BrowserWriteAccessGate();
   readonly #operator: BrowserPageOperatorImpl;
   readonly #agentController: BrowserAgentControllerImpl;
   readonly #agentStatus = new BrowserAgentStatusBridge(() => this.pushState());
+  readonly #permissionStatus: BrowserPermissionStatusBridge;
+  readonly #presentation = new BrowserWindowPresentation();
   readonly #originTracker: BrowserActiveOriginTracker;
   readonly #review: BrowserReviewOrchestrator;
+  readonly #host: BrowserWindowHost;
 
   public constructor(emitters: BrowserWindowEmitters) {
     this.#emitters = emitters;
+    this.#permissionStatus = new BrowserPermissionStatusBridge(() => this.pushState());
+    this.#host = new BrowserWindowHost(
+      this.#presentation,
+      () => this.pushState(),
+      () => this.#emitters.emitState({ ...IDLE_BROWSER_STATE }),
+    );
     const resolver: ActiveTabResolver = { resolve: () => this.#resolveActive() };
     const reviewStarter: ReviewStarter = {
       start: (records) => this.#review.startReview(records),
@@ -66,7 +71,7 @@ export class BrowserWindowManager {
       },
     };
     const filePicker: FilePicker = {
-      pick: (options) => pickLocalFiles(this.#activeWindow(), options),
+      pick: (options) => pickLocalFiles(this.#host.window, options),
     };
     this.#operator = new BrowserPageOperatorImpl(
       this.#writeAccess,
@@ -77,14 +82,14 @@ export class BrowserWindowManager {
     );
     this.#originTracker = new BrowserActiveOriginTracker(this.#writeAccess);
     this.#agentController = new BrowserAgentControllerImpl({
-      tabs: () => this.#tabs,
+      tabs: () => this.#host.tabs,
       activeContext: () => this.#resolveActive(),
       requireControlAccess: () => this.#requireControlAccess(),
       readPage: (context) => readPageSnapshot(context.webContents),
     });
     this.#review = new BrowserReviewOrchestrator({
       operator: this.#operator,
-      activeWebContents: () => activeTabContext(this.#tabs)?.webContents,
+      activeWebContents: () => activeTabContext(this.#host.tabs)?.webContents,
       emitFillProgress: emitters.emitFillProgress,
       emitReviewDecision: emitters.emitReviewDecision,
       emitReviewComplete: emitters.emitReviewComplete,
@@ -106,77 +111,77 @@ export class BrowserWindowManager {
   }
 
   public open(input?: BrowserOpenInput): BrowserState {
-    if (input?.theme) this.#theme = input.theme;
+    const presentationChanged = this.#presentation.apply(input);
     const url = input?.url?.trim();
-    if (this.#window && !this.#window.isDestroyed()) {
-      this.#window.focus();
-      if (url) this.#tabs?.newTab(url);
+    if (this.#host.isOpen) {
+      this.#host.focus();
+      if (presentationChanged) this.#host.tabs?.refreshInternalPresentation();
+      if (url) this.#host.tabs?.newTab(url);
       this.pushState();
       return this.getState();
     }
     this.#pendingUrl = url;
-    this.#window = this.#createWindow();
+    this.#host.open();
     return this.getState();
   }
 
   public close(): void {
-    if (this.#window && !this.#window.isDestroyed()) this.#window.close();
+    this.#host.close();
   }
 
   public navigate(url: string): void {
-    this.#requireTabs().activeTab()?.navigate(url);
+    this.#host.requireTabs().activeTab()?.navigate(url);
   }
 
   public goBack(): void {
-    this.#requireTabs().activeTab()?.goBack();
+    this.#host.requireTabs().activeTab()?.goBack();
   }
 
   public goForward(): void {
-    this.#requireTabs().activeTab()?.goForward();
+    this.#host.requireTabs().activeTab()?.goForward();
   }
 
   public reload(): void {
-    this.#requireTabs().activeTab()?.reload();
+    this.#host.requireTabs().activeTab()?.reload();
+  }
+
+  public stopLoading(): void {
+    this.#host.tabs?.stopLoading();
+  }
+
+  public dismissPermissionNotice(): void {
+    this.#permissionStatus.dismiss();
+    this.pushState();
   }
 
   public minimize(): void {
-    this.#window?.minimize();
+    this.#host.minimize();
   }
 
   public toggleMaximize(): void {
-    if (!this.#window || this.#window.isDestroyed()) return;
-    if (this.#window.isMaximized()) this.#window.unmaximize();
-    else this.#window.maximize();
-  }  public get tabs(): BrowserTabManager | undefined {
-    return this.#tabs;
+    this.#host.toggleMaximize();
+  }
+
+  public get tabs(): BrowserTabManager | undefined {
+    return this.#host.tabs;
   }
 
   public shellWebContents(): WebContents | undefined {
-    if (!this.#window || this.#window.isDestroyed()) return undefined;
-    return this.#window.webContents;
+    return this.#host.shellWebContents();
   }
 
   public getState(): BrowserState {
-    if (!this.#window || this.#window.isDestroyed() || !this.#tabs) {
-      return { ...IDLE_BROWSER_STATE };
-    }
-    return this.#tabs.browserState();
+    return this.#host.getState();
   }
 
   // ---------- 内部：活跃标签解析 + 导航联动 ----------
 
   #resolveActive(): ActiveTabContext {
-    const ctx = activeTabContext(this.#tabs);
+    const ctx = activeTabContext(this.#host.tabs);
     if (!ctx) {
       throw new Error("浏览器尚未打开或无活跃标签页，请先让用户打开要操作的页面");
     }
     return ctx;
-  }
-
-  #activeWindow(): BrowserWindow | undefined {
-    return this.#window && !this.#window.isDestroyed()
-      ? this.#window
-      : undefined;
   }
 
   #requireControlAccess(): void {
@@ -185,9 +190,11 @@ export class BrowserWindowManager {
   }
 
   public pushState(): void {
-    this.#originTracker.sync(this.#tabs);
+    this.#originTracker.sync(this.#host.tabs);
     this.#emitters.emitState(this.getState());
-    if (this.#tabs) this.#emitters.emitShellState(this.#shellState());
+    if (this.#host.tabs) this.#emitters.emitShellState(this.#host.shellState(
+      this.#agentStatus.get(), this.#permissionStatus.get(),
+    ));
   }
 
   /**
@@ -199,51 +206,17 @@ export class BrowserWindowManager {
   }
 
   public dispose(): void {
+    this.#permissionStatus.dispose();
     this.#review.dispose();
     this.#agentController.dispose();
-    this.#tabs?.destroyAll();
-    this.#tabs = undefined;
-    if (this.#window && !this.#window.isDestroyed()) this.#window.destroy();
-    this.#window = undefined;
+    this.#host.dispose();
   }
 
   /** chrome renderer 就绪后调用，创建首个标签页。 */
-  public onShellReady(): void {
-    if (!this.#tabs || this.#tabs.hasTabs()) {
-      this.pushState();
-      return;
-    }
-    this.#tabs.newTab(this.#pendingUrl);
-    this.#pendingUrl = undefined;
-  }
-
-  #shellState(): BrowserShellState {
-    return deriveShellState(
-      this.#tabs,
-      this.#theme,
-      this.#window?.isMaximized() ?? false,
-      this.#agentStatus.get(),
-    );
-  }
-
-  #createWindow(): BrowserWindow {
-    return createBrowserWindow({
-      theme: () => this.#theme,
-      onCreated: (tabs) => {
-        this.#tabs = tabs;
-      },
-      onLayoutChange: () => this.pushState(),
-      onClosed: (window) => {
-        if (this.#window !== window) return;
-        this.#tabs = undefined;
-        this.#window = undefined;
-        this.#emitters.emitState({ ...IDLE_BROWSER_STATE });
-      },
-    });
-  }
-
-  #requireTabs(): BrowserTabManager {
-    if (!this.#tabs) throw new Error("浏览器窗口尚未打开");
-    return this.#tabs;
+  public onShellReady(locale?: BrowserLocale): void {
+    const changed = this.#presentation.setLocale(locale);
+    if (changed) this.#host.tabs?.refreshInternalPresentation();
+    if (this.#host.ensureFirstTab(this.#pendingUrl)) this.#pendingUrl = undefined;
+    this.pushState();
   }
 }

@@ -1,6 +1,6 @@
 # Browser Enhance：Agent 托管浏览器路线
 
-> 状态：BE0–BE5 对应基线已完成；BE5 为手动确认模式，BE6 macOS Calendar 当前执行
+> 状态：BE0–BE5 与 BSF0–BSF1 对应基线已完成；Browser Shell Formalization BSF2 当前执行
 > 建立日期：2026-08-20
 > 前置基线：[浏览器自动填写路线](../browser-autofill-roadmap/README.md) B0–B5、
 > [P0 产品能力补齐路线](../p0-product-completion-roadmap/README.md) S3–S4
@@ -523,6 +523,7 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 | BE3 | Managed Job Scout | App 打开期间的多源搜索、BrowserLead、去重、匹配、Shortlist、周期增量 | 真实允许站点连续运行；App 关闭时无云端任务；重复 lead <1%；所有入选/排除理由可追溯 |
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionToken/Receipt、Application Proposal | 自动提交仅发生在有效 grant；错误投递/重复 Application 为 0；实际 JD/Resume/hash 冻结正确 |
 | BE5 | Inbox Signals | 通用 Browser Webmail、可选 Gmail/Outlook 增量、求职邮件分类、状态/Interview Proposal | 原始邮件不越界持久化；错误自动迁移为 0；模糊信号进入确认队列 |
+| BSF | [Browser Shell Formalization](./browser-shell-formalization/README.md) | 独立 Browser 产品面、正式浏览器基础、Agent 可见层、新标签页、下载和跨平台验收 | UI 方案获用户确认；BSF5 Windows 门禁后进入 BE6，BE6 后完成 BSF5 macOS 收口 |
 | BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | 拒绝权限可降级；无重复 event/同步回环；时区和重启恢复通过 |
 | BE7 | AI Native Loops | Scout 调度、Follow-up、Briefing、Strategy Learner、风险提醒 | 每项有独立开关、停止条件、通知去重和效果指标 |
 | BE8 | 真实集成交付 | 真实账号/站点、长任务、断网、崩溃、跨账号、安全与发布验收 | 完整矩阵通过前不得宣称“完全托管可用” |
@@ -530,7 +531,7 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 Browser Enhance 内部长期顺序：
 
 ```text
-BE0 → BE1 → BE2 → BE3 → BE4 → BE5 → BE6 → BE7 → BE8
+BE0 → BE1 → BE2 → BE3 → BE4 → BE5 → BSF0–BSF4 → BSF5 Windows → BE6 → BSF5 macOS → BE7 → BE8
 ```
 
 BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再补 consent 或审计。
@@ -538,7 +539,8 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 当前跨路线唯一执行顺序为：
 
 ```text
-BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）→ BE6（当前）→ BE7 → BE8
+BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）
+→ BSF0（已完成）→ BSF1（已完成）→ BSF2（当前）→ BSF3 → BSF4 → BSF5 Windows 门禁 → BE6 → BSF5 macOS 收口 → BE7 → BE8
 → S4.5 → S5 → R1
 ```
 
@@ -969,7 +971,11 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
 - 本 README 是 `browser-enhance` 的唯一执行入口；阶段开始前先在对应阶段标题下补现状复核与
   用户确认结果，不创建平行路线；
 - BE0 已完成，正式完成记录为 [00-foundation](./00-foundation/README.md)；BE1–BE5 已在本 README
-  既有 5.1/5.3/6/7/8 节写回，不创建平行执行路线；当前唯一执行指针为 BE6；
+  既有 5.1/5.3/6/7/8 节写回，不创建平行执行路线；当前唯一执行指针为 BSF2；
+- Browser Shell 正式化的聊天原始记录保留在
+  [browser-shell-chrome-formalization-notes.md](./browser-shell-chrome-formalization-notes.md)，基于该记录形成的
+  [Browser Shell AI Native 与正式浏览器体验子路线](./browser-shell-formalization/README.md)已于 2026-08-30
+  经用户确认作为独立产品面启动；它仍共享本项目事实源、安全边界和质量门禁，不是第二套产品或 Agent runtime；
 - 每个阶段完成后在本 README 的阶段表和正式阶段文档写回真实结果、失败点、证据和遗留项；
 - 接口存在、Browser Demo、本地测试页或单一网站成功都不算“完全托管可用”；
 - 任何新增 UI 先提交 Delegation Panel、Task Control Center、Timeline、Receipt 和错误/接管状态方案，

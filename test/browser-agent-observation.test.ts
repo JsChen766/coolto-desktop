@@ -78,26 +78,31 @@ test("accessibility observation redacts protected values and detaches", async ()
   assert.equal(attached, false);
 });
 
-test("mixed observation bounds screenshot dimensions", async () => {
-  const makeImage = (width: number, height: number): object => ({
-    getSize: () => ({ width, height }),
-    resize: ({ width: nextWidth, height: nextHeight }: {
-      width: number; height: number;
-    }) => makeImage(nextWidth, nextHeight),
-    toPNG: () => Buffer.from("png"),
-  });
+test("mixed observation masks fields and bounds a CDP screenshot", async () => {
   let attached = false;
+  let removed = false;
+  const commands: string[] = [];
   const contents = {
     debugger: {
       isAttached: () => attached,
       attach: () => { attached = true; },
       detach: () => { attached = false; },
-      sendCommand: async () => ({ nodes: [] }),
+      sendCommand: async (command: string) => {
+        commands.push(command);
+        if (command === "Accessibility.getFullAXTree") return { nodes: [] };
+        if (command === "Page.getLayoutMetrics") {
+          return { cssVisualViewport: { clientWidth: 2000, clientHeight: 1000 } };
+        }
+        if (command === "Page.captureScreenshot") {
+          return { data: Buffer.from("png").toString("base64") };
+        }
+        throw new Error(`unexpected command ${command}`);
+      },
     },
     executeJavaScript: async () => null,
     insertCSS: async () => "css-key",
-    removeInsertedCSS: async () => undefined,
-    capturePage: async () => makeImage(2000, 1000),
+    removeInsertedCSS: async () => { removed = true; },
+    capturePage: async () => { throw new Error("Viz capture must not be used"); },
   };
   const observation = await readBrowserObservation({
     contents: contents as never,
@@ -114,6 +119,13 @@ test("mixed observation bounds screenshot dimensions", async () => {
   });
   assert.equal(observation.screenshot?.width, 1280);
   assert.equal(observation.screenshot?.height, 640);
+  assert.deepEqual(commands, [
+    "Accessibility.getFullAXTree",
+    "Page.getLayoutMetrics",
+    "Page.captureScreenshot",
+  ]);
+  assert.equal(removed, true);
+  assert.equal(attached, false);
 });
 
 test("captcha observation never returns a screenshot to the model", async () => {
