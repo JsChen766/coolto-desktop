@@ -10,6 +10,7 @@ import { ResumeCandidatePreparer } from "../src/resume/workspace/candidate-prepa
 import { ResumeWorkspaceError } from "../src/resume/workspace/errors.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import {
+  BASE_WORK_CONTENT,
   FixtureResumeCompiler,
   createBinding,
   createWorkspaceSnapshotBuilder,
@@ -347,7 +348,9 @@ async function createInitial() {
 }
 
 function createServices() {
-  const builder = createWorkspaceSnapshotBuilder();
+  const builder = createWorkspaceSnapshotBuilder({
+    workContent: BASE_WORK_CONTENT,
+  });
   const compiler = new FixtureResumeCompiler();
   const store = new ResumeWorkspaceStore();
   const preparer = new ResumeCandidatePreparer(builder, compiler, store, {

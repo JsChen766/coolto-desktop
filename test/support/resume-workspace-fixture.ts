@@ -16,8 +16,9 @@ import type { ResumeCompiler } from "../../src/resume/workspace/compiler-port.js
 import { allEvidenceCandidates } from "../../src/resume/quality/evidence-candidates.js";
 import type { EvidenceBindingInput } from "../../src/resume/workspace/types.js";
 
-export const WORK_CONTENT =
+export const BASE_WORK_CONTENT =
   "使用 Python 清洗运营数据产品。为 3 个团队建立周度报表。设计异常检查规则并与业务团队协作。";
+export const WORK_CONTENT = BASE_WORK_CONTENT;
 
 export function createWorkspaceSnapshotBuilder(
   options: {
@@ -175,6 +176,8 @@ function createJd(requirements?: JdRecord["requirements"]): JdRecord {
     title: "数据产品经理",
     company: "Example",
     targetRole: "产品经理",
+    sourceKind: "pasted",
+    sourceUrl: null,
     rawText: "需要数据产品经验和跨团队协作能力。",
     requirements: requirements ?? [
       {

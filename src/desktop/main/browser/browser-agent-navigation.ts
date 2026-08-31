@@ -17,5 +17,11 @@ export function normalizeAgentNavigationUrl(input: string): string {
   if (url.username || url.password) {
     throw new Error("Agent 导航 URL 不得包含用户名或密码");
   }
+  if (
+    url.origin === "https://outlook.live.com" &&
+    url.pathname === "/" && !url.search && !url.hash
+  ) {
+    url.pathname = "/mail/0/";
+  }
   return url.toString();
 }

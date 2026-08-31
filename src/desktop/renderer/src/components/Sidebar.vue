@@ -11,6 +11,8 @@ import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { relativeTime } from "../lib/relative-time";
 import SidebarPrimaryNavigation from "./SidebarPrimaryNavigation.vue";
 import UserAccountMenu from "./UserAccountMenu.vue";
+import { resumeDraftProgressLabel } from
+  "../resume-workspace/resume-draft-status";
 
 defineProps<{
   conversations: ConversationSummary[];
@@ -116,13 +118,13 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
           <span>{{ draft.title }}</span>
           <i
             class="resume-draft-state"
-            :class="draft.cloudState"
+            :class="[draft.cloudState, { incomplete: !draft.generationReady }]"
             :title="
-              draft.cloudState === 'synced'
+              resumeDraftProgressLabel(draft) || (draft.cloudState === 'synced'
                 ? $t('已加入简历库')
                 : draft.cloudState === 'local_changes'
                   ? $t('本地草稿有新修改')
-                  : $t('本地草稿已自动保存')
+                  : $t('本地草稿已自动保存'))
             "
           />
         </button>

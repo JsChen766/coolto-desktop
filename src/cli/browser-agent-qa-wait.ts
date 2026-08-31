@@ -1,9 +1,9 @@
 export async function until(
-  check: () => boolean,
+  check: () => boolean | Promise<boolean>,
   timeoutMs = 10_000,
 ): Promise<void> {
   const started = Date.now();
-  while (!check()) {
+  while (!(await check())) {
     if (Date.now() - started > timeoutMs) throw new Error("QA wait timed out");
     await new Promise((resolve) => setTimeout(resolve, 50));
   }

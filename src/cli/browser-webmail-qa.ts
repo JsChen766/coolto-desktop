@@ -10,6 +10,8 @@ import { InboxSignalController } from "../inbox-signals/inbox-signal-controller.
 export async function runBrowserWebmailQa(input: {
   browser: BrowserAgentController;
   allowedDomain: string;
+  capture?: BrowserWebmailQaCapture;
+  sitePolicyAllows?: (origin: string | null, toolName: string) => boolean;
 }): Promise<{ dedupeCount: number; provider: string; bodyVerified: boolean }> {
   const ownerId = "browser-webmail-qa";
   const evidence = new MemoryEvidenceStore(ownerId);
@@ -34,9 +36,11 @@ export async function runBrowserWebmailQa(input: {
   const controller = new InboxSignalController(
     "browser-webmail-qa", harness,
     { get: async () => { throw new Error("API connector must not be used"); } },
-    [], { getApplication: async (id) => ({ id }) }, input.browser, () => true,
+    [], { getApplication: async (id) => ({ id }) }, input.browser,
+    input.sitePolicyAllows ?? (() => true),
   );
-  const capture = {
+  const capture = input.capture ?? {
+    direction: "received", directionEvidence: "Inbox",
     sender: "recruiter@example.com", subject: "Interview invitation",
     receivedAt: "2026-08-22T10:00:00.000Z", receivedAtEvidence: "Aug 22, 10:00",
     bodyText: "Your interview is scheduled for Monday at 10:00 HKT.",
@@ -54,6 +58,16 @@ export async function runBrowserWebmailQa(input: {
     provider: second.provider,
     bodyVerified: message.bodyText === capture.bodyText,
   };
+}
+
+export interface BrowserWebmailQaCapture {
+  direction: "received" | "sent";
+  directionEvidence: string;
+  sender: string;
+  subject: string;
+  receivedAt: string;
+  receivedAtEvidence: string;
+  bodyText: string;
 }
 
 class MemoryEvidenceStore implements AgentEvidenceStore {

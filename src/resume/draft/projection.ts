@@ -9,7 +9,7 @@ import type {
 } from "./types.js";
 import { resumeSourceJd } from "../source-strategy.js";
 import { resumeGenerationStrategy } from "../source-strategy.js";
-import { resumeGenerationReadiness } from "../workspace/generation-readiness.js";
+import { resumeDraftSummaryState } from "./summary-state.js";
 
 export function createLocalResumeDraft(input: {
   ownerId: string;
@@ -75,18 +75,19 @@ export function appendDraftCheckpoint(
 export function summarizeDraft(draft: LocalResumeDraft): ResumeDraftSummary {
   const syncedRevision = draft.cloudLink?.syncedRevision;
   const jd = resumeSourceJd(draft.workspace.sourceSnapshot);
+  const state = resumeDraftSummaryState(draft.workspace);
   return {
     artifactId: draft.artifactId,
     title: draft.title,
-    jdId: jd?.id ?? null,
-    jdTitle: jd?.title ?? null,
+    jdId: state.jdId,
+    jdTitle: state.jdTitle,
     targetRole: jd?.targetRole ?? null,
     conversationIds: [...draft.conversationIds],
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpoints.length,
     hasPendingChange: draft.pendingChange !== null,
     generationStrategy: resumeGenerationStrategy(draft.workspace.sourceSnapshot),
-    generationReady: resumeGenerationReadiness(draft.workspace).ready,
+    generationReady: state.generationReady,
     cloudState:
       syncedRevision === undefined
         ? "local_only"
@@ -94,6 +95,7 @@ export function summarizeDraft(draft: LocalResumeDraft): ResumeDraftSummary {
           ? "synced"
           : "local_changes",
     cloudResumeId: draft.cloudLink?.resumeId ?? null,
+    workspaceStatus: state.workspaceStatus,
   };
 }
 

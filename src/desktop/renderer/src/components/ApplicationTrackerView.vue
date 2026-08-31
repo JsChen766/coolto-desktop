@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ArrowLeft, Plus, RefreshCw, Search } from "@lucide/vue";
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 
 import type { TrackerNavigationContext } from "../tracker/tracker-navigation";
 import { useApplicationTrackerPage } from "../tracker/use-application-tracker-page";
 import { desktopApi } from "../lib/desktop-api";
+import { openPresentedBrowser } from "../browser/open-presented-browser";
 import { APPLICATION_BOARD_COLUMNS } from "../tracker/application-board";
 import ApplicationBoardColumn from "./ApplicationBoardColumn.vue";
 import ApplicationCalendarView from "./ApplicationCalendarView.vue";
@@ -18,13 +19,18 @@ import ApplicationViewSwitcher from "./ApplicationViewSwitcher.vue";
 import { useTrackerOverview } from "../tracker/use-tracker-overview";
 import { useTrackerSyncRecovery } from "../tracker/use-tracker-sync-recovery";
 import TrackerSyncIssuesDialog from "./TrackerSyncIssuesDialog.vue";
+import ApplicationLoopDialog from "../agent-tasks/ApplicationLoopDialog.vue";
+import type { InterviewRound } from "@desktop/types";
 
-const props = defineProps<{ context?: TrackerNavigationContext }>();
+const props = defineProps<{ context?: TrackerNavigationContext; conversationId?: string }>();
 const emit = defineEmits<{
   close: [];
   openAsset: [kind: "jd" | "resume", id: string];
   applicationOpened: [applicationId: string];
+  openAgentTask: [taskId: string];
 }>();
+const loopKind = ref<"follow_up" | "briefing">();
+const loopInterviews = ref<InterviewRound[]>([]);
 
 const page = useApplicationTrackerPage(() => props.context);
 const overview = useTrackerOverview();
@@ -52,6 +58,10 @@ async function childrenChanged(): Promise<void> {
 function openApplication(application: (typeof filtered.value)[number]): void {
   tracker.selected.value = application;
   emit("applicationOpened", application.id);
+}
+function startLoop(kind: "follow_up" | "briefing", interviews: InterviewRound[]): void {
+  loopKind.value = kind;
+  loopInterviews.value = interviews;
 }
 </script>
 
@@ -139,14 +149,17 @@ function openApplication(application: (typeof filtered.value)[number]): void {
       :application="tracker.selected.value"
       :references="tracker.references.value"
       :busy="tracker.busy.value"
+      :loops-enabled="Boolean(conversationId)"
       :error="tracker.error.value"
+      :focus-interview-id="context?.interviewId"
       @close="tracker.selected.value = undefined"
       @update="updateSelected"
       @transition="prepareTransition(tracker.selected.value!, $event)"
       @delete="deleteTarget = tracker.selected.value"
-      @open-url="desktopApi.browser.open({ url: $event })"
+      @open-url="openPresentedBrowser(desktopApi, { url: $event })"
       @open-asset="openAsset"
       @children-changed="childrenChanged"
+      @start-loop="startLoop"
     />
 
     <ApplicationCreateDialog
@@ -202,5 +215,9 @@ function openApplication(application: (typeof filtered.value)[number]): void {
       @prepare="recovery.prepare"
       @confirm="recovery.execute"
     />
+    <ApplicationLoopDialog v-if="loopKind && tracker.selected.value"
+      :api="desktopApi" :conversation-id="conversationId ?? ''" :application="tracker.selected.value"
+      :interviews="loopInterviews" :kind="loopKind" @close="loopKind = undefined"
+      @started="loopKind = undefined; $emit('openAgentTask', $event)" />
   </div>
 </template>

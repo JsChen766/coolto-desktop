@@ -35,16 +35,22 @@ function planLabel(planType: string): string {
     <div class="credit-balance-heading">
       <div>
         <p class="credit-balance-label">{{ $t('可用余额') }}</p>
-        <p class="credit-balance-total">{{ totalCredits }} <span>Credits</span></p>
+        <p v-if="summary.unlimited" class="credit-balance-total">{{ $t('无限量') }}</p>
+        <p v-else class="credit-balance-total">{{ totalCredits }} <span>Credits</span></p>
       </div>
-      <span v-if="summary.planType !== 'NONE'" class="credit-plan-badge">{{ planLabel(summary.planType) }}</span>
+      <span v-if="summary.unlimited" class="credit-plan-badge">{{ $t('不限量用户（不扣费）') }}</span>
+      <span v-else-if="summary.planType !== 'NONE'" class="credit-plan-badge">{{ planLabel(summary.planType) }}</span>
     </div>
 
-    <div class="credit-composition-bar" aria-hidden="true">
+    <p v-if="summary.unlimited" class="credit-unlimited-note">
+      {{ $t('当前账号使用任务时不扣除 Credit。') }}
+    </p>
+
+    <div v-else class="credit-composition-bar" aria-hidden="true">
       <span class="credit-composition-free" :style="{ width: `${freeShare}%` }" />
     </div>
 
-    <dl class="credit-balance-sources">
+    <dl v-if="!summary.unlimited" class="credit-balance-sources">
       <div>
         <dt>{{ $t('本周免费') }}</dt>
         <dd>{{ summary.weeklyFreeCredits }} <span>Credits</span></dd>

@@ -1,4 +1,8 @@
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { createRequire } from "node:module";
+
+import { ensurePdfEnvironment } from "../files/pdfjs-environment.js";
+
+const nodeRequire = createRequire(import.meta.url);
 
 const A4_WIDTH_POINTS = 595.28;
 const A4_HEIGHT_POINTS = 841.89;
@@ -37,6 +41,10 @@ export function containsLatinOrDigit(value: string): boolean {
 export async function inspectResumePdf(
   input: Uint8Array,
 ): Promise<ResumePdfPostflightResult> {
+  await ensurePdfEnvironment();
+  const { getDocument } = nodeRequire(
+    "pdfjs-dist/legacy/build/pdf.mjs",
+  ) as typeof import("pdfjs-dist/legacy/build/pdf.mjs");
   const bytes = new Uint8Array(input);
   const document = await getDocument({ data: bytes }).promise;
   const pageCount = document.numPages;

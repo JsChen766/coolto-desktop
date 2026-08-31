@@ -3,6 +3,8 @@ import { Briefcase, CheckCircle, Tag, XCircle } from "@lucide/vue";
 
 import type { JdArtifactData } from "../../../../desktop/shared/types";
 import { translate } from "../i18n/locale";
+import { jdSourceLabel } from "../job-assets/jd-source-label";
+import { desktopApi } from "../lib/desktop-api";
 
 defineProps<{
   data: JdArtifactData;
@@ -54,6 +56,20 @@ function categoryLabel(value: string): string {
         <template v-if="data.targetRole">
           <dt>{{ $t('目标角色') }}</dt>
           <dd>{{ data.targetRole }}</dd>
+        </template>
+        <dt>{{ $t('来源') }}</dt>
+        <dd>{{ jdSourceLabel(data.sourceKind) }}</dd>
+        <template v-if="data.sourceUrl">
+          <dt>{{ $t('来源 URL') }}</dt>
+          <dd>
+            <button
+              class="jd-source-link"
+              type="button"
+              @click="desktopApi.shell.openExternal(data.sourceUrl!)"
+            >
+              {{ $t('打开来源页面') }}
+            </button>
+          </dd>
         </template>
         <dt>{{ $t('要求数量') }}</dt>
         <dd>{{ $tf('{count} 条', { count: data.requirements.length }) }}</dd>

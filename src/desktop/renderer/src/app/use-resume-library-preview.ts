@@ -17,6 +17,7 @@ interface ResumeLibraryPreviewOptions {
   activeArtifactType: Ref<"resume" | "jd" | "match">;
   artifactOpen: Ref<boolean>;
   closeNarrowSidebar(): void;
+  clearLocalError(): void;
   openLocalDraft(artifactId: string): Promise<void>;
   draftIds(): string[];
   sendInstruction(text: string, reference: ResumeChatReference): Promise<void>;
@@ -148,6 +149,7 @@ export function useResumeLibraryPreview(options: ResumeLibraryPreviewOptions) {
   }
 
   function resetResumePreview(): void {
+    options.clearLocalError();
     cloudResumePreview.value = undefined;
     cloudResumePreviewError.value = undefined;
     cloudResumePreviewBusy.value = false;

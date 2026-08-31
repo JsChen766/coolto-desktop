@@ -4,6 +4,7 @@ import type {
   BrowserElementQuery,
   BrowserElementQueryResult,
 } from "../../../browser/agent-control-types.js";
+import { executeInSameOriginFrames } from "./browser-frame-execution.js";
 
 const DEFAULT_LIMIT = 40;
 const MAX_LIMIT = 100;
@@ -19,14 +20,25 @@ export async function queryBrowserElements(
     throw new Error("元素查询至少需要 selector、text 或 role 之一");
   }
   const limit = Math.min(MAX_LIMIT, Math.max(1, query.limit ?? DEFAULT_LIMIT));
-  const raw = await contents.executeJavaScript(
-    buildElementQueryScript({ selector, text, role, limit }),
-    true,
-  ) as BrowserElementQueryResult & { error?: string };
-  if (raw.error) throw new Error(raw.error);
+  const executions = await executeInSameOriginFrames<
+    BrowserElementQueryResult & { error?: string }
+  >(contents, buildElementQueryScript({ selector, text, role, limit }));
+  const elements = [];
+  let truncated = false;
+  for (const execution of executions) {
+    if (execution.value.error) throw new Error(execution.value.error);
+    truncated ||= execution.value.truncated;
+    for (const element of execution.value.elements) {
+      if (elements.length >= limit) { truncated = true; break; }
+      elements.push({
+        ...element,
+        framePath: [...execution.framePath, ...element.framePath],
+      });
+    }
+  }
   return {
-    elements: Array.isArray(raw.elements) ? raw.elements.slice(0, limit) : [],
-    truncated: Boolean(raw.truncated),
+    elements,
+    truncated,
   };
 }
 
@@ -64,6 +76,7 @@ function buildElementQueryScript(input: {
     for (const el of nodes) {
       if (out.length >= wanted.limit) { matched += 1; return; }
       const nodeText = clean(el.innerText || el.textContent);
+      const nodeLabel = label(el);
       const explicitRole = clean(el.getAttribute('role') || '').toLowerCase();
       const implicitRole = (() => {
         const tag = el.tagName;
@@ -86,24 +99,21 @@ function buildElementQueryScript(input: {
         try { selectorMatch = el.matches(wanted.selector); }
         catch (e) { return { error: '无效 CSS selector' }; }
       }
-      const textMatch = !wanted.text || nodeText.toLowerCase().includes(wanted.text.toLowerCase());
+      const searchableText = clean(nodeText + ' ' + nodeLabel);
+      const textMatch = !wanted.text || searchableText.toLowerCase()
+        .includes(wanted.text.toLowerCase());
       const roleMatch = !wanted.role || nodeRole === wanted.role;
       if (selectorMatch && textMatch && roleMatch && visible(el)) {
         matched += 1;
         out.push({
           tagName: clean(el.tagName.toLowerCase(), 40), role: nodeRole,
-          text: nodeText, label: label(el),
+          text: nodeText, label: nodeLabel,
           inputType: clean(el.getAttribute('type') || '', 40),
           disabled: !!el.disabled || el.getAttribute('aria-disabled') === 'true',
           framePath: frames, shadowPath: shadows,
         });
       }
       if (el.shadowRoot) visit(el.shadowRoot, frames, [...shadows, signature(el)]);
-      if (el.tagName === 'IFRAME') {
-        try {
-          if (el.contentDocument) visit(el.contentDocument, [...frames, signature(el)], shadows);
-        } catch (e) { /* cross-origin frame: intentionally unavailable */ }
-      }
     }
   };
   const result = visit(document, [], []);

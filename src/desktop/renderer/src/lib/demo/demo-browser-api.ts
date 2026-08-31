@@ -50,6 +50,8 @@ export function createDemoBrowserApi(): DesktopApi["browser"] {
     onFillProgress: () => () => undefined,
     onReviewDecision: () => () => undefined,
     onReviewComplete: () => () => undefined,
-    onCaptchaDetected: () => () => undefined,
-  };
+  onCaptchaDetected: () => () => undefined,
+  onOpenAgentTask: () => () => undefined,
+  onOpenPageInApp: () => () => undefined,
+};
 }

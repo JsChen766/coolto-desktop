@@ -90,6 +90,8 @@ function buildJd(
     targetRole: jd.targetRole,
     rawText: jd.rawText,
     requirements: jd.requirements,
+    sourceKind: jd.sourceKind,
+    sourceUrl: jd.sourceUrl,
     syncStatus: jd.syncStatus ?? "clean",
     updatedAt: jd.updatedAt,
     targetedResumeIds,

@@ -52,6 +52,12 @@ export default defineConfig({
           "browser-shell": resolve(
             "src/desktop/browser-shell-preload/index.ts",
           ),
+          "browser-agent-inspector": resolve(
+            "src/desktop/browser-agent-inspector-preload/index.ts",
+          ),
+          "browser-download-popover": resolve(
+            "src/desktop/browser-download-popover-preload/index.ts",
+          ),
         },
       },
       rollupOptions: {
@@ -74,6 +80,12 @@ export default defineConfig({
           resume: resolve("src/desktop/renderer/resume.html"),
           "browser-shell": resolve(
             "src/desktop/renderer/browser-shell.html",
+          ),
+          "browser-agent-inspector": resolve(
+            "src/desktop/renderer/browser-agent-inspector.html",
+          ),
+          "browser-download-popover": resolve(
+            "src/desktop/renderer/browser-download-popover.html",
           ),
           ...(process.env.COOLTO_AGENT_TASKS_UI_QA === "1"
             ? {

@@ -4,11 +4,14 @@ import { computed, nextTick, onMounted, ref } from "vue";
 
 import type { DesktopApi } from "@desktop/types";
 import MailConnectionsSettings from "./MailConnectionsSettings.vue";
+import CalendarSettings from "./CalendarSettings.vue";
+import AiNativeAutomationSettings from "./AiNativeAutomationSettings.vue";
 
-const props = defineProps<{ api: DesktopApi }>();
+const props = defineProps<{ api: DesktopApi; conversationId: string }>();
 const emit = defineEmits<{
   close: [];
   openProfile: [];
+  openAgentTask: [taskId: string];
 }>();
 const dialog = ref<HTMLElement>();
 const confirmingClear = ref(false);
@@ -126,7 +129,11 @@ function keydown(event: KeyboardEvent): void {
         </button>
       </section>
 
-      <MailConnectionsSettings :api="api" />
+      <MailConnectionsSettings :api="api" :conversation-id="conversationId"
+        @started="$emit('openAgentTask', $event)" />
+      <CalendarSettings :api="api" />
+      <AiNativeAutomationSettings :api="api" :conversation-id="conversationId"
+        @started="$emit('openAgentTask', $event)" />
 
       <section class="settings-section">
         <div class="settings-section-title icon-label">

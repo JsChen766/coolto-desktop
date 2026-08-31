@@ -49,6 +49,8 @@ async function executeSave(
       rawText: payload.rawText,
       ...(payload.company ? { company: payload.company } : {}),
       ...(payload.targetRole ? { targetRole: payload.targetRole } : {}),
+      sourceKind: payload.sourceKind,
+      sourceUrl: payload.sourceUrl,
       requirements,
       idempotencyKey: payload.idempotencyKey,
     },

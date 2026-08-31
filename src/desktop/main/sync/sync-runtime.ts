@@ -10,6 +10,7 @@ export class SyncRuntime {
   #worker: SyncWorker | undefined;
   #timer: ReturnType<typeof setInterval> | undefined;
 	#initial: Promise<void> | undefined;
+  readonly #listeners = new Set<() => void>();
 
   public async start(
     apiBaseUrl: string,
@@ -22,22 +23,20 @@ export class SyncRuntime {
     this.#worker = new SyncWorker(api, this.#store, deviceId);
     this.#timer = setInterval(() => this.trigger(), SYNC_INTERVAL_MS);
     this.#timer.unref();
-	this.#initial = this.#worker.run().catch((error: unknown) => {
-		this.#handleError(error);
-	});
+	this.#initial = this.#run(false);
   }
 
   public trigger(): void {
-	void this.#worker?.run().catch((error: unknown) => this.#handleError(error));
+	void this.#run(false);
   }
 
   public async runNow(): Promise<void> {
-    try {
-      await this.#worker?.run();
-    } catch (error: unknown) {
-      this.#handleError(error);
-      throw error;
-    }
+    await this.#run(true);
+  }
+
+  public subscribe(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
 
   public requireStore(): LocalSyncStore {
@@ -73,6 +72,19 @@ export class SyncRuntime {
 	} catch {
 		// Failure telemetry must never create a second unhandled rejection.
 	}
+  }
+
+  async #run(rethrow: boolean): Promise<void> {
+    try {
+      await this.#worker?.run();
+    } catch (error: unknown) {
+      this.#handleError(error);
+      if (rethrow) throw error;
+    } finally {
+      for (const listener of this.#listeners) {
+        try { listener(); } catch { /* UI notification cannot fail sync. */ }
+      }
+    }
   }
 }
 

@@ -14,6 +14,7 @@ import {
   canonicalRequirementCategory,
   isV2RequirementCategory,
 } from "./jd-category-mapping.js";
+import { jdSourceFields, mappedJdSourceKind } from "./jd-source-mapping.js";
 
 const V2_IMPORTANCE_VALUES: readonly JdRequirementV2Importance[] = [
   "must_have",
@@ -54,12 +55,13 @@ export function toJdWritePayload(
   input: JdCreateInput,
   requirements: AssignedRequirement[],
 ): Record<string, unknown> {
+  const source = jdSourceFields(input);
   return {
     title: input.title,
     company: input.company ?? null,
     targetRole: input.targetRole ?? null,
-    sourceKind: "pasted",
-    sourceUrl: null,
+    sourceKind: source.kind,
+    sourceUrl: source.url,
     rawText: input.rawText,
     requirementsOrigin: "app_extracted",
     status: "active",
@@ -84,13 +86,14 @@ export function buildLocalJd(
   requirements: AssignedRequirement[],
   now: string,
 ): Record<string, unknown> {
+  const source = jdSourceFields(input);
   return {
     id,
     title: input.title,
     company: input.company ?? null,
     targetRole: input.targetRole ?? null,
-    sourceKind: "pasted",
-    sourceUrl: null,
+    sourceKind: source.kind,
+    sourceUrl: source.url,
     rawText: input.rawText,
     jdHash: sha256(input.rawText),
     requirementsOrigin: "app_extracted",
@@ -117,6 +120,8 @@ export function toJdRecord(entity: LocalEntity): JdRecord {
     title: str(payload.title),
     company: nullableStr(payload.company),
     targetRole: nullableStr(payload.targetRole),
+    sourceKind: mappedJdSourceKind(payload.sourceKind),
+    sourceUrl: nullableStr(payload.sourceUrl),
     rawText: str(payload.rawText),
     requirements: toRequirements(payload.requirements),
     jdHash: nullableStr(payload.jdHash),

@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import type {
   ExperienceCategory,
@@ -38,6 +38,7 @@ export function useExperienceLibrary() {
   let loadVersion = 0;
   let detailVersion = 0;
   let focusVersion = 0;
+  let unsubscribeSync: (() => void) | undefined;
 
   const focusActive = computed(() => focusRequested.value);
   const visible = computed(() => {
@@ -197,7 +198,11 @@ export function useExperienceLibrary() {
     () => visible.value.map((item) => item.id).join("\u0000"),
     ensureSelection,
   );
-  onMounted(() => void load());
+  onMounted(() => {
+    unsubscribeSync = desktopApi.auth.onSyncCompleted(() => void load(selectedId.value));
+    void load();
+  });
+  onBeforeUnmount(() => unsubscribeSync?.());
 
   const pendingCount = computed(
     () => catalog.value.filter((item) => item.syncStatus && item.syncStatus !== "clean").length,

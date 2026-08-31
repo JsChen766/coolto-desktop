@@ -74,6 +74,15 @@ export class AgentTaskStore {
     ) ?? null);
   }
 
+  public getActiveRun(taskId: string): Promise<AgentRunV1> {
+    return this.repository.read((state) => {
+      const task = requireTask(state.tasks, taskId, this.ownerId);
+      const run = state.runs.find((candidate) => candidate.id === task.activeRunId);
+      if (!run || run.status !== "running") throw new Error("AgentRun 不存在或已结束");
+      return run;
+    });
+  }
+
   public startRun(input: {
     taskId: string;
     wakeCause: AgentRunV1["wakeCause"];
@@ -83,8 +92,9 @@ export class AgentTaskStore {
       const task = requireTask(state.tasks, input.taskId, this.ownerId);
       if (!task.grantId) throw new Error("AgentTask 尚未获得 DelegationGrant");
       const grant = state.grants.find((candidate) => candidate.id === task.grantId);
+      const expiresAt = grant ? Date.parse(grant.expiresAt) : Number.NaN;
       if (!grant || state.revocations.some((value) => value.grantId === grant.id) ||
-          Date.parse(grant.expiresAt) <= Date.now()) {
+          !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
         throw new Error("AgentTask DelegationGrant 不可用");
       }
       if (state.tasks.some((candidate) =>

@@ -49,6 +49,7 @@ export interface ResumeLibraryCloudSummary {
   targetRole: string | null;
   jdId: string | null;
   status: ResumeStatus;
+  qualityStatus: import("../types.js").ResumeQualityStatus;
   contentHash: string;
   updatedAt: string;
 }

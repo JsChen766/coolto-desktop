@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import type { ChatMessage } from "@desktop/types";
 import {
+  ChatRunTerminal,
   ChatMessageView,
   EmptyState,
   ExperienceImportResultCard,
@@ -76,8 +77,9 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
   );
 });
 const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
-const GENERAL_RESUME_PROMPT =
-  "请基于我的全部经历生成一份不关联任何 JD 的高质量一页通用简历。";
+const GENERAL_RESUME_PROMPT = "请基于我的全部经历生成一份不关联任何 JD 的高质量一页通用简历。";
+function continueLastRun(): void { void send("请继续完成刚才未完成的任务；从已保留的有效进度继续，如果缺少信息只问一个具体问题。"); }
+function restartLastRun(): void { void send("请重新开始刚才的任务，重新检查当前资料后执行；不要复用失败的中间状态。"); }
 </script>
 <template>
       <ChatHeaderHost :shell="shell" />
@@ -133,6 +135,7 @@ const GENERAL_RESUME_PROMPT =
                   @generate-general="send(GENERAL_RESUME_PROMPT)"
                 />
               </template>
+              <ChatRunTerminal v-if="current.lastRun && current.lastRun.status !== 'completed' && !running && !runError" :terminal="current.lastRun" @continue="continueLastRun" @restart="restartLastRun" @open-draft="openResumeDraft" />
               <article
                 v-if="toolRuns.length || streamingText"
                 class="chat-message role-assistant live-response"

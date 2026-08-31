@@ -1,0 +1,5 @@
+{
+  "name": "coolto-browser-shell-manual-qa",
+  "version": "1.0.0",
+  "main": "../../../out/cli/browser-shell-manual-qa-entry.cjs"
+}

@@ -8,10 +8,15 @@ import type {
   InboxIncrementalAdapter,
   InboxMessagePayloadV1,
   MailConnectionRegistry,
+  MailDirection,
 } from "./inbox-signal-types.js";
 import { mailSecurityFlags } from "./mail-security.js";
 import type { BrowserAgentController } from "../browser/agent-control-types.js";
 import { boundedMailText } from "./mail-text.js";
+import { requireInboxTaskAccess } from "./inbox-task-access.js";
+import {
+  assertMailDirectionAllowed, nextMailPollAt, requireSelectedMailConnection,
+} from "./mail-direction-policy.js";
 
 export interface InboxApplicationReader {
   getApplication(id: string): Promise<{ id: string }>;
@@ -35,17 +40,36 @@ export class InboxSignalController {
     this.#adapters = new Map(adapters.map((adapter) => [adapter.provider, adapter]));
   }
 
+  public async listConnections() {
+    const connections = await this.connections.list?.() ?? [];
+    return connections.map(({ id, provider, accountEmail }) => ({
+      id, provider, accountEmail,
+    }));
+  }
+
+  public async nextPollAt(now = Date.now()): Promise<string> {
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
+    return nextMailPollAt(active.grant.connectorPolicy, now);
+  }
+
   public async captureBrowser(input: {
     sender: string; subject: string; receivedAt: string;
     receivedAtEvidence: string; bodyText: string;
+    direction: MailDirection; directionEvidence: string;
   }): Promise<{
     eventId: string; provider: string; sender: string; subject: string;
-    receivedAt: string; sourceMessageHash: string; securityFlags: string[];
+    direction: MailDirection; receivedAt: string;
+    sourceMessageHash: string; securityFlags: string[];
   }> {
-    const active = await this.#active("mail.read");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
     if (active.grant.connectorPolicy?.browserWebmail !== true) {
       throw new Error("DelegationGrant 未授权 Browser Webmail");
     }
+    assertMailDirectionAllowed(active.grant.connectorPolicy, input.direction);
     if (!this.browser) throw new Error("浏览器 Webmail Source 不可用");
     const observation = await this.browser.snapshot(false);
     const url = observation.tab.url ? new URL(observation.tab.url) : null;
@@ -59,20 +83,26 @@ export class InboxSignalController {
     const sender = input.sender.trim();
     const subject = input.subject.trim();
     const timeEvidence = input.receivedAtEvidence.trim();
+    const direction = input.direction;
+    const directionEvidence = input.directionEvidence.trim();
     const bodyText = boundedMailText(input.bodyText);
     const pageText = observation.page.text;
     if (!sender || !subject || !timeEvidence || !bodyText ||
-        ![sender, subject, timeEvidence, bodyText].every((value) => pageText.includes(value))) {
-      throw new Error("Webmail sender/subject/time/body 必须逐字来自当前页面");
+        !directionEvidence ||
+        ![sender, subject, timeEvidence, bodyText, directionEvidence]
+          .filter(Boolean).every((value) => pageText.includes(value))) {
+      throw new Error("Webmail sender/subject/time/direction/body 必须逐字来自当前页面");
     }
     const receivedAt = new Date(input.receivedAt).toISOString();
     const identity = canonicalHash({
-      origin: url.origin, url: url.toString(), sender, subject, receivedAt,
+      origin: url.origin, url: url.toString(), sender, subject,
+      direction, directionEvidence, receivedAtEvidence: timeEvidence, bodyText,
     } as JsonValue);
     const message: InboxMessagePayloadV1 = {
       version: 1, provider: "browser_webmail",
       connectionId: `browser:${url.origin}`, sourceMessageId: identity,
-      internetMessageId: null, sender, subject, receivedAt, bodyText,
+      internetMessageId: null, direction, directionEvidence,
+      sender, subject, receivedAt, bodyText,
       securityFlags: mailSecurityFlags(`${subject}\n${bodyText}`),
     };
     return this.#ingest(active.task, message,
@@ -87,9 +117,12 @@ export class InboxSignalController {
     subject: string; receivedAt: string; sourceMessageHash: string;
     securityFlags: string[];
   }>> {
-    const active = await this.#active("mail.read");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
     const connection = await this.connections.get(input.connectionId);
-    requireSelectedConnection(active.grant.connectorPolicy, connection.id);
+    requireSelectedMailConnection(active.grant.connectorPolicy, connection.id);
+    assertMailDirectionAllowed(active.grant.connectorPolicy, "received");
     const adapter = this.#adapters.get(connection.provider);
     if (!adapter) throw new Error(`邮箱 Provider 尚未支持：${connection.provider}`);
     if (!this.harness.evidence) throw new Error("加密 Connector evidence store 不可用");
@@ -119,7 +152,9 @@ export class InboxSignalController {
   }
 
   public async readEvent(eventId: string): Promise<InboxMessagePayloadV1> {
-    const active = await this.#active("mail.read");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
     const event = await this.harness.events.get(active.task.id, eventId);
     if (event.source !== "mail" || !event.payloadRef) throw new Error("Mail event payload 不可用");
     const evidence = await this.harness.evidence?.read(event.payloadRef);
@@ -134,7 +169,9 @@ export class InboxSignalController {
     eventId: string; kind: ExternalSignalKind; confidence: number;
     applicationId?: string | null; rationale: string; evidenceQuotes: string[];
   }): Promise<ExternalSignalV1> {
-    const active = await this.#active("mail.classify");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.classify",
+    );
     const message = await this.readEvent(input.eventId);
     const applicationId = input.applicationId ?? null;
     if (applicationId) await this.applications.getApplication(applicationId);
@@ -144,6 +181,7 @@ export class InboxSignalController {
       provider: message.provider, connectionId: message.connectionId,
       sourceMessageId: message.sourceMessageId,
       sourceMessageHash: canonicalHash(message as unknown as JsonValue),
+      direction: message.direction,
       sender: message.sender, subject: message.subject,
       receivedAt: message.receivedAt, kind: input.kind,
       confidence: input.confidence, applicationId,
@@ -153,7 +191,9 @@ export class InboxSignalController {
   }
 
   public async list(): Promise<ExternalSignalV1[]> {
-    const active = await this.#active("mail.read");
+    const active = await requireInboxTaskAccess(
+      this.conversationId, this.harness, "mail.read",
+    );
     return this.harness.signals.list(active.task.id);
   }
 
@@ -169,7 +209,8 @@ export class InboxSignalController {
         expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
       });
       event = await this.harness.events.enqueue({
-        taskId: task.id, source: "mail", type: "mail.message_received",
+        taskId: task.id, source: "mail",
+        type: message.direction === "sent" ? "mail.message_sent" : "mail.message_received",
         trust: "external_untrusted", occurredAt: message.receivedAt,
         dedupeKey, payloadRef: evidence.id, payloadHash,
       });
@@ -177,37 +218,22 @@ export class InboxSignalController {
     await this.harness.events.markDelivered(event.id);
     return {
       eventId: event.id, provider: message.provider, sender: message.sender,
-      subject: message.subject, receivedAt: message.receivedAt,
+      subject: message.subject, direction: message.direction,
+      receivedAt: message.receivedAt,
       sourceMessageHash: payloadHash, securityFlags: message.securityFlags ?? [],
     };
   }
 
-  async #active(scope: "mail.read" | "mail.classify"): Promise<{
-    task: AgentTaskV1;
-    grant: NonNullable<Awaited<ReturnType<AgentHarnessServices["grants"]["getActive"]>>["grant"]>;
-  }> {
-    const task = await this.harness.tasks.findRunningByConversation(this.conversationId);
-    if (!task?.activeRunId) throw new Error("Inbox Signals 需要 running AgentTask");
-    const active = await this.harness.grants.getActive(task.id);
-    if (!active.grant || active.revocation || !active.grant.allowedActions.includes(scope)) {
-      throw new Error(`DelegationGrant 未授权 ${scope}`);
-    }
-    return { task, grant: active.grant };
-  }
-}
-
-function requireSelectedConnection(policy: Record<string, JsonValue> | undefined, id: string): void {
-  const values = policy?.mailConnectionIds;
-  if (!Array.isArray(values) || !values.includes(id)) {
-    throw new Error("该邮箱连接未包含在当前 DelegationGrant");
-  }
 }
 
 function readPayload(value: JsonValue): InboxMessagePayloadV1 {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Connector payload 无效");
   }
-  return structuredClone(value) as unknown as InboxMessagePayloadV1;
+  const payload = structuredClone(value) as unknown as InboxMessagePayloadV1;
+  payload.direction ??= "received";
+  payload.directionEvidence ??= null;
+  return payload;
 }
 
 function assertEvidenceQuotes(message: InboxMessagePayloadV1, quotes: string[]): void {

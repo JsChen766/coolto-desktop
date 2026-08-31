@@ -1,5 +1,4 @@
 import type { WebContents } from "electron";
-
 import { createMatchEmitter } from "./match-emitter.js";
 import type { DesktopAgentEvent } from "../shared/types.js";
 import { ConversationStore } from "./conversation-store.js";
@@ -9,13 +8,14 @@ import { parseExperienceImportResult } from "../../import/result-artifact.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
 import { extractInsufficientCreditsDetail } from "./insufficient-credits-detect.js";
 import { traceStopReason, traceToolMetadata } from "./agent-runtime-trace.js";
+import { shouldPublishResumeWorkspace } from
+  "./resume-drafts/draft-publication.js";
 import { syncDraftSupplementalMaterial } from
   "./resume-drafts/resume-experience-sync-service.js";
 import { tailoredResumeFallbackDecision } from
   "../../resume/strategy/tailored-fallback.js";
 import type { ExperienceMaterialCommitter } from
   "../../experience/material-ingestion-types.js";
-
 export class AgentRuntimeEvents {
   public constructor(
     private readonly target: WebContents,
@@ -24,7 +24,6 @@ export class AgentRuntimeEvents {
     private readonly traces: ResumeGenerationTraceStore,
     private readonly materialCommitter: ExperienceMaterialCommitter,
   ) {}
-
   public subscribe(
     conversationId: string,
     context: ConversationAgentContext,
@@ -79,7 +78,8 @@ export class AgentRuntimeEvents {
       if (
         event.type === "tool.completed" &&
         isResumeWorkspaceTool(event.name) &&
-        !event.isError
+        !event.isError &&
+        shouldPublishLatestWorkspace(context)
       ) {
         const workspace = context.workspaceStore.latest();
         this.emit(conversationId, {
@@ -126,12 +126,7 @@ export class AgentRuntimeEvents {
       }
     });
   }
-
-  public emitJdSaved(
-    conversationId: string,
-    approvalRequestId: string,
-    jdId: string,
-  ): void {
+  public emitJdSaved(conversationId: string, approvalRequestId: string, jdId: string): void {
     this.emit(conversationId, {
       type: "jd.saved",
       approvalRequestId,
@@ -153,7 +148,6 @@ export class AgentRuntimeEvents {
       },
     });
   }
-
   public async syncLatestWorkspace(
     conversationId: string,
     context: ConversationAgentContext,
@@ -191,7 +185,6 @@ export class AgentRuntimeEvents {
       this.traces.recordQualifiedPreviewDelivered(conversationId);
     }
   }
-
   private emitJdProposal(
     conversationId: string,
     context: ConversationAgentContext,
@@ -210,6 +203,8 @@ export class AgentRuntimeEvents {
         title: proposal.title,
         company: proposal.company,
         targetRole: proposal.targetRole,
+        sourceKind: proposal.sourceKind,
+        sourceUrl: proposal.sourceUrl,
         requirements: proposal.requirements.map((requirement) => ({
           text: requirement.text,
           category: requirement.category,
@@ -221,10 +216,7 @@ export class AgentRuntimeEvents {
     });
   }
 
-  public showDraft(
-    conversationId: string,
-    artifactId: string,
-  ): void {
+  public showDraft(conversationId: string, artifactId: string): void {
     this.emit(conversationId, {
       type: "resume.draft.updated",
       artifactId,
@@ -237,7 +229,15 @@ export class AgentRuntimeEvents {
     }
   }
 }
-
+function shouldPublishLatestWorkspace(context: ConversationAgentContext): boolean {
+  const workspace = context.workspaceStore.latest();
+  return shouldPublishResumeWorkspace(
+    workspace,
+    workspace
+      ? context.artifactIdByCandidate.has(workspace.candidateId)
+      : false,
+  );
+}
 function isResumeWorkspaceTool(name: string): boolean {
   return [
     "create_resume_workspace",

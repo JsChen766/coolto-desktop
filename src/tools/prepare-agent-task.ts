@@ -33,7 +33,9 @@ export function createPrepareAgentTaskTool(input: {
     description:
       "把用户的浏览器任务目标和授权范围冻结为 Delegation Proposal，展示给用户确认。" +
       "不会立即运行、导航或写页面。最低匹配固定 80%，无每日投递业务上限；" +
-      "mail.send 不可授权，任务只在 App 打开时运行。",
+      "mail.send 不可授权，任务只在 App 打开时运行。授权 browser.submit 时，" +
+      "assetPolicy 必须冻结 resumeId、resumeTitle、resumeContentHash 和" +
+      " submissionMode=confirm_each。",
     parameters,
     executionMode: "sequential",
     execute: async (_id, value) => {

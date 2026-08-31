@@ -76,7 +76,8 @@ export function buildTagElementsScript(maxElements: number): string {
 
   const selector =
     'input, textarea, select, button, a[href], [contenteditable=""], [contenteditable="true"], ' +
-    '[draggable="true"], [data-drop-target]';
+    '[draggable="true"], [data-drop-target], [role="option"], [role="row"], ' +
+    '[role="listitem"], [role="treeitem"], [role="tab"], [role="button"], [role="link"]';
   const out = [];
   const visit = (root) => {
     const nodes = root.querySelectorAll(selector);
@@ -85,9 +86,12 @@ export function buildTagElementsScript(maxElements: number): string {
       const type = inputTypeOf(el);
       if (type === 'hidden' || !isVisible(el)) continue;
       if (el.isContentEditable && !isTopEditable(el)) continue;
+      const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
       const summary = {
         fillId: ensureId(el), elementType: kindOf(el),
-        label: (labelFor(el) || '').slice(0, 200),
+        label: (labelFor(el) || text || '').slice(0, 200),
+        role: (el.getAttribute('role') || '').slice(0, 80),
+        text: text.slice(0, 300),
         placeholder: (el.getAttribute('placeholder') || '').slice(0, 200),
         required: el.hasAttribute('required') || el.getAttribute('aria-required') === 'true',
       };
@@ -99,10 +103,6 @@ export function buildTagElementsScript(maxElements: number): string {
     for (const el of root.querySelectorAll('*')) {
       if (out.length >= ${maxElements}) return;
       if (el.shadowRoot) visit(el.shadowRoot);
-      if (el.tagName === 'IFRAME') {
-        try { if (el.contentDocument) visit(el.contentDocument); }
-        catch (e) { /* cross-origin frame intentionally unavailable */ }
-      }
     }
   };
   visit(document);

@@ -5,6 +5,7 @@ import type {
   JdReader,
   UserProfileReader,
 } from "../api/types.js";
+import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
@@ -42,6 +43,9 @@ import type { TaskLifecycleController } from "../agent-task/task-lifecycle-contr
 import { createAgentTaskLifecycleTools } from "./agent-task-lifecycle.js";
 import type { AgentTaskProposalService } from "../desktop/main/agent-task/agent-task-proposal-service.js";
 import { createPrepareAgentTaskTool } from "./prepare-agent-task.js";
+import { createPrepareAiNativeLoopTools } from "./prepare-ai-native-loops.js";
+import { createAiNativeTools, type AiNativeToolDependencies } from
+  "./ai-native-tool-registry.js";
 import { applyExecutionPolicies } from "./tool-execution-policies.js";
 import type { JobScoutController } from "../job-scout/job-scout-controller.js";
 import { createJobScoutTools } from "./job-scout-tools.js";
@@ -49,17 +53,17 @@ import type { ApplicationSubmissionService } from "../desktop/main/agent-task/ap
 import { createApplicationSubmissionTools } from "./application-submission-tools.js";
 import type { AnswerVaultStore } from "../agent-task/answer-vault-store.js";
 import { createAnswerVaultTools } from "./answer-vault-tools.js";
-import type { InboxSignalController } from "../inbox-signals/inbox-signal-controller.js";
-import { createInboxSignalTools } from "./inbox-signal-tools.js";
-import type { InboxSignalApplicationService } from "../desktop/main/agent-task/inbox-signal-application-service.js";
-import { createPrepareInboxApplicationTool } from "./inbox-action-tools.js";
-import type { InboxSignalInterviewService } from "../desktop/main/agent-task/inbox-signal-interview-service.js";
-import { createPrepareInboxInterviewTool } from "./inbox-interview-tools.js";
+import {
+  createInboxTools,
+  type InboxToolRegistryDependencies,
+} from "./inbox-tool-registry.js";
 import {
   createLocalFileTools,
   type LocalFileToolDependencies,
 } from "./local-file-tools.js";
-export interface ToolRegistryDependencies extends LocalFileToolDependencies {
+export interface ToolRegistryDependencies extends
+  InboxToolRegistryDependencies, LocalFileToolDependencies,
+  AiNativeToolDependencies {
   currentUserReader?: CurrentUserReader;
   userProfileReader?: UserProfileReader;
   profileProposals?: ProfileProposalExecutor;
@@ -69,6 +73,7 @@ export interface ToolRegistryDependencies extends LocalFileToolDependencies {
   resumeReader?: ResumePublicationGateway;
   importProposalStore?: ExperienceImportProposalStore;
   jdProposalStore?: JdProposalStore;
+  selectedFileRegistry?: SelectedFileRegistry;
   approvalManager?: ApprovalManager;
   matchReportStore?: MatchReportStore;
   browserPageReader?: BrowserPageReader;
@@ -80,9 +85,6 @@ export interface ToolRegistryDependencies extends LocalFileToolDependencies {
   jobScout?: JobScoutController;
   applicationSubmission?: ApplicationSubmissionService;
   answerVault?: AnswerVaultStore;
-  inboxSignals?: InboxSignalController;
-  inboxApplicationProposals?: InboxSignalApplicationService;
-  inboxInterviewProposals?: InboxSignalInterviewService;
   agentOrchestrated?: AgentOrchestratedDependencies;
   /** Immediately runs one sync round; resolves with a result summary. */
   syncNow?: () => Promise<SyncNowResult>;
@@ -182,9 +184,12 @@ export function createToolRegistry(
   if (dependencies.jobScout) {
     businessTools.push(...createJobScoutTools(dependencies.jobScout));
   }
-  if (dependencies.applicationSubmission) {
-    businessTools.push(...createApplicationSubmissionTools(dependencies.applicationSubmission));
+  if (dependencies.applicationSubmission && dependencies.approvalManager) {
+    businessTools.push(...createApplicationSubmissionTools(
+      dependencies.applicationSubmission, dependencies.approvalManager,
+    ));
   }
+  businessTools.push(...createAiNativeTools(dependencies));
   if (dependencies.answerVault) {
     businessTools.push(...createAnswerVaultTools({
       store: dependencies.answerVault,
@@ -193,18 +198,7 @@ export function createToolRegistry(
         : {}),
     }));
   }
-  if (dependencies.inboxSignals) businessTools.push(...createInboxSignalTools(dependencies.inboxSignals));
-  if (dependencies.inboxApplicationProposals && dependencies.approvalManager) {
-    businessTools.push(createPrepareInboxApplicationTool({
-      proposals: dependencies.inboxApplicationProposals, approvals: dependencies.approvalManager,
-    }));
-  }
-  if (dependencies.inboxInterviewProposals && dependencies.approvalManager) {
-    businessTools.push(createPrepareInboxInterviewTool({
-      proposals: dependencies.inboxInterviewProposals,
-      approvals: dependencies.approvalManager,
-    }));
-  }
+  businessTools.push(...createInboxTools(dependencies));
   if (dependencies.browserPageOperator && dependencies.approvalManager) {
     businessTools.push(
       ...createBrowserWriteTools(
@@ -232,6 +226,13 @@ export function createToolRegistry(
       conversationId: dependencies.conversationId,
       proposals: dependencies.agentTaskProposals,
       approvals: dependencies.approvalManager,
+    }));
+    businessTools.push(...createPrepareAiNativeLoopTools({
+      conversationId: dependencies.conversationId,
+      proposals: dependencies.agentTaskProposals,
+      approvals: dependencies.approvalManager,
+      ...(dependencies.resumeReader ? { resumes: dependencies.resumeReader } : {}),
+      ...(dependencies.inboxSignals ? { inboxSignals: dependencies.inboxSignals } : {}),
     }));
   }
 

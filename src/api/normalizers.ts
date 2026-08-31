@@ -4,6 +4,7 @@ import type {
   JdSearchResult,
   UserProfile,
 } from "./types.js";
+import { JD_SOURCE_KINDS, type JdSourceKind } from "../jd/source.js";
 import {
   ApiContractError,
   arrayValue,
@@ -60,11 +61,21 @@ export function normalizeUserProfile(value: unknown): UserProfile {
 
 export function normalizeJdRecord(value: unknown): JdRecord {
   const record = objectValue(value, "JD");
+  const sourceKind = record.sourceKind === undefined
+    ? "manual"
+    : requiredString(record.sourceKind, "jd.sourceKind");
+  if (!JD_SOURCE_KINDS.includes(sourceKind as JdSourceKind)) {
+    throw new ApiContractError(`jd.sourceKind has unsupported value: ${sourceKind}`);
+  }
   return {
     id: requiredString(record.id, "jd.id"),
     title: requiredString(record.title, "jd.title"),
     company: nullableString(record.company, "jd.company"),
     targetRole: nullableString(record.targetRole, "jd.targetRole"),
+    sourceKind: sourceKind as JdSourceKind,
+    sourceUrl: record.sourceUrl === undefined
+      ? null
+      : nullableString(record.sourceUrl, "jd.sourceUrl"),
     rawText: requiredString(record.rawText, "jd.rawText"),
     requirements: arrayValue(record.requirements, "jd.requirements").map(
       normalizeJdRequirement,

@@ -28,6 +28,13 @@ export class InboxSignalInterviewService {
   }): Promise<InboxInterviewProposalView> {
     const task = await this.#runningTask();
     const signal = await this.harness.signals.get(task.id, input.signalId);
+    const active = await this.harness.grants.getActive(task.id);
+    const directions = active.grant?.connectorPolicy?.scheduleMailDirections;
+    if (!active.grant || active.revocation ||
+        active.grant.connectorPolicy?.appSchedule !== true ||
+        !Array.isArray(directions) || !directions.includes(signal.direction)) {
+      throw new Error("DelegationGrant 未授权该收/发件方向写入 App 日程");
+    }
     if (!signal.applicationId) throw new Error("邮件信号尚未可靠关联 Application");
     const application = await this.applications.getApplication(signal.applicationId);
     if (application.status !== "interviewing") {
@@ -83,6 +90,7 @@ export class InboxSignalInterviewService {
     if (!task?.activeRunId) throw new Error("Inbox Interview Proposal 需要 running AgentTask");
     return task;
   }
+
 }
 
 function assertMutation(
@@ -90,8 +98,9 @@ function assertMutation(
   mutation: "create" | "update",
   interviewId?: string | null,
 ): void {
-  if (mutation === "create" && kind !== "interview_invite") {
-    throw new Error("只有 interview_invite 可以创建 InterviewRound");
+  if (mutation === "create" &&
+      kind !== "interview_invite" && kind !== "interview_schedule") {
+    throw new Error("只有 interview_invite/interview_schedule 可以创建 InterviewRound");
   }
   if (mutation === "update" && (kind !== "interview_change" || !interviewId)) {
     throw new Error("interview_change 必须指定原 InterviewRound");

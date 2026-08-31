@@ -6,6 +6,45 @@ import { spawn } from "node:child_process";
 
 const root = await mkdtemp(join(tmpdir(), "coolto-browser-qa-report-"));
 const reportPath = join(root, "report.json");
+const suiteVersion = "bsf3-v1";
+const requiredNames = [
+  "01 initial tab exists",
+  "01a Agent Capsule opens the canonical task Inspector",
+  "01b Agent Inspector sends takeover command",
+  "02 active tab is page 1",
+  "03 DOM snapshot contains role",
+  "04 AX snapshot exists",
+  "05 screenshot is bounded",
+  "05a Browser Webmail captures real page evidence",
+  "05b Browser Webmail message dedupes",
+  "06 semantic button query",
+  "06a semantic query includes accessible labels",
+  "07 same-origin frame query",
+  "08 open shadow query",
+  "09 wait for text",
+  "10 wait for element",
+  "11 nested/action elements tagged",
+  "11a ARIA mail row is tagged and clickable",
+  "11b transient target highlight precedes a semantic page action",
+  "12 hover event applied",
+  "13 drag/drop event applied",
+  "14 keypress writes focused input",
+  "14a submit click remains blocked",
+  "14b Enter submit bypass remains blocked",
+  "14c SubmissionIntent confirms fixture form",
+  "14d SubmissionReceipt creates Tracker once",
+  "15 new tab navigates",
+  "16 tab list has two entries",
+  "17 select tab changes active",
+  "18 navigate reaches URL",
+  "19 history back",
+  "20 history forward",
+  "21 reload settles",
+  "22 close tab leaves one",
+  "23 download completion is observed without path",
+  "24 unsafe URL blocked",
+  "25 ungranted control blocked",
+];
 try {
   const exitCode = await runElectron(
     resolve("src/cli/browser-agent-qa-app"),
@@ -13,9 +52,13 @@ try {
   );
   const report = await waitForFinalReport(reportPath, exitCode);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  const results = Array.isArray(report.results) ? report.results : [];
+  const complete = results.length === requiredNames.length && results.every(
+    (result, index) => result?.passed === true && result?.name === requiredNames[index],
+  );
   if (
-    exitCode !== 0 || report.error ||
-    typeof report.passed !== "number" || report.passed < 20
+    exitCode !== 0 || report.error || report.suiteVersion !== suiteVersion ||
+    report.runtime?.platform !== process.platform || !complete
   ) {
     throw new Error(
       `Browser Agent QA 未通过：exit=${exitCode}, passed=${report.passed ?? 0}`,

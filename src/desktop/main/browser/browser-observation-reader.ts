@@ -20,13 +20,13 @@ export async function readBrowserObservation(input: {
   const captcha = input.includeScreenshot
     ? await probeCaptcha(input.contents)
     : null;
-  const [page, accessibility, screenshot] = await Promise.all([
+  const [page, accessibility] = await Promise.all([
     input.page(),
     readAccessibilityTree(input.contents),
-    input.includeScreenshot && !captcha
-      ? captureScreenshot(input.contents)
-      : Promise.resolve(undefined),
   ]);
+  const screenshot = input.includeScreenshot && !captcha
+    ? await captureScreenshot(input.contents)
+    : undefined;
   return {
     tab: input.tab,
     page,
@@ -47,27 +47,35 @@ async function captureScreenshot(
       background: #111 !important; caret-color: transparent !important;
     }
   `);
-  const captured = await contents.capturePage().finally(async () => {
+  const debug = contents.debugger;
+  const owned = !debug.isAttached();
+  if (owned) debug.attach("1.3");
+  try {
+    const metrics = await debug.sendCommand("Page.getLayoutMetrics") as {
+      cssVisualViewport?: { clientHeight?: number; clientWidth?: number };
+    };
+    const width = Math.max(1, metrics.cssVisualViewport?.clientWidth ?? 1);
+    const height = Math.max(1, metrics.cssVisualViewport?.clientHeight ?? 1);
+    const scale = Math.min(
+      1,
+      MAX_SCREENSHOT_WIDTH / width,
+      MAX_SCREENSHOT_HEIGHT / height,
+    );
+    const captured = await debug.sendCommand("Page.captureScreenshot", {
+      captureBeyondViewport: false,
+      clip: { x: 0, y: 0, width, height, scale },
+      format: "png",
+      fromSurface: true,
+    }) as { data?: string };
+    if (!captured.data) throw new Error("浏览器截图返回空数据");
+    return {
+      data: captured.data,
+      mimeType: "image/png",
+      width: Math.max(1, Math.round(width * scale)),
+      height: Math.max(1, Math.round(height * scale)),
+    };
+  } finally {
     await contents.removeInsertedCSS(cssKey).catch(() => {});
-  });
-  const size = captured.getSize();
-  const scale = Math.min(
-    1,
-    MAX_SCREENSHOT_WIDTH / Math.max(1, size.width),
-    MAX_SCREENSHOT_HEIGHT / Math.max(1, size.height),
-  );
-  const image = scale < 1
-    ? captured.resize({
-        width: Math.max(1, Math.round(size.width * scale)),
-        height: Math.max(1, Math.round(size.height * scale)),
-        quality: "good",
-      })
-    : captured;
-  const finalSize = image.getSize();
-  return {
-    data: image.toPNG().toString("base64"),
-    mimeType: "image/png",
-    width: finalSize.width,
-    height: finalSize.height,
-  };
+    if (owned && debug.isAttached()) debug.detach();
+  }
 }

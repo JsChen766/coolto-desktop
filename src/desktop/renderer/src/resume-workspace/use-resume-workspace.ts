@@ -3,6 +3,7 @@ import type { ResumeDraftDetail, ResumeDraftEditInput, ResumeDraftRestoreInput }
 import type { ResumeDraftSummary } from "../../../../resume/draft/types";
 import { desktopApi } from "../lib/desktop-api";
 import { translate, translateFormat } from "../i18n/locale";
+import { desktopErrorMessage } from "../chat/desktop-error-message";
 import { useResumeLineSpacing } from "./use-resume-line-spacing";
 export function useResumeWorkspace() {
   const drafts = ref<ResumeDraftSummary[]>([]);
@@ -246,5 +247,4 @@ function editKey(input: ResumeDraftEditInput): string {
     : input.target.itemId;
   return `${input.artifactId}:${input.target.type}:${targetId}`;
 }
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error); }
+function errorMessage(error: unknown): string { return desktopErrorMessage(error); }

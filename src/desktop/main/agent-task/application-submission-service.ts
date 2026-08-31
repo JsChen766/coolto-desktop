@@ -7,7 +7,7 @@ import type { BrowserAgentController } from "../../../browser/agent-control-type
 import type { ResumePublicationGateway } from "../../../resume/save/types.js";
 import type { ApplicationCreateInput } from "../../../tracker/types.js";
 import type { ApplicationProposalService } from "../application-library/application-proposal-service.js";
-
+import type { ManagedResumeUploadService } from "./managed-resume-upload-service.js";
 export class ApplicationSubmissionService {
   public constructor(
     private readonly conversationId: string,
@@ -16,8 +16,8 @@ export class ApplicationSubmissionService {
     private readonly jds: JdReader,
     private readonly resumes: ResumePublicationGateway,
     private readonly applications: ApplicationProposalService,
+    private readonly uploads: ManagedResumeUploadService,
   ) {}
-
   public async prepare(input: {
     jdId: string;
     resumeId: string;
@@ -31,10 +31,20 @@ export class ApplicationSubmissionService {
         !active.grant.allowedActions.includes("tracker.application.create")) {
       throw new Error("DelegationGrant 未同时授权 browser.submit 和 Tracker 创建");
     }
+    if (active.grant.assetPolicy.submissionMode !== "confirm_each" ||
+        active.grant.assetPolicy.resumeId !== input.resumeId ||
+        typeof active.grant.assetPolicy.resumeTitle !== "string" ||
+        typeof active.grant.assetPolicy.resumeContentHash !== "string") {
+      throw new Error("本次投递必须使用 DelegationGrant 冻结的简历并逐次确认");
+    }
     const [jd, resume] = await Promise.all([
       this.jds.getJd(input.jdId),
       this.resumes.getResume(input.resumeId),
     ]);
+    if (active.grant.assetPolicy.resumeTitle !== resume.title ||
+        active.grant.assetPolicy.resumeContentHash !== resume.contentHash) {
+      throw new Error("DelegationGrant 冻结的 Resume 标题或版本已变化");
+    }
     if (resume.qualityStatus !== "passed" || resume.status === "archived" ||
         !/^[0-9a-f]{64}$/u.test(resume.contentHash)) {
       throw new Error("实际投递 Resume 未通过质量门槛、已归档或缺少有效 hash");
@@ -53,29 +63,16 @@ export class ApplicationSubmissionService {
     });
     const proposal = await this.applications.prepareCreate(applicationInput);
     if (proposal.duplicate) throw new Error("同一 JD/Resume 已有投递记录，托管模式拒绝重复投递");
-    const requestHash = canonicalHash({
-      taskId: task.id, runId: task.activeRunId!, jdId: jd.id,
-      resumeId: resume.id, resumeContentHash: resume.contentHash,
-      targetUrl: input.targetUrl, submitFillId: input.submitFillId,
-    } as JsonValue);
-    const token = await this.harness.ledger.issue({
-      ownerId: task.ownerId, taskId: task.id, runId: task.activeRunId!,
-      toolName: "browser_submit", requestHash, grantHash: active.grant.contentHash,
-      targetOrigin: new URL(tab.url).origin, tabId: tab.id,
-      observationHash: null,
-      expiresAt: new Date(Date.now() + 2 * 60_000).toISOString(),
-    });
     return this.harness.submissions.createIntent({
-      taskId: task.id, runId: task.activeRunId!, actionTokenId: token.id,
+      taskId: task.id, runId: task.activeRunId!, actionTokenId: null,
       applicationProposalId: proposal.id, jdId: jd.id, resumeId: resume.id,
-      resumeContentHash: resume.contentHash,
+      resumeTitle: resume.title, resumeContentHash: resume.contentHash,
       company: applicationInput.companyName, role: applicationInput.roleName,
       targetUrl: new URL(input.targetUrl).toString(), tabId: tab.id,
       submitFillId: input.submitFillId, preparedAt: new Date().toISOString(),
-      expiresAt: token.expiresAt,
+      expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
     });
   }
-
   public async submit(input: {
     intentId: string;
     confirmationKind: "url" | "text" | "element";
@@ -83,6 +80,10 @@ export class ApplicationSubmissionService {
     timeoutMs?: number;
   }): Promise<SubmissionReceiptV1> {
     let intent = await this.harness.submissions.getIntent(input.intentId);
+    if (!intent.confirmedByUserAt || intent.rejectedByUserAt) {
+      throw new Error("本次岗位投递尚未获得用户最终确认");
+    }
+    await this.#assertRunningIntent(intent);
     const existing = await this.#existingReceipt(intent);
     if (existing) return existing;
     if (intent.startedAt) return this.#finalize(intent, false);
@@ -91,6 +92,7 @@ export class ApplicationSubmissionService {
         new URL(tab.url).origin !== new URL(intent.targetUrl).origin) {
       throw new Error("SubmissionIntent 已过期或页面上下文已变化");
     }
+    intent = await this.#authorize(intent);
     const claim = await this.harness.submissions.claimIntent(
       intent.id, new Date().toISOString(),
     );
@@ -109,11 +111,11 @@ export class ApplicationSubmissionService {
     } catch { confirmed = false; }
     return this.#finalize(intent, confirmed);
   }
-
   async #finalize(
     intent: SubmissionIntentV1,
     confirmed: boolean,
   ): Promise<SubmissionReceiptV1> {
+    if (!intent.actionTokenId) throw new Error("SubmissionIntent 缺少提交令牌");
     const action = await this.harness.ledger.consume({
       tokenId: intent.actionTokenId,
       toolCallId: `submission:${intent.id}`,
@@ -133,8 +135,10 @@ export class ApplicationSubmissionService {
       createdAt: new Date().toISOString(),
     });
     await this.syncToTracker(intent, receipt).catch(() => undefined);
-    return (await this.harness.submissions.list(intent.taskId))
+    const result = (await this.harness.submissions.list(intent.taskId))
       .find((value) => value.id === receipt.id)!;
+    await this.uploads.cleanupTask(intent.taskId).catch(() => undefined);
+    return result;
   }
 
   async #existingReceipt(
@@ -143,6 +147,43 @@ export class ApplicationSubmissionService {
     if (!intent.submissionReceiptId) return undefined;
     return (await this.harness.submissions.list(intent.taskId))
       .find((value) => value.id === intent.submissionReceiptId);
+  }
+
+  async #authorize(intent: SubmissionIntentV1): Promise<SubmissionIntentV1> {
+    const task = await this.#runningTask();
+    const active = await this.harness.grants.getActive(task.id);
+    if (task.id !== intent.taskId || !active.grant || active.revocation) {
+      throw new Error("SubmissionIntent 与当前 AgentTask 授权不一致");
+    }
+    const tab = this.browser.getActiveTab();
+    if (!tab?.url || tab.id !== intent.tabId ||
+        new URL(tab.url).origin !== new URL(intent.targetUrl).origin) {
+      throw new Error("SubmissionIntent 页面上下文已变化");
+    }
+    const requestHash = canonicalHash({
+      taskId: task.id, runId: task.activeRunId!, jdId: intent.jdId,
+      resumeId: intent.resumeId, resumeContentHash: intent.resumeContentHash,
+      targetUrl: intent.targetUrl, submitFillId: intent.submitFillId,
+    } as JsonValue);
+    const token = await this.harness.ledger.issue({
+      ownerId: task.ownerId, taskId: task.id, runId: task.activeRunId!,
+      toolName: "browser_submit", requestHash, grantHash: active.grant.contentHash,
+      targetOrigin: new URL(tab.url).origin, tabId: tab.id,
+      observationHash: null,
+      expiresAt: new Date(Date.now() + 2 * 60_000).toISOString(),
+    });
+    return this.harness.submissions.authorizeIntent({
+      intentId: intent.id, runId: task.activeRunId!,
+      actionTokenId: token.id, expiresAt: token.expiresAt,
+    });
+  }
+
+  async #assertRunningIntent(intent: SubmissionIntentV1): Promise<void> {
+    const task = await this.#runningTask();
+    const active = await this.harness.grants.getActive(task.id);
+    if (task.id !== intent.taskId || !active.grant || active.revocation) {
+      throw new Error("SubmissionIntent 与当前 running AgentTask 不一致");
+    }
   }
 
   public async syncToTracker(
@@ -168,6 +209,20 @@ export class ApplicationSubmissionService {
     if (!receipt) throw new Error("SubmissionReceipt 不存在");
     const intent = await this.harness.submissions.getIntent(receipt.intentId);
     return this.syncToTracker(intent, receipt);
+  }
+
+  public async confirm(intentId: string): Promise<SubmissionIntentV1> {
+    return this.harness.submissions.confirmIntent(
+      intentId, new Date().toISOString(),
+    );
+  }
+
+  public async reject(intentId: string): Promise<SubmissionIntentV1> {
+    const intent = await this.harness.submissions.rejectIntent(
+      intentId, new Date().toISOString(),
+    );
+    await this.uploads.cleanupTask(intent.taskId).catch(() => undefined);
+    return intent;
   }
 
   async #runningTask() {

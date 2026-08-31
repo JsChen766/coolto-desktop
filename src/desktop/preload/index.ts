@@ -11,6 +11,8 @@ import type {
   DesktopApi,
 } from "../shared/types.js";
 import { onboardingPreloadApi } from "./onboarding-api.js";
+import { agentTasksPreloadApi } from "./agent-tasks-api.js";
+import { childApi, subscribeIpc } from "./ipc-helpers.js";
 import { conversationPreloadApi } from "./conversation-api.js";
 
 const api: DesktopApi = {
@@ -24,6 +26,7 @@ const api: DesktopApi = {
 		ipcRenderer.invoke("auth:email-code:verify", email, challengeId, code),
     logout: () => ipcRenderer.invoke("auth:logout"),
     syncNow: () => ipcRenderer.invoke("auth:sync-now"),
+    onSyncCompleted: (listener) => subscribeIpc("sync:completed", listener),
   },
   checkout: {
     plans: () => ipcRenderer.invoke("checkout:plans"),
@@ -146,6 +149,8 @@ const api: DesktopApi = {
     prompt: (input: AgentPromptInput) =>
       ipcRenderer.invoke("agent:prompt", input),
     cancel: () => ipcRenderer.invoke("agent:cancel"),
+    pendingApprovals: (conversationId) =>
+      ipcRenderer.invoke("agent:pending-approvals", conversationId),
     resolveApproval: (input: ApprovalResolveInput) =>
       ipcRenderer.invoke("agent:resolve-approval", input),
     onEvent: (listener) => {
@@ -167,20 +172,15 @@ const api: DesktopApi = {
     disconnect: (connectionId) =>
       ipcRenderer.invoke("mail-connections:disconnect", connectionId),
   },
-  onboarding: onboardingPreloadApi,
-  agentTasks: {
-    list: () => ipcRenderer.invoke("agent-tasks:list"),
-    get: (taskId) => ipcRenderer.invoke("agent-tasks:get", taskId),
-    prepare: (input) => ipcRenderer.invoke("agent-tasks:prepare", input),
-    executeProposal: (id) => ipcRenderer.invoke("agent-tasks:execute-proposal", id),
-    start: (id) => ipcRenderer.invoke("agent-tasks:start", id),
-    resume: (id) => ipcRenderer.invoke("agent-tasks:resume", id),
-    pause: (id) => ipcRenderer.invoke("agent-tasks:pause", id),
-    cancel: (id) => ipcRenderer.invoke("agent-tasks:cancel", id),
-    revoke: (id) => ipcRenderer.invoke("agent-tasks:revoke", id),
-    submissionReceipt: (id) =>
-      ipcRenderer.invoke("agent-tasks:submission-receipt", id),
+  calendar: {
+    status: () => ipcRenderer.invoke("calendar:status"),
+    requestAccess: (level) => ipcRenderer.invoke("calendar:request-access", level),
+    syncInterview: (input) => ipcRenderer.invoke("calendar:sync-interview", input),
+    openSystemSettings: () => ipcRenderer.invoke("calendar:open-system-settings"),
+    onOpenInterview: (listener) => subscribeIpc("calendar:open-interview", listener),
   },
+  onboarding: onboardingPreloadApi,
+  agentTasks: agentTasksPreloadApi,
   window: {
     minimize: () => ipcRenderer.invoke("window:minimize"),
     toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),
@@ -216,26 +216,11 @@ const api: DesktopApi = {
       subscribeIpc("browser:review-complete", listener),
     onCaptchaDetected: (listener) =>
       subscribeIpc("browser:captcha-detected", listener),
+    onOpenAgentTask: (listener) =>
+      subscribeIpc("browser:open-agent-task", listener),
+    onOpenPageInApp: (listener) =>
+      subscribeIpc("browser:open-page-in-app", listener),
   },
 };
-
-function childApi(channel: "interviews" | "notes" | "reminders") {
-  return {
-    prepareCreate: (input: unknown) => ipcRenderer.invoke(`${channel}:prepare-create`, input),
-    prepareUpdate: (input: unknown) => ipcRenderer.invoke(`${channel}:prepare-update`, input),
-    prepareDelete: (id: string) => ipcRenderer.invoke(`${channel}:prepare-delete`, id),
-    executeProposal: (id: string) => ipcRenderer.invoke(`${channel}:execute-proposal`, id),
-  };
-}
-
-function subscribeIpc<T>(
-  channel: string,
-  listener: (payload: T) => void,
-): () => void {
-  const handler = (_event: Electron.IpcRendererEvent, payload: T): void =>
-    listener(payload);
-  ipcRenderer.on(channel, handler);
-  return () => ipcRenderer.removeListener(channel, handler);
-}
 
 contextBridge.exposeInMainWorld("coolto", api);

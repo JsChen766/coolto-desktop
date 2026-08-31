@@ -12,7 +12,8 @@ import type {
 } from "../../resume/workspace/types.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { applyCriticalSkillGate } from "../../resume/workspace/critical-skill-gate.js";
-import { applyBulletCountMaterialGate } from "../../resume/workspace/material-request-gate.js";
+import { applyBulletCountMaterialGate } from
+  "../../resume/workspace/material-request-gate.js";
 import { normalizeResumeMaterialRequest } from "../../resume/workspace/material-request.js";
 import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
 import { pendingResumeWorkUnitMap } from

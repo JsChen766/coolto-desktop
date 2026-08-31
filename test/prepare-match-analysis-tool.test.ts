@@ -16,6 +16,8 @@ function makeJdRecord(overrides: Partial<JdRecord> = {}): JdRecord {
     title: "高级前端工程师",
     company: "字节跳动",
     targetRole: null,
+    sourceKind: "pasted",
+    sourceUrl: null,
     rawText: "招聘前端工程师",
     requirements: [
       { id: "req-1", text: "5年前端经验", category: "experience", importance: "high", keywords: [], weight: null, v2Importance: "must_have", v2Category: null },

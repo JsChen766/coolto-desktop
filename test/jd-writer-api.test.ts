@@ -12,6 +12,8 @@ function makeServerResponse(overrides: Record<string, unknown> = {}) {
       title: "后端工程师",
       company: "字节跳动",
       targetRole: null,
+      sourceKind: "pasted",
+      sourceUrl: null,
       rawText: "原始文本",
       requirements: [],
       jdHash: "abc123",
@@ -67,10 +69,14 @@ test("sends company and target_role in snake_case", async () => {
     rawText: "职位详情",
     company: "字节跳动",
     targetRole: "SRE",
+    sourceKind: "browser",
+    sourceUrl: "https://jobs.example/backend",
   });
 
   assert.equal(body?.["company"], "字节跳动");
   assert.equal(body?.["target_role"], "SRE");
+  assert.equal(body?.["source_kind"], "browser");
+  assert.equal(body?.["source_url"], "https://jobs.example/backend");
 });
 
 test("sends company and target_role as null when omitted", async () => {
@@ -85,6 +91,8 @@ test("sends company and target_role as null when omitted", async () => {
 
   assert.equal(body?.["company"], null);
   assert.equal(body?.["target_role"], null);
+  assert.equal(body?.["source_kind"], "pasted");
+  assert.equal(body?.["source_url"], null);
 });
 
 test("maps requirements to snake_case including v2 fields", async () => {

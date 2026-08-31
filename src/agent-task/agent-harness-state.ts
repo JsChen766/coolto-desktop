@@ -14,6 +14,7 @@ import type {
 import type { SubmissionIntentV1, SubmissionReceiptV1 } from "./submission-types.js";
 import type { AnswerVaultEntryV1 } from "./answer-vault-types.js";
 import type { ExternalSignalV1, InboxCursorV1 } from "../inbox-signals/inbox-signal-types.js";
+import type { AiNativeArtifactV1 } from "./ai-native-artifact-types.js";
 
 export interface AgentHarnessStateV1 {
   version: 1;
@@ -35,6 +36,7 @@ export interface AgentHarnessStateV1 {
   answerVault: AnswerVaultEntryV1[];
   inboxCursors: InboxCursorV1[];
   externalSignals: ExternalSignalV1[];
+  aiNativeArtifacts: AiNativeArtifactV1[];
   updatedAt: string;
 }
 
@@ -46,7 +48,7 @@ export function emptyAgentHarnessState(ownerId: string): AgentHarnessStateV1 {
     browserLeads: [], leadEvaluations: [], jobSourceCursors: [],
     submissionIntents: [], submissionReceipts: [],
     answerVault: [],
-    inboxCursors: [], externalSignals: [],
+    inboxCursors: [], externalSignals: [], aiNativeArtifacts: [],
     updatedAt: new Date(0).toISOString(),
   };
 }

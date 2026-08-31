@@ -1,0 +1,45 @@
+.loop-dialog-backdrop { z-index: 110; }
+.loop-dialog { width: min(680px, calc(100vw - 40px)); max-height: min(760px, calc(100vh - 40px)); overflow: auto;
+  padding: 22px; animation: loop-dialog-in var(--motion-panel) var(--ease-out-quint); }
+.loop-dialog-header, .loop-dialog-header > div { display: flex; align-items: flex-start; gap: 10px; }
+.loop-dialog-header { justify-content: space-between; } .loop-dialog-header h2 { font-family: var(--font-ui); font-size: 1.125rem; }
+.loop-dialog-header p { margin: 4px 0 0; } .loop-dialog-icon { display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: 9px; background: var(--surface-strong); color: var(--text); flex: none; }
+.loop-form { display: grid; gap: 16px; margin-top: 20px; }
+.loop-form > label, .loop-form fieldset label:not(.loop-check-row) { display: grid; gap: 6px; color: var(--text-soft); font-size: .8125rem; }
+.loop-form select, .loop-form textarea { width: 100%; min-height: 42px; border: 1px solid var(--border); border-radius: 10px;
+  padding: 0 11px; background: var(--bg); color: var(--text); outline: none; }
+.loop-form select:focus-visible, .loop-form textarea:focus-visible { border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border) 58%, transparent); }
+.loop-form input::placeholder { color: var(--text-soft); opacity: 1; }
+.loop-dialog button:focus-visible, .loop-dialog input:focus-visible, .loop-dialog select:focus-visible {
+  outline: 2px solid var(--text); outline-offset: 2px; }
+.loop-form fieldset { display: grid; gap: 9px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.loop-form legend { margin-bottom: 8px; color: var(--text-soft); font-size: .8125rem; font-weight: 600; }
+.loop-source-row { display: grid; grid-template-columns: 122px minmax(0, 1fr) minmax(0, 1fr) 32px; gap: 8px; align-items: center; }
+.loop-inline-action { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 5px 0;
+  background: transparent; color: var(--text-soft); font-size: .8125rem; }
+.loop-locked-asset { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 3px 12px; padding: 12px 14px;
+  border-radius: 10px; background: var(--surface); }
+.loop-locked-asset span, .loop-locked-asset small { color: var(--muted); font-size: .75rem; }
+.loop-locked-asset small { grid-column: 2; } .loop-check-row { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.loop-check-row > span { display: grid; gap: 2px; } .loop-check-row small, .loop-field-note { color: var(--muted); font-size: .75rem; }
+.loop-check-row input, .loop-choice-row input { width: 16px; height: 16px; accent-color: var(--text); }
+.loop-choice-row { display: flex; gap: 20px; }
+.loop-form fieldset .loop-choice-row label { display: inline-flex; align-items: center; gap: 7px; }
+.loop-two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.loop-rule { margin: 0 !important; padding: 10px 12px; border-radius: 9px; background: var(--surface);
+  color: var(--text-soft) !important; }
+.loop-review { display: grid; gap: 16px; margin-top: 20px; }
+.loop-review header { display: flex; gap: 9px; align-items: flex-start; } .loop-review header div { display: grid; gap: 3px; }
+.loop-review header span { color: var(--muted); font-size: .75rem; }
+.loop-review dl { display: grid; gap: 0; border-top: 1px solid var(--border); }
+.loop-review dl div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; padding: 10px 0;
+  border-bottom: 1px solid var(--border); } .loop-review dt { color: var(--muted); } .loop-review dd { margin: 0; overflow-wrap: anywhere; }
+.loop-review > p { margin: 0; color: var(--text-soft); } .loop-dialog-actions { position: sticky; bottom: -22px;
+  margin: 20px -22px -22px; padding: 14px 22px; background: var(--bg); border-top: 1px solid var(--border); }
+@keyframes loop-dialog-in { from { transform: translateY(8px) scale(.99); } }
+@media (max-width: 620px) { .loop-source-row { grid-template-columns: 1fr 1fr 32px; }
+  .loop-source-row select { grid-column: 1 / -1; } .loop-two-column { grid-template-columns: 1fr; }
+  .loop-review dl div { grid-template-columns: 1fr; gap: 4px; } }
+@media (prefers-reduced-motion: reduce) { .loop-dialog-backdrop, .loop-dialog { animation: none; } }

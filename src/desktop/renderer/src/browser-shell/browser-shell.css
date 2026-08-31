@@ -12,8 +12,8 @@ body,
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--browser-canvas);
+  color: var(--browser-text);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
 }

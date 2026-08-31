@@ -8,15 +8,20 @@ import type {
   ApplicationTrackerDetail,
   DesktopApi,
   DesktopApprovalRequest,
+  InterviewRound,
   SubmissionReceiptView,
 } from "@desktop/types";
 import AgentTasksView from "../agent-tasks/AgentTasksView.vue";
 import ChatPendingAction from "../app/ChatPendingAction.vue";
 import ApplicationDetailPanel from "../components/ApplicationDetailPanel.vue";
 import MailConnectionsSettings from "../components/MailConnectionsSettings.vue";
+import ResumeJobLoopDialog from "../agent-tasks/ResumeJobLoopDialog.vue";
+import { mountExtendedLoopFixtures } from "./extended-loop-fixtures";
 import { initializeLocale, localeCode, translate, translateFormat } from "../i18n/locale";
 import "../styles/tokens.css";
 import "../styles/base.css";
+import "../styles/tracker-forms.css";
+import "../styles/tracker-children.css";
 
 const now = new Date().toISOString();
 const task: AgentTaskView = {
@@ -33,6 +38,7 @@ let detail: AgentTaskDetailView = {
     allowedActions: ["browser.read", "browser.control", "browser.write"],
     unattended: true, expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
     revokedAt: null,
+    loop: { kind: "resume_job_apply", resumeTitle: "Backend Resume", sources: ["Acme"] },
   },
   receipts: [{
     id: "receipt-qa", toolName: "browser_navigate", status: "succeeded",
@@ -49,12 +55,36 @@ let detail: AgentTaskDetailView = {
     state: "new", score: 86, shortlisted: true,
     rationale: "Matches backend stack and location",
   }],
+  artifacts: [
+    { id: "artifact-follow", kind: "follow_up_draft", title: "投递跟进邮件",
+      summary: "计划于 2026-09-03 10:00 跟进", applicationId: "application-qa", createdAt: now,
+      detail: { body: "您好，我想跟进当前岗位的申请进展。", scheduledFor: now,
+        timezone: "Asia/Hong_Kong" } },
+    { id: "artifact-brief", kind: "interview_brief", title: "后端工程师面试简报",
+      summary: "1 个准备主题", applicationId: "application-qa", createdAt: now,
+      detail: { sections: [{ heading: "岗位重点", content: "准备系统设计案例。",
+        sourceRefs: ["jd:jd-qa"] }] } },
+    { id: "artifact-strategy", kind: "strategy_proposal", title: "本周投递策略建议",
+      summary: "优先复盘进入面试阶段的岗位来源", applicationId: null, createdAt: now,
+      detail: { recommendations: ["优先复盘高回复来源"],
+        caveat: "相关性观察不代表因果关系。" } },
+    { id: "artifact-risk", kind: "risk_notice", title: "测评截止时间需复核",
+      summary: "邮件提到本周五前完成测评", applicationId: "application-qa", createdAt: now,
+      detail: { severity: "review", rationale: "请复核截止时间。",
+        evidenceQuotes: ["Complete by Friday"], deadlineAt: null } },
+  ],
 };
 
 const agentTasks: DesktopApi["agentTasks"] = {
   list: async () => [detail.task],
   get: async () => structuredClone(detail),
   prepare: async () => { throw new Error("not used"); },
+  prepareResumeJobLoop: async () => { throw new Error("not used"); },
+  prepareMailScheduleLoop: async () => { throw new Error("not used"); },
+  prepareFollowUpLoop: async () => { throw new Error("not used"); },
+  prepareInterviewBriefingLoop: async () => { throw new Error("not used"); },
+  prepareStrategyLoop: async () => { throw new Error("not used"); },
+  prepareRiskDeadlineLoop: async () => { throw new Error("not used"); },
   executeProposal: async () => structuredClone(detail),
   start: async () => structuredClone(detail),
   resume: async () => {
@@ -147,8 +177,13 @@ const application: ApplicationRecord = {
   deletedAt: null, syncStatus: "pending",
 };
 const references: ApplicationReferenceOptions = { jds: [], resumes: [] };
+const interview = {
+  id: "interview-qa", applicationId: application.id, roundNumber: 1,
+  scheduledAt: new Date(Date.now() + 86_400_000).toISOString(), timezone: "Asia/Hong_Kong",
+  status: "scheduled", entityVersion: 1,
+} as InterviewRound;
 const trackerDetail: ApplicationTrackerDetail = {
-  statusEvents: [], interviews: [], notes: [], reminders: [],
+  statusEvents: [], interviews: [interview], notes: [], reminders: [],
 };
 const receipt: SubmissionReceiptView = {
   id: "submission-qa", jdId: "jd-qa", resumeId: "resume-qa",
@@ -157,17 +192,31 @@ const receipt: SubmissionReceiptView = {
   siteApplicationId: null, status: "confirmed", createdAt: now,
 };
 const receiptApp = createApp(ApplicationDetailPanel, {
-  application, references, detail: trackerDetail, submissionReceipt: receipt,
+  application, references, detail: trackerDetail, submissionReceipt: receipt, loopsEnabled: true,
 });
 receiptApp.config.globalProperties.$t = translate;
 receiptApp.config.globalProperties.$locale = localeCode;
 receiptApp.config.globalProperties.$tf = translateFormat;
 receiptApp.mount("#receipt-qa");
-const mailSettingsApp = createApp(MailConnectionsSettings, { api });
+const mailSettingsApp = createApp(MailConnectionsSettings, {
+  api, conversationId: "conversation-qa",
+});
 mailSettingsApp.config.globalProperties.$t = translate;
 mailSettingsApp.config.globalProperties.$locale = localeCode;
 mailSettingsApp.config.globalProperties.$tf = translateFormat;
 mailSettingsApp.mount("#mail-settings-qa");
+const resumeLoopApp = createApp(ResumeJobLoopDialog, {
+  api, conversationId: "conversation-qa",
+  resume: {
+    resumeId: "resume-qa",
+    entry: { displayTitle: "Backend Resume" },
+  },
+});
+resumeLoopApp.config.globalProperties.$t = translate;
+resumeLoopApp.config.globalProperties.$locale = localeCode;
+resumeLoopApp.config.globalProperties.$tf = translateFormat;
+resumeLoopApp.mount("#resume-loop-qa");
+mountExtendedLoopFixtures({ api, application, interview });
 const app = createApp(AgentTasksView, { api });
 app.config.globalProperties.$t = translate;
 app.config.globalProperties.$locale = localeCode;

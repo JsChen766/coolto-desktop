@@ -1,6 +1,6 @@
 # Browser Enhance：Agent 托管浏览器路线
 
-> 状态：BE0–BE4 已完成；BE5 Inbox Signals 当前执行
+> 状态：BE0–BE5 与 BSF0–BSF4 已完成；BSF5/BE6 平台实测延期；BE7 代码闭环完成、真实运行验收待回补
 > 建立日期：2026-08-20
 > 前置基线：[浏览器自动填写路线](../browser-autofill-roadmap/README.md) B0–B5、
 > [P0 产品能力补齐路线](../p0-product-completion-roadmap/README.md) S3–S4
@@ -523,14 +523,15 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 | BE3 | Managed Job Scout | App 打开期间的多源搜索、BrowserLead、去重、匹配、Shortlist、周期增量 | 真实允许站点连续运行；App 关闭时无云端任务；重复 lead <1%；所有入选/排除理由可追溯 |
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionToken/Receipt、Application Proposal | 自动提交仅发生在有效 grant；错误投递/重复 Application 为 0；实际 JD/Resume/hash 冻结正确 |
 | BE5 | Inbox Signals | 通用 Browser Webmail、可选 Gmail/Outlook 增量、求职邮件分类、状态/Interview Proposal | 原始邮件不越界持久化；错误自动迁移为 0；模糊信号进入确认队列 |
-| BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | 拒绝权限可降级；无重复 event/同步回环；时区和重启恢复通过 |
-| BE7 | AI Native Loops | Scout 调度、Follow-up、Briefing、Strategy Learner、风险提醒 | 每项有独立开关、停止条件、通知去重和效果指标 |
+| BSF | [Browser Shell Formalization](./browser-shell-formalization/README.md) | 独立 Browser 产品面、正式浏览器基础、Agent 可见层、新标签页、下载和跨平台验收 | **实测延期、未完成**：NVDA、真实接管、deep-link 经用户明确延后，后续与 macOS 收口回补 |
+| BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | **代码实现完成，macOS 验收延期**；拒绝、去重、时区、重启和真实 CRUD 门禁未在 Mac 执行 |
+| BE7 | AI Native Loops | Scout 调度、Follow-up、Briefing、Strategy Learner、风险提醒 | **代码闭环完成、实测待回补**：BE7.1–BE7.6 已完成专用 Loop、产物投影、审批边界与直接产品入口；真实账号、站点、长周期运行仍未验收 |
 | BE8 | 真实集成交付 | 真实账号/站点、长任务、断网、崩溃、跨账号、安全与发布验收 | 完整矩阵通过前不得宣称“完全托管可用” |
 
 Browser Enhance 内部长期顺序：
 
 ```text
-BE0 → BE1 → BE2 → BE3 → BE4 → BE5 → BE6 → BE7 → BE8
+BE0 → BE1 → BE2 → BE3 → BE4 → BE5 → BSF0–BSF4 → BSF5 Windows → BE6 → BSF5 macOS → BE7 → BE8
 ```
 
 BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再补 consent 或审计。
@@ -538,12 +539,16 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 当前跨路线唯一执行顺序为：
 
 ```text
-BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（当前）→ BE6 → BE7 → BE8
+BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）
+→ BSF0（已完成）→ BSF1（已完成）→ BSF2（已完成）→ BSF3（已完成）→ BSF4（已完成并质检闭环）→ BSF5 Windows（实测延期）→ BE6（代码完成、macOS 实测延期）→ BE7（当前）→ BSF5/BE6 平台回补 → BE8
 → S4.5 → S5 → R1
 ```
 
 2026-08-23 用户明确覆盖此前“先回 S4.5”的顺序，要求先按本路线完善浏览器。每阶段仍需独立质检，
 不得因总路线已排期而跳过 BE1/BE2 或提前开放自动提交。
+
+2026-08-31 用户明确要求 BSF5 的剩余实测先延期并继续下阶段。该决定只移动执行指针，不把 NVDA、真实登录/
+OTP/CAPTCHA takeover→resume、完整任务 deep-link 或 macOS BrowserWindow 写成通过；这些门禁在 BE6 后统一回补。
 
 ## 8. 分阶段关键验收
 
@@ -613,7 +618,7 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
   可用性证明。生产真实域名的 `browser_submit` 继续默认 fail-closed，仅测试 origin 可通过显式环境配置；
   每个 Career/ATS 的条款、页面、账号、长任务和安全验收统一留在 BE8，完成前不得称“完全托管可用”。
 
-### BE5–BE6：联动门禁
+### BE5–BE7：联动门禁
 
 - 邮件信号先关联 Application，再提出状态迁移；不能按公司名模糊匹配就静默写入；
 - 后端非法状态迁移必须保留服务端错误，不能由 Agent 绕过；
@@ -621,6 +626,164 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
 - EventKit 权限拒绝或被撤销不影响 Tracker 主流程；
 - Calendar event 删除不能自动删除 Interview 事实，只能生成变更 Proposal；
 - Tracker/Calendar 任一侧变更都携带 source identifier，防止来回创建。
+
+**2026-08-31 BE6 第一切片（平台中立合同与同步计划）：**用户明确将 BSF5 剩余实测延期并继续 BE6；该移动
+不把 BSF5 写成完成。实现前核对 Apple EventKit 最小权限合同后发现原路线同时要求“write-only + 重启后改期/
+取消同一 event”不可直接成立：write-only 不能读取任何既有 event，包括本 App 创建的 event。当前按最小权限
+拆为可执行合同，原生权限与真实 Calendar 留到 macOS：
+
+- 新增 `CalendarEventDraft`、`CalendarLink`、授权状态和显式 `CalendarSyncPlan`；CalendarLink 绑定精确
+  `applicationId + interviewId + eventIdentifier + fingerprint`，跨投递或跨面试映射 fail-closed；
+- 已确认且信息完整的 scheduled Interview 映射为公司、岗位、轮次、起止时间、时区、地点或会议链接、调用方提供的
+  Coolto 深链；不写完整 JD/Resume。缺少 scheduledAt、duration 或合法 IANA timezone 时不生成事件；
+- 首次创建在 `not_determined` 下只计划 `request_write_only`，授权后计划 `create`；相同 fingerprint 返回 unchanged，
+  不重复创建；completed 或从未建立 CalendarLink 的 canceled Interview 不产生 Calendar mutation；
+- 已有 CalendarLink 的改期/取消在 write-only 下返回 `request_full_access`，只有 full access 才计划 update/cancel；
+  denied/restricted/unavailable 均返回明确降级原因并声明 Tracker 事实不受影响。此切片只建立计划合同，尚未请求
+  full access、未实现 EventKit native adapter、设备本地 link store 或任何真实 Calendar 写入；
+- `test/calendar-sync-plan.test.ts` 8/8 通过；`npm run check` 全绿：959 个源文件均不超过 250 行，893 tests 为
+  891 pass、2 个平台 skip、0 fail，Node/Preload/Vue typecheck、Node build、Electron production build 与 5 个
+  sandbox preload standalone 门禁全部通过。Apple 权限依据：
+  <https://developer.apple.com/documentation/EventKit/accessing-the-event-store>。
+
+**2026-08-31 BE6 代码实现收口（macOS 测试延期）：**按用户“当前不是 macOS、先不测试、继续完成 BE6”要求，
+完成剩余实现但未运行任何新增测试、构建或真实 Calendar 验收：
+
+- 复用现有 `coolto-core.node`，在 macOS 构建时编译同进程 Objective-C EventKit bridge；原生入口覆盖授权状态、
+  write-only/full-access 请求、create/update/cancel，同一长生命周期 `EKEventStore` 串行执行，未新增 helper 进程、
+  AppleScript、浏览器自动化或第二套 runtime；
+- `ElectronCalendarLinkStore` 按账号哈希隔离，在 `userData/calendar-links` 使用 `safeStorage` 加密、临时文件 rename
+  和全 store write chain 保存设备映射；清除本地数据同步清除映射。`CalendarSyncService` 重新读取正式 Application/
+  Interview/Reminder，串行同一 interview，执行后才写 link；失败不反写 Tracker；
+- 已关联 scheduled Reminder 映射为 Interview event 的 EventKit alarm；独立 Reminder 继续使用现有本地通知，避免
+  伪造时长。EventKit event 仍只包含最小字段和 Coolto deep-link；
+- Main IPC/Preload/DesktopApi 暴露 status、显式 requestAccess、syncInterview 和系统设置入口。设置页仅在 macOS
+  展示 Calendar 权限；Tracker 日程行由用户点击同步，需要时在同一操作中明确升级 full access；
+- 注册 `coolto://tracker/application/{id}?interview={id}`，支持首次启动、macOS `open-url` 与 second-instance，
+  Renderer 打开精确 Application 的日程并定位 Interview；安装配置加入协议、Calendar 使用说明与 calendar entitlement；
+- 静态质检关闭了非法 CalendarLink、隐含非空 draft、跨面试 link、deep-link 后到达、原子临时文件残留和跨面试
+  并发覆盖风险。所有新增业务源文件保持 ≤250 行。
+
+本记录只认定 **BE6 代码实现完成**。用户明确要求暂不测试，因此 native Rust/Objective-C 编译、macOS 12/13 legacy
+权限、macOS 14+ write-only/full-access、真实 create/dedupe/reschedule/cancel、TCC 拒绝/撤销、重启恢复、universal
+打包/entitlement/deep-link 均是 **未验收**；在真实 Mac 门禁通过前 BE6 不标记完整交付，也不以 Windows 静态审查
+冒充 EventKit 可用。
+
+**2026-08-31 BE7.1（用户优先的两条 AI Native Loop 宿主门禁）：**先将最新 `origin/app` 合入 Browser Enhance，
+在不回退 App onboarding、原始简历资产、WorkUnit 简历生成和现有 Browser/Calendar 能力的前提下完成冲突收口；
+合并提交为 `0f0ddcb`。随后只复用既有 Pi Agent、AgentTask、Job Scout、Inbox Signal、Proposal/Approval、
+Browser review 和 SubmissionReceipt，未增加第二套 loop/runtime：
+
+- “选简历→找岗位→填写→投递前确认”现在把 Resume ID、可读标题、contentHash 与
+  `submissionMode=confirm_each` 冻结进不可变 DelegationGrant，同时要求 `resume.read`；
+  `ApplicationSubmissionService` 在准备阶段再次拒绝切换 Resume。每个岗位在
+  `prepare_application_submission` 后生成独立 `browser.submission_confirm` Approval；拒绝时零点击、零
+  Application，接受后 AgentTask 由通用审批事件续跑，才在新的 active run 内签发两分钟 SubmissionToken。
+  因此等待检查点不会提前作废 token，页面、tab、origin、Resume hash 或 run 变化仍 fail-closed；
+- 审批续跑抽为通用 `Approval → EnvironmentEvent → AgentTaskScheduler` 桥。Approval 创建时绑定精确
+  running task，请求完成时只检查该 task；快速确认发生在 task 进入 waiting 前也不会丢事件，等待期间普通聊天
+  产生的无关审批不能误唤醒。Agent 使用
+  `task_need_user(reason=approval)` 后，成功执行任意既有 Approval 会收到 `approval.accepted`，明确拒绝收到
+  `approval.rejected`；Scheduler 只唤醒正在等待对应事件的同一 Conversation/Task，不替 Agent 选择业务步骤。
+  该机制同时覆盖 JD 保存、Application/Interview Proposal 和最终提交确认；
+- Browser Webmail 事件新增 `direction=received|sent`。收件与发件都必须提交当前页面逐字可见的
+  `directionEvidence` 并随 7 天 evidence 保存；草稿/编辑页不能冒充已发送；Gmail/Outlook API connector
+  仍明确只有 received。
+  新增 `interview_schedule` 归一化信号，收件邀请或用户发出的明确安排均可在可靠关联 Application、完整时间/
+  时区且 grant 冻结 `connectorPolicy.appSchedule=true + scheduleMailDirections` 后，沿既有
+  Application Proposal → Interview Proposal 写入 **App Tracker 日程**。所有邮件触发业务写入继续逐条
+  Approval，不依赖 macOS Calendar，也没有新增 `mail.send`；
+- BE7.1 独立质检补上三个缺口：审批与 task 精确关联/快确认竞态、started intent 恢复必须处于同一 running
+  AgentTask、Resume 标题/hash 漂移重新授权；随后全量门禁通过，BE7.1 才认定质检通过。
+
+**2026-08-31 BE7.2（正式 Loop 启动面与本地触发）：**继续复用 generic AgentTask，不建立业务状态机：
+
+- 新增 `prepare_resume_job_loop` 与 `prepare_mail_schedule_loop`，分别生成固定最小 scope 的不可变模板。
+  前者冻结 passed/active 发布 Resume 的 ID、标题、hash、Greenhouse/Lever source、申请 domain、JD read/write、
+  Answer Vault、Browser review 与逐岗位确认；后者冻结 Browser Webmail/已连接邮箱、received/sent、5–1440 分钟
+  本地轮询和逐条 Application/Interview Approval。模板创建前会真实重读 Resume 和当前账号邮箱连接，漂移、归档、
+  低质量或跨账号连接在显示 Delegation Panel 前拒绝；
+- 普通聊天保留两个正式模板工具，running AgentTask 自动移除这些 bootstrap 工具。每次 start/resume 的内部 prompt
+  都带当前不可变 grant 的最小 `allowedDomains/actions + jobCriteria + assetPolicy + connectorPolicy`，让 Agent 能取得
+  精确 Resume/source/connection 参数；不包含 token、邮件正文或 Answer Vault 内容，也不向用户播报内部 ID/hash；
+- `list_resumes/get_resume`、`search_jds/get_jd`、`prepare_jd_import` 获得明确的
+  `resume.read/jd.read/jd.write` capability，不再被 generic `app.tool.*` scope 意外拦截；新增只读
+  `list_mail_connections`，只返回当前账号 connection ID、Provider 和邮箱，不返回 OAuth scope/token/邮件；
+- 用户确认正式模板后，Scheduler 自动启动 `resume_job_apply` / `mail_app_schedule`，通用任务仍为手动启动。
+  自动 start、timer/approval resume 都先等待当前审批 runtime 结束；需要 Browser 时先打开可见 Browser，失败则保持
+  queued/waiting 且不消费 event。邮件 Loop 只在 App 打开期间按 Agent 选择的 timer 续跑；App 关闭无云端任务。
+- System prompt 升为 v151。最终 `npm run check` 全绿：1124 个源文件均 ≤250 行；1081 tests 中
+  1079 pass、2 platform skip、0 fail；Node/Preload/Vue typecheck、Node build、Electron production build 和
+  5 个 sandbox preload standalone 门禁通过。
+- 经用户确认 UI 后，求职仓库中只有 `active + qualityStatus=passed` 的云端 Resume 显示“自动找岗”；设置页邮箱区
+  增加“联动 App 日程”。两个居中浮窗均采用“配置 → 规范化授权审阅 → 确认并启动”两阶段，按钮保持单行，支持
+  Escape、焦点循环、深浅主题、窄窗、200% 缩放和 reduced motion。Task Center 概览只显示 Loop 类型、可读 Resume/
+  source 或邮件方向/间隔，不显示 raw scope/hash；
+- 新增专用 IPC `prepare-resume-job-loop` / `prepare-mail-schedule-loop`，Main 在生成 Proposal 前重读当前 Resume 与
+  邮箱连接，不信任 Renderer 提供标题/hash。UI 确认后执行既有 Proposal，Scheduler 自动启动并精确定位新任务；
+- 新增 `browser_upload_frozen_resume`：Main 按 grant 冻结的 active/passed Resume 和 exact contentHash 使用既有
+  Chromium compiler 生成单页 PDF，保存到 owner/task 隔离的 `userData/managed-resume-uploads`，以 `0600/0700`
+  权限和原子 rename 写入；模型/Renderer/工具回执均看不到绝对路径。只允许同一 Conversation 的 running
+  `resume_job_apply`，提交/拒绝、任务终态、撤销、清除本地数据和 24 小时启动清理都会回收文件；
+- System prompt 升为 v152。Windows Electron 43.2.0 Renderer QA 19/19，覆盖两个浮窗、Loop 摘要、宽/窄、深色、
+  键盘和 200% 缩放；视觉回看修复了隐藏窗口节流导致 opacity 动画暂停、浮窗近透明的问题，并将收件/发件保持同行。
+  最终 `npm run check` 全绿：1133 个源文件均 ≤250 行；1087 tests 中 1085 pass、2 platform skip、0 fail；
+  Node/Preload/Vue typecheck、Node build、Electron production build 和 5 个 sandbox preload standalone 门禁通过。
+
+当前认定 **BE7.1 质检通过、BE7.2 产品入口与托管上传实现完成**，仍不认定 BE7 完成。尚未执行真实 Electron
+选择 Resume→真实公网岗位→多页填写→字段 review→拒绝/接受提交确认，也未在真实收件箱/发件箱验证方向证据、
+Application 关联、审批续跑和 App 日程落地；Job Scout 当前真实来源仍受已冻结 Greenhouse/Lever source 限制，
+站点条款、CAPTCHA/登录接管和跨站表单兼容继续归 BE8。在 BE7.2 这一节点，Follow-up、Briefing、
+Strategy Learner 与风险提醒仍未实现，随后由下列 BE7.3–BE7.6 收口。
+
+**2026-08-31 BE7.3–BE7.6（其余四类 AI Native Loop 代码闭环）：**沿用 BE7.1/7.2 的 generic AgentTask、
+Pi Agent、Approval、LocalSyncStore/Outbox 和本地 Scheduler，不新增第二套 Agent runtime 或业务状态机：
+
+- BE7.3 Follow-up Autopilot 冻结单个非终态 Application、Webmail domain、1–720 小时间隔和有效期；Agent
+  只能读取该投递并记录不可静默改写的跟进草稿。网页可以被填好，但没有 `mail.send`，发送前固定
+  `task_need_user`，由用户检查并亲自点击；投递详情以单行操作入口启动；
+- BE7.4 Dynamic Briefing 冻结同一 Application 下的 scheduled Interview 与提前量；简报每个 section 至少
+  引用一个当前 `JD / Resume / Experience` 或授权 HTTPS 研究来源，错误 Application、非 scheduled 面试、
+  越界来源或未授权 Web domain 均在宿主层 fail-closed。投递详情只在存在 scheduled Interview 时显示“准备面试”；
+- BE7.5 Strategy Learner 使用当前账号全部 Application 生成 canonical snapshot hash；少于 5 条时拒绝形成
+  个人策略，快照漂移必须重新读取；快照包含状态、来源 origin、Resume 版本、周节奏与结果分布，对历史缺失的
+  BrowserLead match score 显式声明 limitation，不做推断。最多保留 5 条建议并固定“相关性不代表因果”说明。结果只进入本地
+  `strategy_proposal` 产物，不自动修改 Resume、JD、Application 或搜索偏好；设置页提供定期复盘入口；
+- BE7.6 Risk/Deadline Watch 冻结 Browser Webmail/当前账号只读邮箱、received 方向和 5–1440 分钟间隔。
+  风险/截止提示必须来自同一 task 的 ExternalSignal，并逐字复制邮件 evidenceQuotes；无原文证据拒绝记录，
+  风险只表述“需复核”。Reminder 复用现有 Proposal + Approval + Tracker/Outbox 写路径，新增 scope 映射和审批
+  executor，用户接受前零业务写入，拒绝后不续写；
+- 四类产物统一进入 owner/task 隔离的加密 Harness state，stable dedupe key + canonical contentHash 防止同一轮产物
+  被静默改写；旧 V1 state 缺少集合时安全补空数组。Task Center 默认投影标题、摘要、类型和时间，用户展开后可读取
+  跟进正文、简报 section、策略建议和风险 evidenceQuotes；来源 ID 仍转为产品标签，不向 Renderer 暴露内部 hash 或绝对路径；
+- 新增四个专用 Main IPC、Preload/DesktopApi、普通对话 prepare 工具和 running-task scope 收窄；Scheduler 只对
+  正式 Loop 自动启动，App 关闭后不运行。服务层再次验证 allowedAction、冻结 Application、Interview、signal 与
+  mail connection，避免仅依赖模型工具可见性；system prompt 升至 v154；
+- UI 继续使用已确认的黑/白/灰 token、克制 motion、reduced-motion、焦点循环和 App 既有 scrollbar；投递详情的
+  查看资产/安排跟进/准备面试按钮保持单行横向容器，设置页的策略/风险按钮同一行，不引入第二套主题；
+- `npm run check` 全绿：1149 个源文件均 ≤250 行；1093 tests 中 1091 pass、2 platform skip、0 fail；
+  Node/Preload/Vue typecheck、Node build、Electron production build 与 5 个 sandbox preload standalone 门禁通过。
+
+**2026-08-31 BE7 代码/逻辑质检修复：**用户要求在真实验收前先完成代码层审查；审查发现并一次收口以下问题：
+
+- 非法 `expiresAt` 曾因 `Date.parse=NaN` 绕过过期比较；现 Proposal、Grant 构造、Policy 与 startRun 四层均验证
+  finite timestamp 并 fail-closed。`task_wait(reason=timer)` 现在必须提交未来 ISO `wakeAfter`，缺失、过去或非法时间均
+  在结束 run 前拒绝；Scheduler 对旧非法状态也不再立即误唤醒；
+- Follow-up 与 Briefing 的首轮 `autoStartAfter` 由宿主分别按检查间隔、Interview scheduledAt 与提前量计算，Scheduler
+  到时才启动。Follow-up 计划时间与 IANA timezone 被验证，同一 Application 的后续轮次按冻结间隔允许、间隔内拒绝；
+  邮件轮询工具返回精确 `nextPollAt`，System Prompt 要求 timer 使用该值；
+- `riskMailDirections` / `scheduleMailDirections` 进入 Browser Webmail capture、API received fetch 和风险产物三层验证，
+  不再只是展示字段；Briefing 支持 `web:<HTTPS URL>`，但只接受当前 Grant 的 allowed domain；
+- Task Center 增加可展开产物详情；嵌套 Loop Escape 停止冒泡并恢复原焦点；Agent 授权卡按 Loop 类型显示相关字段，
+  新 scope 全部转换为产品文案，不再向用户显示内部权限名或无关“80%/投递数量”；
+- 最终 `npm run check` 全绿：1156 个源文件均 ≤250 行；1099 tests 中 1097 pass、2 platform skip、0 fail；
+  Node/Preload/Vue typecheck、Node build、Electron production build 与 5 个 sandbox preload standalone 门禁通过；
+  Windows Electron Agent Tasks UI 19/19 通过。
+
+本次只认定 **BE7.1–BE7.6 代码与自动门禁闭环**。按用户当前要求未执行新增四类入口的真实 Electron 操作、
+真实 Webmail 跟进填写、真实 Interview 简报来源回看、跨周 Strategy timer、真实截止邮件 → Reminder 审批/通知；
+此前 BE7.2 的真实岗位/投递与邮件日程闭环也仍未回补。因此 BE7 不标记为“真实交付完成”，这些运行证据与
+BSF5/BE6 平台验收一并回补后才能进入 BE8 的完整交付结论。
 
 **2026-08-23 BE5 实现进展（阶段仍未完成）：**
 
@@ -672,6 +835,181 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
   运行中仍 fail-closed，只有 `COOLTO_BROWSER_SITE_ACCEPTANCE_ORIGINS=https://mail.qq.com` 的监督验收
   进程可 capture；`browser_submit` 的独立测试 allowlist 不受影响。针对性 typecheck 与 8 项 QQ policy/
   Browser Webmail/Delegation 回归通过；真实登录后的页面与阶段完成结论仍待验收。
+- 2026-08-29 用户调整正式验收 Provider：个人 Outlook `https://outlook.live.com` 与 163 个人邮箱
+  `https://mail.163.com` 组成 Browser Webmail 双站点门禁；个人 QQ 降为补充候选，Microsoft 365、126、
+  yeah.net 和各企业邮不自动扩入。Gmail 继续走系统浏览器 OAuth + API Connector，并按用户确认不阻塞
+  BE5/BE6；该取舍提升 Provider 多样性，但不等于 Gmail 已完成生产交付。
+- 同日补齐 `outlook-personal-web-v1`、`netease-163-personal-web-v1` candidate Site Policy 和托管只读门：
+  Browser Webmail 自动巡视必须显式授权 `browser.read/control/write + mail.read/classify`，宿主再把工具面
+  收窄为标签/导航/观察、元素标记、安全邮件行点击、滚动和 hover；fill/select/check/upload/keypress/
+  drag/download/review/submit 均在已知邮箱 origin fail-closed。点击前读取 role/text/title/href/download，
+  只放行同源链接、邮件 row/option/listitem/treeitem/tab 与明确刷新/分页等按钮；发送/回复/转发、删除、
+  移动/归档、主动已读、垃圾邮件、设置、附件和外链均由宿主拒绝，未知控件交还用户。元素标记补充 ARIA
+  邮件行；Browser Webmail 去重改用逐字时间证据和必要正文，避免 SPA 复用 URL 且信封字段相同时合并两封
+  不同邮件。新增半自动真实验收入口：只轮询 URL 等待用户登录，进入邮箱后才定位指定测试主题、打开、
+  逐字 capture 两次并验证去重，报告不保存正文。
+- 当前自动化证据：相关 19/19 回归；最新完整 `npm run check` 全绿，855 个源文件 ≤250 行、737 tests
+  （735 pass、2 platform skip、0 fail）、主进程与 Preload/Vue typecheck、Node/Electron production build
+  均通过。`qa:browser-agent` 在当前 Air 显示
+  环境完成前 4 项后因 `Current display surface not available for capture` 停在 screenshot 门禁；未关闭或
+  降级该断言。真实 Outlook/163 登录后页面、跨标签、长列表、Provider 分层准确率和 ≥99% 总门禁仍未执行，
+  因此两个 policy 保持 candidate，BE5 状态不变。
+- 2026-08-29 个人 Outlook 登录摸底通过：Windows/Electron 43.2.0 的隔离 QA 浏览器可打开真实
+  Outlook 登录页，账号、密码和验证码完全由用户操作，登录阶段脚本只轮询顶层 URL、不读取 DOM 或截图；
+  用户确认已成功进入个人 Outlook 收件箱。首次 QA 入口因只依赖 `ready-to-show` 导致进程存在但窗口不可见，
+  修为 QA 专用显式 `show/focus`；随后 Outlook 登录跳转切换活跃 tab 被通用 `network_idle` 误判为上下文漂移，
+  登录探测移除该非必要读取等待。后续 runner 改用按 Provider 隔离且可复用的临时 QA Profile，避免每次 probe/
+  capture 重新登录；该 Profile 只用于验收，完成后必须精确清理。此次只证明可真实登录，尚未读取测试邮件、
+  capture、关联 Application 或晋升 Site Policy。
+- 同日 Outlook 测试邮件 probe 尚未通过：用户确认测试邮件已到达，并在一次真实窗口中选择“邮件可见未打开”；
+  宿主始终只按固定测试主题定位，所有失败运行均为 0 点击。初始 DOM 查询无法看到 Outlook 虚拟列表，随后
+  依次补充 accessible label、完整 AX tree、StaticText→交互祖先映射、主题相关节点优先限额、同 origin
+  `WebFrameMain.framesInSubtree` 语义执行和同 origin OOPIF target session；跨 origin frame/target 始终拒绝。
+  60 秒安全诊断最终仍为 `tokenMatch=0/5; roles=none`，说明固定主题没有进入当前受信 DOM/AX 读取面；在用户
+  重新确认列表中完整可见 `Coolto/BE5/Outlook/QA/20260829` 五个 token 前，不继续放宽匹配、不坐标点击、
+  不读取其它邮件。Outlook policy 因此继续保持 candidate，打开具体邮件、正文 capture 与去重均未通过。
+- 同日按用户要求把正式验收改回正常产品链，而非专用 Webmail runner：用户在普通聊天发送自然语言读取命令，
+  Agent 生成只读 Outlook DelegationPanel；接受后主进程依据冻结 grant 自动打开/聚焦现有可见 BrowserShell，
+  再启动同一 AgentTask。补齐待审批摘要主动回读，避免瞬时 `approval.required` 事件错过后卡片消失；DelegationPanel
+  与普通 ApprovalCard 共用稳定审批 action/accept 验收契约。前台用户启动/恢复的 run 不再误判为 unattended，
+  timer/environment wake 仍要求 `unattended=true`；running AgentTask 移除 `prepare_agent_task` 与
+  `request_write_access` 二次扩权工具，所有 Proposal 自动包含只负责检查点/等待/结束的 `task.lifecycle`。
+  个人 Outlook 根 URL 确定性规范为 `https://outlook.live.com/mail/0/`，其它路径/查询和域名不改写。
+- 真实 Windows/Electron 正常 App 验收已证明：自然语言 → 可见授权 → 自动打开“Coolto 浏览器” → Agent 自主导航
+  Outlook 产品入口成立；未登录的产品 Browser 会被 Microsoft 导向登录/营销入口，未授权域名由 Harness
+  fail-closed，最终任务以 `waiting` 停在用户接管边界，未读取任何邮件、未点击未知控件、未产生邮箱写入。
+  这不等于邮件读取通过；下一步必须由用户在该可见 Browser 中接管登录并交还 Agent，再验证固定测试主题、
+  两次 capture 去重和 163 同链路。主窗口证据 `local-builds/functional-qa/be5-visible-agent-product-path.png`
+  为 131,304 bytes，SHA-256 `8409B9B68DC7DDDE1A4A3917AC739282C9C11F1FA58AED25FF5E89D1E0F3A63F`；
+  最新完整 `npm run check` 全绿：856 个源文件 ≤250 行、744 tests（742 pass、2 platform skip、0 fail）、
+  Node/Preload/Vue typecheck 与 Node/Electron production build 均通过。BE5 状态仍不变。
+- 后续同一正常产品 Browser 由用户完成个人 Outlook 登录，真实页面落到
+  `https://outlook.office.com/mail/`，而不是先前假定的 `outlook.live.com`。Agent 在旧运行进程中把该页
+  当成未登记域名，无法获得宿主只读裁剪；一次继续尝试还错误替换了已登录标签，已立即恢复原收件箱 URL，
+  未读取或修改邮件。代码现已把**精确公共前端** `outlook.office.com` 加入同一个
+  `outlook-personal-web-v1` candidate policy，继续拒绝其它 Microsoft 365/企业域，并为该 origin 覆盖
+  只读工具面、点击拒绝和 capture acceptance 回归。最新 `npm run check` 再次全绿，数量仍为 856 个源文件、
+  744 tests（742 pass、2 platform skip、0 fail）。按用户“不要退已经打开的这个”要求，本轮没有重启当前
+  已登录 App；因此新 policy 尚未进入当前进程，必须等用户明确允许一次重启后再复用持久 Browser session
+  做真实指定邮件读取，BE5 状态不变。
+- 用户随后明确允许只重启 Coolto、不清 Browser profile；登录会话跨重启保留。真实收件箱最终落到新的
+  `https://outlook.cloud.microsoft/mail/`，因此宿主把个人 Outlook 冻结为精确公共跳转集合：
+  `outlook.live.com`、`outlook.office.com`、`outlook.cloud.microsoft`、`login.live.com`、
+  `login.microsoftonline.com`；Proposal 只要命中其中一个就把完整集合写进用户可见不可变授权，Site Policy
+  只对三个邮件前端应用相同只读工具/点击/capture 门，不扩展其它企业域。
+- 最终正常 App 自然语言运行中，Agent 自动打开可见 Browser、进入已登录
+  `outlook.cloud.microsoft/mail/`、搜索固定主题并唯一定位 AX `role=option` 邮件行。由于页面重渲染后的
+  fill 标记落在该 option 的无语义子节点，`browser_click_element` 按 fail-closed 拒绝；本轮由宿主只对
+  同时包含 `Coolto/BE5/Outlook/QA/20260829` 五个 token 的唯一 AX option 做一次非坐标语义接管，随后恢复
+  同一等待任务。AgentTask 进入 `completed`，无工具的自然语言结果回报：主题
+  `[Ext] Coolto BE5 Outlook QA 20260829`，发件人 `andrew chen <chenandrew418@gmail.com>`，时间
+  `2026-08-29 12:30`，正文只有测试标识 `COOLTO-BE5-OUTLOOK-20260829-A`；未回复、删除、移动、归档或
+  下载附件。当前 AX/页面也独立核对到相同主题、发件人/时间和正文标识。
+- 已补最小后续修复：fill 目标本身若是 button/link/input/select/textarea 或已有交互 role，绝不上提；只有
+  无语义子节点才可提升到最近的 `option/row/listitem/treeitem/tab`，随后读提示与 click 使用同一个安全祖先，
+  避免把删除/回复按钮伪装成邮件行。最新完整 `npm run check` 全绿：856 个源文件 ≤250 行、746 tests
+  （744 pass、2 platform skip、0 fail）、Node/Preload/Vue typecheck 与 Node/Electron production build
+  均通过。该自动点击修复尚未用第二封真实邮件做无接管复验；两次 capture 去重、163、跨标签、长列表和
+  ≥99% 关联准确率仍未执行，因此 Outlook policy 与 BE5 状态均不晋升。
+- 用户随后发送同主题第二封邮件，正文标识为 `COOLTO-BE5-OUTLOOK-20260829-B`，第一封为 `-A`。真实
+  Outlook 行的 aria-label 会包含正文安全提示 “verify the sender / do not reply / open attachments”；旧提交
+  检测以 `send` 子串误伤 `sender`，旧 Webmail 动作检测又在识别 `role=option` 前扫描正文中的
+  `reply/attachments`，因此合法邮件行仍被拒绝。现改为英文提交词完整单词边界；只读 Webmail 先拒绝下载和
+  跨域 href，再放行已确认的 `option/row/listitem/treeitem/tab`，只有其它动作控件才扫描危险文案。回归证明
+  正文安全提示不再误伤邮件行，而 reply/download 按钮仍拒绝。
+- 最终监督验收使用精确 `COOLTO_BROWSER_SITE_ACCEPTANCE_ORIGINS` 启动正常 App。第一轮 Agent 无接管自动
+  打开 A/B，分别成功 capture、read 和 record；同一任务的信号列表为两条，A/B 各一条，发件人与接收时间
+  不同，正文标识保留，`applicationId=null`，没有因相同 subject/SPA URL 合并。最初第二次完全相同 capture
+  被通用重复调用保护提前拦截，因此宿主只对幂等 `capture_browser_mail_event` 允许一次精确重放，第三次仍拦，
+  其它工具规则不变。B 专项真实任务随后连续两次使用完全相同的 sender/subject/time/body 参数，两个调用均
+  执行成功并返回同一稳定 event/source hash；该任务的信号列表仍只有一条 B（信号列表按当前任务隔离，因此
+  不包含上一个任务中的 A）。这与上一个 A/B 同任务的“两条不合并”证据共同覆盖真实碰撞去重门禁。
+- 全程未回复、删除、移动、归档、下载附件、打开外链或猜测 Application 关联。模型在逐字 evidence 参数与
+  signal quote 上有先失败后修正的调用，最终任务完成但 smoke 因保留历史 tool error 仍返回非零，不能把它
+  描述为零错误运行。最新完整门禁为 856 个源文件 ≤250 行、747 tests（745 pass、2 platform skip、0 fail）、
+  Node/Preload/Vue typecheck 与 Node/Electron production build 全绿；此前一次全量运行的无关 update 下载时序
+  测试失败，聚焦 19/19 通过后只重跑一次全量并通过。Outlook 自动点击、A/B 不合并及 B 幂等 capture 已有
+  真实证据；163、跨标签、长列表与 ≥99% 关联准确率仍未执行，BE5 状态不晋升。
+- 2026-08-30 完成 163 个人邮箱真实链路。登录入口 `mail.163.com` 实际落到
+  `hw.mail.163.com/js6/main.jsp`，宿主将两者作为精确 163 集合写入同一 candidate policy 与用户可见授权，
+  不扩展 126/yeah.net；跨日后旧 Grant 正确过期，新任务明确使用当日有效期。真实页面是网易邮箱 6.0 hash
+  模块：全文搜索 `mbox.SearchModule` 返回两封同主题邮件，A/B 正文标识分别为
+  `COOLTO-BE5-163-20260829-A` / `-B`，页面时间为 2026-08-30 00:02 / 00:05，发件人均为
+  `Jiansheng Chen<jianshengchen528@gmail.com>`。
+- 163 邮件行不是标准 row/option，而是 `div[role=link].rF0.nui-txt-flag0`。只读策略仅在精确
+  `hw.mail.163.com`、且危险文案检查通过后允许该 class 组合；删除/回复等 link 仍拒绝。真实 Agent 自动点击
+  A/B 均成功。阅读正文位于同 origin `readhtml3.jsp` iframe；旧快照由顶层页面先占满 20k 后才追加 frame，
+  正文被饿死。现改为多同源 frame 公平分配总文本预算，单 frame 行为不变，真实 capture 随后可逐字看到
+  sender/subject/time/body。
+- 首轮 163 模型在历史 eventId、无效 ISO 时间和 evidence quote 上发生失败，且曾需一次安全后退接管；最终
+  同一 AgentTask 恢复后完成：当前任务信号 2 条，A/B 各一条、不同 event/sourceMessageId/receivedAt，未因
+  同主题合并；每封两次完全相同 capture 均执行并返回同一稳定 event，重复未增项，两个 signal 均
+  `applicationId=null`。全程未回复、删除、移动、归档、下载附件、打开外链或读取其它邮件。该证据不是
+  “单轮零错误”，但双站点真实自动点击、正文读取、A/B 碰撞与 capture 幂等均已通过。
+- 最新静止工作树完整 `npm run check` 全绿：856 个源文件 ≤250 行、750 tests（748 pass、2 platform skip、
+  0 fail）、Node/Preload/Vue typecheck 与 Node/Electron production build 均通过。Outlook + 163 双站点门禁
+  已完成。
+- 2026-08-30 同一可见 Browser 内保留 Outlook 与 163 已登录标签，单一 AgentTask 执行 Outlook → 163 三轮、
+  共六次切换。每次切换后重新读取 active tab 与 snapshot，Outlook 始终落在
+  `outlook.cloud.microsoft`，163 始终落在 `hw.mail.163.com`，标题、URL 与目标 Provider 一致；没有复用
+  上一个标签的观察、没有打开或修改邮件。首轮 Outlook snapshot 出现一次 `UnknownVizError`，原样重试被
+  repetition guard 拦截；Agent 改用 `includeScreenshot=false` 后恢复并完成任务。因此跨标签门禁按“带可恢复
+  错误通过”记录，不写成单轮零错误。
+- 163 真实收件箱不是虚拟滚动，而是 `mbox.ListModule` 的六页分页长列表。验收覆盖第 2–6 页五个不同页面：
+  第 2–5 页各 20 行，第 6 页 9 行；每页均在内容变化后重新 snapshot/query/tag。163 分页内容先变化、
+  `2/6` 等可访问性页码稍后刷新，真实延迟可达数十秒；父 `li` / 内层 `div` 同文 treeitem、分页容器 /
+  `div[role=button]` / 内层 `span` 同文按钮也要求选择真实内层交互节点。有界页码轮询曾被 repetition guard
+  误判，拆为单步任务后完成。到第 6 页后只点击一次内层收件箱 treeitem 返回第 1 页，再按测试 marker
+  重定位并只打开 B；独立只读复核为 `read.ReadModule`，主题完全匹配，正文包含
+  `COOLTO-BE5-163-20260829-B` 且读信正文不含 A marker，没有打开其它邮件正文。至此真实长列表门禁通过，
+  但异步页码与轮询误判仍是后续需要修正的产品质量问题。
+- ≥99% Application 关联准确率不能执行：当前登录账号经 Renderer 只读 Application API 聚合统计为 0 条
+  非删除 Application、0 条 company+role 强标签；同时当前 Agent 工具注册表只有 Application 写入/Proposal
+  能力，没有列出或读取 Application/Tracker 候选的工具，实际 Inbox Agent 也明确报告无法枚举候选。没有
+  ≥100 条真实邮件—Application 标注对，且运行时无法读取候选时，不能用四封测试邮件或 synthetic fixture
+  冒充 ≥99% 真实准确率。所有邮件触发写入继续逐条 Approval，BE5 状态不晋升。
+- 2026-08-30 补齐上述运行时能力，但不增加第二套匹配器：新增只读
+  `search_application_candidates(eventId, query?, cursor?, limit?)`，只读现有账号隔离
+  `ApplicationSyncStore` 本地 projection，单页最多 20 条，只投影公司、岗位、JD 标题快照、状态、投递时间、
+  待确认、来源与同步状态；墓碑及 `conflict`/`failed` 不成为候选。工具使用独立 R0
+  `tracker.application.read` scope，邮箱分类 Proposal 未包含该 scope 时直接拒绝，Approval 以既有样式显示
+  “读取投递候选”，不新增页面或自动写开关。
+- 候选只向 Agent 暴露当前邮件事件绑定的 `app_N` 短引用。`record_inbox_signal` 的模型参数改为
+  `applicationRef`；任意 UUID、其它邮件事件返回的引用、未读取候选和候选 `entityVersion` 漂移均拒绝并要求
+  重读。模型可见 signal 也不返回 canonical Application ID；无法唯一判断仍写 `null`。宿主只验证引用来源
+  和投影新鲜度，不计算相似度、不选择候选，语义判断继续由同一个 Pi Agent 完成。为遵守行数/职责门禁，
+  BE5 工具注册拆到独立 47 行模块，主 registry 从 250 行降至 232 行；system prompt 升为 v124。
+- 新增 `eval:inbox-association -- --input <local.jsonl> [--output <report>]`：逐条使用生产
+  `createCooltoAgent`、生产 system prompt、生产 Inbox 工具和 Application 过滤。原始邮件/候选只从显式本地
+  JSONL 读取，不复制进仓库；报告只保存匿名 case ID、Provider、是否正确、置信度、工具序列、耗时和错误，
+  不输出邮件正文或公司/岗位。正式 gate 冻结为 confidence ≥95、至少 100 条、Outlook/163 各 ≥40、
+  gold null/歧义样本 ≥20，同时报告 exact accuracy、高置信关联 precision、linkable coverage 与 abstention
+  accuracy；全留空无法通过。`--allow-small` 只允许受控 smoke 返回成功，正式 `passed` 仍为 false。
+- 自动化与实模证据：专项 26/26；完整 `npm run check` 为 860 个源文件 ≤250 行、758 tests（756 pass、
+  2 platform skip、0 fail），Node/Preload/Vue typecheck 与 Node/Electron production build 全通过。两个不含
+  真实隐私的 Outlook/163 受控样本使用 `deepseek-v4-flash` + v124，均真实执行
+  `read_inbox_event → search_application_candidates → record_inbox_signal`：唯一正向候选关联与
+  `screening` 分类正确、置信度 95；同公司/同岗位/同投递时间双候选正确弃权为 `null`、置信度 90。
+  聚合 exact accuracy、linkable coverage、abstention accuracy 均为 1，但样本仅 2 条，报告
+  `controlledSmokePassed=true`、`gateEligible=false`、正式 `passed=false`。
+  用户随后明确批准重启。新构建沿用同一 userData 与 `persist:browser`：原标签未恢复，但重新打开 163 后
+  直接进入已登录欢迎页，登录态保留；`get_runtime_info` 已显示 `search_application_candidates`。
+- 新建真实受监督 Browser Webmail AgentTask 后，只打开测试邮件 B。首次任务在 `task_need_user` 后，普通聊天
+  “继续”没有调用正式 `agentTasks.resume`，因此浏览器虽继续导航，capture 正确拒绝
+  `Inbox Signals 需要 running AgentTask`；随后通过产品正式 resume IPC 恢复同一 waiting task并完成。
+  B 的 capture/read 成功，真实账号 `search_application_candidates(query=Coolto)` 返回 0 条、无 cursor、
+  excluded 0；伪造 `applicationRef=app_999` 被“Application 引用必须来自当前邮件的候选读取”拒绝，拒绝后
+  signal 仍为 0。再以 `applicationRef=null`、当前页面逐字 marker 记录成功，最终 list 只有 1 条 null signal，
+  `task_complete` 成功。全程未创建/修改 Application，未打开其它邮件，也未发送、删除、移动或下载。
+- 该真实 Electron 路径不是单轮零错误：初始普通 run 有一次重复 list、一次已移除的
+  `request_write_access` 调用和一次被 Site Policy 拒绝的搜索框 fill；正式 resume 内首次 capture 又因 sender
+  展示格式与非 ISO 时间各失败一次，改为页面逐字 sender 和等价 ISO 时间后成功。空候选与伪引用安全门禁
+  已通过，但 ≥100 条真实盲测仍无数据，正式准确率 gate 未执行；在下述产品门禁迁移决策前，BE5 不晋升。
+- **2026-08-30 产品门禁迁移决策：**用户确认当前没有 ≥100 条真实招聘邮件，不继续制造合成邮件凑数。
+  BE5 按“逐条人工确认”基线完成，准确率明确记录为“样本不足、未评估”，不写成 ≥99% 通过；所有邮件关联、
+  Tracker 状态和 Interview Proposal 继续逐条 Approval，现有自动写开关仍不存在。≥99% 真实邮件—Application
+  关联准确率不删除、不降低，迁移为 BE8 生产验收及未来任何自动写启用前的硬门禁；样本自然积累到足够规模
+  后再运行现有 evaluator，未通过则始终保持手动模式。该取舍解除 BE6 的阶段阻塞，不构成自动关联质量证明。
 - 2026-08-26 用户优先插入 Managed Apply 的 Resume Reuse Memory：新 JD 生成前，单一 Agent 先调用
   `find_resume_reuse_candidates`，宿主只按同目标岗位、JD keyword 重叠和更新时间缩小已发布且
   `qualityStatus=passed`、非 archived、带来源 JD 的候选，不设“相似度超过 N%”的宿主决策阈值，
@@ -760,7 +1098,7 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
 - SubmissionReceipt 可验证率：≥99%；
 - 已确认成功但 Tracker 未最终同步的可恢复率：100%；
 - 自动字段答案有来源率：100%；
-- 高置信邮件信号的 Application 关联准确率：先达到 ≥99% 才允许自动写；
+- 高置信邮件信号的 Application 关联准确率：BE8/任何自动写启用前必须先达到 ≥99%；
 - 面试时间/时区写入准确率：100%；
 - Job Scout 重复推荐率：<1%。
 
@@ -807,8 +1145,12 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
 
 - 本 README 是 `browser-enhance` 的唯一执行入口；阶段开始前先在对应阶段标题下补现状复核与
   用户确认结果，不创建平行路线；
-- BE0 已完成，正式完成记录为 [00-foundation](./00-foundation/README.md)；BE1–BE4 已在本 README
-  既有 5.1/5.3/6/7/8 节写回，不创建平行文档或新 section；当前唯一执行指针为 P0 BE5；
+- BE0 已完成，正式完成记录为 [00-foundation](./00-foundation/README.md)；BE1–BE7 进展已在本 README
+  既有 5.1/5.3/6/7/8 节写回，不创建平行执行路线；当前唯一执行指针为 BE7；
+- Browser Shell 正式化的聊天原始记录保留在
+  [browser-shell-chrome-formalization-notes.md](./browser-shell-chrome-formalization-notes.md)，基于该记录形成的
+  [Browser Shell AI Native 与正式浏览器体验子路线](./browser-shell-formalization/README.md)已于 2026-08-30
+  经用户确认作为独立产品面启动；它仍共享本项目事实源、安全边界和质量门禁，不是第二套产品或 Agent runtime；
 - 每个阶段完成后在本 README 的阶段表和正式阶段文档写回真实结果、失败点、证据和遗留项；
 - 接口存在、Browser Demo、本地测试页或单一网站成功都不算“完全托管可用”；
 - 任何新增 UI 先提交 Delegation Panel、Task Control Center、Timeline、Receipt 和错误/接管状态方案，

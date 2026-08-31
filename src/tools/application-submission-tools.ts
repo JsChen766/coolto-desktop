@@ -1,6 +1,9 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
+import type { ApprovalManager } from "../approvals/approval-manager.js";
+import { createSubmissionApprovalDraft } from
+  "../agent-task/submission-approval.js";
 import type { ApplicationSubmissionService } from "../desktop/main/agent-task/application-submission-service.js";
 
 const prepareParameters = Type.Object({
@@ -23,6 +26,7 @@ const syncParameters = Type.Object({
 
 export function createApplicationSubmissionTools(
   service: ApplicationSubmissionService,
+  approvals: ApprovalManager,
 ): AgentTool[] {
   return [
     {
@@ -35,14 +39,18 @@ export function createApplicationSubmissionTools(
       executionMode: "sequential",
       execute: async (_id, input) => {
         const intent = await service.prepare(input as never);
+        const approval = await approvals.request(
+          createSubmissionApprovalDraft(intent), { intentId: intent.id },
+        );
         return {
           content: [{ type: "text", text: JSON.stringify({
             intentId: intent.id,
-            actionTokenId: intent.actionTokenId,
+            approvalRequestId: approval.id,
             expiresAt: intent.expiresAt,
-            instruction: "仅可在页面未变化且 Grant 有效时调用 browser_submit。",
+            instruction: "最终确认卡已显示。调用 task_need_user(reason=approval) 等待决定；" +
+              "收到 approval.accepted 才可 browser_submit，approval.rejected 必须跳过。",
           }) }],
-          details: intent,
+          details: { intent, approvalRequestId: approval.id },
         };
       },
     },

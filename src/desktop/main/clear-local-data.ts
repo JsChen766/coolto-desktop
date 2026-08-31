@@ -16,6 +16,8 @@ export interface ClearLocalDataTargets {
   syncStore: LocalSyncStore;
   agentHarness: AgentHarnessServices;
   mailConnections: { clearAll(): Promise<void> };
+  calendar: { clearAll(): Promise<void> };
+  managedResumeUploads: { clearAll(): Promise<void> };
 }
 
 export async function clearLocalData(targets: ClearLocalDataTargets): Promise<void> {
@@ -23,6 +25,8 @@ export async function clearLocalData(targets: ClearLocalDataTargets): Promise<vo
   await targets.resumeDrafts.clearAll();
   await targets.agentHarness.clearAll();
   await targets.mailConnections.clearAll();
+  await targets.calendar.clearAll();
+  await targets.managedResumeUploads.clearAll();
   await targets.deliveryResumeFiles.clearAll();
   targets.selectedFiles.clear();
   targets.syncStore.purgeLocal();
@@ -48,6 +52,8 @@ export function registerClearLocalDataIpc(
       deliveryResumeFiles: current.deliveryResumeFiles,
       agentHarness: current.agentHarness,
       mailConnections: current.mailConnections,
+      calendar: current.calendar,
+      managedResumeUploads: current.managedResumeUploads,
       syncStore: input.syncStore(),
     });
     input.triggerSync();

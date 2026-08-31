@@ -5,6 +5,7 @@ import {
   Eye,
   Link,
   Link2Off,
+  Search,
   Send,
 } from "@lucide/vue";
 import { computed } from "vue";
@@ -24,6 +25,7 @@ defineEmits<{
   open: [entry: ResumeLibraryEntry];
   record: [];
   tracker: [];
+  automate: [];
   jd: [id: string];
 }>();
 
@@ -47,6 +49,8 @@ const relatedJobCount = computed(
   () => (showPrimaryJd.value ? 1 : 0) + otherAppliedJds.value.length,
 );
 const recentApplications = computed(() => props.resume.applications.slice(0, 3));
+const canAutomate = computed(() => props.resume.entry.cloud?.status === "active" &&
+  props.resume.entry.cloud.qualityStatus === "passed");
 </script>
 
 <template>
@@ -72,6 +76,15 @@ const recentApplications = computed(() => props.resume.applications.slice(0, 3))
         </span>
       </div>
       <div class="repository-detail-actions">
+        <button
+          class="secondary-button icon-label"
+          type="button"
+          :disabled="!canAutomate"
+          :title="canAutomate ? $t('用此简历启动自动找岗') : $t('需要 active 且质量通过的云端简历')"
+          @click="$emit('automate')"
+        >
+          <Search :size="14" aria-hidden="true" />{{ $t('自动找岗') }}
+        </button>
         <button
           class="secondary-button icon-label"
           type="button"

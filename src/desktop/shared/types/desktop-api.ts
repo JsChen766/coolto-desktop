@@ -46,14 +46,9 @@ import type {
   ExperienceSyncIssueView,
   ExperienceWriteProposal,
 } from "../../../experience/maintenance-types.js";
-import type { DesktopAgentEvent } from "./approvals.js";
-import type {
-  BrowserFillRecordView,
-  BrowserNavigateInput,
-  BrowserOpenInput,
-  BrowserState,
-  DesktopPlatform,
-} from "./browser.js";
+import type { DesktopAgentEvent, DesktopApprovalRequest } from "./approvals.js";
+import type { DesktopPlatform } from "./browser.js";
+import type { BrowserDesktopApi } from "./browser-api.js";
 import type {
   AgentPromptInput,
   ApprovalResolveInput,
@@ -90,6 +85,7 @@ import type { MailConnectionsDesktopApi } from "./mail-connections.js";
 import type { TrackerChildDesktopApi } from "./tracker-child-api.js";
 import type { DeliveryResumeFilesDesktopApi } from "./delivery-resume-files.js";
 import type { OnboardingDesktopApi } from "./onboarding.js";
+import type { CalendarDesktopApi } from "./calendar.js";
 export interface DesktopApi {
   platform: DesktopPlatform;
   auth: {
@@ -99,6 +95,7 @@ export interface DesktopApi {
     verifyEmailCode(email: string, challengeId: string, code: string): Promise<DesktopUser>;
     logout(): Promise<void>;
     syncNow(): Promise<void>;
+    onSyncCompleted(listener: () => void): () => void;
   };
   checkout: {
     plans(): Promise<CheckoutPlan[]>;
@@ -109,6 +106,7 @@ export interface DesktopApi {
     openExternal(url: string): Promise<void>;
   };
   mailConnections: MailConnectionsDesktopApi;
+  calendar: CalendarDesktopApi;
   onboarding: OnboardingDesktopApi;
   conversations: ConversationsDesktopApi;
   attachments: {
@@ -139,6 +137,7 @@ export interface DesktopApi {
   agent: {
     prompt(input: AgentPromptInput): Promise<ConversationDetail>;
     cancel(): Promise<void>;
+    pendingApprovals(conversationId: string): Promise<DesktopApprovalRequest[]>;
     resolveApproval(input: ApprovalResolveInput): Promise<ConversationDetail>;
     onEvent(listener: (conversationId: string, event: DesktopAgentEvent) => void): () => void;
   };
@@ -219,21 +218,7 @@ export interface DesktopApi {
   data: {
     clearLocal(): Promise<void>;
   };
-  browser: {
-    open(input?: BrowserOpenInput): Promise<BrowserState>;
-    close(): Promise<void>;
-    navigate(input: BrowserNavigateInput): Promise<void>;
-    goBack(): Promise<void>;
-    goForward(): Promise<void>;
-    reload(): Promise<void>;
-    getState(): Promise<BrowserState>;
-    abortFill(): Promise<void>;
-    onStateChanged(listener: (state: BrowserState) => void): () => void;
-    onFillProgress(listener: (payload: { records: BrowserFillRecordView[]; reviewing: boolean }) => void): () => void;
-    onReviewDecision(listener: (payload: { fillId: string; decision: "accepted" | "rejected" }) => void): () => void;
-    onReviewComplete(listener: (payload: { action: "accepted" | "rejected" | "mixed"; acceptedCount: number; rejectedCount: number }) => void): () => void;
-    onCaptchaDetected(listener: (payload: { kind: "recaptcha" | "hcaptcha" | "geetest" | "slider" | "image" | "unknown"; detail?: string }) => void): () => void;
-  };
+  browser: BrowserDesktopApi;
 }
 export type WindowDraftSaveState =
   | "idle"

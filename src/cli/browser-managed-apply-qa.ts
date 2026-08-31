@@ -73,7 +73,7 @@ export async function runManagedApplyQa(input: {
       company: "QA Company", targetRole: "QA Backend Engineer" }) } as never,
     { getResume: async () => ({ id: "resume-qa", title: "QA Resume",
       contentHash: "b".repeat(64), qualityStatus: "passed", status: "active" }) } as never,
-    proposals,
+    proposals, { cleanupTask: async () => undefined } as never,
   );
   const intent = await service.prepare({
     jdId: "jd-qa", resumeId: "resume-qa",

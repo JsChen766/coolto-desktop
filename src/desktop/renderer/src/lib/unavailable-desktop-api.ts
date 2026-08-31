@@ -14,6 +14,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
       verifyEmailCode: unavailable,
       logout: unavailable,
       syncNow: unavailable,
+      onSyncCompleted: () => () => undefined,
     },
     checkout: {
       plans: unavailable,
@@ -26,6 +27,10 @@ export function createUnavailableDesktopApi(): DesktopApi {
     mailConnections: {
       providers: unavailable, list: unavailable,
       connect: unavailable, disconnect: unavailable,
+    },
+    calendar: {
+      status: unavailable, requestAccess: unavailable, syncInterview: unavailable,
+      openSystemSettings: unavailable, onOpenInterview: () => () => undefined,
     },
     onboarding: {
       status: unavailable,
@@ -71,6 +76,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
     agent: {
       prompt: unavailable,
       cancel: unavailable,
+      pendingApprovals: unavailable,
       resolveApproval: unavailable,
       onEvent: () => () => undefined,
     },
@@ -78,6 +84,12 @@ export function createUnavailableDesktopApi(): DesktopApi {
       list: unavailable,
       get: unavailable,
       prepare: unavailable,
+      prepareResumeJobLoop: unavailable,
+      prepareMailScheduleLoop: unavailable,
+      prepareFollowUpLoop: unavailable,
+      prepareInterviewBriefingLoop: unavailable,
+      prepareStrategyLoop: unavailable,
+      prepareRiskDeadlineLoop: unavailable,
       executeProposal: unavailable,
       start: unavailable,
       resume: unavailable,
@@ -170,6 +182,8 @@ export function createUnavailableDesktopApi(): DesktopApi {
       onReviewDecision: () => () => undefined,
       onReviewComplete: () => () => undefined,
       onCaptchaDetected: () => () => undefined,
+      onOpenAgentTask: () => () => undefined,
+      onOpenPageInApp: () => () => undefined,
     },
   };
 }

@@ -97,6 +97,7 @@ export function createDemoChatApis(draft: ResumeDraftDetail, now: Date) {
     },
   };
   const agentApi: DesktopApi["agent"] = {
+    pendingApprovals: async () => [],
     prompt: async ({ conversationId, text }) => {
       const conversation = find(conversationId);
       conversation.messages.push(message("user", text));

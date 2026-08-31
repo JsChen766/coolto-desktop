@@ -130,6 +130,7 @@ function toCloudSummary(cloud: ResumeFull): ResumeLibraryCloudSummary {
     targetRole: cloud.targetRole,
     jdId: cloud.jdId,
     status: cloud.status,
+    qualityStatus: cloud.qualityStatus,
     contentHash: cloud.contentHash,
     updatedAt: cloud.updatedAt,
   };

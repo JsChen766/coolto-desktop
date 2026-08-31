@@ -10,6 +10,13 @@ import {
   buildSetCheckedScript,
 } from "./browser-writer-actions.js";
 import type { ClickTargetHint } from "./browser-click-guards.js";
+import { browserSitePolicyForOrigin } from "../../../browser/site-policy-registry.js";
+import { tagAccessibleElements } from "./browser-accessibility-tagger.js";
+import { executeInSameOriginFrames } from "./browser-frame-execution.js";
+import {
+  runWithBrowserClickTargetHighlight,
+  runWithBrowserTargetHighlight,
+} from "./browser-target-highlight.js";
 
 const MAX_TAG_ELEMENTS = 200;
 
@@ -37,12 +44,22 @@ export interface WriteFieldMeta {
  */
 export async function tagPageElements(
   contents: WebContents,
+  origin?: string | null,
+  preferredText?: string,
 ): Promise<FormElementSummary[]> {
-  const raw = (await contents.executeJavaScript(
-    buildTagElementsScript(MAX_TAG_ELEMENTS),
-    true,
-  )) as FormElementSummary[];
-  return Array.isArray(raw) ? raw.map(normalizeSummary) : [];
+  const executions = await executeInSameOriginFrames<FormElementSummary[]>(
+    contents, buildTagElementsScript(MAX_TAG_ELEMENTS),
+  );
+  const dom = executions.flatMap((execution) =>
+    Array.isArray(execution.value) ? execution.value.map(normalizeSummary) : []);
+  if (!origin || !browserSitePolicyForOrigin(origin)) return dom;
+  const accessible = (await tagAccessibleElements(
+    contents, MAX_TAG_ELEMENTS, preferredText,
+  ))
+    .map(normalizeSummary);
+  const merged = new Map(accessible.map((item) => [item.fillId, item]));
+  for (const item of dom) merged.set(item.fillId, item);
+  return [...merged.values()].slice(0, MAX_TAG_ELEMENTS);
 }
 
 export async function fillPageField(
@@ -50,10 +67,9 @@ export async function fillPageField(
   fillId: string,
   value: string,
 ): Promise<WriteFieldMeta> {
-  const result = (await contents.executeJavaScript(
-    buildFillScript(fillId, value),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildFillScript(fillId, value), true),
+  ) as WriteScriptResult;
   ensureOk(result, "fillField");
   return extractMeta(result, "input");
 }
@@ -63,10 +79,9 @@ export async function selectPageOption(
   fillId: string,
   value: string,
 ): Promise<WriteFieldMeta> {
-  const result = (await contents.executeJavaScript(
-    buildSelectScript(fillId, value),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildSelectScript(fillId, value), true),
+  ) as WriteScriptResult;
   ensureOk(result, "selectOption");
   return extractMeta(result, "select");
 }
@@ -76,10 +91,9 @@ export async function setPageChecked(
   fillId: string,
   checked: boolean,
 ): Promise<WriteFieldMeta> {
-  const result = (await contents.executeJavaScript(
-    buildSetCheckedScript(fillId, checked),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildSetCheckedScript(fillId, checked), true),
+  ) as WriteScriptResult;
   ensureOk(result, "setChecked");
   return extractMeta(result, "checkbox");
 }
@@ -88,10 +102,9 @@ export async function scrollPageToElement(
   contents: WebContents,
   fillId: string,
 ): Promise<void> {
-  const result = (await contents.executeJavaScript(
-    buildScrollScript(fillId),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildScrollScript(fillId), true),
+  ) as WriteScriptResult;
   ensureOk(result, "scrollTo");
 }
 
@@ -114,10 +127,9 @@ export async function performPageClick(
   contents: WebContents,
   fillId: string,
 ): Promise<void> {
-  const result = (await contents.executeJavaScript(
-    buildClickScript(fillId, "click"),
-    true,
-  )) as WriteScriptResult;
+  const result = await runWithBrowserClickTargetHighlight(contents, fillId, () =>
+    contents.executeJavaScript(buildClickScript(fillId, "click"), true),
+  ) as WriteScriptResult;
   ensureOk(result, "click");
 }
 
@@ -171,6 +183,8 @@ function normalizeSummary(raw: FormElementSummary): FormElementSummary {
     fillId: String(raw.fillId ?? ""),
     elementType: normalizeElementType(raw.elementType),
     ...(raw.inputType ? { inputType: String(raw.inputType) } : {}),
+    ...(raw.role ? { role: String(raw.role).slice(0, 80) } : {}),
+    ...(raw.text ? { text: String(raw.text).slice(0, 300) } : {}),
     label: String(raw.label ?? "").slice(0, 200),
     placeholder: String(raw.placeholder ?? "").slice(0, 200),
     required: Boolean(raw.required),

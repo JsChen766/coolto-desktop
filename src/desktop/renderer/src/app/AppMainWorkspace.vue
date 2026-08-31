@@ -9,14 +9,17 @@ import {
 import AgentTasksView from "../agent-tasks/AgentTasksView.vue";
 import AppChatWorkspace from "./AppChatWorkspace.vue";
 import type { AppShell } from "./use-app-shell";
+import type { JobRepositoryResume } from "@desktop/types";
+import ResumeJobLoopDialog from "../agent-tasks/ResumeJobLoopDialog.vue";
 
 const props = defineProps<{ shell: AppShell }>();
 const experienceLibrary = ref<InstanceType<typeof ExperienceLibraryView>>();
+const loopResume = ref<JobRepositoryResume>();
 const {
-  activeView, clearExperienceImportFocus, closeTracker, desktopApi,
+  activeView, agentTaskFocusRequest, clearExperienceImportFocus, closeTracker, current, desktopApi,
   experienceImportFocus, jobRepositoryNavigation, openRepositoryTracker,
   openTrackerAsset, requestResumePreview, returnToImportConversation,
-  selectChat, showSidebar, startDeliveryResumeFile, startJdAction, trackerContext,
+  openAgentTask, selectChat, showSidebar, startDeliveryResumeFile, startJdAction, trackerContext,
   updateRepositoryNavigation,
 } = props.shell;
 
@@ -31,6 +34,11 @@ function confirmExperienceLeave(): Promise<boolean> | boolean {
   return experienceLibrary.value?.confirmLeave() ?? true;
 }
 
+function loopStarted(taskId: string): void {
+  loopResume.value = undefined;
+  openAgentTask(taskId);
+}
+
 defineExpose({ confirmExperienceLeave });
 </script>
 
@@ -39,14 +47,17 @@ defineExpose({ confirmExperienceLeave });
     <AgentTasksView
       v-if="activeView === 'agent_tasks'"
       :api="desktopApi"
+      :focus-request="agentTaskFocusRequest"
       @toggle-sidebar="showSidebar"
       @open-conversation="selectChat"
     />
     <ApplicationTrackerView
       v-else-if="activeView === 'tracker'"
       :context="trackerContext"
+      :conversation-id="current?.id ?? ''"
       @close="closeTracker"
       @open-asset="openTrackerAsset"
+      @open-agent-task="openAgentTask"
     />
     <ExperienceLibraryView
       v-else-if="activeView === 'experiences'"
@@ -67,7 +78,11 @@ defineExpose({ confirmExperienceLeave });
       @tracker="openRepositoryTracker"
       @applications="openRepositoryTracker()"
       @delivery="startDeliveryResumeFile"
+      @resume-loop="loopResume = $event"
     />
     <AppChatWorkspace v-else :shell="shell" />
+    <ResumeJobLoopDialog v-if="loopResume" :api="desktopApi"
+      :conversation-id="current?.id ?? ''" :resume="loopResume"
+      @close="loopResume = undefined" @started="loopStarted" />
   </main>
 </template>

@@ -12,7 +12,8 @@ export class SubmissionStore {
   public createIntent(
     input: Omit<
       SubmissionIntentV1,
-      "version" | "id" | "ownerId" | "startedAt" | "submissionReceiptId"
+      "version" | "id" | "ownerId" | "confirmedByUserAt" |
+      "rejectedByUserAt" | "startedAt" | "submissionReceiptId"
     >,
   ): Promise<SubmissionIntentV1> {
     return this.repository.update((state) => {
@@ -20,7 +21,8 @@ export class SubmissionStore {
       if (task.activeRunId !== input.runId) throw new Error("SubmissionIntent run 不匹配");
       const intent: SubmissionIntentV1 = {
         version: 1, id: uuidV7(), ownerId: this.ownerId,
-        ...structuredClone(input), startedAt: null, submissionReceiptId: null,
+        ...structuredClone(input), confirmedByUserAt: null, rejectedByUserAt: null,
+        startedAt: null, submissionReceiptId: null,
       };
       state.submissionIntents.push(intent);
       return intent;
@@ -39,8 +41,39 @@ export class SubmissionStore {
       if (intent.submissionReceiptId || intent.startedAt) {
         return { intent, claimed: false };
       }
+      if (!intent.confirmedByUserAt || intent.rejectedByUserAt ||
+          !intent.actionTokenId) {
+        throw new Error("SubmissionIntent 尚未获得本次投递确认");
+      }
       intent.startedAt = startedAt;
       return { intent, claimed: true };
+    });
+  }
+
+  public confirmIntent(intentId: string, confirmedAt: string): Promise<SubmissionIntentV1> {
+    return this.#resolveIntent(intentId, "confirmedByUserAt", confirmedAt);
+  }
+
+  public rejectIntent(intentId: string, rejectedAt: string): Promise<SubmissionIntentV1> {
+    return this.#resolveIntent(intentId, "rejectedByUserAt", rejectedAt);
+  }
+
+  public authorizeIntent(input: {
+    intentId: string; runId: string; actionTokenId: string; expiresAt: string;
+  }): Promise<SubmissionIntentV1> {
+    return this.repository.update((state) => {
+      const intent = state.submissionIntents.find((item) => item.id === input.intentId);
+      if (!intent || intent.ownerId !== this.ownerId) throw new Error("SubmissionIntent 不存在");
+      if (!intent.confirmedByUserAt || intent.rejectedByUserAt ||
+          intent.startedAt || intent.submissionReceiptId) {
+        throw new Error("SubmissionIntent 当前不能签发提交令牌");
+      }
+      const task = requireTask(state.tasks, intent.taskId, this.ownerId);
+      if (task.activeRunId !== input.runId) throw new Error("SubmissionIntent run 不匹配");
+      intent.runId = input.runId;
+      intent.actionTokenId = input.actionTokenId;
+      intent.expiresAt = input.expiresAt;
+      return intent;
     });
   }
 
@@ -115,6 +148,27 @@ export class SubmissionStore {
       state.submissionIntents = state.submissionIntents
         .filter((value) => !value.submissionReceiptId ||
           !receiptIds.has(value.submissionReceiptId));
+    });
+  }
+
+  #resolveIntent(
+    intentId: string,
+    field: "confirmedByUserAt" | "rejectedByUserAt",
+    value: string,
+  ): Promise<SubmissionIntentV1> {
+    return this.repository.update((state) => {
+      const intent = state.submissionIntents.find((item) => item.id === intentId);
+      if (!intent || intent.ownerId !== this.ownerId) {
+        throw new Error("SubmissionIntent 不存在或不属于当前用户");
+      }
+      if (intent.startedAt || intent.submissionReceiptId) {
+        throw new Error("SubmissionIntent 已开始提交，不能再次确认");
+      }
+      const opposite = field === "confirmedByUserAt"
+        ? intent.rejectedByUserAt : intent.confirmedByUserAt;
+      if (opposite) throw new Error("SubmissionIntent 已有相反的用户决定");
+      intent[field] ??= value;
+      return intent;
     });
   }
 }

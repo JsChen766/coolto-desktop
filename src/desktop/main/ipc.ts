@@ -1,6 +1,5 @@
 import { app, type BrowserWindow, type IpcMain } from "electron";
 import { join } from "node:path";
-
 import type { BrowserAgentController } from "../../browser/agent-control-types.js";
 import type { BrowserPageOperator } from "../../browser/types.js";
 import type { BrowserAgentStatusBridge } from "./browser/browser-agent-status-bridge.js";
@@ -63,6 +62,7 @@ import {
   MAIL_CONNECTION_IPC_CHANNELS,
   registerMailConnectionIpc,
 } from "./mail-connections/mail-connection-ipc.js";
+import { CALENDAR_IPC_CHANNELS, registerCalendarIpc } from "./calendar/calendar-ipc.js";
 import {
   DELIVERY_RESUME_FILE_IPC_CHANNELS,
   registerDeliveryResumeFileIpc,
@@ -99,6 +99,7 @@ export function registerDesktopIpc(
     ...WINDOW_CLOSE_IPC_CHANNELS,
     ...AGENT_TASK_IPC_CHANNELS,
     ...MAIL_CONNECTION_IPC_CHANNELS,
+    ...CALENDAR_IPC_CHANNELS,
     ...DELIVERY_RESUME_FILE_IPC_CHANNELS,
     ...ONBOARDING_IPC_CHANNELS,
   ]) {
@@ -132,6 +133,7 @@ export function registerDesktopIpc(
   registerCheckoutIpc(ipcMain, auth);
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
   registerMailConnectionIpc(ipcMain, servicesForCurrentUser);
+  registerCalendarIpc(ipcMain, servicesForCurrentUser);
   registerDeliveryResumeFileIpc(
     ipcMain,
     window,
@@ -168,7 +170,6 @@ export function registerDesktopIpc(
     triggerSync: () => void auth.syncNow(),
   });
   registerShellIpc(ipcMain);
-
   const resumeLibraryForCurrentUser = async () => {
     const user = auth.requireCurrentUser();
     const currentServices = await servicesForCurrentUser();
@@ -206,7 +207,7 @@ export function registerDesktopIpc(
     async () => (await servicesForCurrentUser()).profileProposals,
   );
   registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
-  registerAgentTaskIpc(ipcMain, servicesForCurrentUser);
+  registerAgentTaskIpc(ipcMain, servicesForCurrentUser, () => browserWindow.open());
   registerOnboardingIpc(ipcMain, servicesForCurrentUser);
 }
 

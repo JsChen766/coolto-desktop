@@ -1,0 +1,5 @@
+{
+  "name": "coolto-browser-shell-ui-qa",
+  "version": "1.0.0",
+  "main": "../../../out/cli/browser-shell-ui-qa-entry.cjs"
+}

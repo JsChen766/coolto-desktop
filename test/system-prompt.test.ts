@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v149");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v154");
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
@@ -63,6 +63,28 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /repair_bullet_depth/);
   assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /tailExpansions/);
   assert.match(COOLTO_SYSTEM_PROMPT, /保存和导出不是 Agent 行为/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /nextCursor/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /limit=100 的全库 search_experiences/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /首次选择.*全部明确相关经历/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得在文本中逐字计数/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_start_review/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_list_tabs/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_snapshot/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /browser_download/);
+  assert.match(COOLTO_SYSTEM_PROMPT, /search_application_candidates/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /app_N 引用/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /tracker\.application\.read/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /无法唯一判断.*applicationRef 留空/u);
+  assert.match(
+    COOLTO_SYSTEM_PROMPT,
+    /任何 Browser Webmail 邮件读取.*prepare_agent_task.*普通 request_write_access 不能替代/su,
+  );
+  assert.match(COOLTO_SYSTEM_PROMPT, /https:\/\/outlook\.live\.com\/mail\/0\//u);
+  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /prepare_resume_draft/);
+  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /write_bullet/);
+  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /patch_resume_candidate/);
+  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /prepare_resume_save/);
+  assert.doesNotMatch(COOLTO_SYSTEM_PROMPT, /prepare_resume_pdf_export/);
   assert.match(COOLTO_SYSTEM_PROMPT, /find_resume_reuse_candidates/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /baseResumeId/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /baseDraftArtifactId/u);
@@ -94,5 +116,16 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /优先从当前消息和对话上下文推导/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /用户明确要求假设、模拟或合理补充/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /SubmissionReceipt/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /prepare_follow_up_loop/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /record_interview_brief/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /少于 5 条投递时使用.*task_wait/su);
+  assert.match(COOLTO_SYSTEM_PROMPT, /相关性写成因果/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /prepare_risk_deadline_loop/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /逐字保留 evidenceQuotes/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /prepare_loop_reminder/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /autoStartAfter/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /web:<完整 HTTPS URL>/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /riskMailDirections/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /nextReviewAt/u);
   assert.match(SYSTEM_PROMPT_VERSION, /^coolto-local-agent\/v\d+$/);
 });

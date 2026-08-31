@@ -1,12 +1,17 @@
-import type { IpcMain } from "electron";
+import type { BrowserWindow, IpcMain } from "electron";
 
 import type { DesktopAuthService } from "./auth-service.js";
 
 export function registerAuthIpc(
   ipcMain: IpcMain,
+  window: BrowserWindow,
   auth: DesktopAuthService,
   resetUserServices: () => void | Promise<void>,
 ): void {
+  const unsubscribeSync = auth.onSyncSettled(() => {
+    if (!window.isDestroyed()) window.webContents.send("sync:completed");
+  });
+  window.once("closed", unsubscribeSync);
   ipcMain.handle("auth:current", async () => {
     const user = await auth.restore();
     return user ? { id: user.id, email: user.email } : undefined;

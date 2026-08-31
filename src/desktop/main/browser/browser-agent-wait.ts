@@ -1,6 +1,7 @@
 import type { WebContents } from "electron";
 
 import type { BrowserWaitRequest } from "../../../browser/agent-control-types.js";
+import { executeInSameOriginFrames } from "./browser-frame-execution.js";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_TIMEOUT_MS = 30_000;
@@ -45,7 +46,10 @@ async function matches(
     return !contents.isLoading() && !contents.isLoadingMainFrame();
   }
   if (request.kind === "url") return contents.getURL().includes(value);
-  return Boolean(await contents.executeJavaScript(conditionScript(request, value), true));
+  const results = await executeInSameOriginFrames<boolean>(
+    contents, conditionScript(request, value),
+  );
+  return results.some((result) => Boolean(result.value));
 }
 
 function conditionScript(request: BrowserWaitRequest, value: string): string {

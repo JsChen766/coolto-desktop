@@ -28,14 +28,16 @@ import { ConversationStore } from "./conversation-store.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { readConfig } from "../../config.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
+import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
+import { createRunTerminalForContext } from "./agent-runtime-terminal.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ExperienceProposalService } from "./experience-library/experience-proposal-service.js";
-import { continueAfterResumeAugmentation } from "./resume-augmentation-resolution.js";
 import { restoreLatestInProgressResume } from "./resume-drafts/resume-conversation-restorer.js";
 import { ConversationRunGate } from "./conversation-run-gate.js";
 import { continueAfterResumeStrategyChoice, pendingResumeStrategyChoice } from "./resume-strategy-continuation.js";
 import { activateBestAvailableGeneralResume } from "./resume-strategy-general-selection.js";
 import { LocalExperienceMaterialCommitter } from "./experience-library/experience-material-committer.js";
+import type { ManagedResumeUploadService } from "./agent-task/managed-resume-upload-service.js";
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore; readonly #resumeDrafts: ResumeDraftService;
   readonly #events: AgentRuntimeEvents;
@@ -55,8 +57,9 @@ export class DesktopAgentRuntime {
     agentTaskProposals: AgentTaskProposalService, resumePublications: ResumePublicationGateway,
     applications: ApplicationSyncStore, applicationProposals: ApplicationProposalService,
     deliveryResumeFiles: import("../../delivery-resume-files/types.js").DeliveryResumeFileStore,
-    mailConnections: MailConnectionRegistry, interviews: InterviewSyncStore,
-    interviewProposals: InterviewProposalService, experiences: ExperienceReader & ExperienceWriter,
+    managedResumeUploads: ManagedResumeUploadService, mailConnections: MailConnectionRegistry,
+    interviews: InterviewSyncStore, interviewProposals: InterviewProposalService, reminderProposals: import("./tracker/reminder-proposal-service.js").ReminderProposalService,
+    experiences: ExperienceReader & ExperienceWriter,
     jds: JdReader & JdWriter, profiles: UserProfileReader,
     profileProposals: ProfileProposalExecutor,
     experienceProposals: ExperienceProposalService,
@@ -74,7 +77,7 @@ export class DesktopAgentRuntime {
       selectedFiles,
       browserAgentController, browserPageOperator, agentHarness,
       agentTaskProposals, applications, applicationProposals, mailConnections,
-      deliveryResumeFiles, interviews, interviewProposals,
+      deliveryResumeFiles, managedResumeUploads, interviews, interviewProposals, reminderProposals,
       resumePublications,
       experiences,
       jds,
@@ -87,9 +90,13 @@ export class DesktopAgentRuntime {
     });
   }
   public get isRunning(): boolean { return this.#runGate.isRunning; }
+  public async pendingApprovals(conversationId: string) {
+    return (await this.#contextFor(conversationId)).agent.getPendingApprovals();
+  }
   public async prompt(input: AgentPromptInput): Promise<ConversationDetail> {
     const conversationId = input.conversationId;
     const context = await this.#contextFor(conversationId);
+    await context.scopeTools();
     if (context.agent.isRunning) {
       throw new Error("正在处理上一条消息，请稍候再试");
     }
@@ -115,9 +122,10 @@ export class DesktopAgentRuntime {
       });
       const lastAssistant = [...result.messages].reverse().find((m) => m.role === "assistant");
       const assistantCompletedAt = lastAssistant ? { timestamp: lastAssistant.timestamp, completedAt: new Date().toISOString() } : undefined;
-      return await this.#enqueuePersist(() => this.#store.saveMessages(conversationId, result.messages, pendingAttachments, result.attachTimestamp, assistantCompletedAt));
+      return await this.#enqueuePersist(() => this.#store.saveMessages(conversationId, result.messages, pendingAttachments, result.attachTimestamp, assistantCompletedAt, createRunTerminalForContext(context, this.#cancelRequested)));
     } catch (error) {
       failed = true;
+      await this.#enqueuePersist(() => this.#store.saveRunTerminal(conversationId, createRunTerminalForContext(context, this.#cancelRequested, error))).catch(() => undefined);
       throw error;
     } finally {
       unsubscribePersist();
@@ -145,28 +153,20 @@ export class DesktopAgentRuntime {
     if (!context) return;
     await this.#persistSnapshot(conversationId, context.agent);
   }
-
   /** 串行化持久化任务，避免并发写同一会话文件；单任务失败不阻塞后续。 */
   #enqueuePersist<T>(task: () => Promise<T>): Promise<T> {
     const next = this.#persistChain.then(task);
     this.#persistChain = next.then(() => undefined, () => undefined);
     return next;
   }
-
   /** 只存 transcript 的快照：附件绑定只发生在 prompt() 的最终保存。 */
   #persistSnapshot(conversationId: string, agent: CooltoAgent): Promise<void> {
     return this.#enqueuePersist(() =>
       this.#store.saveMessages(conversationId, agent.getMessages()),
     ).then(() => undefined);
   }
-
   public generationTrace(conversationId: string) { return this.#traces.latestForConversation(conversationId); }
-
-  public async resolveApproval(
-    conversationId: string,
-    requestId: string,
-    decision: ApprovalDecision,
-  ): Promise<ConversationDetail> {
+  public async resolveApproval(conversationId: string, requestId: string, decision: ApprovalDecision): Promise<ConversationDetail> {
     const context = await this.#contextFor(conversationId);
     await this.#runGate.beginAfterCurrent(conversationId);
     this.#cancelRequested = false;

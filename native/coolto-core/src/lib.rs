@@ -10,6 +10,8 @@ use napi::{
 };
 use napi_derive::napi;
 
+mod calendar;
+
 const PAYLOAD_MAGIC: &[u8; 8] = b"CLTOENC1";
 const NONCE_LENGTH: usize = 12;
 

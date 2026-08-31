@@ -69,6 +69,7 @@ export function sampleJd(now = new Date()): JdRecord {
       requirement(3, "能够与产品及业务团队沟通", "soft_skill"),
     ],
     jdHash: null, requirementMapId: null, requirementsOrigin: "app_extracted",
+    sourceKind: "manual", sourceUrl: null,
     sourceThreadId: null, createdAt: timestamp, updatedAt: timestamp,
     entityVersion: 1, deletedAt: null, syncStatus: "clean",
   };
@@ -123,7 +124,8 @@ export function sampleResumeEntry(draft: ResumeDraftDetail): ResumeLibraryEntry 
     displayTitle: draft.title,
     cloud: {
       resumeId: SAMPLE_RESUME_ID, title: draft.title, targetRole: draft.targetRole,
-      jdId: SAMPLE_JD_ID, status: "active", contentHash: "a".repeat(64),
+      jdId: SAMPLE_JD_ID, status: "active", qualityStatus: "passed",
+      contentHash: "a".repeat(64),
       updatedAt: draft.updatedAt,
     },
     local: {

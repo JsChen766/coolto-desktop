@@ -421,6 +421,36 @@ test("agent blocks the second consecutive tool call with identical arguments", a
   assert.match(JSON.stringify(agent.getMessages()), /detected_repetition/u);
 });
 
+test("mail capture permits one exact idempotency replay then blocks the third", async () => {
+  const faux = fauxProvider({ tokensPerSecond: 0 });
+  const call = fauxToolCall("capture_browser_mail_event", { marker: "A" });
+  faux.setResponses([
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage(call, { stopReason: "toolUse" }),
+    fauxAssistantMessage("已验证幂等重放"),
+  ]);
+  const parameters = Type.Object({ marker: Type.String() });
+  let executionCount = 0;
+  const capture: AgentTool<typeof parameters> = {
+    name: "capture_browser_mail_event", label: "Capture mail",
+    description: "Returns one stable event for the same mail.", parameters,
+    execute: async () => {
+      executionCount += 1;
+      return { content: [{ type: "text", text: "event-1" }], details: null };
+    },
+  };
+  const agent = createCooltoAgent(
+    { tools: [capture] },
+    { model: faux.getModel(), streamFn: faux.provider.streamSimple.bind(faux.provider) },
+  );
+
+  await agent.prompt("重复捕获同一封邮件");
+
+  assert.equal(executionCount, 2);
+  assert.match(JSON.stringify(agent.getMessages()), /detected_repetition/u);
+});
+
 test("read-only JD discovery tolerates duplicate calls within one model loop", async () => {
   const faux = fauxProvider({ tokensPerSecond: 0 });
   const call = fauxToolCall("search_jds", { q: "投资者关系" });

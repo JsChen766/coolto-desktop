@@ -1,14 +1,17 @@
 import { ref } from "vue";
 
 import { commonMessages } from "./catalog-common.js";
+import { runTerminalMessages } from "./catalog-run-terminal.js";
 import { copyMessages } from "./catalog-copy.js";
 import { creditMessages } from "./catalog-credits.js";
 import { agentTaskMessages } from "./catalog-agent-tasks.js";
+import { browserShellMessages } from "./catalog-browser-shell.js";
 import { detailMessages } from "./catalog-details.js";
 import { formatMessages } from "./catalog-format.js";
 import { domainMessages } from "./catalog-domain.js";
 import { feedbackMessages } from "./catalog-feedback.js";
 import { resumeAgentMessages } from "./catalog-resume-agent.js";
+import { calendarMessages } from "./catalog-calendar.js";
 import { onboardingMessages } from "./catalog-onboarding.js";
 import { deliveryResumeMessages } from "./catalog-delivery-resume.js";
 
@@ -34,6 +37,7 @@ export const appLocale = ref<AppLocale>(stored === "en-US" ? "en-US" : "zh-CN");
 
 const messages: Record<string, string> = {
   ...commonMessages,
+  ...runTerminalMessages,
   ...detailMessages,
   ...formatMessages,
   ...copyMessages,
@@ -42,6 +46,8 @@ const messages: Record<string, string> = {
   ...resumeAgentMessages,
   ...creditMessages,
   ...agentTaskMessages,
+  ...browserShellMessages,
+  ...calendarMessages,
   ...onboardingMessages,
   ...deliveryResumeMessages,
 };

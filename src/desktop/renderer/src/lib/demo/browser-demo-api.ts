@@ -47,6 +47,7 @@ export function createBrowserDemoApi(): DesktopApi {
       },
       logout: async () => undefined,
       syncNow: async () => undefined,
+      onSyncCompleted: () => () => undefined,
     },
     checkout: {
       plans: async () => [
@@ -70,6 +71,17 @@ export function createBrowserDemoApi(): DesktopApi {
       list: async () => [],
       connect: async () => { throw new Error("Demo 模式未配置邮箱 OAuth"); },
       disconnect: async () => undefined,
+    },
+    calendar: {
+      status: async () => ({ supported: true, authorization: "write_only",
+        canCreate: true, canModify: false,
+        message: "可添加事件；改期或取消需要完整权限" }),
+      requestAccess: async () => ({ supported: true, authorization: "write_only",
+        canCreate: true, canModify: false,
+        message: "可添加事件；改期或取消需要完整权限" }),
+      syncInterview: async () => ({ outcome: "created", message: "面试已添加到系统日历" }),
+      openSystemSettings: async () => undefined,
+      onOpenInterview: () => () => undefined,
     },
     onboarding: {
       status: async () => ({ version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }),
@@ -100,6 +112,12 @@ export function createBrowserDemoApi(): DesktopApi {
       list: async () => [],
       get: async () => { throw new Error("Demo 中没有 Agent 任务"); },
       prepare: async () => { throw new Error("Demo 不支持 Agent 任务"); },
+      prepareResumeJobLoop: async () => { throw new Error("Demo 不支持自动找岗"); },
+      prepareMailScheduleLoop: async () => { throw new Error("Demo 不支持邮件日程 Loop"); },
+      prepareFollowUpLoop: async () => { throw new Error("Demo 不支持跟进 Loop"); },
+      prepareInterviewBriefingLoop: async () => { throw new Error("Demo 不支持简报 Loop"); },
+      prepareStrategyLoop: async () => { throw new Error("Demo 不支持策略 Loop"); },
+      prepareRiskDeadlineLoop: async () => { throw new Error("Demo 不支持风险 Loop"); },
       executeProposal: async () => { throw new Error("Demo 不支持 Agent 任务"); },
       start: async () => { throw new Error("Demo 不支持 Agent 任务"); },
       resume: async () => { throw new Error("Demo 不支持 Agent 任务"); },

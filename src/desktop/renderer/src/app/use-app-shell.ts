@@ -8,6 +8,7 @@ import { useChatSession } from "../chat/use-chat-session";
 import { desktopApi } from "../lib/desktop-api";
 import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useAppUpdates } from "../updates/use-app-updates";
+import { useBrowserAgentTaskNavigation } from "./use-browser-agent-task-navigation";
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
 import { useResumeConversationContext } from
   "./use-resume-conversation-context";
@@ -28,11 +29,12 @@ export function useAppShell() {
   );
   const browser = useBrowserState();
   const fillProgress = useFillProgress();
+  const { page: browserPageHandoff, task: agentTaskFocusRequest, focusTask } =
+    useBrowserAgentTaskNavigation();
   const scroller = ref<HTMLElement>();
   const dark = ref(localStorage.getItem("coolto-theme") === "dark");
   const narrowScreen = window.matchMedia("(max-width: 820px)");
   useWindowCloseSave(resumeWorkspace);
-
   onMounted(() => {
     applyTheme();
     fillProgress.mount();
@@ -43,7 +45,6 @@ export function useAppShell() {
     fillProgress.unmount();
     narrowScreen.removeEventListener("change", handleNarrowScreen);
   });
-
   watch(
     [
       () => session.current.value?.messages.length,
@@ -59,8 +60,8 @@ export function useAppShell() {
   );
   const resumePreview = useResumeLibraryPreview({
     activeView,
-    activeArtifactType,
-    artifactOpen,
+    activeArtifactType, artifactOpen,
+    clearLocalError: () => { resumeWorkspace.error.value = undefined; },
     closeNarrowSidebar,
     draftIds: () => resumeWorkspace.drafts.value.map((draft) => draft.artifactId),
     openLocalDraft: (artifactId) =>
@@ -106,28 +107,28 @@ export function useAppShell() {
     closeNarrowSidebar();
     activeView.value = view;
   }
-
+  function openAgentTask(taskId: string): void {
+    focusTask(taskId);
+    openPrimaryView("agent_tasks");
+  }
   function openTracker(): void {
     resumePreview.resetResumePreview();
     closeNarrowSidebar();
     jobFlow.trackerContext.value = {};
     activeView.value = "tracker";
   }
-
   function openJdPanel(proposalId: string): void {
     resumePreview.resetResumePreview();
     session.openJdDetail(proposalId);
     activeArtifactType.value = "jd";
     artifactOpen.value = true;
   }
-
   function openMatchPanel(reportId: string): void {
     resumePreview.resetResumePreview();
     session.openMatchDetail(reportId);
     activeArtifactType.value = "match";
     artifactOpen.value = true;
   }
-
   async function toggleArtifact(): Promise<void> {
     artifactOpen.value = !artifactOpen.value;
     if (!artifactOpen.value) {
@@ -141,18 +142,15 @@ export function useAppShell() {
       await resumeConversations.openResumeDraft(first.artifactId);
     }
   }
-
   async function toggleBrowser(): Promise<void> {
     if (browser.state.isOpen) await browser.close();
     else await browser.open({ theme: dark.value ? "dark" : "light" });
   }
-
   function draftCloudState(artifactId: string) {
     return resumeWorkspace.drafts.value.find(
       (draft) => draft.artifactId === artifactId,
     )?.cloudState;
   }
-
   function toggleTheme(): void {
     dark.value = !dark.value;
     localStorage.setItem("coolto-theme", dark.value ? "dark" : "light");
@@ -188,6 +186,12 @@ export function useAppShell() {
     send: (text, reference) => send(text, undefined, reference),
     setError: (message) => { session.runError.value = message; },
   });
+  function openTrackerApplication(applicationId: string, interviewId: string): void {
+    resumePreview.resetResumePreview();
+    closeNarrowSidebar();
+    jobFlow.trackerContext.value = { applicationId, interviewId };
+    activeView.value = "tracker";
+  }
   const resumeInstructions = useResumeInstructionActions({
     workspace: resumeWorkspace,
   });
@@ -195,9 +199,11 @@ export function useAppShell() {
   return {
     ...session,
     activeArtifactType,
+    agentTaskFocusRequest,
     activeView,
     artifactOpen,
     browser,
+    browserPageHandoff,
     conversationAttachment,
     dark,
     desktopApi,
@@ -207,9 +213,11 @@ export function useAppShell() {
     ...resumePreview,
     ...resumeConversations,
     openJdPanel,
+    openAgentTask,
     openPrimaryView,
     openMatchPanel,
     openTracker,
+    openTrackerApplication,
     ...jobFlow,
     ...deliveryResume,
     clearExperienceImportFocus: experienceImport.clear,
@@ -231,6 +239,5 @@ export function useAppShell() {
     checkUpdate: updates.checkUpdate,
     installUpdate: updates.installUpdate,
   };
-}
-
+  }
 export type AppShell = ReturnType<typeof useAppShell>;

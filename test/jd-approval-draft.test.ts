@@ -28,7 +28,14 @@ function makeProposal({
     v2Importance: null,
     v2Category: null,
   }));
-  return store.create("原始 JD 文本", "高级前端工程师", company, targetRole, reqs);
+  return store.create(
+    "原始 JD 文本",
+    "高级前端工程师",
+    company,
+    targetRole,
+    reqs,
+    { kind: "browser", url: "https://jobs.example/frontend" },
+  );
 }
 
 test("draft has correct actionType and risk", () => {
@@ -47,6 +54,11 @@ test("draft preview summary always contains 岗位 and 要求数量", () => {
   assert.equal(titleEntry?.value, "高级前端工程师");
   assert.ok(countEntry, "summary should include 要求数量");
   assert.equal(countEntry?.value, "3 条");
+  assert.equal(summary.find((entry) => entry.label === "来源")?.value, "浏览器页面");
+  assert.equal(
+    summary.find((entry) => entry.label === "来源 URL")?.value,
+    "https://jobs.example/frontend",
+  );
 });
 
 test("draft preview summary includes 公司 when company is set", () => {
@@ -91,6 +103,8 @@ test("createJdSaveApprovalPayload contains all proposal fields plus idempotencyK
   assert.equal(payload.rawText, "原始 JD 文本");
   assert.equal(payload.company, "阿里");
   assert.equal(payload.targetRole, "SRE");
+  assert.equal(payload.sourceKind, "browser");
+  assert.equal(payload.sourceUrl, "https://jobs.example/frontend");
   assert.equal(payload.idempotencyKey, "idem-key-123");
   assert.equal(payload.requirements.length, 2);
 });

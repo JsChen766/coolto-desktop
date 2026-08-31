@@ -110,7 +110,7 @@ export class GmailInboxAdapter implements InboxIncrementalAdapter {
     const headers = readHeaders(payload.headers);
     const received = Date.parse(headers.date ?? "");
     return {
-      version: 1, provider: "gmail", connectionId,
+      version: 1, provider: "gmail", connectionId, direction: "received",
       sourceMessageId: string(message.id, "Gmail message id"),
       internetMessageId: headers["message-id"] ?? null,
       sender: headers.from ?? "unknown",

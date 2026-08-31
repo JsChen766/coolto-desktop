@@ -3,13 +3,25 @@
 }
 
 .browser-chrome {
+  --bg: var(--browser-canvas);
+  --surface: var(--browser-surface);
+  --surface-strong: var(--browser-surface-strong);
+  --surface-hover: var(--browser-surface-hover);
+  --border: var(--browser-hairline);
+  --border-strong: var(--browser-hairline-strong);
+  --text: var(--browser-text);
+  --text-soft: var(--browser-text-secondary);
+  --muted: var(--browser-text-muted);
+  --paper: var(--browser-toolbar);
+  --danger: var(--browser-danger);
+  --selection-bg: var(--browser-surface-strong);
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--browser-toolbar);
   font-family: var(--font-ui);
   color: var(--text);
   user-select: none;
@@ -27,6 +39,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+  min-height: 40px;
+  background: var(--browser-tab-band);
 }
 
 .chrome-top :deep(.tab-strip) {
@@ -39,66 +53,4 @@
 
 .chrome-top.mac-inset {
   padding-left: 78px;
-}
-
-.address-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.nav-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  color: var(--text-soft);
-  cursor: default;
-}
-
-.nav-button:hover:not(:disabled) {
-  background: var(--surface-hover);
-}
-
-.nav-button:disabled {
-  opacity: 0.35;
-}
-
-.address {
-  flex: 1;
-  height: 30px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: var(--paper);
-  border: 1px solid var(--border);
-  font-size: 13px;
-  color: var(--text);
-  font-family: inherit;
-  outline: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.address::placeholder {
-  color: var(--muted);
-}
-
-.address:focus {
-  border-color: var(--text-soft);
-  background: var(--paper);
 }

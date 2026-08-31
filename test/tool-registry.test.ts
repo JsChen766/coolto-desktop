@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createToolRegistry } from "../src/tools/registry.js";
 import { ExperienceReferenceRegistry } from "../src/tools/experience-reference-registry.js";
-import { requireToolCapability } from "../src/tools/tool-capabilities.js";
+import { applyToolCapabilities, requireToolCapability } from "../src/tools/tool-capabilities.js";
 import { AgentHarnessServices } from "../src/agent-task/agent-harness-services.js";
 import {
   AgentHarnessStateRepository,
@@ -28,6 +28,19 @@ test("tool registry has unique, explicitly scoped tools", async () => {
   assert.equal(result.details.persistentAssetCacheEnabled, false);
 });
 
+test("managed loop asset tools use frozen JD and Resume read/write scopes", () => {
+  const tools = applyToolCapabilities([
+    "list_resumes", "get_resume", "search_jds", "get_jd", "prepare_jd_import",
+  ].map((name) => ({
+    name, label: name, description: name,
+    parameters: { type: "object", properties: {} } as never,
+    execute: async () => ({ content: [], details: {} }),
+  })));
+  assert.deepEqual(tools.map((tool) => requireToolCapability(tool).requiredScopes), [
+    ["resume.read"], ["resume.read"], ["jd.read"], ["jd.read"], ["jd.write"],
+  ]);
+});
+
 test("registry exposes Answer Vault only through scoped read and prepare tools", () => {
   const services = new AgentHarnessServices(
     "owner-1",
@@ -44,6 +57,20 @@ test("registry exposes Answer Vault only through scoped read and prepare tools",
   ]);
   assert.deepEqual(requireToolCapability(tools[1]!).requiredScopes, ["answers.read"]);
   assert.deepEqual(requireToolCapability(tools[2]!).requiredScopes, ["answers.prepare"]);
+});
+
+test("registry exposes Application candidates as an explicit read scope", () => {
+  const tools = createToolRegistry({
+    inboxSignals: {} as never,
+    inboxApplicationCandidates: {} as never,
+  });
+  const candidate = tools.find((tool) =>
+    tool.name === "search_application_candidates");
+  assert.ok(candidate);
+  assert.deepEqual(requireToolCapability(candidate).requiredScopes, [
+    "tracker.application.read",
+  ]);
+  assert.equal(requireToolCapability(candidate).sideEffect, "read");
 });
 
 test("workspace projection shortens education IDs discovered inside snapshot creation", async () => {
@@ -283,6 +310,8 @@ const jdRecord = {
   title: "Product Manager",
   company: "Example",
   targetRole: "Product Manager",
+  sourceKind: "pasted" as const,
+  sourceUrl: null,
   rawText: "Full JD text",
   requirements: [
     {

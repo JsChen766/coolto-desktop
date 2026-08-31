@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import {
   ConversationDialog,
@@ -28,7 +28,9 @@ const privacyConsent = ref(localStorage.getItem("coolto-privacy-consent") === "1
 const firstVisit = ref(localStorage.getItem("coolto-visited") === null);
 const {
   activeView,
+  agentTaskFocusRequest,
   booting,
+  browserPageHandoff,
   confirmDialog,
   conversations,
   createChat,
@@ -44,9 +46,11 @@ const {
   cloudCopyConfirmation,
   confirmCloudResumeCopy,
   openDialog,
+  openAgentTask,
   openPrimaryView,
   openResumeDraft,
   openTracker,
+  openTrackerApplication,
   requestEmailCode,
   resumePreviewChoice,
   resumeOperationContext,
@@ -73,8 +77,18 @@ function guardNavigation(action: () => void | Promise<void>): void {
     await action();
   })();
 }
+
+function openTaskFromSettings(taskId: string): void {
+  settingsDialogOpen.value = false;
+  openAgentTask(taskId);
+}
 function requestPrimaryView(view: "agent_tasks" | "experiences" | "library"): void {
   if (activeView.value !== view) guardNavigation(() => openPrimaryView(view));
+}
+async function openAgentTaskFromBrowser(): Promise<void> {
+  if (activeView.value === "experiences" &&
+      (await mainWorkspace.value?.confirmExperienceLeave()) === false) return;
+  openPrimaryView("agent_tasks");
 }
 function openProfile(trigger: HTMLElement): void {
   profileTrigger.value = trigger;
@@ -97,7 +111,21 @@ function acceptPrivacy(): void {
 }
 
 watch(user, (next, previous) => { if (previous && !next) firstVisit.value = false; });
+watch(agentTaskFocusRequest, (request) => {
+  if (request) void openAgentTaskFromBrowser();
+});
+watch([browserPageHandoff, current, user], ([request, conversation, account]) => {
+  if (!request || !conversation || !account || activeView.value === "chat") return;
+  guardNavigation(() => selectChat(conversation.id));
+});
 const creditsHost = ref<InstanceType<typeof CreditsHost>>();
+let unsubscribeCalendar: () => void = () => undefined;
+onMounted(() => {
+  unsubscribeCalendar = desktopApi.calendar.onOpenInterview((target) => {
+    guardNavigation(() => openTrackerApplication(target.applicationId, target.interviewId));
+  });
+});
+onBeforeUnmount(() => unsubscribeCalendar());
 </script>
 
 <template>
@@ -202,7 +230,9 @@ const creditsHost = ref<InstanceType<typeof CreditsHost>>();
       @confirm="confirmCloudResumeCopy"
     />
     <ProfileDialog v-if="profileDialogOpen" :api="desktopApi" @close="closeProfile" />
-    <SettingsDialog v-if="settingsDialogOpen" :api="desktopApi" @close="settingsDialogOpen = false" @open-profile="openProfileFromSettings" />
+    <SettingsDialog v-if="settingsDialogOpen" :api="desktopApi"
+      :conversation-id="current?.id ?? ''" @close="settingsDialogOpen = false"
+      @open-profile="openProfileFromSettings" @open-agent-task="openTaskFromSettings" />
     <CreditsHost ref="creditsHost" :api="desktopApi" :user="user" />
     </div>
   </div>

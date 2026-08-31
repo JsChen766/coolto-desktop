@@ -24,6 +24,24 @@ export class PolicyDecisionStore {
     });
   }
 
+  public recordIfActiveRun(
+    taskId: string,
+    runId: string,
+    decision: PolicyDecisionV1,
+  ): Promise<boolean> {
+    return this.repository.update((state) => {
+      const task = state.tasks.find((candidate) => candidate.id === taskId);
+      if (!task || task.ownerId !== this.ownerId ||
+          decision.ownerId !== this.ownerId || decision.taskId !== taskId ||
+          decision.runId !== runId) {
+        throw new Error("PolicyDecision owner/task/run 不匹配");
+      }
+      if (task.status !== "running" || task.activeRunId !== runId) return false;
+      state.policyDecisions.push(structuredClone(decision));
+      return true;
+    });
+  }
+
   public list(taskId: string): Promise<PolicyDecisionV1[]> {
     return this.repository.read((state) => state.policyDecisions
       .filter((decision) =>

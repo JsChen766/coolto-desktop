@@ -1,11 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
-  mkdir,
-  readFile,
-  readdir,
-  rm,
-  unlink,
-  writeFile,
+  mkdir, readFile, readdir, rm, unlink, writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -15,6 +10,7 @@ import { app } from "electron";
 import { sanitizeAgentMessagesForPersistence } from "../../agent/persistence-policy.js";
 import type {
   ConversationDetail,
+  ConversationRunTerminal,
   ConversationSummary,
   MessageAttachment,
 } from "../shared/types.js";
@@ -37,7 +33,6 @@ import {
   isMissingConversationFile,
   isStoredConversation,
   type StoredConversation,
-  type StoredMessageAttachment,
   withArtifactAnchor,
 } from "./conversation-record.js";
 
@@ -72,7 +67,7 @@ export class ConversationStore {
   public async create(): Promise<ConversationDetail> {
     const now = new Date().toISOString();
     const conversation: StoredConversation = {
-      version: 3,
+      version: 4,
       id: randomUUID(),
       ownerId: this.#ownerId,
       title: UNTITLED_CONVERSATION,
@@ -108,12 +103,14 @@ export class ConversationStore {
     messages: AgentMessage[],
     pendingAttachments?: MessageAttachment[], attachTimestamp?: number,
     assistantCompletedAt?: { timestamp: number; completedAt: string },
+    terminal?: ConversationRunTerminal,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 3;
+    record.version = 4;
     record.agentMessages = sanitizeAgentMessagesForPersistence(messages);
     record.messageAttachments = mergeMessageAttachments(record.messageAttachments ?? [], pendingAttachments ?? [], messages, attachTimestamp);
     if (assistantCompletedAt) record.assistantTimings = { ...(record.assistantTimings ?? {}), [String(assistantCompletedAt.timestamp)]: assistantCompletedAt.completedAt };
+    if (terminal) record.lastRun = structuredClone(terminal);
     const visibleMessages = projectConversationMessages(record.agentMessages, record.messageAttachments, record.assistantTimings);
     record.resumeArtifacts = (record.resumeArtifacts ?? []).map((artifact) =>
       withArtifactAnchor(artifact, visibleMessages),
@@ -129,7 +126,7 @@ export class ConversationStore {
     artifact: ResumeDraftArtifactReference,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 3;
+    record.version = 4;
     const artifacts = record.resumeArtifacts ?? [];
     const existing = artifacts.findIndex(
       (candidate) => candidate.artifactId === artifact.artifactId,
@@ -172,7 +169,7 @@ export class ConversationStore {
     result: ExperienceImportResultDetails,
   ): Promise<ConversationDetail> {
     const record = await this.getRecord(conversationId);
-    record.version = 3;
+    record.version = 4;
     const artifacts = record.experienceImportArtifacts ?? [];
     const index = artifacts.findIndex(
       (artifact) => artifact.proposalId === result.proposalId,
@@ -195,6 +192,18 @@ export class ConversationStore {
     record.updatedAt = new Date().toISOString();
     await this.#write(record);
     return conversationSummary(record);
+  }
+
+  public async saveRunTerminal(
+    conversationId: string,
+    terminal: ConversationRunTerminal,
+  ): Promise<ConversationDetail> {
+    const record = await this.getRecord(conversationId);
+    record.version = 4;
+    record.lastRun = structuredClone(terminal);
+    record.updatedAt = terminal.updatedAt;
+    await this.#write(record);
+    return conversationDetail(record);
   }
 
   public async delete(conversationId: string): Promise<void> {

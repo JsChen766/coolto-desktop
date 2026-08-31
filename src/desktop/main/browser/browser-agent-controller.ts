@@ -36,15 +36,22 @@ export interface BrowserAgentControllerDeps {
   activeContext: () => ActiveTabContext;
   requireControlAccess: () => void;
   readPage: (context: ActiveTabContext) => Promise<PageSnapshot>;
+  onDownloadsChanged?: () => void;
 }
 
 export class BrowserAgentControllerImpl implements BrowserAgentController {
-  readonly #downloads = new BrowserDownloadTracker(
-    getBrowserSession(),
-    process.env.COOLTO_BROWSER_QA_DOWNLOAD_ROOT ?? app.getPath("downloads"),
-  );
+  readonly #downloads: BrowserDownloadTracker;
 
-  public constructor(private readonly deps: BrowserAgentControllerDeps) {}
+  public constructor(private readonly deps: BrowserAgentControllerDeps) {
+    this.#downloads = new BrowserDownloadTracker(
+      getBrowserSession(),
+      process.env.COOLTO_BROWSER_QA_DOWNLOAD_ROOT ?? app.getPath("downloads"),
+      deps.onDownloadsChanged,
+    );
+  }
+
+  public downloadSnapshot() { return this.#downloads.snapshot(); }
+  public dismissDownload(id: string): boolean { return this.#downloads.dismiss(id); }
 
   public listTabs(): BrowserAgentTab[] {
     const tabs = this.deps.tabs();

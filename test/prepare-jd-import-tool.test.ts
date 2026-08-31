@@ -10,6 +10,8 @@ const sampleParams = {
   rawText: "我们正在寻找一名高级前端工程师，要求5年以上 React 开发经验，精通 TypeScript。",
   title: "高级前端工程师",
   company: "字节跳动",
+  sourceKind: "browser" as const,
+  sourceUrl: "https://jobs.example/frontend",
   requirements: [
     {
       text: "5年以上 React 开发经验",
@@ -46,6 +48,8 @@ test("tool creates a proposal in the store", async () => {
   assert.ok(store.getActive() !== undefined, "proposal should be active after tool call");
   assert.equal(store.getActive()?.title, "高级前端工程师");
   assert.equal(store.getActive()?.company, "字节跳动");
+  assert.equal(store.getActive()?.sourceKind, "browser");
+  assert.equal(store.getActive()?.sourceUrl, "https://jobs.example/frontend");
 });
 
 test("tool sets duplicateStatus to 'none'", async () => {
@@ -135,4 +139,18 @@ test("tool omits company from proposal when not provided", async () => {
   await tool.execute("call-1", paramsWithoutCompany);
 
   assert.equal(store.getActive()?.company, null);
+});
+
+test("tool rejects credential-bearing source URLs", async () => {
+  const store = new JdProposalStore();
+  const tool = createPrepareJdImportTool(store, makeApprovalManager(store));
+
+  await assert.rejects(
+    tool.execute("call-url", {
+      ...sampleParams,
+      sourceUrl: "https://user:secret@jobs.example/frontend",
+    }),
+    /不能包含用户名或密码/u,
+  );
+  assert.equal(store.getActive(), undefined);
 });

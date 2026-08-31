@@ -239,7 +239,8 @@ function createProfile(): UserProfile {
 
 function createJd(): JdRecord {
   return { id: "tail-eval-jd", title: "投资者关系实习生", company: "小米集团",
-    targetRole: "投资者关系", rawText: "支持资本市场研究、财务分析、数据处理与跨团队沟通。",
+    targetRole: "投资者关系", sourceKind: "pasted", sourceUrl: null,
+    rawText: "支持资本市场研究、财务分析、数据处理与跨团队沟通。",
     requirements: [{ id: "req-research", text: "具备资本市场研究与财务分析能力",
       category: "domain", importance: "high", keywords: ["投资研究", "财务分析"],
       weight: 0.9, v2Importance: "must_have", v2Category: "domain" },

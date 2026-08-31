@@ -35,6 +35,8 @@ export interface JdArtifactData {
   title: string;
   company: string | null;
   targetRole: string | null;
+  sourceKind: import("../../../jd/source.js").JdSourceKind;
+  sourceUrl: string | null;
   requirements: JdArtifactRequirement[];
   status: "pending" | "saved" | "rejected";
   createdAt: string;

@@ -86,25 +86,6 @@
   padding-right: 1px;
 }
 
-.conversation-scroll::-webkit-scrollbar,
-.message-scroller::-webkit-scrollbar,
-.artifact-canvas::-webkit-scrollbar {
-  width: 5px;
-}
-
-.conversation-scroll::-webkit-scrollbar-thumb,
-.message-scroller::-webkit-scrollbar-thumb,
-.artifact-canvas::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 999px;
-}
-
-.conversation-scroll:hover::-webkit-scrollbar-thumb,
-.message-scroller:hover::-webkit-scrollbar-thumb,
-.artifact-canvas:hover::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--muted) 32%, transparent);
-}
-
 .conversation-row {
   position: relative;
   width: 100%;

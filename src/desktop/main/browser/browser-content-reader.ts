@@ -1,6 +1,7 @@
 import type { WebContents } from "electron";
 
 import type { PageSnapshot } from "../../../browser/types.js";
+import { executeInSameOriginFrames } from "./browser-frame-execution.js";
 
 const MAX_TEXT_LENGTH = 20_000;
 const MAX_FORM_FIELDS = 80;
@@ -14,11 +15,39 @@ const MAX_FORM_FIELDS = 80;
 export async function readPageSnapshot(
   contents: WebContents,
 ): Promise<PageSnapshot> {
-  const raw = (await contents.executeJavaScript(
-    buildReaderScript(MAX_TEXT_LENGTH, MAX_FORM_FIELDS),
-    true,
-  )) as PageSnapshot;
-  return normalizeSnapshot(raw);
+  const executions = await executeInSameOriginFrames<PageSnapshot>(
+    contents, buildReaderScript(MAX_TEXT_LENGTH, MAX_FORM_FIELDS),
+  );
+  const snapshots = executions.map((execution) => normalizeSnapshot(execution.value));
+  const main = snapshots[0] ?? normalizeSnapshot({} as PageSnapshot);
+  const composed = composeSnapshotText(
+    snapshots.map((snapshot) => snapshot.text), MAX_TEXT_LENGTH,
+  );
+  return {
+    ...main,
+    text: composed.text,
+    textTruncated: composed.truncated ||
+      snapshots.some((snapshot) => snapshot.textTruncated),
+    formFields: snapshots.flatMap((snapshot) => snapshot.formFields)
+      .slice(0, MAX_FORM_FIELDS),
+  };
+}
+
+export function composeSnapshotText(
+  values: string[],
+  maxLength: number,
+): { text: string; truncated: boolean } {
+  const texts = values.filter(Boolean);
+  const fullText = texts.join("\n");
+  if (fullText.length <= maxLength) {
+    return { text: fullText, truncated: false };
+  }
+  const separators = Math.max(0, texts.length - 1);
+  const perFrame = Math.max(1, Math.floor((maxLength - separators) / texts.length));
+  return {
+    text: texts.map((text) => text.slice(0, perFrame)).join("\n").slice(0, maxLength),
+    truncated: true,
+  };
 }
 
 function normalizeSnapshot(raw: PageSnapshot): PageSnapshot {

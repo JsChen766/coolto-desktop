@@ -12,21 +12,38 @@ export class BrowserActiveOriginTracker {
   #tabId: string | null = null;
   #origin: string | null = null;
 
-  public constructor(private readonly gate: BrowserWriteAccessGate) {}
+  public constructor(
+    private readonly gate: BrowserWriteAccessGate,
+    private readonly onRevoked: () => void = () => undefined,
+  ) {}
 
-  public sync(tabs: BrowserTabManager | undefined): void {
+  public sync(tabs: BrowserTabManager | undefined): boolean {
+    let accessChanged = false;
+    const access = this.gate.snapshot();
+    if (access.granted && access.tabId && !tabs?.tab(access.tabId)) {
+      this.gate.revoke("authorized-tab-closed");
+      this.onRevoked();
+      accessChanged = true;
+    }
     const active = tabs?.activeTab();
-    if (!active) return;
+    if (!active) {
+      const changed = this.#tabId !== null;
+      this.#tabId = null;
+      this.#origin = null;
+      return changed || accessChanged;
+    }
     const origin = originOf(active.view.webContents.getURL());
     if (active.id !== this.#tabId) {
       this.#tabId = active.id;
       this.#origin = origin;
-      return;
+      return true;
     }
     if (origin !== this.#origin) {
-      this.gate.onOriginChanged(active.id, origin);
+      if (this.gate.onOriginChanged(active.id, origin)) this.onRevoked();
       this.#origin = origin;
+      return true;
     }
+    return accessChanged;
   }
 }
 

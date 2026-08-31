@@ -21,6 +21,7 @@ const BROWSER_WRITE = new Set([
   "browser_set_checked", "browser_click_element", "browser_scroll_to",
   "browser_upload_file", "browser_keypress", "browser_hover", "browser_drag",
   "browser_upload_delivery_resume",
+  "browser_upload_frozen_resume",
 ]);
 const TASK_LIFECYCLE = new Set([
   "task_checkpoint", "task_wait", "task_need_user", "task_complete",
@@ -113,6 +114,10 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
     .includes(tool.name)) return metadata({
       scope: "mail.read", read: true, fresh: false, sequential: true,
     });
+  if (tool.name === "search_application_candidates") return metadata({
+    scope: "tracker.application.read", read: true, fresh: false,
+    sequential: true,
+  });
   if (tool.name === "capture_browser_mail_event") return {
     sideEffect: "reversible", risk: "R1",
     requiredScopes: ["browser.read", "mail.read"],
@@ -136,6 +141,36 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
   };
   if (tool.name === "find_resume_reuse_candidates") return metadata({
     scope: "resume.read", read: true, fresh: false,
+  });
+  if (["list_resumes", "get_resume"].includes(tool.name)) return metadata({
+    scope: "resume.read", read: true, fresh: false,
+  });
+  if (["search_jds", "get_jd"].includes(tool.name)) return metadata({
+    scope: "jd.read", read: true, fresh: false,
+  });
+  if (["search_experiences", "get_experience"].includes(tool.name)) return metadata({
+    scope: "experience.read", read: true, fresh: false,
+  });
+  if (tool.name === "prepare_jd_import") return metadata({
+    scope: "jd.write", fresh: false, unattendedAllowed: true,
+  });
+  if (tool.name === "get_application_loop_context") return metadata({
+    scope: "application.loop.read", read: true, fresh: false,
+  });
+  if (tool.name === "get_application_strategy_metrics") return metadata({
+    scope: "strategy.read", read: true, fresh: false,
+  });
+  const artifactScopes: Record<string, string> = {
+    record_follow_up_draft: "follow_up.write",
+    record_interview_brief: "briefing.write",
+    record_strategy_proposal: "strategy.write",
+    record_risk_notice: "risk.write",
+  };
+  if (artifactScopes[tool.name]) return metadata({
+    scope: artifactScopes[tool.name]!, fresh: false, unattendedAllowed: true,
+  });
+  if (tool.name === "prepare_loop_reminder") return metadata({
+    scope: "reminder.prepare", fresh: false, unattendedAllowed: true,
   });
   if (tool.name === "list_delivery_resume_files") return metadata({
     scope: "delivery_resume_file.read", read: true, fresh: false,

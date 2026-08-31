@@ -19,6 +19,7 @@ export function createOnboardingSampleResumeApi(
       conversationIds: [], updatedAt: draft.updatedAt,
       checkpointCount: draft.checkpoints.length, hasPendingChange: false,
       generationStrategy: "tailored", generationReady: true,
+      workspaceStatus: draft.workspaceStatus,
       cloudState: "synced", cloudResumeId: null,
     }],
     get: async (artifactId) => {

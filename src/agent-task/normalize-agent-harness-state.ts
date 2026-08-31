@@ -9,6 +9,7 @@ const EXTENSION_ARRAY_FIELDS = [
   "browserLeads", "leadEvaluations", "jobSourceCursors",
   "submissionIntents", "submissionReceipts", "answerVault",
   "inboxCursors", "externalSignals",
+  "aiNativeArtifacts",
 ] as const;
 
 /** Adds later V1 extension collections without discarding an older valid V1 file. */
@@ -30,6 +31,16 @@ export function normalizeAgentHarnessStateV1(
   for (const intent of candidate.submissionIntents ?? []) {
     if (intent && typeof intent === "object" && intent.startedAt === undefined) {
       intent.startedAt = null;
+    }
+    if (intent && typeof intent === "object") {
+      intent.confirmedByUserAt ??= null;
+      intent.rejectedByUserAt ??= null;
+      intent.resumeTitle ??= intent.resumeId;
+    }
+  }
+  for (const signal of candidate.externalSignals ?? []) {
+    if (signal && typeof signal === "object" && signal.direction === undefined) {
+      signal.direction = "received";
     }
   }
   if (typeof candidate.updatedAt !== "string") {

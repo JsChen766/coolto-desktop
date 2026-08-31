@@ -1,3 +1,9 @@
+import { browserSitePolicyForOrigin } from "../../../browser/site-policy-registry.js";
+import {
+  evaluateReadOnlyWebmailClick,
+  type ReadOnlyWebmailClickTarget,
+} from "../../../browser/webmail-readonly-policy.js";
+
 /**
  * B3: 提交/发送按钮判定。用于 browser_click_element 拒绝点击提交/发送。
  * 通过页面注入脚本读取候选元素的关键属性后，在主进程用类型 + 文本正则双闸判定。
@@ -10,21 +16,10 @@
  * 页面文本视为不可信数据；判定只用于「拒绝」，永远不当作「许可」凭据。
  */
 
-export interface ClickTargetHint {
-  tagName: string;
-  type: string | null;
-  role: string | null;
-  ariaLabel: string;
-  text: string;
-  value: string;
-  name: string;
-  id: string;
-  testId: string;
-  inForm: boolean;
-}
+export type ClickTargetHint = ReadOnlyWebmailClickTarget;
 
 const SUBMIT_TEXT_PATTERN =
-  /(提交|投递|申请|应聘|发送|发布|保存并提交|一键投递|立即投递|立即申请|submit|send|apply|post|deliver)/i;
+  /(提交|投递|申请|应聘|发送|发布|保存并提交|一键投递|立即投递|立即申请|\b(?:submit|send|apply|post|deliver)\b)/i;
 
 const SOFT_NEXT_PATTERN = /(下一步|继续|next|continue)/i;
 
@@ -33,7 +28,10 @@ export interface ClickGuardResult {
   reason?: string;
 }
 
-export function evaluateClickTarget(hint: ClickTargetHint): ClickGuardResult {
+export function evaluateClickTarget(
+  hint: ClickTargetHint,
+  origin?: string | null,
+): ClickGuardResult {
   const type = (hint.type ?? "").toLowerCase();
   const tag = hint.tagName.toLowerCase();
   if (tag === "input" && (type === "submit" || type === "image")) {
@@ -50,6 +48,7 @@ export function evaluateClickTarget(hint: ClickTargetHint): ClickGuardResult {
     hint.name,
     hint.id,
     hint.testId,
+    hint.title,
   ]
     .map((v) => v ?? "")
     .join(" | ")
@@ -76,6 +75,10 @@ export function evaluateClickTarget(hint: ClickTargetHint): ClickGuardResult {
     };
   }
 
+  if (origin && browserSitePolicyForOrigin(origin)) {
+    return evaluateReadOnlyWebmailClick(origin, hint);
+  }
+
   return { allow: true };
 }
 
@@ -86,7 +89,7 @@ export function isSubmissionTarget(hint: ClickTargetHint): boolean {
       (tag === "button" && type === "submit")) return true;
   const haystack = [
     hint.ariaLabel, hint.text, hint.value, hint.name,
-    hint.id, hint.testId,
+    hint.id, hint.testId, hint.title,
   ].join(" | ");
   if (SUBMIT_TEXT_PATTERN.test(haystack)) return true;
   return hint.inForm && SOFT_NEXT_PATTERN.test(haystack) &&

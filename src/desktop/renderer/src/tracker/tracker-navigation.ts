@@ -11,4 +11,6 @@ export interface TrackerNavigationContext {
   asset?: TrackerAssetTarget;
   create?: Partial<ApplicationCreateInput>;
   returnToRepository?: JobRepositoryNavigationState;
+  applicationId?: string;
+  interviewId?: string;
 }

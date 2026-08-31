@@ -8,6 +8,7 @@ export function parseDesktopChatArgs(args) {
     else if (key === "--accept-resume-augmentation") {
       parsed.acceptResumeAugmentation = true;
     }
+    else if (key === "--accept-agent-task") parsed.acceptAgentTask = true;
     else if (key === "--open-resume-preview") parsed.openResumePreview = true;
     else if (key === "--stop-after-reuse-workspace") {
       parsed.stopAfterReuseWorkspace = true;
@@ -28,7 +29,7 @@ export function parseDesktopChatArgs(args) {
 }
 
 export function desktopChatUsage() {
-  return "Usage: node scripts/run-desktop-chat-smoke.mjs --message <text> [--jd-id <id>] [--new-chat] [--require-resume-ready] [--accept-resume-augmentation] [--open-resume-preview] [--stop-after-reuse-workspace] [--file <path>] [--timeout <ms>] [--screenshot <png>] [--cdp <url>]";
+  return "Usage: node scripts/run-desktop-chat-smoke.mjs --message <text> [--jd-id <id>] [--new-chat] [--require-resume-ready] [--accept-resume-augmentation] [--accept-agent-task] [--open-resume-preview] [--stop-after-reuse-workspace] [--file <path>] [--timeout <ms>] [--screenshot <png>] [--cdp <url>]";
 }
 
 function requireValue(args, index, key) {

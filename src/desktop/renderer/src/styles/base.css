@@ -1,4 +1,5 @@
 @import "./base-foundations.css";
+@import "./app-scrollbar.css";
 @import "./forced-update.css";
 @import "./base-login.css";
 @import "./base-privacy-dialog.css";
@@ -7,6 +8,7 @@
 @import "./base-workspace-chat.css";
 @import "./onboarding-empty-state.css";
 @import "./base-tools-composer.css";
+@import "./base-chat-terminal.css";
 @import "./base-approvals.css";
 @import "./base-artifact-resume.css";
 @import "./base-artifact-jd.css";
@@ -21,6 +23,7 @@
 @import "./base-resume-library-row.css";
 @import "./base-resume-library-dialogs.css";
 @import "./base-settings-dialog.css";
+@import "./ai-native-loops.css";
 @import "./base-credit-dialog.css";
 @import "./base-credit-balance-summary.css";
 @import "./base-credit-plan-catalog.css";

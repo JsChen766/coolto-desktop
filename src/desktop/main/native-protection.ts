@@ -12,6 +12,16 @@ import {
 
 declare const __COOLTO_NATIVE_CORE_SHA256__: string;
 
+export interface CooltoNativeCore extends ProtectedQualityCore {
+  calendarAuthorizationStatus?: () => string;
+  calendarRequestAccess?: (level: "write_only" | "full_access") => Promise<string>;
+  calendarCreateEvent?: (input: string) => Promise<string>;
+  calendarUpdateEvent?: (input: string) => Promise<string>;
+  calendarCancelEvent?: (eventIdentifier: string) => Promise<string>;
+}
+
+let activeNativeCore: CooltoNativeCore | undefined;
+
 export function initializeNativeProtection(): void {
   const bindingPath = app.isPackaged
     ? join(process.resourcesPath, "native", "coolto-core.node")
@@ -19,9 +29,14 @@ export function initializeNativeProtection(): void {
   if (!bindingPath || (!app.isPackaged && !existsSync(bindingPath))) return;
   verifyBinding(bindingPath, app.isPackaged);
   const require = createRequire(join(process.cwd(), "package.json"));
-  const binding = require(bindingPath) as ProtectedQualityCore;
+  const binding = require(bindingPath) as CooltoNativeCore;
   validateBinding(binding);
+  activeNativeCore = binding;
   installProtectedQualityCore(binding);
+}
+
+export function nativeCore(): CooltoNativeCore | undefined {
+  return activeNativeCore;
 }
 
 function verifyBinding(path: string, required: boolean): void {

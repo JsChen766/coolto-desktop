@@ -14,6 +14,7 @@ export interface ConversationAgentContext {
   resumeCompiler: ResumeCompiler;
   jdProposalStore: JdProposalStore;
   matchReportStore: MatchReportStore;
+  scopeTools: () => Promise<void>;
   approvalManager: ApprovalManager;
   experienceSyncProposals: ResumeExperienceSyncProposalPort;
   artifactIdByCandidate: Map<string, string>;

@@ -37,7 +37,9 @@ export async function probeFileInput(
 ): Promise<FileInputProbe> {
   const raw = (await contents.executeJavaScript(
     `(() => {
-      const el = document.querySelector('[data-fill-id="' + ${q(fillId)}.replace(/"/g, '') + '"]');
+      const fillId = ${q(fillId)};
+      const el = Array.from(document.querySelectorAll('[data-fill-id]'))
+        .find((item) => item.getAttribute('data-fill-id') === fillId);
       if (!el) return { ok: false, reason: 'element_not_found', accept: '', multiple: false };
       if (el.tagName !== 'INPUT' || (el.getAttribute('type') || '').toLowerCase() !== 'file')
         return { ok: false, reason: 'not_file_input', accept: '', multiple: false };
@@ -110,7 +112,9 @@ export async function pickLocalFiles(
 /** 定位 file input 并回传 objectId；非 file input 时抛可读错误。 */
 function buildLocateExpression(fillId: string): string {
   return `(() => {
-  const el = document.querySelector('[data-fill-id="' + ${q(fillId)}.replace(/"/g, '') + '"]');
+  const fillId = ${q(fillId)};
+  const el = Array.from(document.querySelectorAll('[data-fill-id]'))
+    .find((item) => item.getAttribute('data-fill-id') === fillId);
   if (!el) return { error: 'element_not_found' };
   if (el.tagName !== 'INPUT' || (el.getAttribute('type') || '').toLowerCase() !== 'file')
     return { error: 'not_file_input' };
@@ -122,7 +126,9 @@ function buildLocateExpression(fillId: string): string {
 /** 注入后派发 input/change，让 React/Vue 等监听器感知附件已选。 */
 function buildDispatchExpression(fillId: string): string {
   return `(() => {
-  const el = document.querySelector('[data-fill-id="' + ${q(fillId)}.replace(/"/g, '') + '"]');
+  const fillId = ${q(fillId)};
+  const el = Array.from(document.querySelectorAll('[data-fill-id]'))
+    .find((item) => item.getAttribute('data-fill-id') === fillId);
   if (!el) return { error: 'element_not_found' };
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));

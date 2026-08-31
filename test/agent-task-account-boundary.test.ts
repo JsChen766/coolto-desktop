@@ -40,7 +40,7 @@ test("account change revokes gate, run and immutable grant", async () => {
     current,
     reason: "account_changed",
     browser: { revokeWriteAccess: (reason: string) => calls.push(`gate:${reason}`) } as never,
-    status: { set: () => calls.push("status") } as never,
+    status: { clear: () => calls.push("status") } as never,
   });
   const active = await harness.grants.getActive(task.id);
   assert.equal(active.revocation?.reason, "account_changed");

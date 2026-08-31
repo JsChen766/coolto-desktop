@@ -1,10 +1,15 @@
 import type { BrowserWindow } from "electron";
 
 import type {
+  BrowserLocale,
   BrowserShellState,
   BrowserState,
 } from "../../shared/types.js";
+import { browserChromeHeightDip } from
+  "../../../browser/browser-agent-inspector-layout.js";
 import { BrowserTab } from "./browser-tab.js";
+import type { BrowserShortcutRouter } from "./browser-shortcut-router.js";
+import type { BrowserHomeTaskSnapshot } from "./browser-home-page.js";
 
 const IDLE_STATE: BrowserState = {
   isOpen: false,
@@ -25,11 +30,20 @@ const IDLE_STATE: BrowserState = {
 export class BrowserTabManager {
   readonly #tabs: BrowserTab[] = [];
   #activeId: string | null = null;
-  #chromeHeight = 84;
+  #chromeHeightCss = 84;
+  #rightInset = 0;
 
   public constructor(
     private readonly window: BrowserWindow,
     private readonly onChange: () => void,
+    private readonly presentation: {
+      locale: () => BrowserLocale;
+      theme: () => "light" | "dark";
+      homeTask: () => BrowserHomeTaskSnapshot | null;
+    },
+    private readonly shortcutRouter: BrowserShortcutRouter,
+    private readonly shouldFocusPage: () => boolean = () => true,
+    private readonly openTask: () => void = () => undefined,
   ) {}
 
   public newTab(url?: string, displayUrl?: string): BrowserTab {
@@ -38,6 +52,10 @@ export class BrowserTabManager {
       (openUrl) => {
         this.newTab(openUrl);
       },
+      this.presentation,
+      this.shortcutRouter,
+      () => this.window.isDestroyed() ? undefined : this.window,
+      this.openTask,
       displayUrl,
     );
     this.#tabs.push(tab);
@@ -59,6 +77,10 @@ export class BrowserTabManager {
       const next = this.#tabs[index] ?? this.#tabs[index - 1];
       this.#activeId = next?.id ?? null;
     }
+    if (this.#tabs.length === 0) {
+      this.window.close();
+      return;
+    }
     this.#applyVisibility();
     this.onChange();
   }
@@ -70,11 +92,52 @@ export class BrowserTabManager {
     this.onChange();
   }
 
+  public closeActive(): boolean {
+    if (!this.#activeId) return false;
+    this.closeTab(this.#activeId);
+    return true;
+  }
+
+  public cycle(direction: "next" | "previous"): boolean {
+    if (this.#tabs.length === 0) return false;
+    const current = Math.max(0, this.#tabs.findIndex((tab) => tab.id === this.#activeId));
+    const delta = direction === "next" ? 1 : -1;
+    const index = (current + delta + this.#tabs.length) % this.#tabs.length;
+    this.select(this.#tabs[index]!.id);
+    return true;
+  }
+
+  public selectIndex(index: number): boolean {
+    const tab = this.#tabs[index];
+    if (!tab) return false;
+    this.select(tab.id);
+    return true;
+  }
+
+  public selectLast(): boolean {
+    const tab = this.#tabs.at(-1);
+    if (!tab) return false;
+    this.select(tab.id);
+    return true;
+  }
+
   public setChromeHeight(height: number): void {
-    if (height > 0 && height !== this.#chromeHeight) {
-      this.#chromeHeight = Math.round(height);
-      this.layout();
-    }
+    if (height <= 0) return;
+    this.#chromeHeightCss = Math.round(height);
+    this.layout();
+  }
+
+  public get chromeHeightDip(): number {
+    return browserChromeHeightDip(
+      this.#chromeHeightCss, this.window.webContents.getZoomFactor(),
+    );
+  }
+
+  public setRightInset(width: number): void {
+    const next = Number.isFinite(width) ? Math.max(0, Math.round(width)) : 0;
+    if (next === this.#rightInset) return;
+    this.#rightInset = next;
+    this.layout();
   }
 
   public layout(): void {
@@ -83,15 +146,27 @@ export class BrowserTabManager {
     const height = size[1] ?? 0;
     const bounds = {
       x: 0,
-      y: this.#chromeHeight,
-      width,
-      height: Math.max(0, height - this.#chromeHeight),
+      y: this.chromeHeightDip,
+      width: Math.max(0, width - this.#rightInset),
+      height: Math.max(0, height - this.chromeHeightDip),
     };
     for (const tab of this.#tabs) tab.setBounds(bounds);
   }
 
   public activeTab(): BrowserTab | undefined {
     return this.#tabs.find((tab) => tab.id === this.#activeId);
+  }
+
+  public stopLoading(): void {
+    this.activeTab()?.stop();
+  }
+
+  public refreshInternalPresentation(): void {
+    for (const tab of this.#tabs) tab.refreshInternalPresentation();
+  }
+
+  public refreshHomeTask(): void {
+    for (const tab of this.#tabs) tab.refreshHomeTask();
   }
 
   public tab(tabId: string): BrowserTab | undefined {
@@ -139,7 +214,8 @@ export class BrowserTabManager {
   }
 
   #applyVisibility(): void {
-    for (const tab of this.#tabs) tab.setVisible(tab.id === this.#activeId);
+    for (const tab of this.#tabs) tab.setActive(tab.id === this.#activeId);
     this.layout();
+    if (this.shouldFocusPage()) this.activeTab()?.focus();
   }
 }

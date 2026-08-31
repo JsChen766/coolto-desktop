@@ -65,10 +65,12 @@ export class BrowserWriteAccessGate {
   }
 
   /** 主进程感知到标签导航到新 origin 时调用；若与授权 origin 不一致则硬收回。 */
-  public onOriginChanged(tabId: string, origin: string | null): void {
-    if (!this.#granted) return;
-    if (this.#tabId !== tabId) return;
-    if (this.#origin !== origin) this.revoke("origin-changed");
+  public onOriginChanged(tabId: string, origin: string | null): boolean {
+    if (!this.#granted || this.#tabId !== tabId || this.#origin === origin) {
+      return false;
+    }
+    this.revoke("origin-changed");
+    return true;
   }
 
   /**

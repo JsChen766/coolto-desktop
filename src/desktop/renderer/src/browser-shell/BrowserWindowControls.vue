@@ -58,6 +58,8 @@ defineEmits<{
   background: transparent;
   color: var(--text-soft);
   cursor: default;
+  transition: background-color var(--motion-fast) var(--ease-out-quart),
+    color var(--motion-fast) var(--ease-out-quart);
 }
 
 .control-button:hover {
@@ -65,7 +67,16 @@ defineEmits<{
 }
 
 .control-button.close:hover {
-  background: #e5484d;
-  color: #ffffff;
+  background: var(--browser-solid);
+  color: var(--browser-on-solid);
+}
+
+.control-button:focus-visible {
+  outline: 2px solid var(--browser-accent);
+  outline-offset: -3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-button { transition: none; }
 }
 </style>

@@ -41,6 +41,8 @@ export interface FormElementSummary {
     | "contenteditable"
     | "other";
   inputType?: string;
+  role?: string;
+  text?: string;
   label: string;
   placeholder: string;
   required: boolean;
@@ -105,6 +107,7 @@ export interface CaptchaDetection {
 export interface BrowserPageOperator {
   /** 主进程 write-enable 标志位查询；工具执行前均检查此位。 */
   isWriteAccessGranted(): boolean;
+  subscribeState(listener: () => void): () => void;
   /**
    * 由 approval executor 在用户确认后调用；绑定当前活跃标签 + origin，
    * 空闲超时或导航到新 origin 时自动收回。
@@ -114,7 +117,7 @@ export interface BrowserPageOperator {
   /** 写原语调用前统一检查；返回 { ok:false, message } 时应作为 isError 返回。 */
   checkWriteAccess(): WriteAccessCheck;
 
-  tagElements(): Promise<FormElementSummary[]>;
+  tagElements(preferredText?: string): Promise<FormElementSummary[]>;
   fillField(fillId: string, value: string): Promise<void>;
   selectOption(fillId: string, value: string): Promise<void>;
   setChecked(fillId: string, checked: boolean): Promise<void>;

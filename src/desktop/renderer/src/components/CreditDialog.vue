@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { X } from "@lucide/vue";
-import { onMounted, onUnmounted, useTemplateRef } from "vue";
+import { computed, onMounted, onUnmounted, useTemplateRef } from "vue";
 
-import type { DesktopApi } from "@desktop/types";
+import type { DesktopApi, DesktopCreditSummary } from "@desktop/types";
 
 import { useCreditDialog } from "../credits/use-credit-dialog.js";
 import CreditBalanceSummary from "./CreditBalanceSummary.vue";
 import CreditPlanCatalog from "./CreditPlanCatalog.vue";
 
-const props = defineProps<{ api: DesktopApi }>();
+const props = defineProps<{
+  api: DesktopApi;
+  summary: DesktopCreditSummary | undefined;
+  refreshSummary: () => Promise<DesktopCreditSummary | undefined>;
+}>();
 const emit = defineEmits<{ close: [] }>();
 const dialog = useTemplateRef<HTMLElement>("dialog");
 
@@ -25,7 +29,10 @@ const {
   verifyPayment,
   resetPurchase,
   dispose,
-} = useCreditDialog(props.api);
+} = useCreditDialog(props.api, {
+  summary: computed(() => props.summary),
+  refreshSummary: props.refreshSummary,
+});
 
 function buy(planType: string): void {
   void startPurchase(planType);
@@ -78,7 +85,11 @@ onUnmounted(dispose);
       <header class="credit-dialog-header">
         <div>
           <h2 id="credit-dialog-title">{{ $t('Credit 与套餐') }}</h2>
-          <p>{{ $t('管理你的额度与套餐，购买后 Credit 自动到账。') }}</p>
+          <p>
+            {{ summary?.unlimited
+              ? $t('当前账号使用任务时不扣除 Credit。')
+              : $t('管理你的额度与套餐，购买后 Credit 自动到账。') }}
+          </p>
         </div>
         <button
           class="icon-button"
@@ -98,6 +109,7 @@ onUnmounted(dispose);
         <template v-if="summary">
           <CreditBalanceSummary :summary="summary" :total-credits="totalCredits" />
           <CreditPlanCatalog
+            v-if="!summary.unlimited"
             :plans="plans"
             :phase="phase"
             :busy="busy"

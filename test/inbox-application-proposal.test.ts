@@ -140,6 +140,7 @@ async function recordSignal(
   });
   const signal = await harness.signals.record({
     taskId, eventId: event.id, provider: "gmail", connectionId: "gmail-1",
+    direction: "received",
     sourceMessageId: dedupeKey, sourceMessageHash: "hash",
     sender: "jobs@example.com", subject: kind,
     receivedAt: "2026-08-22T10:00:00Z", kind, confidence: 95,

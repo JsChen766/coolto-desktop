@@ -13,10 +13,11 @@ export const ELEMENT_HELPERS_SCRIPT = `
   };
   const findEl = (fillId) => {
     const queue = [document];
-    const safe = String(fillId).replace(/"/g, '');
+    const expected = String(fillId);
     while (queue.length) {
       const root = queue.shift();
-      const found = root.querySelector('[data-fill-id="' + safe + '"]');
+      const found = Array.from(root.querySelectorAll('[data-fill-id]'))
+        .find((element) => element.getAttribute('data-fill-id') === expected);
       if (found) return found;
       queue.push(...roots(root));
     }

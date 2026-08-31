@@ -1,10 +1,14 @@
 import { computed, onBeforeUnmount, onMounted, shallowReadonly, shallowRef } from "vue";
 
 import type { AgentTaskDetailView, AgentTaskView, DesktopApi } from "@desktop/types";
+import { openPresentedBrowser } from "../browser/open-presented-browser";
 
 type TaskAction = "start" | "resume" | "pause" | "cancel" | "revoke";
 
-export function useAgentTasks(api: DesktopApi) {
+export function useAgentTasks(
+  api: DesktopApi,
+  initialTaskId: () => string | undefined = () => undefined,
+) {
   const tasks = shallowRef<AgentTaskView[]>([]);
   const detail = shallowRef<AgentTaskDetailView>();
   const selectedId = shallowRef<string>();
@@ -20,7 +24,7 @@ export function useAgentTasks(api: DesktopApi) {
     error.value = undefined;
     try {
       tasks.value = await api.agentTasks.list();
-      const target = selectedId.value ?? tasks.value[0]?.id;
+      const target = initialTaskId() ?? selectedId.value ?? tasks.value[0]?.id;
       if (target) await select(target);
       else detail.value = undefined;
     } catch (cause) {
@@ -60,8 +64,8 @@ export function useAgentTasks(api: DesktopApi) {
     }
   }
 
-  async function openBrowser(): Promise<void> {
-    await api.browser.open();
+  async function openBrowser(url?: string): Promise<void> {
+    await openPresentedBrowser(api, url ? { url } : {});
   }
 
   onMounted(() => {
