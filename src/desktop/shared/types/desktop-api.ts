@@ -62,8 +62,7 @@ import type {
   CheckoutResult,
   CheckoutVerifyResult,
   ConversationDetail,
-  ConversationRenameInput,
-  ConversationSummary,
+  ConversationsDesktopApi,
   DesktopAttachment,
   DesktopCreditSummary,
   DesktopUser,
@@ -111,13 +110,7 @@ export interface DesktopApi {
   };
   mailConnections: MailConnectionsDesktopApi;
   onboarding: OnboardingDesktopApi;
-  conversations: {
-    list(): Promise<ConversationSummary[]>;
-    create(): Promise<ConversationDetail>;
-    get(conversationId: string): Promise<ConversationDetail>;
-    rename(input: ConversationRenameInput): Promise<ConversationSummary>;
-    delete(conversationId: string): Promise<void>;
-  };
+  conversations: ConversationsDesktopApi;
   attachments: {
     list(conversationId: string): Promise<DesktopAttachment[]>;
     select(conversationId: string): Promise<DesktopAttachment | undefined>;

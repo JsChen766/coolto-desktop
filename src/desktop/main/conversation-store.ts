@@ -3,7 +3,6 @@ import {
   mkdir,
   readFile,
   readdir,
-  rename,
   rm,
   unlink,
   writeFile,
@@ -26,6 +25,7 @@ import {
 } from "../../import/result-artifact.js";
 import { projectConversationMessages } from "./conversation-presentation.js";
 import { mergeMessageAttachments } from "./conversation-attachments.js";
+import { renameWithRetry } from "./atomic-rename.js";
 import {
   UNTITLED_CONVERSATION,
   assertConversationId,
@@ -146,6 +146,22 @@ export class ConversationStore {
       artifacts.push(structuredClone(artifact));
     }
     record.resumeArtifacts = artifacts;
+    record.activeResumeArtifactId = artifact.artifactId;
+    record.updatedAt = new Date().toISOString();
+    await this.#write(record);
+    return conversationDetail(record);
+  }
+
+  public async setActiveResumeArtifact(
+    conversationId: string,
+    artifactId: string | undefined,
+  ): Promise<ConversationDetail> {
+    const record = await this.getRecord(conversationId);
+    if (record.activeResumeArtifactId === artifactId) {
+      return conversationDetail(record);
+    }
+    if (artifactId) record.activeResumeArtifactId = artifactId;
+    else delete record.activeResumeArtifactId;
     record.updatedAt = new Date().toISOString();
     await this.#write(record);
     return conversationDetail(record);
@@ -219,29 +235,5 @@ export class ConversationStore {
     const encrypted = encryptConversation(JSON.stringify(record));
     await writeFile(temporary, encrypted, { mode: 0o600 });
     await renameWithRetry(temporary, destination);
-  }
-}
-
-const RENAME_RETRY_DELAYS_MS = [50, 200, 500] as const;
-
-/**
- * Windows can transiently lock a just-written file (real-time AV scanning) or
- * keep the destination open (stale process), failing the atomic rename with
- * EPERM. Retrying instead of surfacing the raw error keeps saves reliable.
- */
-async function renameWithRetry(
-  source: string,
-  destination: string,
-): Promise<void> {
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      await rename(source, destination);
-      return;
-    } catch (error: unknown) {
-      if (attempt >= RENAME_RETRY_DELAYS_MS.length) throw error;
-      await new Promise((resolve) =>
-        setTimeout(resolve, RENAME_RETRY_DELAYS_MS[attempt]),
-      );
-    }
   }
 }

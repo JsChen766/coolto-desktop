@@ -66,6 +66,33 @@ test("local resume drafts survive independently of conversation references", asy
   }
 });
 
+test("linking another conversation changes metadata without creating a Resume revision", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "coolto-resume-link-"));
+  try {
+    const service = new ResumeDraftService(
+      "user-1",
+      new ResumeDraftFileRepository("user-1", directory, codec),
+    );
+    const created = await service.syncWorkspace({
+      conversationId: "conversation-1",
+      workspace: await createWorkspace(),
+    });
+    const revision = created.draft.workspace.revision;
+    const updatedAt = created.draft.updatedAt;
+
+    const linked = await service.linkConversation(
+      created.draft.artifactId,
+      "conversation-2",
+    );
+
+    assert.deepEqual(linked.conversationIds, ["conversation-1", "conversation-2"]);
+    assert.equal(linked.workspace.revision, revision);
+    assert.equal(linked.updatedAt, updatedAt);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("a draft that becomes ready after creation receives a generated checkpoint", async () => {
   const directory = await mkdtemp(join(tmpdir(), "coolto-ready-checkpoint-"));
   try {

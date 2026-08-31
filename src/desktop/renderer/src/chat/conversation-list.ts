@@ -10,6 +10,7 @@ export function findReusableEmptyConversation(
     (conversation) =>
       conversation.id !== excludedConversationId &&
       conversation.title === UNTITLED_CONVERSATION &&
-      conversation.messageCount === 0,
+      conversation.messageCount === 0 &&
+      !conversation.activeResumeArtifactId,
   );
 }

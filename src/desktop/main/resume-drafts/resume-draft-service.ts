@@ -42,6 +42,20 @@ export class ResumeDraftService {
     await this.repository.save(draft);
   }
 
+  public async linkConversation(
+    artifactId: string,
+    conversationId: string,
+  ): Promise<LocalResumeDraft> {
+    const draft = await this.repository.get(artifactId);
+    if (draft.conversationIds.includes(conversationId)) return draft;
+    const linked: LocalResumeDraft = {
+      ...structuredClone(draft),
+      conversationIds: [...draft.conversationIds, conversationId],
+    };
+    await this.repository.save(linked);
+    return linked;
+  }
+
   public async syncWorkspace(input: {
     conversationId: string;
     workspace: ResumeWorkspace;

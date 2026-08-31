@@ -36,7 +36,30 @@ export function createDemoChatApis(draft: ResumeDraftDetail, now: Date) {
       conversations = [created, ...conversations];
       return structuredClone(created);
     },
+    createForResume: async (artifactId) => {
+      const created = await conversationApi.create();
+      return conversationApi.bindResume({
+        conversationId: created.id,
+        artifactId,
+      });
+    },
     get: async (id) => structuredClone(find(id)),
+    bindResume: async ({ conversationId, artifactId }) => {
+      if (artifactId !== draft.artifactId) throw new Error("本地简历草稿不存在");
+      const conversation = find(conversationId);
+      conversation.activeResumeArtifactId = artifactId;
+      conversation.updatedAt = new Date().toISOString();
+      if (!draft.conversationIds.includes(conversationId)) {
+        draft.conversationIds.push(conversationId);
+      }
+      return structuredClone(conversation);
+    },
+    clearResumeContext: async (conversationId) => {
+      const conversation = find(conversationId);
+      delete conversation.activeResumeArtifactId;
+      conversation.updatedAt = new Date().toISOString();
+      return structuredClone(conversation);
+    },
     rename: async ({ conversationId, title }) => {
       const conversation = find(conversationId);
       conversation.title = title;
@@ -122,6 +145,7 @@ function initialConversations(draft: ResumeDraftDetail, now: Date): Conversation
         title: draft.title,
         createdAt: draft.updatedAt,
       }],
+      activeResumeArtifactId: draft.artifactId,
       experienceImportArtifacts: [],
       messages: [
         message("user", "请根据我的全部经历，帮我准备一份面向 AI 产品经理岗位的简历。", -6),
