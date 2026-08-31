@@ -1,6 +1,5 @@
 import type { WebContents } from "electron";
-import type { BrowserLocale, BrowserOpenInput, BrowserState } from
-  "../../shared/types.js";
+import type { BrowserLocale, BrowserOpenInput, BrowserState } from "../../shared/types.js";
 import type { BrowserPageOperator } from "../../../browser/types.js";
 import type { BrowserAgentController } from "../../../browser/agent-control-types.js";
 import { BrowserActiveOriginTracker, activeTabContext } from "./browser-active-tab.js";
@@ -24,14 +23,12 @@ import { BrowserWindowPresentation } from "./browser-window-presentation.js";
 import { BrowserWindowHost } from "./browser-window-host.js";
 import { browserHomeTaskSnapshot } from "./browser-home-page.js";
 import { browserPageHandoff } from "../../../browser/browser-page-handoff.js";
-import {
-  IDLE_BROWSER_STATE,
-  type BrowserWindowEmitters,
-} from "./browser-window-state.js";
+import { IDLE_BROWSER_STATE, type BrowserWindowEmitters } from "./browser-window-state.js";
 export type { BrowserWindowEmitters } from "./browser-window-state.js";
 export class BrowserWindowManager {
   #pendingUrl: string | undefined;
   #pendingDisplayUrl: string | undefined;
+  #pendingHostInternal = false;
   readonly #emitters: BrowserWindowEmitters;
   readonly #writeAccess = new BrowserWriteAccessGate();
   readonly #operator: BrowserPageOperatorImpl;
@@ -109,25 +106,26 @@ export class BrowserWindowManager {
     const page = tab ? browserPageHandoff(tab) : null;
     if (page) this.#emitters.openPageInApp(page);
   }
-  public open(input?: BrowserOpenInput): BrowserState {
+  public open(input?: BrowserOpenInput, hostInternal = false): BrowserState {
     const presentationChanged = this.#presentation.apply(input);
     const url = input?.url?.trim();
     if (this.#host.isOpen) {
       this.#host.focus();
       if (presentationChanged) this.#host.tabs?.refreshInternalPresentation();
-      if (url) this.#host.tabs?.newTab(url, this.#pendingDisplayUrl);
+      if (url) this.#host.tabs?.newTab(url, this.#pendingDisplayUrl, hostInternal);
       this.#pendingDisplayUrl = undefined;
       this.pushState();
       return this.getState();
     }
     this.#pendingUrl = url;
+    this.#pendingHostInternal = hostInternal;
     this.#host.open();
     return this.getState();
   }
 
   public openOnboardingDemo(url: string, theme: "light" | "dark"): BrowserState {
     this.#pendingDisplayUrl = "coolto://onboarding/example-application";
-    return this.open({ url, theme });
+    return this.open({ url, theme }, true);
   }
 
   public close(): void {
@@ -236,9 +234,11 @@ export class BrowserWindowManager {
   public onShellReady(locale?: BrowserLocale): void {
     const changed = this.#presentation.setLocale(locale);
     if (changed) this.#host.tabs?.refreshInternalPresentation();
-    if (this.#host.ensureFirstTab(this.#pendingUrl, this.#pendingDisplayUrl)) {
+    if (this.#host.ensureFirstTab(this.#pendingUrl, this.#pendingDisplayUrl,
+      this.#pendingHostInternal)) {
       this.#pendingUrl = undefined;
       this.#pendingDisplayUrl = undefined;
+      this.#pendingHostInternal = false;
     }
     this.pushState();
   }

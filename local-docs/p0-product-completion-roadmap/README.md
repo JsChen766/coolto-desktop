@@ -3561,6 +3561,17 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   不创建聊天消息或调用模型。真实 development Electron 已确认三个入口可见且求职仓库导航生效；完整引导
   重放未再次执行。`npm run check` 全绿：977 个源文件均 ≤250 行、862/862 tests、Node/Preload/Renderer
   typecheck、Node/Electron production build 与 `git diff --check` 通过；未 package、commit、push、上传或发版。
+- 2026-08-31 用户实机首次体验在 Browser Shell 阶段稳定报“本地示例申请页加载超时”：根因是固定
+  `data:text/html` 页面误走只允许 HTTP(S) 的用户导航白名单并回退到浏览器主页。现保留外部导航拒绝
+  `data:` 的安全边界，增加仅主进程可选用、受 MIME/长度约束的内部 HTML 首屏入口；onboarding 同时记录
+  打开前的 tab IDs，只等待并重新选中本次新建的目标页，不再依赖用户当前活动标签。专项 8/8 通过；隔离
+  用户目录的真实 Electron 已完成本地页加载、姓名/邮箱/所在地填写和固定临时 PDF 上传，页面标题、展示
+  地址、加载终态与实际 DOM 均通过，临时用户目录和 QA 脚本已清理。干净发布工作树的 `npm run check`
+  全绿：1163 个源文件均 ≤250 行、1103 pass/2 platform skip、Node/Preload/Renderer typecheck、production build
+  与 `git diff --check` 通过。随后在同一 0.1.25 发布工作树完整执行 `npm run package:win`：Rust 3/3、protected
+  Main、NSIS、release hardening、真实隔离安装/bootstrap/Renderer 持续健康与卸载清理全部通过；本地 EXE
+  135,154,174 bytes，SHA-256 `1F09E9C7771EC0AA20618376273D770920536FA4DF308CD4AE4EB44031BB5003`，
+  Authenticode 为 NotSigned。此处仅记录发布前本地门禁，尚未 push、上传或声明公网 0.1.25 已发布。
 - 同日用户进一步确认放弃独立 ExperienceEvidence，统一以 Experience 当前 revision 的长纯文本作为未来
   简历职业事实源。现新增宿主管理的材料沉淀状态机：PDF 保留页级边界，DOCX/TXT/Markdown 和当前网页按
   最多 6000 字分块，直接用户长文本走同一路径；材料正文最多 180,000 字，超过时明确要求拆分，不再沿用
