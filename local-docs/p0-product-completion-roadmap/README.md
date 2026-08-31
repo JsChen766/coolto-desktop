@@ -3148,6 +3148,25 @@ macOS workflow [`33379765535`](https://github.com/JsChen766/cv_agent_frontend/ac
 `B3937E27A92E177DE0FAECA50ABAA20B3228352F5E1F1A1F0AA81C7E346DE112`。Windows 仍 NotSigned，macOS
 仍 ad-hoc/未 notarize；本次发布不替代 BE5/BE8/S4.5 的剩余真实门禁，阶段状态不因此改变。
 
+**0.1.23 Browser Enhance 跨平台发布完成（2026-08-31）：**本地 enhance 先合入最新 `origin/app` 0.1.22，
+保留 ResumeDraft 会话绑定、RunTerminal、AgentTask/Browser API 与本地加密存储；PR
+[#51](https://github.com/JsChen766/cv_agent_frontend/pull/51) 合入受保护 `app`，merge
+`138aec5c1aaf46f7e5f8d0dd4ef0572c9bc84759`。首轮 macOS run `33383248866` 在 native build 发现
+macOS-only Rust 语法错误，Windows run `33383246087` 在上传前取消；PR
+[#52](https://github.com/JsChen766/cv_agent_frontend/pull/52) 修复并合入最终 app
+`38a813ef6604367cb26be418413956a3fc0454a6`。发布前 `npm run check`：1162 个源文件均 ≤250 行，1102 tests
+为 1100 pass、2 platform skip、0 fail，双 typecheck、双 build 和 5 个 sandbox preload 门禁通过。
+Windows workflow [`33383594280`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33383594280)、macOS
+workflow [`33383597930`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33383597930) 与 Homepage
+workflow [`33384212066`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33384212066) 均成功。公网
+feed、下载页与官网 bundle 均为 0.1.23；五个文件全字节尺寸/feed SHA-512 匹配，独立 SHA-256：Windows EXE
+`5CB39197513B4DA5E83B58A7F46B5218C40A5AA696014D7CE954880A4064376B`，Intel ZIP
+`582B3508E93759B26A652C397F9C2399AA115E3729E396CAFC02D3321351DFFE`，ARM64 ZIP
+`4F273493A978065D1497290F2CCC3649E6C2F2F64D2C0E38C9E4276AD53FCB8D`，Intel DMG
+`0AF5C9F242B7FDE244EE4243425A125707F0D5172559373D79AEB2151717AF90`，ARM64 DMG
+`E3EC3F964E191467ED9BE2472CFF54CB75F71098B4468FFE6828FDEA36652749`。Windows 仍 NotSigned，macOS 仍
+ad-hoc/未 notarize；BSF5、BE6 真机和 BE8 真实交付门禁不因本次发布自动完成。
+
 **S4.5.1 尾行 V2 实施与实测（2026-08-25 至 08-26，尾行独测通过、整份未完成）：**尾行质量政策已
 从 layout manifest 解耦并版本化；新工作区采用严格 `2/3 + 1px` V2，历史无版本结构保留 V1。隐藏
 Chromium 新增 computed-style CEU 标定和“水 × n”换行响应曲线，Agent 每条只提交一个 `growthText`、
