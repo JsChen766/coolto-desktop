@@ -24,6 +24,8 @@ import { ResumeSyncStore } from "./resume-library/resume-sync-store.js";
 import { createElectronResumeDraftRepository } from "./resume-drafts/electron-draft-repository.js";
 import { ResumeDraftEditingService } from "./resume-drafts/draft-editing-service.js";
 import { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+import { ResumeConversationLinkService } from
+  "./resume-drafts/resume-conversation-link-service.js";
 import { ResumePdfExportService } from "./resume-pdf-export-service.js";
 import { ApplicationTrackerDetailService } from "./tracker/application-tracker-detail-service.js";
 import { InterviewProposalService } from "./tracker/interview-proposal-service.js";
@@ -70,6 +72,10 @@ export class UserServicesResolver {
     const resumeDrafts = new ResumeDraftService(
       user.id,
       createElectronResumeDraftRepository(user.id),
+    );
+    const resumeConversationLinks = new ResumeConversationLinkService(
+      conversations,
+      resumeDrafts,
     );
     const { selectedFiles, deliveryResumeFiles } = createUserFileServices(user.id);
     const draftRepository = createElectronResumeDraftRepository(user.id);
@@ -138,6 +144,7 @@ export class UserServicesResolver {
       ownerId: user.id,
       conversations,
       resumeDrafts,
+      resumeConversationLinks,
       resumeDraftEditing: new ResumeDraftEditingService(
         resumeDrafts,
         new ResumeManualEditor(this.resumeCompiler),

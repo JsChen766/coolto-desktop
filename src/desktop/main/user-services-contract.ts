@@ -17,6 +17,8 @@ import type { ProfileProposalService } from "./profile/profile-proposal-service.
 import type { ProfileSyncStore } from "./profile/profile-sync-store.js";
 import type { ResumeDraftEditingService } from "./resume-drafts/draft-editing-service.js";
 import type { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+import type { ResumeConversationLinkService } from
+  "./resume-drafts/resume-conversation-link-service.js";
 import type { ResumePdfExportService } from "./resume-pdf-export-service.js";
 import type { ResumeSyncStore } from "./resume-library/resume-sync-store.js";
 import type { ApplicationTrackerDetailService } from "./tracker/application-tracker-detail-service.js";
@@ -34,6 +36,7 @@ export interface UserServices extends UserFileServices {
   ownerId: string;
   conversations: ConversationStore;
   resumeDrafts: ResumeDraftService;
+  resumeConversationLinks: ResumeConversationLinkService;
   resumeDraftEditing: ResumeDraftEditingService;
   resumePdfExports: ResumePdfExportService;
   agent: DesktopAgentRuntime;

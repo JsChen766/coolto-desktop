@@ -28,6 +28,7 @@ export interface StoredConversation {
   createdAt: string;
   updatedAt: string;
   agentMessages: AgentMessage[];
+  activeResumeArtifactId?: string;
   resumeArtifacts?: ResumeDraftArtifactReference[];
   experienceImportArtifacts?: ExperienceImportResultArtifact[];
   messageAttachments?: StoredMessageAttachment[];
@@ -59,6 +60,9 @@ export function conversationSummary(
     title: presentConversationTitle(record.title, record.agentMessages),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
+    ...(record.activeResumeArtifactId
+      ? { activeResumeArtifactId: record.activeResumeArtifactId }
+      : {}),
     messageCount: projectConversationMessages(
       record.agentMessages,
       record.messageAttachments,
@@ -138,6 +142,8 @@ export function isStoredConversation(
     typeof candidate.createdAt === "string" &&
     typeof candidate.updatedAt === "string" &&
     Array.isArray(candidate.agentMessages) &&
+    (candidate.activeResumeArtifactId === undefined ||
+      typeof candidate.activeResumeArtifactId === "string") &&
     (candidate.resumeArtifacts === undefined ||
       Array.isArray(candidate.resumeArtifacts)) &&
     (candidate.experienceImportArtifacts === undefined ||

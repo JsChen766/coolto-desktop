@@ -3524,6 +3524,17 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   Node/Preload/Renderer typecheck、Node/Electron production
   build 与 `git diff --check` 通过。真实写入已进入 LocalSyncStore/Outbox；本轮后端离线，云端 replay 未复验，
   但没有新增或修改后端契约。未 package、commit、push、上传或发版。
+- 2026-08-31 按用户确认补齐本地 ResumeDraft 与聊天的持续交互：Conversation 新增本地
+  `activeResumeArtifactId`，宿主以幂等 Link Service 同时维护 ResumeDraft `conversationIds`，关系元数据不改
+  Resume revision、正文或云端。点击侧栏本地简历会过滤已删除引用并进入最近更新的关联对话，Composer 持续
+  携带精确 `artifactId`，不再依赖 `list_resumes` 猜测右侧内容；对话内“＋选择简历”也在真实 prompt 前补齐
+  同一关系。新增“清空聊天上下文”采用非破坏性确认：底层创建消息数为 0 的新 Conversation 并继续绑定同一
+  ResumeDraft，旧对话完整保留，右侧 A4 不变；全局“新对话”明确排除已绑定的空白会话并清除简历上下文。
+  专项覆盖最近关联选择、单边/重复绑定、新会话零消息、旧消息保留、关系不制造 revision 与全局空白隔离；
+  `npm run check` 全绿（991 个源文件均 ≤250 行、881/881 tests、Node/Preload/Renderer typecheck、Node 与
+  Electron production build），`git diff --check` 通过。隔离真实 Electron production renderer + preload
+  自动点击验收 9/9：原对话/上下文/A4 恢复、确认弹窗、新空白绑定对话、旧对话保留及全局新对话清理均通过；
+  未调用模型、云端保存、正式用户数据、package、commit、push、上传或发版，BE5/S4.5 阶段总状态不变。
 
 ## 明确不进入本路线
 

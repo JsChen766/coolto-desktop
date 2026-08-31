@@ -6,6 +6,7 @@ import {
   FileText,
   Globe,
   LoaderCircle,
+  MessageSquarePlus,
   PanelLeftClose,
   PanelLeftOpen,
 } from "@lucide/vue";
@@ -21,6 +22,8 @@ const props = defineProps<{
   sidebarOpen: boolean;
   artifactOpen: boolean;
   browserOpen: boolean;
+  resumeContextActive?: boolean;
+  contextResetDisabled?: boolean;
   resumeDraft: ResumeDraftDetail | undefined;
   exporting?: boolean;
   exportMessage?: string;
@@ -35,6 +38,7 @@ defineEmits<{
   toggleSidebar: [];
   toggleArtifact: [];
   toggleBrowser: [];
+  resetContext: [];
   saveResume: [];
   exportResume: [];
   rename: [];
@@ -84,6 +88,13 @@ function resumeActionLabel(action: "保存到简历库" | "导出到本地文件
     </div>
 
     <div class="chat-header-actions no-drag">
+      <IconButton
+        v-if="resumeContextActive"
+        :icon="MessageSquarePlus"
+        :label="$t('清空聊天上下文')"
+        :disabled="contextResetDisabled"
+        @click="$emit('resetContext')"
+      />
       <IconButton
         :icon="Globe"
         :label="$t('浏览器')"
