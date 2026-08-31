@@ -49,14 +49,16 @@ try {
   const bootstrapReady = stdout.includes(marker);
   await sleep(3_000);
   const stillRunning = application.exitCode === null;
+  const fatalStderr = /UnhandledPromiseRejection|uncaught exception/iu.test(stderr);
   const result = {
     bootstrapReady,
     cdpReady,
     stillRunning,
+    fatalStderr,
     stderr: stderr.trim().slice(0, 2_000),
   };
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  if (!bootstrapReady || !cdpReady || !stillRunning) {
+  if (!bootstrapReady || !cdpReady || !stillRunning || fatalStderr) {
     throw new Error("Unpacked app failed bootstrap or CDP health checks");
   }
 } finally {
@@ -80,7 +82,8 @@ async function hasPageTarget(port) {
     const response = await fetch(`http://127.0.0.1:${port}/json`);
     const targets = await response.json();
     return targets.some((target) =>
-      target.type === "page" && target.webSocketDebuggerUrl,
+      target.type === "page" && target.webSocketDebuggerUrl &&
+      target.url?.startsWith("file:"),
     );
   } catch {
     return false;
