@@ -64,10 +64,12 @@ try {
     await delay(250);
   }
   const bootstrapReady = stdout.includes(readyMarker);
-  if (!bootstrapReady || !cdpReady || application.exitCode !== null) {
+  const fatalStderr = /UnhandledPromiseRejection|uncaught exception/iu.test(stderr);
+  if (!bootstrapReady || !cdpReady || fatalStderr || application.exitCode !== null) {
     throw new Error(
       `Installed app did not become healthy ` +
-      `(bootstrap=${bootstrapReady}, cdp=${cdpReady}, exit=${application.exitCode})` +
+      `(bootstrap=${bootstrapReady}, cdp=${cdpReady}, fatalStderr=${fatalStderr}, ` +
+      `exit=${application.exitCode})` +
       `\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`,
     );
   }
@@ -120,7 +122,8 @@ async function hasPageTarget(port) {
   try {
     const response = await fetch(`http://127.0.0.1:${port}/json`);
     const targets = await response.json();
-    return targets.some((target) => target.type === "page" && target.webSocketDebuggerUrl);
+    return targets.some((target) => target.type === "page" &&
+      target.webSocketDebuggerUrl && target.url?.startsWith("file:"));
   } catch {
     return false;
   }
