@@ -456,6 +456,37 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 - 本次发布完成不替代 BSF5 的真实登录/OTP/CAPTCHA/NVDA、BE6 EventKit 真机 CRUD/TCC 或 BE8 真实账号、
   长任务、断网与跨账号验收；这些门禁继续保持未完成。
 
+### 10.13 已验证基线（2026-08-31，0.1.24 Windows 启动热修复）
+
+- 0.1.23 在真实 Windows 更新后可稳定复现“进程存活但窗口不显示”：主进程打印
+  `COOLTO_MAIN_BOOTSTRAP_READY` 后抛出 `TypeError: n.onSyncSettled is not a function`，CDP 只有空白
+  page 且没有 Renderer 进程。根因是合并时仍按旧参数顺序调用 `registerAuthIpc`，遗漏 `BrowserWindow`，
+  导致认证同步监听在 `loadFile` 前异步拒绝；不是用户数据损坏，也没有 WER/崩溃转储。
+- 同时修正了误报绿灯的 Windows 发布门禁：installer/unpacked verifier 现在必须观察到 `file:` Renderer
+  target，并把 `UnhandledPromiseRejection`/`uncaught exception` stderr 视为失败；只看到早期 bootstrap
+  marker、空白 CDP page 或存活主进程不再算健康。新增静态回归用例冻结 IPC 参数和验证器合同。
+- 版本升至 0.1.24；发布前 `npm run check` 全绿：1163 个源文件均不超过 250 行，1107 项测试中
+  1105 通过、2 项平台跳过、0 失败，Node/Preload/Vue typecheck、Node/Electron production build 与
+  5 个 sandbox preload 门禁通过。PR #54 合入受保护 `app`，最终 app commit 为
+  `de2ccad067fb452e9780351a27816b1d4d26643b`。
+- Windows workflow `33397416366` 成功，包含真实安装、非空 `file:` Renderer、无未处理拒绝、持续存活和
+  卸载；macOS workflow `33397420925` 成功完成 x64/arm64 ZIP/DMG 与两端 hardening；Homepage workflow
+  `33398159448` 成功并从 0.1.24 feed 重新生成下载地址。
+- 公网 `latest.yml`/`latest-mac.yml` 均为 0.1.24；五个文件完成无 query URL 全字节下载，尺寸与 feed
+  SHA-512 全部匹配，独立 SHA-256：Windows EXE 133,626,471 bytes，
+  `E31B366F2D8F66BB534244292B4971F4FEDE97B08383D0B59C7A1139B5D0338A`；Intel ZIP 188,903,280 bytes，
+  `431F6769C917282B4455FAF292206E36E2F88A99AA6AB3ED5BF70CB723B3E315`；Apple Silicon ZIP
+  185,343,011 bytes，`BB05FC57FC42E275943C991A186C13F118EB3DAC0C050C2FE27A3D6447DEF588`；Intel DMG
+  191,799,181 bytes，`F2BE2C89F3624A51FFF2FE7F5187EA09BC160B5454117E2A81F2B5EF953131AE`；Apple Silicon
+  DMG 188,246,322 bytes，`5269DDCE260D52731EF288D341C74EF649AEF8665595909119553BF1995216AD`。
+- 同一台真实 Windows 已将 0.1.24 覆盖安装到原目录并以既有 userData 启动：存在 Renderer 进程，CDP
+  页面为安装包内 `file:///.../out/renderer/index.html`，UI Automation 报告主窗口 `IsOffscreen=false`、
+  `IsEnabled=true`。官网 EXE 曾在浏览器下载历史中显示 `Virus scan failed`；同时间窗 Defender 日志只有
+  扫描未完成事件而无恶意软件检出，随后对公网同一哈希文件直接扫描结果为 `found no threats`。Windows
+  产物仍为 NotSigned；浏览器/SmartScreen 的普遍信誉风险只能由正式 Authenticode 证书解决，不能以关闭
+  安全扫描或修改响应头代替。
+- 本次热修复不替代 BSF5、BE6 或 BE8 的任何延期真实验收，Roadmap 阶段状态保持不变。
+
 ### 10.6 运维注意事项（坑）
 
 - **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过

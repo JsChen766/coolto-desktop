@@ -3167,6 +3167,29 @@ feed、下载页与官网 bundle 均为 0.1.23；五个文件全字节尺寸/fee
 `E3EC3F964E191467ED9BE2472CFF54CB75F71098B4468FFE6828FDEA36652749`。Windows 仍 NotSigned，macOS 仍
 ad-hoc/未 notarize；BSF5、BE6 真机和 BE8 真实交付门禁不因本次发布自动完成。
 
+**0.1.24 Windows 启动热修复与跨平台发布完成（2026-08-31）：**0.1.23 在真实 Windows 更新后复现主进程
+存活但无 Renderer/可见窗口；fresh userData 同样失败。启动 stderr 精确定位为
+`TypeError: n.onSyncSettled is not a function`：合并后的 `registerAuthIpc` 调用遗漏 `BrowserWindow` 参数，
+认证同步监听在 `loadFile` 前拒绝。修复同时把 Windows installer/unpacked 门禁从“bootstrap marker + 任意 CDP
+page + 进程存活”收紧为必须加载 `file:` Renderer 且 stderr 不得出现未处理拒绝，并新增合同回归测试。发布前
+`npm run check` 全绿：1163 个源文件均 ≤250 行，1107 tests 为 1105 pass、2 platform skip、0 fail，双
+typecheck、双 production build 与 5 个 sandbox preload 门禁通过。PR
+[#54](https://github.com/JsChen766/cv_agent_frontend/pull/54) 合入受保护 `app`，最终 app 为
+`de2ccad067fb452e9780351a27816b1d4d26643b`；Windows workflow
+[`33397416366`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33397416366)、macOS workflow
+[`33397420925`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33397420925) 与 Homepage workflow
+[`33398159448`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33398159448) 均成功。Windows CI 的真实安装
+已通过非空 `file:` Renderer 与无未处理拒绝门禁；同一真实 Windows 覆盖安装后以既有 userData 启动，Renderer
+存在且 UI Automation 确认主窗口非 offscreen。公网 feed 均为 0.1.24，五个文件全字节尺寸/feed SHA-512
+匹配，独立 SHA-256：Windows EXE
+`E31B366F2D8F66BB534244292B4971F4FEDE97B08383D0B59C7A1139B5D0338A`，Intel ZIP
+`431F6769C917282B4455FAF292206E36E2F88A99AA6AB3ED5BF70CB723B3E315`，ARM64 ZIP
+`BB05FC57FC42E275943C991A186C13F118EB3DAC0C050C2FE27A3D6447DEF588`，Intel DMG
+`F2BE2C89F3624A51FFF2FE7F5187EA09BC160B5454117E2A81F2B5EF953131AE`，ARM64 DMG
+`5269DDCE260D52731EF288D341C74EF649AEF8665595909119553BF1995216AD`。同机浏览器曾报 `Virus scan failed`，
+但 Defender 对同一公网哈希文件直接扫描无威胁；Windows 仍 NotSigned，普遍下载信誉风险留待正式
+Authenticode 证书解决。BSF5、BE6 与 BE8 状态不因本次热修复改变。
+
 **S4.5.1 尾行 V2 实施与实测（2026-08-25 至 08-26，尾行独测通过、整份未完成）：**尾行质量政策已
 从 layout manifest 解耦并版本化；新工作区采用严格 `2/3 + 1px` V2，历史无版本结构保留 V1。隐藏
 Chromium 新增 computed-style CEU 标定和“水 × n”换行响应曲线，Agent 每条只提交一个 `growthText`、
