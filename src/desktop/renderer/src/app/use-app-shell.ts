@@ -10,6 +10,8 @@ import { useResumeWorkspace } from "../resume-workspace/use-resume-workspace";
 import { useAppUpdates } from "../updates/use-app-updates";
 import { useBrowserAgentTaskNavigation } from "./use-browser-agent-task-navigation";
 import { useResumeLibraryPreview } from "./use-resume-library-preview";
+import { useResumeConversationContext } from
+  "./use-resume-conversation-context";
 import { useResumeInstructionActions } from "./use-resume-instruction-actions";
 import { useWindowCloseSave } from "./use-window-close-save";
 import { useWorkspaceFlows } from "./use-workspace-flows";
@@ -62,8 +64,19 @@ export function useAppShell() {
     clearLocalError: () => { resumeWorkspace.error.value = undefined; },
     closeNarrowSidebar,
     draftIds: () => resumeWorkspace.drafts.value.map((draft) => draft.artifactId),
-    openLocalDraft: resumeWorkspace.openDraft,
+    openLocalDraft: (artifactId) =>
+      resumeConversations.openResumeDraft(artifactId, false),
     sendInstruction: (text, reference) => send(text, reference),
+  });
+  const resumeConversations = useResumeConversationContext({
+    session,
+    workspace: resumeWorkspace,
+    preview: resumePreview,
+    activeView,
+    activeArtifactType,
+    artifactOpen,
+    closeNarrowSidebar,
+    conversationsApi: desktopApi.conversations,
   });
   watch(
     () => resumeWorkspace.activeDraft.value,
@@ -86,15 +99,8 @@ export function useAppShell() {
       text, resumeReference, jdReference,
       attachment ? [toMessageAttachment(attachment)] : undefined,
     );
+    await resumeConversations.restoreCurrentResumeContext();
     await conversationAttachment.remove().catch(() => undefined);
-  }
-  async function openResumeDraft(artifactId: string): Promise<void> {
-    resumePreview.resetResumePreview();
-    closeNarrowSidebar();
-    activeView.value = "chat";
-    activeArtifactType.value = "resume";
-    artifactOpen.value = true;
-    await resumeWorkspace.openDraft(artifactId);
   }
   function openPrimaryView(view: "agent_tasks" | "experiences" | "library"): void {
     resumePreview.resetResumePreview();
@@ -110,18 +116,6 @@ export function useAppShell() {
     closeNarrowSidebar();
     jobFlow.trackerContext.value = {};
     activeView.value = "tracker";
-  }
-  async function createChat(): Promise<void> {
-    resumePreview.resetResumePreview();
-    closeNarrowSidebar();
-    activeView.value = "chat";
-    await session.createConversation();
-  }
-  async function selectChat(conversationId: string): Promise<void> {
-    resumePreview.resetResumePreview();
-    closeNarrowSidebar();
-    activeView.value = "chat";
-    await session.selectConversation(conversationId);
   }
   function openJdPanel(proposalId: string): void {
     resumePreview.resetResumePreview();
@@ -142,9 +136,10 @@ export function useAppShell() {
       return;
     }
     if (activeArtifactType.value !== "resume") return;
+    if (await resumeConversations.restoreCurrentResumeContext()) return;
     const first = resumeWorkspace.drafts.value[0];
     if (!resumeWorkspace.activeDraft.value && first) {
-      await resumeWorkspace.openDraft(first.artifactId);
+      await resumeConversations.openResumeDraft(first.artifactId);
     }
   }
   async function toggleBrowser(): Promise<void> {
@@ -186,8 +181,8 @@ export function useAppShell() {
   }
 
   const { jobFlow, deliveryResume, experienceImport } = useWorkspaceFlows({
-    activeView, closeNarrowSidebar, createChat,
-    selectConversation: session.selectConversation,
+    activeView, closeNarrowSidebar, createChat: resumeConversations.createChat,
+    selectConversation: resumeConversations.selectChat,
     send: (text, reference) => send(text, undefined, reference),
     setError: (message) => { session.runError.value = message; },
   });
@@ -216,24 +211,22 @@ export function useAppShell() {
     exportResume: resumeInstructions.exportPdf,
     fillProgress,
     ...resumePreview,
+    ...resumeConversations,
     openJdPanel,
     openAgentTask,
     openPrimaryView,
     openMatchPanel,
-    openResumeDraft,
     openTracker,
     openTrackerApplication,
     ...jobFlow,
     ...deliveryResume,
     clearExperienceImportFocus: experienceImport.clear,
-    createChat,
     experienceImportFocus: experienceImport.focus,
     openExperienceImportResult: experienceImport.open,
     returnToImportConversation: experienceImport.returnToConversation,
     resumeWorkspace,
     saveResumeToCloud: resumeInstructions.saveToCloud,
     scroller,
-    selectChat,
     send,
     showSidebar,
     sidebarOpen,

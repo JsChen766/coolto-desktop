@@ -108,6 +108,8 @@ export interface ConversationSummary {
   updatedAt: string;
   messageCount: number;
   lastRun?: ConversationRunTerminal;
+  /** Local-only active editing context; not part of cloud Resume state. */
+  activeResumeArtifactId?: string;
 }
 
 export interface ConversationDetail extends ConversationSummary {
@@ -131,6 +133,22 @@ export interface AttachmentRemoveInput {
 export interface ConversationRenameInput {
   conversationId: string;
   title: string;
+}
+
+export interface ConversationResumeContextInput {
+  conversationId: string;
+  artifactId: string;
+}
+
+export interface ConversationsDesktopApi {
+  list(): Promise<ConversationSummary[]>;
+  create(): Promise<ConversationDetail>;
+  createForResume(artifactId: string): Promise<ConversationDetail>;
+  get(conversationId: string): Promise<ConversationDetail>;
+  bindResume(input: ConversationResumeContextInput): Promise<ConversationDetail>;
+  clearResumeContext(conversationId: string): Promise<ConversationDetail>;
+  rename(input: ConversationRenameInput): Promise<ConversationSummary>;
+  delete(conversationId: string): Promise<void>;
 }
 
 export interface AgentPromptInput {

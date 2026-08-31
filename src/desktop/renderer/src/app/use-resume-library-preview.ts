@@ -122,6 +122,19 @@ export function useResumeLibraryPreview(options: ResumeLibraryPreviewOptions) {
     copyBaselineIds.clear();
   }
 
+  function activateLocalResumeContext(
+    draft: Pick<ResumeDraftDetail, "artifactId" | "title" | "cloudResumeId">,
+  ): void {
+    resumeOperationContext.value = {
+      artifactId: draft.artifactId,
+      targetType: "resume",
+      targetId: draft.artifactId,
+      label: draft.title,
+      source: "local",
+      ...(draft.cloudResumeId ? { resumeId: draft.cloudResumeId } : {}),
+    };
+  }
+
   function clearResumeOperationContext(): void {
     resumeOperationContext.value = undefined;
     cloudCopyRequested.value = false;
@@ -146,6 +159,7 @@ export function useResumeLibraryPreview(options: ResumeLibraryPreviewOptions) {
   }
 
   return {
+    activateLocalResumeContext,
     adoptCreatedLocalDraft,
     chooseResumePreview,
     clearResumeOperationContext,

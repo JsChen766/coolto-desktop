@@ -33,7 +33,7 @@ export function useResumeWorkspace() {
   async function loadDrafts(): Promise<void> {
     drafts.value = await desktopApi.resumeDrafts.list();
   }
-  async function openDraft(artifactId: string): Promise<void> {
+  async function openDraft(artifactId: string): Promise<ResumeDraftDetail | undefined> {
     await lineSpacing.flush();
     if (pendingEdits.size && !await flushPendingEdits()) return;
     busy.value = true;
@@ -42,11 +42,13 @@ export function useResumeWorkspace() {
       activeDraft.value = await desktopApi.resumeDrafts.get(artifactId);
       localSaveState.value = "saved";
       await loadDrafts();
+      return activeDraft.value;
     } catch (cause: unknown) {
       error.value = errorMessage(cause);
     } finally {
       busy.value = false;
     }
+    return undefined;
   }
   async function refreshActive(): Promise<void> {
     if (activeDraft.value) {
@@ -245,6 +247,4 @@ function editKey(input: ResumeDraftEditInput): string {
     : input.target.itemId;
   return `${input.artifactId}:${input.target.type}:${targetId}`;
 }
-function errorMessage(error: unknown): string {
-  return desktopErrorMessage(error);
-}
+function errorMessage(error: unknown): string { return desktopErrorMessage(error); }

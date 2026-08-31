@@ -395,6 +395,38 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
   一次 `bash: -c: option requires an argument`，但 workflow、备份、标题 smoke、公开 bundle 0.1.21
   与下载链路均已独立验证成功，后续应单独修正 workflow 引用和 SSH shell quoting。
 
+### 10.11 已验证基线（2026-08-31，0.1.22 发布）
+
+- 发布源：远端 `Draft-编辑` 只有一个相对旧基线的新提交 `c6dd8704`。在独立 worktree 中从最新
+  `origin/app` 创建 `codex/integrate-draft-editor-0.1.22`，只 cherry-pick 为 `1ea868c`；PR #49 合入
+  受保护 `app`，merge commit 为 `4810bd4198962a6958c8216db9213a1915460bd3`。版本升至 0.1.22。
+- fresh worktree 的第一次 `check:resume-template` 正确失败：`.gitattributes` 已强制模板快照 LF，但
+  `source-lock.json` 仍记录旧 CRLF 哈希。锁条目修正为实际 LF 哈希 `72a681...` / 5,562 bytes 后，
+  模板内容不变且全量门禁重跑通过。
+- 发布前 npm 官方源生产依赖审计为 0 漏洞；`npm run check` 全绿：991 个源文件均不超过 250 行，
+  881 项测试中 879 通过、2 项 macOS-only 跳过、0 失败，双 typecheck 与 Node/Electron production
+  build 通过。新增会话关联定向回归 14/14；真实 Electron demo 验证旧对话保留、取消无副作用、新建
+  空白对话继续绑定同一 ResumeDraft、200% 缩放与键盘焦点通过；Resume Renderer/PDF QA 通过。
+- Windows workflow `33379761238` 成功（8m40s）：Rust native 3/3、protected desktop bundle、NSIS、
+  release hardening、真实安装/bootstrap 持续健康、卸载与上传通过；payload 1,307,611 bytes，native
+  266,240 bytes，fuses verified。公网 EXE 的 Authenticode 为 NotSigned。
+- macOS workflow `33379765535` 成功（5m17s）：x64/arm64 native、双架构 ZIP/DMG、两端 hardening
+  与上传通过；两端 payload 均为 1,307,611 bytes，native 均为 764,176 bytes，fuses verified；
+  签名仍为 ad-hoc（identity `-`），notarization 明确跳过。
+- Homepage workflow `33380499079` 成功，检出 `HomePage-Web@85e6fa70`，公开 bundle
+  `index-B1aalGiC.js` 为 317,213 bytes、SHA-256
+  `EF3E3315C27CD9E042613D62B4F9EEDD5D211B0FEE77B77E6F2064A0DB710D77`，包含 0.1.22；服务器备份为
+  `website-dist.bak-ci-20260831-180215`。
+- 公网 `latest.yml`、`latest-mac.yml` 和下载页均为 0.1.22。五个文件已完成无 query URL 的全字节下载，
+  精确字节数与 feed SHA-512 全部匹配；独立 SHA-256：Windows EXE 133,411,924 bytes，
+  `9AAAB20BEB0752F700CDC4E030122419D09BD15C81A10CA50FB5EDACF2DBFE73`；Intel ZIP 188,658,007 bytes，
+  `D594B22D9E53334995012DFB33B6047A025D520755F60C1BBDB0E7FC14D1DAE3`；Apple Silicon ZIP
+  185,098,399 bytes，`9748B979ED98BDAD6C2F01D73633F58827F2C9A0AB304AEBC7EF6B861A2BA76A`；Intel DMG
+  191,530,287 bytes，`00070CB8D5861FFA13030BF856BB7B8B04CDA2BDC59CCD2C48FF0A3CE0ADB678`；Apple Silicon
+  DMG 188,045,307 bytes，`B3937E27A92E177DE0FAECA50ABAA20B3228352F5E1F1A1F0AA81C7E346DE112`。
+- 非阻塞维护项不变：Actions Node 20 弃用提醒、Homepage SSH `bash -c` quoting 警告；两者未阻断
+  workflow、备份、标题 smoke、公开 bundle 或下载链路的独立验证。
+
 ### 10.6 运维注意事项（坑）
 
 - **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过

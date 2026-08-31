@@ -1,11 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
-  mkdir,
-  readFile,
-  readdir,
-  rm,
-  unlink,
-  writeFile,
+  mkdir, readFile, readdir, rm, unlink, writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -26,7 +21,7 @@ import {
 } from "../../import/result-artifact.js";
 import { projectConversationMessages } from "./conversation-presentation.js";
 import { mergeMessageAttachments } from "./conversation-attachments.js";
-import { renameConversationFileWithRetry } from "./conversation-file-write.js";
+import { renameWithRetry } from "./atomic-rename.js";
 import {
   UNTITLED_CONVERSATION,
   assertConversationId,
@@ -38,7 +33,6 @@ import {
   isMissingConversationFile,
   isStoredConversation,
   type StoredConversation,
-  type StoredMessageAttachment,
   withArtifactAnchor,
 } from "./conversation-record.js";
 
@@ -149,6 +143,22 @@ export class ConversationStore {
       artifacts.push(structuredClone(artifact));
     }
     record.resumeArtifacts = artifacts;
+    record.activeResumeArtifactId = artifact.artifactId;
+    record.updatedAt = new Date().toISOString();
+    await this.#write(record);
+    return conversationDetail(record);
+  }
+
+  public async setActiveResumeArtifact(
+    conversationId: string,
+    artifactId: string | undefined,
+  ): Promise<ConversationDetail> {
+    const record = await this.getRecord(conversationId);
+    if (record.activeResumeArtifactId === artifactId) {
+      return conversationDetail(record);
+    }
+    if (artifactId) record.activeResumeArtifactId = artifactId;
+    else delete record.activeResumeArtifactId;
     record.updatedAt = new Date().toISOString();
     await this.#write(record);
     return conversationDetail(record);
@@ -233,6 +243,6 @@ export class ConversationStore {
     const temporary = `${destination}.${randomUUID()}.tmp`;
     const encrypted = encryptConversation(JSON.stringify(record));
     await writeFile(temporary, encrypted, { mode: 0o600 });
-    await renameConversationFileWithRetry(temporary, destination);
+    await renameWithRetry(temporary, destination);
   }
 }

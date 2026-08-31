@@ -42,7 +42,10 @@ export function createUnavailableDesktopApi(): DesktopApi {
     conversations: {
       list: unavailable,
       create: unavailable,
+      createForResume: unavailable,
       get: unavailable,
+      bindResume: unavailable,
+      clearResumeContext: unavailable,
       rename: unavailable,
       delete: unavailable,
     },

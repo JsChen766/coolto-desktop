@@ -6,6 +6,7 @@ import type {
   AttachmentRemoveInput,
   ApprovalResolveInput,
   ConversationRenameInput,
+  ConversationResumeContextInput,
 } from "../shared/types.js";
 import type { UserServices } from "./user-services.js";
 import type { WindowCloseGuard } from "./window-close-guard.js";
@@ -24,8 +25,26 @@ export function registerConversationAgentIpc(
   ipcMain.handle("conversations:create", async () =>
     (await servicesForCurrentUser()).conversations.create(),
   );
+  ipcMain.handle("conversations:create-for-resume", async (_event, artifactId: string) =>
+    (await servicesForCurrentUser()).resumeConversationLinks.create(artifactId),
+  );
   ipcMain.handle("conversations:get", async (_event, conversationId: string) =>
     (await servicesForCurrentUser()).conversations.get(conversationId),
+  );
+  ipcMain.handle(
+    "conversations:bind-resume",
+    async (_event, input: ConversationResumeContextInput) =>
+      (await servicesForCurrentUser()).resumeConversationLinks.link(
+        input.conversationId,
+        input.artifactId,
+      ),
+  );
+  ipcMain.handle(
+    "conversations:clear-resume-context",
+    async (_event, conversationId: string) =>
+      (await servicesForCurrentUser()).resumeConversationLinks.clear(
+        conversationId,
+      ),
   );
   ipcMain.handle(
     "conversations:rename",
@@ -88,9 +107,16 @@ export function registerConversationAgentIpc(
     },
   );
 
-  ipcMain.handle("agent:prompt", async (_event, input: AgentPromptInput) =>
-    (await servicesForCurrentUser()).agent.prompt(input),
-  );
+  ipcMain.handle("agent:prompt", async (_event, input: AgentPromptInput) => {
+    const current = await servicesForCurrentUser();
+    if (input.resumeReference?.source !== "cloud" && input.resumeReference) {
+      await current.resumeConversationLinks.link(
+        input.conversationId,
+        input.resumeReference.artifactId,
+      );
+    }
+    return current.agent.prompt(input);
+  });
   ipcMain.handle("agent:cancel", async () => {
     (await servicesForCurrentUser()).agent.cancel();
   });
@@ -120,7 +146,10 @@ export function registerConversationAgentIpc(
 export const CONVERSATION_AGENT_IPC_CHANNELS = [
   "conversations:list",
   "conversations:create",
+  "conversations:create-for-resume",
   "conversations:get",
+  "conversations:bind-resume",
+  "conversations:clear-resume-context",
   "conversations:rename",
   "conversations:delete",
   "attachments:list",

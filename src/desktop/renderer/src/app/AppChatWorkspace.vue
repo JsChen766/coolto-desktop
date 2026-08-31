@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import type { ChatMessage } from "@desktop/types";
 import {
-  ChatComposerHost, ChatHeader, ChatPendingAction, ChatRunTerminal,
+  ChatRunTerminal,
   ChatMessageView,
   EmptyState,
   ExperienceImportResultCard,
@@ -19,6 +19,9 @@ import type { AppShell } from "./use-app-shell";
 import { useStreamingElapsed } from "../chat/use-streaming-elapsed";
 import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
+import ChatPendingAction from "./ChatPendingAction.vue";
+import ChatComposerHost from "./ChatComposerHost.vue";
+import ChatHeaderHost from "./ChatHeaderHost.vue";
 import { publishComposerDraft } from "../chat/composer-draft-channel";
 const props = defineProps<{
   shell: AppShell;
@@ -38,15 +41,12 @@ const {
   activeMatchReport,
   approvalBusy,
   artifactOpen,
-  browser,
   conversationAttachment,
   current,
   draftCloudState,
-  exportResume,
   fillProgress,
   jdArtifacts,
   matchReports,
-  openDialog,
   openExperienceImportResult,
   openJdPanel,
   openMatchPanel,
@@ -58,12 +58,9 @@ const {
   resumeWorkspace,
   runError,
   running,
-  saveResumeToCloud,
   scroller,
   send,
-  sidebarOpen,
   streamingText,
-  toggleArtifact,
   toggleBrowser,
   toolRuns,
 } = props.shell;
@@ -85,25 +82,7 @@ function continueLastRun(): void { void send("请继续完成刚才未完成的�
 function restartLastRun(): void { void send("请重新开始刚才的任务，重新检查当前资料后执行；不要复用失败的中间状态。"); }
 </script>
 <template>
-      <ChatHeader
-        :title="!current || current.title === '新对话' ? $t('新对话') : current.title"
-        :sidebar-open="sidebarOpen"
-        :artifact-open="artifactOpen"
-        :browser-open="browser.state.isOpen"
-        :resume-draft="resumeWorkspace.activeDraft.value"
-        :exporting="resumeWorkspace.exporting.value"
-        :export-message="resumeWorkspace.exportMessage.value"
-        :saving-to-library="resumeWorkspace.savingToLibrary.value"
-        :save-message="resumeWorkspace.saveMessage.value"
-        :line-spacing-percent="resumeWorkspace.lineSpacing.percent.value" :line-spacing-maximum="resumeWorkspace.lineSpacing.maximumPercent.value" :line-spacing-saving="resumeWorkspace.lineSpacing.saving.value"
-        @toggle-sidebar="sidebarOpen = !sidebarOpen"
-        @toggle-artifact="toggleArtifact"
-        @toggle-browser="toggleBrowser"
-        @save-resume="saveResumeToCloud"
-        @export-resume="exportResume"
-        @preview-line-spacing="resumeWorkspace.lineSpacing.preview" @commit-line-spacing="resumeWorkspace.lineSpacing.commit"
-        @rename="current && openDialog('rename', { id: current.id, title: current.title, createdAt: current.createdAt, updatedAt: current.updatedAt, messageCount: current.messageCount })"
-      />
+      <ChatHeaderHost :shell="shell" />
       <div class="workspace-body">
         <section class="chat-pane">
           <div ref="scroller" class="message-scroller">

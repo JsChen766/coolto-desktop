@@ -7,13 +7,13 @@ import type {
   BrowserNavigateInput,
   BrowserOpenInput,
   BrowserState,
-  ConversationRenameInput,
   DesktopAgentEvent,
   DesktopApi,
 } from "../shared/types.js";
 import { onboardingPreloadApi } from "./onboarding-api.js";
 import { agentTasksPreloadApi } from "./agent-tasks-api.js";
 import { childApi, subscribeIpc } from "./ipc-helpers.js";
+import { conversationPreloadApi } from "./conversation-api.js";
 
 const api: DesktopApi = {
   platform: process.platform,
@@ -39,16 +39,7 @@ const api: DesktopApi = {
     openExternal: (url: string) =>
       ipcRenderer.invoke("shell:open-external", url),
   },
-  conversations: {
-    list: () => ipcRenderer.invoke("conversations:list"),
-    create: () => ipcRenderer.invoke("conversations:create"),
-    get: (conversationId) =>
-      ipcRenderer.invoke("conversations:get", conversationId),
-    rename: (input: ConversationRenameInput) =>
-      ipcRenderer.invoke("conversations:rename", input),
-    delete: (conversationId) =>
-      ipcRenderer.invoke("conversations:delete", conversationId),
-  },
+  conversations: conversationPreloadApi,
   attachments: {
     list: (conversationId) =>
       ipcRenderer.invoke("attachments:list", conversationId),
