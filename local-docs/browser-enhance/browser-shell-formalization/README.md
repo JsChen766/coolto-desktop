@@ -772,8 +772,8 @@ takeover→resume 和真实完整任务 deep-link 仍未验收，BSF5 Windows �
 | BSF2 | **已完成（2026-08-30；2 项人工门禁移交 BSF5 Windows）** | BSF1 完成 | 标签压测、跨平台快捷键合同、Windows Electron/find/zoom；移交项不计通过 |
 | BSF3 | **已完成（2026-08-30；人工体验项移交 BSF5 Windows）** | BSF2 完成 | 48/48 Shell、36/36 Browser Agent、安全 40/40、全量 872 tests |
 | BSF4 | **已完成并通过独立质检（2026-08-31）** | BSF3 完成 | 61/61 Shell、36/36 Browser Agent、全量 883 tests |
-| BSF5 Windows | **进行中** | BSF4 已闭环 | menu/拼音/视觉/动画/键盘通过；NVDA、真实接管、deep-link 待验收 |
-| BE6 | 后续阶段 | BSF5 Windows 门禁完成 | EventKit 与 macOS Calendar 门禁 |
+| BSF5 Windows | **实测延期、未完成** | 用户明确要求先推进 BE6 | menu/拼音/视觉/动画/键盘通过；NVDA、真实接管、deep-link 后续回补 |
+| BE6 | **当前阶段** | BSF5 剩余实测延期但不豁免 | EventKit 与 macOS Calendar 门禁 |
 | BSF5 macOS | 待收口 | BE6 完成 | macOS 交通灯、快捷键和真实 BrowserWindow 验收 |
 
 每次写回必须包含：

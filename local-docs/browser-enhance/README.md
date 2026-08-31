@@ -523,8 +523,8 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 | BE3 | Managed Job Scout | App 打开期间的多源搜索、BrowserLead、去重、匹配、Shortlist、周期增量 | 真实允许站点连续运行；App 关闭时无云端任务；重复 lead <1%；所有入选/排除理由可追溯 |
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionToken/Receipt、Application Proposal | 自动提交仅发生在有效 grant；错误投递/重复 Application 为 0；实际 JD/Resume/hash 冻结正确 |
 | BE5 | Inbox Signals | 通用 Browser Webmail、可选 Gmail/Outlook 增量、求职邮件分类、状态/Interview Proposal | 原始邮件不越界持久化；错误自动迁移为 0；模糊信号进入确认队列 |
-| BSF | [Browser Shell Formalization](./browser-shell-formalization/README.md) | 独立 Browser 产品面、正式浏览器基础、Agent 可见层、新标签页、下载和跨平台验收 | **当前 BSF5 Windows**：BSF4 审计项已一次性修复，以 61/61 Shell、36/36 Browser Agent、883 tests 和真实 OS 焦点复验闭环；NVDA、真实接管、deep-link 待验收 |
-| BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | 拒绝权限可降级；无重复 event/同步回环；时区和重启恢复通过 |
+| BSF | [Browser Shell Formalization](./browser-shell-formalization/README.md) | 独立 Browser 产品面、正式浏览器基础、Agent 可见层、新标签页、下载和跨平台验收 | **实测延期、未完成**：NVDA、真实接管、deep-link 经用户明确延后，后续与 macOS 收口回补 |
+| BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | **当前阶段**；拒绝权限可降级；无重复 event/同步回环；时区和重启恢复通过 |
 | BE7 | AI Native Loops | Scout 调度、Follow-up、Briefing、Strategy Learner、风险提醒 | 每项有独立开关、停止条件、通知去重和效果指标 |
 | BE8 | 真实集成交付 | 真实账号/站点、长任务、断网、崩溃、跨账号、安全与发布验收 | 完整矩阵通过前不得宣称“完全托管可用” |
 
@@ -540,12 +540,15 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 
 ```text
 BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）
-→ BSF0（已完成）→ BSF1（已完成）→ BSF2（已完成）→ BSF3（已完成）→ BSF4（已完成并质检闭环）→ BSF5 Windows（当前）→ BE6 → BSF5 macOS 收口 → BE7 → BE8
+→ BSF0（已完成）→ BSF1（已完成）→ BSF2（已完成）→ BSF3（已完成）→ BSF4（已完成并质检闭环）→ BSF5 Windows（实测延期）→ BE6（当前）→ BSF5 Windows/macOS 回补收口 → BE7 → BE8
 → S4.5 → S5 → R1
 ```
 
 2026-08-23 用户明确覆盖此前“先回 S4.5”的顺序，要求先按本路线完善浏览器。每阶段仍需独立质检，
 不得因总路线已排期而跳过 BE1/BE2 或提前开放自动提交。
+
+2026-08-31 用户明确要求 BSF5 的剩余实测先延期并继续下阶段。该决定只移动执行指针，不把 NVDA、真实登录/
+OTP/CAPTCHA takeover→resume、完整任务 deep-link 或 macOS BrowserWindow 写成通过；这些门禁在 BE6 后统一回补。
 
 ## 8. 分阶段关键验收
 
@@ -623,6 +626,25 @@ BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完�
 - EventKit 权限拒绝或被撤销不影响 Tracker 主流程；
 - Calendar event 删除不能自动删除 Interview 事实，只能生成变更 Proposal；
 - Tracker/Calendar 任一侧变更都携带 source identifier，防止来回创建。
+
+**2026-08-31 BE6 第一切片（平台中立合同与同步计划）：**用户明确将 BSF5 剩余实测延期并继续 BE6；该移动
+不把 BSF5 写成完成。实现前核对 Apple EventKit 最小权限合同后发现原路线同时要求“write-only + 重启后改期/
+取消同一 event”不可直接成立：write-only 不能读取任何既有 event，包括本 App 创建的 event。当前按最小权限
+拆为可执行合同，原生权限与真实 Calendar 留到 macOS：
+
+- 新增 `CalendarEventDraft`、`CalendarLink`、授权状态和显式 `CalendarSyncPlan`；CalendarLink 绑定精确
+  `applicationId + interviewId + eventIdentifier + fingerprint`，跨投递或跨面试映射 fail-closed；
+- 已确认且信息完整的 scheduled Interview 映射为公司、岗位、轮次、起止时间、时区、地点或会议链接、调用方提供的
+  Coolto 深链；不写完整 JD/Resume。缺少 scheduledAt、duration 或合法 IANA timezone 时不生成事件；
+- 首次创建在 `not_determined` 下只计划 `request_write_only`，授权后计划 `create`；相同 fingerprint 返回 unchanged，
+  不重复创建；completed 或从未建立 CalendarLink 的 canceled Interview 不产生 Calendar mutation；
+- 已有 CalendarLink 的改期/取消在 write-only 下返回 `request_full_access`，只有 full access 才计划 update/cancel；
+  denied/restricted/unavailable 均返回明确降级原因并声明 Tracker 事实不受影响。此切片只建立计划合同，尚未请求
+  full access、未实现 EventKit native adapter、设备本地 link store 或任何真实 Calendar 写入；
+- `test/calendar-sync-plan.test.ts` 8/8 通过；`npm run check` 全绿：959 个源文件均不超过 250 行，893 tests 为
+  891 pass、2 个平台 skip、0 fail，Node/Preload/Vue typecheck、Node build、Electron production build 与 5 个
+  sandbox preload standalone 门禁全部通过。Apple 权限依据：
+  <https://developer.apple.com/documentation/EventKit/accessing-the-event-store>。
 
 **2026-08-23 BE5 实现进展（阶段仍未完成）：**
 
