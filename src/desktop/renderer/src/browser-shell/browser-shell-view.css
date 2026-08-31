@@ -3,13 +3,25 @@
 }
 
 .browser-chrome {
+  --bg: var(--browser-canvas);
+  --surface: var(--browser-surface);
+  --surface-strong: var(--browser-surface-strong);
+  --surface-hover: var(--browser-surface-hover);
+  --border: var(--browser-hairline);
+  --border-strong: var(--browser-hairline-strong);
+  --text: var(--browser-text);
+  --text-soft: var(--browser-text-secondary);
+  --muted: var(--browser-text-muted);
+  --paper: var(--browser-toolbar);
+  --danger: var(--browser-danger);
+  --selection-bg: var(--browser-surface-strong);
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--browser-toolbar);
   font-family: var(--font-ui);
   color: var(--text);
   user-select: none;
@@ -27,6 +39,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+  min-height: 40px;
+  background: var(--browser-tab-band);
 }
 
 .chrome-top :deep(.tab-strip) {

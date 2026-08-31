@@ -107,6 +107,7 @@ export const browserShellMessages: Record<string, string> = {
   "暂停任务": "Pause task",
   "我来操作": "Take over",
   "打开完整任务": "Open full task",
+  "打开任务": "Open task",
   "任务操作失败，请重试": "Task action failed. Try again.",
   "审核页面修改": "Review page changes",
   "完成待确认操作": "Complete the pending approval",

@@ -23,7 +23,7 @@ export async function runBrowserShellBsf4Hardening(input: {
   const original = tabs.activeTab()!;
   const home = tabs.newTab();
   await waitForQa(async () => home.view.webContents.executeJavaScript(
-    "document.body?.innerText.includes('Coolto 浏览器') === true", true,
+    "document.body?.innerText.includes('Coolto') === true", true,
   ) as Promise<boolean>, "hardening trusted home page");
   const source = (updatedAt: string) => ({
     taskId: "bsf4-hardening-task",
@@ -63,8 +63,8 @@ export async function runBrowserShellBsf4Hardening(input: {
   const capsuleFocused = await browser.webContents.executeJavaScript(
     "document.activeElement?.classList.contains('agent-capsule') === true", true,
   ) as boolean;
-  expect("BSF4-H02 Inspector uses 200/160ms motion and restores capsule focus",
-    openMotion.duration === "0.2s" && closingMotion.duration === "0.16s" &&
+  expect("BSF4-H02 Inspector uses 220/160ms motion and restores capsule focus",
+    openMotion.duration === "0.22s" && closingMotion.duration === "0.16s" &&
     capsuleFocused);
   manager.agentStatus.clearProjection();
 

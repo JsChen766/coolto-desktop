@@ -71,7 +71,7 @@ function formatBytes(bytes: number): string {
         <X :size="16" :stroke-width="1.9" aria-hidden="true" />
       </button>
     </header>
-    <ol class="download-list">
+    <ol class="download-list app-scrollbar">
       <li v-for="download in state.downloads" :key="download.id" class="download-row">
         <component :is="iconFor(download.status)" class="status-icon"
           :class="download.status" :size="17" :stroke-width="1.9" aria-hidden="true" />
@@ -99,8 +99,14 @@ function formatBytes(bytes: number): string {
 </template>
 
 <style scoped>
-.download-popover { height: 100vh; overflow: hidden; border: 0; border-radius: 10px;
-  background: var(--surface-strong); color: var(--text); box-shadow: var(--shadow-menu); }
+.download-popover { --bg: var(--browser-canvas); --surface: var(--browser-surface);
+  --surface-strong: var(--browser-surface-strong); --surface-hover: var(--browser-surface-hover);
+  --border: var(--browser-hairline); --text: var(--browser-text);
+  --text-soft: var(--browser-text-secondary); --muted: var(--browser-text-muted);
+  --danger: var(--browser-danger); --selection-bg: var(--browser-surface-strong);
+  --shadow-menu: var(--browser-panel-shadow); height: 100vh; overflow: hidden;
+  border: 0; border-radius: 10px; background: var(--bg);
+  color: var(--text); box-shadow: var(--shadow-menu); }
 .download-header { display: flex; align-items: flex-start; justify-content: space-between;
   padding: 14px 14px 11px; border-bottom: 1px solid var(--border); }
 .download-header h1 { margin: 0; font: 600 14px/1.3 var(--font-ui); }
@@ -111,11 +117,11 @@ function formatBytes(bytes: number): string {
   color: var(--text-soft); cursor: pointer; }
 .icon-button:hover, .icon-button:focus-visible { background: var(--surface-hover); }
 .icon-button:focus-visible { outline: 2px solid var(--selection-bg); outline-offset: 1px; }
-.download-list { max-height: calc(100vh - 62px); margin: 0; padding: 0; overflow: auto;
+.download-list { max-height: calc(100vh - 62px); margin: 0; padding: 4px; overflow: auto;
   list-style: none; }
 .download-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) 28px;
-  gap: 9px; align-items: start; padding: 11px 12px; }
-.download-row + .download-row { border-top: 1px solid var(--border); }
+  gap: 9px; align-items: start; padding: 10px 8px; border-radius: 8px; }
+.download-row:hover { background: var(--surface); }
 .status-icon { margin-top: 2px; color: var(--muted); }
 .status-icon.completed { color: var(--browser-success); }
 .status-icon.cancelled, .status-icon.interrupted { color: var(--danger); }
@@ -129,4 +135,9 @@ function formatBytes(bytes: number): string {
   color: var(--text-soft); font-size: 11.5px; }
 progress { width: 100%; height: 3px; border: 0; accent-color: var(--browser-accent); }
 .dismiss { margin-top: -3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .download-popover { animation: download-enter var(--motion-standard) var(--ease-out-quart)
+    both; }
+}
+@keyframes download-enter { from { opacity: 0; transform: translateY(-4px); } }
 </style>

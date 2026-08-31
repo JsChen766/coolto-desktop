@@ -682,6 +682,40 @@ Electron production build 与 5 个 sandbox preload standalone 门禁全部通�
 BSF4 阻塞；native menu、微软拼音、视觉/动画、720px/200% 与真实 OS 键盘焦点已通过。NVDA、真实登录/OTP/CAPTCHA
 takeover→resume 和真实完整任务 deep-link 仍未验收，BSF5 Windows 继续保持进行中，不能进入 BE6。
 
+**2026-08-31 Browser 产品级视觉收口：**用户确认以 Google Chrome/Linear 为主要参考，并明确第一方 Browser UI
+只使用 `#FBFBFA`、`#1B1B19`、`#8A8A86` 三个黑白灰源色及透明度层级；第三方网页与 favicon 保留原始内容颜色。
+本轮在不改变 AgentTask/Grant/Receipt、下载 tracker、deep-link 与页面安全合同的前提下完成：
+
+- 标签带、激活标签、工具栏与填充式 omnibox 改为连续表面，Chrome 只保留工具栏下方一条常驻结构线；彩色
+  Agent/进度/失败/窗口关闭状态全部改为图标、文字与黑白反转表达；
+- 新标签页改为上部居中的 Coolto 标识、52px 搜索入口和现有任务投影，移除彩色状态点、明显输入边框、空页
+  滚动条与额外提示；等待项、更新时间和可信任务 deep-link 契约保持不变；
+- Inspector 不再在任一宽度 dock 或缩窄网页。独立 `WebContentsView` 统一成为锚定右上角的 380 CSS px 悬浮工具窗，
+  保留 8px 阴影缓冲且 `pageRightInset=0`；720px/200% 使用双侧 8px inset。内部 section 以 24px 间距代替连续
+  分隔线，底部 pause/takeover/open/stop 固定为单行，极窄时收短为图标；
+- Inspector 与下载列表直接复用 App 的 5px、默认透明、hover 显示 thumb 的 scrollbar 规则；下载列表取消逐行
+  分隔线。统一 motion budget 为 80/120/180/220ms，Inspector 使用 220ms enter/160ms exit，tab 补位、按钮按压、
+  下载浮层与新标签页只保留状态解释型动画，全部提供 reduced-motion 降级；
+- 新增悬浮 bounds、单行操作、共享 scrollbar、三色 palette 与旧彩色值回归测试，并同步升级 exact QA 名称和
+  物理像素舍入容差。Windows Electron 43.2.0 `bsf4-v2` exact suite **61/61**，33 项报告/截图位于
+  `local-builds/functional-qa/bsf4-v2-browser-shell-q0LDZj/`；`npm run check` 全绿：956 个源文件均不超过 250 行，
+  885 tests 为 883 pass、2 个平台 skip、0 fail，Node/Preload/Vue typecheck、Node build、Electron production build
+  与 5 个 sandbox preload standalone 门禁全部通过。
+
+本轮没有重新执行 NVDA、真实登录/OTP/CAPTCHA takeover→resume 或真实完整任务 deep-link，因此不借视觉收口
+把 BSF5 Windows 标为完成；执行指针仍停在 BSF5 Windows。未 commit/push，工作树中的 Markdown auto-link 等
+无关用户改动继续保留。
+
+**2026-08-31 新建标签按钮定位校正：**修复 tab viewport 无条件占满标题栏导致 `+` 永远贴近窗口控制区的问题。
+普通状态下标签保持 220px 稳定宽度，viewport 按内容收缩，`+` 紧跟最右侧标签；进入 overflow 后才保留在右侧
+滚动控件与窗口按钮附近。ResizeObserver 同步投影可用 viewport 宽度，窗口缩放或 720px/200% 时重新确保当前标签
+完整可见。Electron 实测中单标签 `newTabAdjacent=true`，12 标签/940px 与 30 标签/720px/200% 的 overflow、首/中/末
+标签可见及键盘 roving 检查均通过；截图位于
+`local-builds/functional-qa/bsf4-v2-browser-shell-uGEmr9/01-light-1180.png`、
+`17-bsf2-tabs-12-940.png`、`18-bsf2-tabs-30-720-zoom-200.png`。该轮完整 Shell suite 后续被测试环境把
+`.invalid` 返回为 `ERR_EMPTY_RESPONSE` 而非固定 `ERR_NAME_NOT_RESOLVED` 阻断，未把这项无关网络差异写成 61/61；
+`npm run check` 仍全绿，885 tests 为 883 pass、2 个平台 skip、0 fail。
+
 自动化门禁：
 
 1. `npm run check:source-lines`；

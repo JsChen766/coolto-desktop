@@ -68,21 +68,21 @@ export async function runBrowserShellAgentQa(input: {
     inspector.activityCount === 3);
 
   await setBrowserWindow(browser, 1180, 820, 1);
-  await waitForQa(async () => (await inspectInspector(manager)).mode === "docked",
-    "the docked Agent Inspector");
-  const docked = await inspectLayout(input);
-  captures.agentInspectorDocked = await captureAgentInspector(
+  await waitForQa(async () => (await inspectInspector(manager)).mode === "overlay",
+    "the wide floating Agent Inspector");
+  const wide = await inspectLayout(input);
+  captures.agentInspectorWide = await captureAgentInspector(
     manager.shellCommands.inspectorWebContents()!, artifacts,
-    "20-bsf3-inspector-docked.png",
+    "20-bsf3-inspector-floating-wide.png",
   );
   await setBrowserWindow(browser, 900, 680, 1);
   await waitForQa(async () => (await inspectInspector(manager)).mode === "overlay",
-    "the overlay Agent Inspector");
-  const overlay = await inspectLayout(input);
-  captures.agentInspectorLayouts = { docked, overlay };
-  captures.agentInspectorOverlay = await captureAgentInspector(
+    "the narrow floating Agent Inspector");
+  const narrow = await inspectLayout(input);
+  captures.agentInspectorLayouts = { narrow, wide };
+  captures.agentInspectorNarrow = await captureAgentInspector(
     manager.shellCommands.inspectorWebContents()!, artifacts,
-    "21-bsf3-inspector-overlay.png",
+    "21-bsf3-inspector-floating-narrow.png",
   );
 
   let commandCount = 0;
@@ -108,8 +108,8 @@ export async function runBrowserShellAgentQa(input: {
     active.view.webContents.isFocused(), "Inspector auto-close page focus");
   expect("BSF3-07 Inspector closes to the capsule and auto-closes to the page",
     explicitFocus && active.view.webContents.isFocused());
-  expect("BSF3-08 Inspector keeps truthful docked and overlay page bounds",
-    docked.passed && overlay.passed);
+  expect("BSF3-08 floating Inspector never changes the page bounds",
+    wide.passed && narrow.passed);
 
   for (const tab of [...tabs.allTabs()]) {
     if (tab.id !== original.id) tabs.closeTab(tab.id);
@@ -173,11 +173,11 @@ async function inspectLayout(input: {
   const [width = 0, height = 0] = browser.getContentSize();
   const chrome = manager.tabs!.chromeHeightDip;
   const page = manager.tabs!.activeTab()!.view.getBounds();
-  const expectedPanel = 360;
-  const expectedPageWidth = view.mode === "docked" ? width - expectedPanel : width;
-  const passed = page.x === 0 && page.y === chrome && page.width === expectedPageWidth &&
-    page.height === height - chrome && view.width === expectedPanel &&
-    view.height === height - chrome;
+  const expectedViewWidth = 396;
+  const expectedViewHeight = height - chrome - 8;
+  const passed = page.x === 0 && page.y === chrome && page.width === width &&
+    page.height === height - chrome && view.width === expectedViewWidth &&
+    Math.abs(view.height - expectedViewHeight) <= 1;
   return {
     chromeHeight: chrome, inspector: view, pageBounds: page, passed,
     window: { height, width },

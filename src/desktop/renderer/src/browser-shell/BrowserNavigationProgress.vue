@@ -50,7 +50,7 @@ onBeforeUnmount(() => { if (hideTimer) clearTimeout(hideTimer); });
 .navigation-progress span { display: block; width: 100%; height: 100%; transform-origin: left;
   background: var(--browser-accent);
   transition: transform 220ms cubic-bezier(.22, 1, .36, 1), opacity 140ms ease-out; }
-.navigation-progress.failed span { background: var(--danger); }
+.navigation-progress.failed span { background: var(--browser-danger); }
 @media (prefers-reduced-motion: reduce) {
   .navigation-progress span { transition-duration: .01ms; }
 }

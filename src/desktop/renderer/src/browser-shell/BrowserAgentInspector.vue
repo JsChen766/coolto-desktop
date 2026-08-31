@@ -102,7 +102,7 @@ defineExpose({ focusInitial });
       {{ $t(presentation.label) }}。{{ summaryCopy }}
     </p>
 
-    <div class="inspector-content">
+    <div class="inspector-content app-scrollbar">
       <BrowserAgentTaskSummary :state="state" />
       <BrowserAgentGrantSummary
         :delegation="state.delegation"
@@ -121,18 +121,30 @@ defineExpose({ focusInitial });
 
 <style scoped>
 .agent-inspector {
+  --bg: var(--browser-canvas);
+  --surface: var(--browser-surface);
+  --surface-strong: var(--browser-surface-strong);
+  --surface-hover: var(--browser-surface-hover);
+  --border: var(--browser-hairline);
+  --border-strong: var(--browser-hairline-strong);
+  --text: var(--browser-text);
+  --text-soft: var(--browser-text-secondary);
+  --muted: var(--browser-text-muted);
+  --danger: var(--browser-danger);
+  --selection-bg: var(--browser-surface-strong);
+  --shadow-menu: var(--browser-panel-shadow);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   width: 100%;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
   background: var(--bg);
+  border-radius: 14px;
+  box-shadow: var(--browser-panel-shadow);
   color: var(--text);
   font: 13px/1.4 var(--font-ui);
 }
 
-.mode-docked { border-left: 1px solid var(--border); }
-.mode-overlay { box-shadow: var(--shadow-menu); }
 .inspector-header { display: grid; grid-template-columns: 28px minmax(0, 1fr) 30px;
   gap: 8px; align-items: start; padding: 14px; border-bottom: 1px solid var(--border); }
 .status-icon { display: grid; place-items: center; width: 28px; height: 28px;
@@ -144,29 +156,30 @@ defineExpose({ focusInitial });
 .status-label { color: var(--text-soft); font-size: 12px; font-weight: 600; }
 h2 { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 15px; line-height: 1.35;
   font-weight: 600; }
-h2:focus-visible { outline: 2px solid var(--browser-accent); outline-offset: 2px; }
+h2:focus { outline: 0; }
 .close-inspector { display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; padding: 0; border: 0; border-radius: 7px;
   background: transparent; color: var(--text-soft); }
 .close-inspector:hover { background: var(--surface-hover); color: var(--text); }
 .close-inspector:focus-visible { outline: 2px solid var(--browser-accent); outline-offset: 1px; }
-.inspector-content { min-height: 0; overflow: auto; padding: 16px 14px 24px; }
+.inspector-content { display: grid; align-content: start; gap: 24px; min-height: 0;
+  overflow: auto; padding: 18px 16px 24px; }
 .live-status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .presentation-closing { pointer-events: none; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .presentation-open { animation: inspector-enter 200ms cubic-bezier(.16, 1, .3, 1)
+  .presentation-open { animation: inspector-enter var(--motion-panel) var(--ease-out-quint)
     both; }
   .presentation-closing { animation: inspector-exit 160ms cubic-bezier(.4, 0, 1, 1)
     both; }
 }
 
 @keyframes inspector-enter {
-  from { opacity: 0; transform: translateX(12px); }
+  from { opacity: 0; transform: translateY(-4px) scale(.992); }
 }
 @keyframes inspector-exit {
-  to { opacity: 0; transform: translateX(8px); }
+  to { opacity: 0; transform: translateY(-3px) scale(.995); }
 }
 </style>

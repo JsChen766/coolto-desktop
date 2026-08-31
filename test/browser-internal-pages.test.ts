@@ -20,13 +20,14 @@ test("home page follows theme and locale without the old ghost-card treatment", 
   const light = decodeDataPage(browserHomeUrl("light", "zh-CN", INTERNAL_TOKEN));
   const dark = decodeDataPage(browserHomeUrl("dark", "en-US", INTERNAL_TOKEN));
   assert.match(light, /Coolto 浏览器/u);
-  assert.match(light, /border-radius: 12px/u);
+  assert.match(light, /border-radius: 26px/u);
   assert.doesNotMatch(light, /999px|18px 50px/u);
   assert.match(dark, /color-scheme: dark/u);
   assert.match(dark, /Coolto Browser/u);
   assert.match(dark, /Search or enter a web address/u);
   assert.doesNotMatch(light, /autofocus/u);
-  assert.match(light, /\.task-time \{ color: #62605a/u);
+  assert.match(light, /\.task-time \{ color: #626260/u);
+  assert.doesNotMatch(light, /#356fca|#c68a24|#8a5a00/u);
   const homeUrl = browserHomeUrl("dark", "en-US", INTERNAL_TOKEN);
   assert.equal(isBrowserHomeUrl(homeUrl, INTERNAL_TOKEN), true);
   assert.equal(isBrowserHomeUrl(homeUrl, "other-tab"), false);

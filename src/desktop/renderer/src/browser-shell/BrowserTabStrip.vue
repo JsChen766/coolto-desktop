@@ -25,7 +25,12 @@ const tabIds = computed(() => props.tabs.map((tab) => tab.id));
 const tabIdSignature = computed(() => tabIds.value.join("\u001f"));
 const overflow = useTabStripOverflow({
   viewport: viewportEl, track: trackEl, itemCount: () => props.tabs.length,
+  currentItem: () => findTabButton(props.activeTabId),
 });
+const tabStripStyle = computed(() => ({
+  "--overflow-tab-width": `${Math.max(72, Math.min(220,
+    overflow.viewportWidth.value || 220))}px`,
+}));
 
 watch(overflow.hasOverflow, async () => {
   await nextTick();
@@ -96,7 +101,8 @@ function findTabButton(tabId: string | null): HTMLButtonElement | null {
 </script>
 
 <template>
-  <div class="tab-strip">
+  <div class="tab-strip" :class="{ overflowing: overflow.hasOverflow.value }"
+    :style="tabStripStyle">
     <button v-if="overflow.hasOverflow.value" class="tab-scroll no-drag" type="button"
       :disabled="!overflow.canScrollPrevious.value" :aria-label="$t('向前滚动标签页')"
       :title="$t('向前滚动标签页')" @click="overflow.scrollByPage('previous')">
@@ -104,11 +110,13 @@ function findTabButton(tabId: string | null): HTMLButtonElement | null {
     </button>
     <div ref="viewportEl" class="tab-viewport">
       <div ref="trackEl" class="tab-track" role="tablist" :aria-label="$t('标签页')">
-        <BrowserTabItem v-for="tab in tabs" :key="tab.id" :tab="tab"
-          :active="tab.id === activeTabId" :roving="tab.id === rovingTabId"
-          :agent-state="agentControl?.targetTabId === tab.id ? agentControl : null"
-          @activate="handleActivate" @focus-tab="handleFocus"
-          @move-focus="handleMoveFocus" @request-close="handleClose" />
+        <TransitionGroup name="browser-tab">
+          <BrowserTabItem v-for="tab in tabs" :key="tab.id" :tab="tab"
+            :active="tab.id === activeTabId" :roving="tab.id === rovingTabId"
+            :agent-state="agentControl?.targetTabId === tab.id ? agentControl : null"
+            @activate="handleActivate" @focus-tab="handleFocus"
+            @move-focus="handleMoveFocus" @request-close="handleClose" />
+        </TransitionGroup>
       </div>
     </div>
     <button v-if="overflow.hasOverflow.value" class="tab-scroll no-drag" type="button"
@@ -126,10 +134,12 @@ function findTabButton(tabId: string | null): HTMLButtonElement | null {
 <style scoped>
 .tab-strip { display: flex; align-items: flex-end; gap: 2px; min-width: 0;
   padding: 6px 8px 0; overflow: hidden; }
-.tab-viewport { flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden;
-  scrollbar-width: none; }
+.tab-viewport { flex: 0 1 auto; width: max-content; max-width: calc(100% - 30px);
+  min-width: 0;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .tab-viewport::-webkit-scrollbar { display: none; }
-.tab-track { display: flex; align-items: flex-end; gap: 2px; min-width: 100%; }
+.tab-track { display: flex; align-items: flex-end; gap: 2px; width: max-content; }
+.overflowing :deep(.tab-item) { flex-basis: var(--overflow-tab-width); }
 .tab-scroll, .tab-new { display: inline-flex; align-items: center; justify-content: center;
   flex: none; width: 28px; height: 28px; margin-bottom: 3px; padding: 0; border: 0;
   border-radius: 7px; background: transparent; color: var(--muted);
@@ -140,7 +150,14 @@ function findTabButton(tabId: string | null): HTMLButtonElement | null {
 .tab-scroll:disabled { opacity: 0.35; }
 .tab-scroll:focus-visible, .tab-new:focus-visible {
   outline: 2px solid var(--browser-accent); outline-offset: -2px; }
+.browser-tab-enter-active, .browser-tab-leave-active, .browser-tab-move {
+  transition: opacity 160ms var(--ease-out-quart),
+    transform var(--motion-standard) var(--ease-out-quint); }
+.browser-tab-enter-from { opacity: 0; transform: translateY(3px) scale(.98); }
+.browser-tab-leave-to { opacity: 0; transform: translateY(2px) scale(.98); }
 @media (prefers-reduced-motion: reduce) {
   .tab-scroll, .tab-new { transition: none; }
+  .browser-tab-enter-active, .browser-tab-leave-active, .browser-tab-move {
+    transition: none; }
 }
 </style>

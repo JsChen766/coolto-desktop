@@ -94,19 +94,20 @@ const tooltip = computed(() => [translate(presentation.value.label), summaryCopy
   background: var(--surface-strong);
   color: var(--text-soft);
   font: 12px/1 var(--font-ui);
-  transition: background-color 140ms ease-out, color 140ms ease-out;
+  transition: background-color var(--motion-fast) var(--ease-out-quart),
+    color var(--motion-fast) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .agent-capsule:hover { background: var(--surface-hover); color: var(--text); }
-.agent-capsule:focus-visible { outline: 2px solid var(--browser-accent); outline-offset: 1px; }
-.agent-capsule[aria-expanded="true"] { background: var(--selection-bg); color: var(--text); }
+.agent-capsule:active { transform: scale(.98); }
+.agent-capsule:focus-visible { outline: 2px solid var(--browser-accent); outline-offset: 2px; }
+.agent-capsule[aria-expanded="true"] { background: var(--browser-solid);
+  color: var(--browser-on-solid); }
 .capsule-icon, .capsule-state { flex: none; }
 .capsule-state { font-weight: 600; }
 .capsule-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tone-active .capsule-icon { color: var(--browser-accent); }
-.tone-attention .capsule-icon { color: var(--browser-attention); }
-.tone-success .capsule-icon { color: var(--browser-success); }
-.tone-danger .capsule-icon { color: var(--danger); }
+.capsule-icon { color: currentColor; }
 
 @media (max-width: 760px) {
   .agent-capsule { flex-basis: auto; max-width: 118px; padding-inline: 9px; }

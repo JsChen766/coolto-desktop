@@ -36,7 +36,7 @@ export async function runBrowserShellBaseline(input: {
   await setBrowserWindow(browser, 1180, 820, 1);
   const light = await inspectShell(browser);
   expect("02 light shell exposes address and navigation controls",
-    light.tabCount === 1 && light.buttonLabels.includes("刷新"));
+    light.tabCount === 1 && light.buttonLabels.includes("刷新") && light.newTabAdjacent);
   captures.light = await captureShellWindow(
     browser, artifacts, "01-light-1180.png", light,
   );

@@ -74,7 +74,7 @@ const summaryCopy = computed(() => props.state.phase === "reviewing" && props.st
 </template>
 
 <style scoped>
-.task-summary { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.task-summary { min-width: 0; }
 h3 { margin: 0; font-size: 13px; font-weight: 600; }
 .summary-copy { margin: 7px 0 0; color: var(--text-soft); font-size: 13px; line-height: 1.45; }
 .required-action { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 7px;

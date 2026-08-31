@@ -76,12 +76,12 @@ function handleMiddleClick(event: MouseEvent): void {
 </template>
 
 <style scoped>
-.tab-item { position: relative; container-type: inline-size; flex: 1 1 180px;
-  min-width: 72px; max-width: 220px;
+.tab-item { position: relative; container-type: inline-size; flex: 0 0 220px;
+  min-width: 72px; max-width: 240px;
   height: 34px; border-radius: 9px 9px 0 0; color: var(--text-soft);
   transition: background-color 140ms ease-out, color 140ms ease-out; }
 .tab-item:hover { background: var(--surface-hover); }
-.tab-item.active { background: var(--surface); color: var(--text); }
+.tab-item.active { background: var(--browser-toolbar); color: var(--text); }
 .tab-activation { display: flex; align-items: center; gap: 6px; width: 100%; height: 100%;
   padding: 0 30px 0 10px; border: 0; border-radius: inherit; background: transparent;
   color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: default; }

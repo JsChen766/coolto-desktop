@@ -73,7 +73,7 @@ const stateLabel = computed(() => {
 </template>
 
 <style scoped>
-.inspector-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.inspector-section { min-width: 0; }
 header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 h3 { margin: 0; font-size: 13px; font-weight: 600; }
 .grant-state { display: inline-flex; align-items: center; gap: 5px; color: var(--muted);

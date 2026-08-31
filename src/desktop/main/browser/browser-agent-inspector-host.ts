@@ -17,7 +17,7 @@ export class BrowserAgentInspectorHost {
   #closing = false;
   #detachShortcut: (() => void) | undefined;
   #locale: "zh-CN" | "en-US" = "zh-CN";
-  #mode: "docked" | "overlay" = "docked";
+  #mode: "docked" | "overlay" = "overlay";
   #open = false;
   #ready = false;
   #reducedMotion = false;
@@ -132,7 +132,7 @@ export class BrowserAgentInspectorHost {
       this.close();
       return;
     }
-    this.#mode = layout.mode === "overlay" ? "overlay" : "docked";
+    this.#mode = "overlay";
     this.#view.setBounds(layout.panelBounds);
     this.setPageRightInset(layout.pageRightInset);
     this.window.contentView.addChildView(this.#view);

@@ -17,6 +17,7 @@ export interface ShellInspection {
   hasAgentBar: boolean;
   hasPermissionNotice: boolean;
   progressVisible: boolean;
+  newTabAdjacent: boolean;
   siteIdentityLabel: string | null;
   scrollWidth: number;
   tabCount: number;
@@ -61,6 +62,14 @@ export async function inspectShell(window: BrowserWindow): Promise<ShellInspecti
       progressVisible: getComputedStyle(
         document.querySelector('.navigation-progress') || document.documentElement,
       ).opacity === '1',
+      newTabAdjacent: (() => {
+        const tabs = [...document.querySelectorAll('.tab-item')];
+        const last = tabs.at(-1)?.getBoundingClientRect();
+        const button = document.querySelector('.tab-new')?.getBoundingClientRect();
+        if (!last || !button) return false;
+        const gap = button.left - last.right;
+        return gap >= 0 && gap <= 8;
+      })(),
       siteIdentityLabel: document.querySelector('.site-identity')
         ?.getAttribute('aria-label') || null,
       scrollWidth: document.documentElement.scrollWidth,

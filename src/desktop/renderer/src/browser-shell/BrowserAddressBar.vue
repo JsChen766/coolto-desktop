@@ -147,19 +147,26 @@ function toNavigableUrl(raw: string): string {
 </template>
 
 <style scoped>
-.address-row { display: flex; align-items: center; gap: 9px; padding: 6px 10px;
-  border-block: 1px solid var(--border); background: var(--surface); }
+.address-row { display: flex; align-items: center; gap: 8px; min-height: 48px;
+  padding: 6px 10px 8px; border-bottom: 1px solid var(--browser-hairline);
+  background: var(--browser-toolbar); }
 .nav-actions { display: flex; align-items: center; gap: 2px; }
 .nav-button { display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border: 0; border-radius: 7px; background: transparent;
-  color: var(--text-soft); cursor: pointer; }
+  color: var(--text-soft); cursor: pointer; transition: background-color var(--motion-fast)
+  var(--ease-out-quart), color var(--motion-fast) var(--ease-out-quart),
+  transform var(--motion-instant) var(--ease-out-quart); }
 .nav-button:hover:not(:disabled), .nav-button:focus-visible { background: var(--surface-hover); }
-.nav-button:focus-visible { outline: 2px solid var(--selection-bg); outline-offset: 1px; }
+.nav-button:active:not(:disabled) { transform: scale(.98); }
+.nav-button:focus-visible { outline: 2px solid var(--browser-accent); outline-offset: 2px; }
 .nav-button:disabled { opacity: .34; cursor: default; }
 .omnibox { flex: 1; min-width: 0; height: 34px; display: flex; align-items: center;
-  gap: 8px; padding-inline: 11px 14px; border: 1px solid var(--border);
-  border-radius: 18px; background: var(--paper); }
-.omnibox:focus-within { border-color: var(--text-soft); }
+  gap: 8px; padding-inline: 11px 14px; border: 0; border-radius: 18px;
+  background: var(--browser-surface); transition: background-color var(--motion-fast)
+  var(--ease-out-quart), box-shadow var(--motion-instant) var(--ease-out-quart); }
+.omnibox:hover { background: var(--browser-surface-hover); }
+.omnibox:focus-within { background: var(--browser-toolbar);
+  box-shadow: 0 0 0 1px var(--browser-accent); }
 .omnibox.failed { color: var(--danger); }
 .site-identity { display: inline-flex; align-items: center; justify-content: center;
   flex: none; color: var(--muted); }
@@ -167,4 +174,7 @@ function toNavigableUrl(raw: string): string {
 .address { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent;
   color: var(--text); font: 13px/1 var(--font-ui); text-overflow: ellipsis; }
 .address::placeholder { color: var(--text-soft); opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-button, .omnibox { transition: none; }
+}
 </style>

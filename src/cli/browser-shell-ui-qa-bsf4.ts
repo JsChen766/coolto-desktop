@@ -25,7 +25,7 @@ export async function runBrowserShellBsf4Qa(input: {
   const original = tabs.activeTab()!;
   manager.agentStatus.clearProjection();
   const home = tabs.newTab();
-  await waitForQa(async () => (await pageText(home)).includes("Coolto 浏览器"),
+  await waitForQa(async () => (await pageText(home)).includes("Coolto"),
     "the idle BSF4 home page");
   const idle = await homeInspection(home);
   expect("BSF4-01 new tab has one clear idle action without fabricated data",
@@ -39,7 +39,7 @@ export async function runBrowserShellBsf4Qa(input: {
       updatedAt: new Date().toISOString(),
     } }),
   });
-  await waitForQa(async () => (await pageText(home)).includes("继续当前任务"),
+  await waitForQa(async () => (await pageText(home)).includes("继续任务"),
     "the active task on the BSF4 home page");
   const running = await pageText(home);
   expect("BSF4-02 new tab projects the current task from the existing bridge",
@@ -83,7 +83,7 @@ export async function runBrowserShellBsf4Qa(input: {
   const offlineSession = getBrowserSession();
   offlineSession.enableNetworkEmulation({ offline: true });
   const offlineHome = tabs.newTab();
-  await waitForQa(async () => (await pageText(offlineHome)).includes("Coolto Browser"),
+  await waitForQa(async () => (await pageText(offlineHome)).includes("Coolto"),
     "the offline English BSF4 home page");
   const offline = await offlineHome.view.webContents.executeJavaScript(`({
     colorScheme: getComputedStyle(document.documentElement).colorScheme,
@@ -91,7 +91,7 @@ export async function runBrowserShellBsf4Qa(input: {
   })`, true) as { colorScheme: string; text: string };
   offlineSession.disableNetworkEmulation();
   expect("BSF4-04 new tab remains actionable offline in dark English mode",
-    offline.colorScheme === "dark" && offline.text.includes("Continue current task") &&
+    offline.colorScheme === "dark" && offline.text.includes("Continue task") &&
     offline.text.includes("Needs your attention"));
   captures.newTabWaiting = await captureActivePage(
     tabs, artifacts, "30-bsf4-new-tab-waiting.png",

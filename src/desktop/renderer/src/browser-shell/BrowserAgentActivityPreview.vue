@@ -50,7 +50,7 @@ const toneLabels: Record<Activity["tone"], string> = {
 </template>
 
 <style scoped>
-.inspector-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.inspector-section { min-width: 0; }
 h3 { margin: 0; font-size: 13px; font-weight: 600; }
 .empty-copy { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 .activity-list { display: grid; gap: 0; margin: 10px 0 0; padding: 0; list-style: none; }

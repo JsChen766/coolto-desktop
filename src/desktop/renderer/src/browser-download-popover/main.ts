@@ -6,6 +6,7 @@ import {
   initializeLocale, localeCode, translate, translateFormat,
 } from "../i18n/locale";
 import "../styles/tokens.css";
+import "../styles/app-scrollbar.css";
 import "./style.css";
 
 declare global {

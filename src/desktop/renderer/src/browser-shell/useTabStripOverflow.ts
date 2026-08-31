@@ -16,10 +16,12 @@ export function useTabStripOverflow(input: {
   viewport: ElementRef;
   track: ElementRef;
   itemCount: WatchSource<number>;
+  currentItem: () => HTMLElement | null;
 }) {
   const hasOverflow = shallowRef(false);
   const canScrollPrevious = shallowRef(false);
   const canScrollNext = shallowRef(false);
+  const viewportWidth = shallowRef(0);
   let frame = 0;
   let observer: ResizeObserver | undefined;
 
@@ -27,10 +29,13 @@ export function useTabStripOverflow(input: {
     frame = 0;
     const viewport = input.viewport.value;
     if (!viewport) return;
+    const widthChanged = viewport.clientWidth !== viewportWidth.value;
+    viewportWidth.value = viewport.clientWidth;
     const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
     hasOverflow.value = shouldShowBrowserTabOverflow(
       viewport.scrollWidth, viewport.clientWidth, hasOverflow.value,
     );
+    if (widthChanged) reveal(viewport, input.currentItem());
     canScrollPrevious.value = viewport.scrollLeft > 1;
     canScrollNext.value = viewport.scrollLeft < maxScroll - 1;
   }
@@ -56,13 +61,7 @@ export function useTabStripOverflow(input: {
   function ensureVisible(element: HTMLElement | null): void {
     const viewport = input.viewport.value;
     if (!viewport || !element) return;
-    const viewportRect = viewport.getBoundingClientRect();
-    const elementRect = element.getBoundingClientRect();
-    if (elementRect.left < viewportRect.left) {
-      viewport.scrollLeft -= viewportRect.left - elementRect.left;
-    } else if (elementRect.right > viewportRect.right) {
-      viewport.scrollLeft += elementRect.right - viewportRect.right;
-    }
+    reveal(viewport, element);
     scheduleMeasure();
   }
 
@@ -92,7 +91,19 @@ export function useTabStripOverflow(input: {
     hasOverflow: readonly(hasOverflow),
     canScrollPrevious: readonly(canScrollPrevious),
     canScrollNext: readonly(canScrollNext),
+    viewportWidth: readonly(viewportWidth),
     ensureVisible,
     scrollByPage,
   };
+}
+
+function reveal(viewport: HTMLElement, element: HTMLElement | null): void {
+  if (!element) return;
+  const viewportRect = viewport.getBoundingClientRect();
+  const elementRect = element.getBoundingClientRect();
+  if (elementRect.left < viewportRect.left) {
+    viewport.scrollLeft -= viewportRect.left - elementRect.left;
+  } else if (elementRect.right > viewportRect.right) {
+    viewport.scrollLeft += elementRect.right - viewportRect.right;
+  }
 }

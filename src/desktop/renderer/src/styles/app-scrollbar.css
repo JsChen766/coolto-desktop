@@ -1,0 +1,37 @@
+.conversation-scroll,
+.message-scroller,
+.artifact-canvas,
+.app-scrollbar {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+}
+
+.conversation-scroll::-webkit-scrollbar,
+.message-scroller::-webkit-scrollbar,
+.artifact-canvas::-webkit-scrollbar,
+.app-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.conversation-scroll::-webkit-scrollbar-thumb,
+.message-scroller::-webkit-scrollbar-thumb,
+.artifact-canvas::-webkit-scrollbar-thumb,
+.app-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.conversation-scroll:hover,
+.message-scroller:hover,
+.artifact-canvas:hover,
+.app-scrollbar:hover {
+  scrollbar-color: color-mix(in srgb, var(--muted) 32%, transparent) transparent;
+}
+
+.conversation-scroll:hover::-webkit-scrollbar-thumb,
+.message-scroller:hover::-webkit-scrollbar-thumb,
+.artifact-canvas:hover::-webkit-scrollbar-thumb,
+.app-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 32%, transparent);
+}
