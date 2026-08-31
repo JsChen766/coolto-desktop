@@ -87,12 +87,15 @@ unsafe fn with_input(
   action: unsafe extern "C" fn(*const c_char) -> *mut c_char,
 ) -> Result<String> {
   let input = CString::new(value).map_err(|_| calendar_error("Calendar 输入包含空字符"))?;
-  owned_json(unsafe { action(input.as_ptr()) })
+  let output = unsafe { action(input.as_ptr()) };
+  unsafe { owned_json(output) }
 }
 
 #[cfg(target_os = "macos")]
 unsafe fn owned_json(value: *mut c_char) -> Result<String> {
-  if value.is_null() return Err(calendar_error("EventKit 未返回结果"));
+  if value.is_null() {
+    return Err(calendar_error("EventKit 未返回结果"));
+  }
   let output = unsafe { CStr::from_ptr(value) }.to_string_lossy().into_owned();
   unsafe { coolto_calendar_free(value) };
   Ok(output)
