@@ -3571,7 +3571,11 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   与 `git diff --check` 通过。随后在同一 0.1.25 发布工作树完整执行 `npm run package:win`：Rust 3/3、protected
   Main、NSIS、release hardening、真实隔离安装/bootstrap/Renderer 持续健康与卸载清理全部通过；本地 EXE
   135,154,174 bytes，SHA-256 `1F09E9C7771EC0AA20618376273D770920536FA4DF308CD4AE4EB44031BB5003`，
-  Authenticode 为 NotSigned。此处仅记录发布前本地门禁，尚未 push、上传或声明公网 0.1.25 已发布。
+  Authenticode 为 NotSigned。PR #56 已合入受保护 `app`；Windows workflow `33413148077`、macOS workflow
+  `33413154022` 和 Homepage workflow `33414446619` 均成功。公网 feeds、下载页与官网 bundle 均为 0.1.25；
+  Windows EXE、macOS 两个 ZIP/两个 DMG 已完成全字节下载，尺寸与 feed SHA-512 全部匹配并独立计算
+  SHA-256。Windows 仍为 NotSigned，macOS 仍为 ad-hoc 且未 notarize；完整产物哈希与 CI 证据见
+  [发布手册 10.14](../desktop-release-hardening-runbook.md#1014-已验证基线2026-09-010125-onboarding-browser-demo-修复)。
 - 同日用户进一步确认放弃独立 ExperienceEvidence，统一以 Experience 当前 revision 的长纯文本作为未来
   简历职业事实源。现新增宿主管理的材料沉淀状态机：PDF 保留页级边界，DOCX/TXT/Markdown 和当前网页按
   最多 6000 字分块，直接用户长文本走同一路径；材料正文最多 180,000 字，超过时明确要求拆分，不再沿用

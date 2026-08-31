@@ -487,6 +487,34 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
   安全扫描或修改响应头代替。
 - 本次热修复不替代 BSF5、BE6 或 BE8 的任何延期真实验收，Roadmap 阶段状态保持不变。
 
+### 10.14 已验证基线（2026-09-01，0.1.25 Onboarding Browser Demo 修复）
+
+- 发布源：固定 onboarding `data:text/html` 页面改走受控宿主内部首屏入口，外部导航继续只允许 HTTP(S)，
+  并按本次新建 tab ID 等待/重新选中目标页；版本升至 0.1.25。PR #56 合入受保护 `app`，merge commit 为
+  `536b94c8889cc4df9c6c5f21aa2cff61b5e8e9d3`。
+- 干净发布 worktree 从最新 `origin/app` 建立；npm 官方源生产依赖审计为 0 漏洞。`npm run check` 全绿：
+  1163 个源文件均不超过 250 行，1105 项测试中 1103 通过、2 项平台跳过、0 失败，Node/Preload/Vue
+  typecheck、Node/Electron production build 与 5 个 sandbox preload 门禁通过。隔离真实 Electron 已完成
+  本地示例页加载、姓名/邮箱/所在地填写和固定临时 PDF 上传。
+- 本地 Windows `npm run package:win` 全链通过：Rust 3/3、protected Main、NSIS、release hardening、
+  真实隔离安装/bootstrap/Renderer 持续健康和卸载清理；本地产物因随机保护密钥与 CI 产物哈希不同，未上传。
+- Windows workflow `33413148077` 成功（6m57s）：payload 1,488,137 bytes、native 276,992 bytes、
+  Fuses verified，真实安装器验收与服务器上传通过。公网 EXE 的 Authenticode 实测仍为 NotSigned。
+- macOS workflow `33413154022` 成功（5m08s）：Intel/Apple Silicon 两端 payload 均为 1,488,137 bytes、
+  native 均为 817,200 bytes、Fuses verified；identity `-`（ad-hoc），日志明确跳过 notarization。
+- Homepage workflow `33414446619` 成功（26s）；公开 bundle `index-R_GDtnet.js` 为 317,213 bytes，SHA-256
+  `0CCFAF2D8EE7206DDD9A7A5A5FF4BD041D0BA4126E4D4960CDFBD7A6A8192FC6`，包含 0.1.25 和 Windows、
+  macOS Intel、Apple Silicon 下载地址。
+- 公网 `latest.yml`、`latest-mac.yml` 和下载页均为 0.1.25。五个文件完成无 query URL 全字节下载，尺寸与
+  feed SHA-512 全部匹配；独立 SHA-256：Windows EXE 133,627,085 bytes，
+  `2DFC3D5F3174E9A417DEA489881983B0F2309C6EB6757FAB7BF267094B81AE8F`；Intel ZIP 188,903,407 bytes，
+  `AB561C3854529D9480168BCED2C410A60244D2F76372B4383DEAFBD45B59CE01`；Apple Silicon ZIP
+  185,343,146 bytes，`6288EBB9BF6893D9ED9E73D846992655D12C47D9CDCFFB8009039A01C75B559C`；Intel DMG
+  191,799,892 bytes，`4FB8688BF7930E8966E5D0378E48E41E80AC56F7F05A2822F3C1FC72A7EBC27F`；Apple Silicon
+  DMG 188,246,848 bytes，`77592FAD382ECE113035292D02564781DBA828DEF06B7DF1CC77D111C0FBA8D4`。
+- Actions 仍提示 `actions/checkout@v4` / `setup-node@v4` 的 Node 20 弃用警告；未阻断本次构建、验收、上传或
+  公网独立验证。本次发布不替代 BSF5、BE6、BE8 的延期真实验收，Roadmap 阶段状态不变。
+
 ### 10.6 运维注意事项（坑）
 
 - **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过
