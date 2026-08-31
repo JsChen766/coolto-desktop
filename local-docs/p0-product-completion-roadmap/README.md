@@ -3125,6 +3125,28 @@ Windows EXE `FA522E3A1D928666DFAF5138B6E442A20BB3FBF8C4CF8E2AFC5F3135182960F8`�
 仍为 ad-hoc/未 notarize；本次可下载发布不替代 BE5/BE8/S4.5 的真实账号、关联准确率、长期任务和生成
 质量门禁，阶段状态不因此改变。Actions Node 20 弃用提示与官网 SSH shell quoting 警告留作独立维护项。
 
+**0.1.22 ResumeDraft 会话关联发布完成（2026-08-31）：**远端 `Draft-编辑` 相对旧“三分之二”基线
+实际只有提交 `c6dd8704`。为避免在仍处于质检的 Enhance 工作区或旧 0.1.20 分支树上操作，本轮从最新
+`origin/app` 建立独立 worktree，只 cherry-pick 为 `1ea868c` 并升版 0.1.22；PR
+[#49](https://github.com/JsChen766/cv_agent_frontend/pull/49) 合入受保护 `app`，merge
+`4810bd4198962a6958c8216db9213a1915460bd3`。fresh worktree 首次模板门禁发现 LF attribute 与旧 CRLF
+锁哈希不一致，修正 source-lock 为实际 LF `72a681...` / 5,562 bytes 后重跑通过。npm 官方源生产依赖
+审计 0 漏洞；`npm run check`：991 个源文件均不超过 250 行，881 项测试中 879 通过、2 项平台跳过、
+0 失败，双 typecheck 与双 production build 通过；定向回归 14/14。真实 Electron demo 验证了旧对话
+保留、取消无副作用、确认后新对话为空且仍绑定同一 ResumeDraft，以及键盘焦点和 200% 缩放；Resume
+Renderer/PDF QA 通过。Windows workflow
+[`33379761238`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33379761238) 成功（8m40s），
+macOS workflow [`33379765535`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33379765535) 成功
+（5m17s），Homepage workflow
+[`33380499079`](https://github.com/JsChen766/cv_agent_frontend/actions/runs/33380499079) 成功。公网 feed、下载页
+和官网 bundle 均为 0.1.22；五个安装文件的字节数/feed SHA-512 全部匹配，独立 SHA-256：Windows EXE
+`9AAAB20BEB0752F700CDC4E030122419D09BD15C81A10CA50FB5EDACF2DBFE73`，Intel ZIP
+`D594B22D9E53334995012DFB33B6047A025D520755F60C1BBDB0E7FC14D1DAE3`，ARM64 ZIP
+`9748B979ED98BDAD6C2F01D73633F58827F2C9A0AB304AEBC7EF6B861A2BA76A`，Intel DMG
+`00070CB8D5861FFA13030BF856BB7B8B04CDA2BDC59CCD2C48FF0A3CE0ADB678`，ARM64 DMG
+`B3937E27A92E177DE0FAECA50ABAA20B3228352F5E1F1A1F0AA81C7E346DE112`。Windows 仍 NotSigned，macOS
+仍 ad-hoc/未 notarize；本次发布不替代 BE5/BE8/S4.5 的剩余真实门禁，阶段状态不因此改变。
+
 **S4.5.1 尾行 V2 实施与实测（2026-08-25 至 08-26，尾行独测通过、整份未完成）：**尾行质量政策已
 从 layout manifest 解耦并版本化；新工作区采用严格 `2/3 + 1px` V2，历史无版本结构保留 V1。隐藏
 Chromium 新增 computed-style CEU 标定和“水 × n”换行响应曲线，Agent 每条只提交一个 `growthText`、
