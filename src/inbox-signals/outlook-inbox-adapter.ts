@@ -80,7 +80,7 @@ function toMessage(
   const bodyText = body.contentType === "html"
     ? htmlToPlainText(content) : boundedMailText(content);
   return {
-    version: 1, provider: "outlook", connectionId,
+    version: 1, provider: "outlook", connectionId, direction: "received",
     sourceMessageId: string(value.id, "Graph message id"),
     internetMessageId: typeof value.internetMessageId === "string"
       ? value.internetMessageId : null,

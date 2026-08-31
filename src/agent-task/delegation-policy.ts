@@ -35,7 +35,11 @@ export function evaluateDelegationPolicy(
   if (grant.taskGoalHash !== input.taskGoalHash) {
     return decision(input, now, "block", "grant_goal_mismatch", grant);
   }
-  if (Date.parse(now) < Date.parse(grant.validFrom) || Date.parse(now) >= Date.parse(grant.expiresAt)) {
+  const nowTime = Date.parse(now);
+  const validFrom = Date.parse(grant.validFrom);
+  const expiresAt = Date.parse(grant.expiresAt);
+  if (![nowTime, validFrom, expiresAt].every(Number.isFinite) ||
+      nowTime < validFrom || nowTime >= expiresAt) {
     return decision(input, now, "block", "grant_inactive", grant);
   }
   if (!input.sitePolicyAllowed) {

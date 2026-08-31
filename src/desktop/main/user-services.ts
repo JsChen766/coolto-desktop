@@ -1,4 +1,5 @@
-import type { BrowserWindow } from "electron";
+import { app, type BrowserWindow } from "electron";
+import { join } from "node:path";
 
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { BrowserAgentController } from "../../browser/agent-control-types.js";
@@ -38,6 +39,7 @@ import { TrackerRecoveryService } from "./tracker/tracker-recovery-service.js";
 import { createElectronAgentHarness } from "./agent-task/create-electron-agent-harness.js";
 import { createAgentTaskRuntime } from "./agent-task/create-agent-task-runner.js";
 import { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
+import { ManagedResumeUploadService } from "./agent-task/managed-resume-upload-service.js";
 import { clearUserServices } from "./clear-user-services.js";
 import { ElectronMailConnectionService } from "./mail-connections/electron-mail-connection-service.js";
 import { createUserFileServices } from "./user-file-services.js";
@@ -108,10 +110,16 @@ export class UserServicesResolver {
     );
     const applicationProposals = new ApplicationProposalService(syncStore, applications);
     const mailConnections = new ElectronMailConnectionService(user.id);
+    const managedResumeUploads = new ManagedResumeUploadService(
+      join(app.getPath("userData"), "managed-resume-uploads"),
+      user.id, agentHarness, resumes, this.resumeCompiler, this.browserPageOperator,
+    );
+    void managedResumeUploads.cleanupExpired().catch(() => undefined);
     const interviews = new InterviewSyncStore(syncStore, triggerSync, waitForInitialSync);
     const interviewProposals = new InterviewProposalService(interviews);
     const notes = new NoteSyncStore(syncStore, triggerSync, waitForInitialSync);
     const reminders = new ReminderSyncStore(syncStore, triggerSync, waitForInitialSync);
+    const reminderProposals = new ReminderProposalService(reminders);
     const calendar = createCalendarService(user.id, applications, interviews, reminders);
     const trackerDetail = new ApplicationTrackerDetailService(
       new StatusEventReader(syncStore, waitForInitialSync), interviews, notes, reminders,
@@ -128,15 +136,17 @@ export class UserServicesResolver {
       this.auth.apiClient, conversations, resumeDrafts, this.window.webContents,
       this.resumeCompiler, selectedFiles, this.browserAgentController,
       this.browserPageOperator, agentHarness, agentTaskProposals,
-      resumes, applications, applicationProposals, deliveryResumeFiles, mailConnections,
-      interviews, interviewProposals, experiences, jds, profiles,
+      resumes, applications, applicationProposals, deliveryResumeFiles,
+      managedResumeUploads, mailConnections,
+      interviews, interviewProposals, reminderProposals, experiences, jds, profiles,
       profileProposals, experienceProposals,
       () => readCompactionThreshold(this.auth.apiClient),
       () => runSyncNow(this.auth),
     );
     const { agentTasks, agentTaskScheduler } = await createAgentTaskRuntime(
       agentHarness, agent, this.browserAgentStatus, this.browserPageOperator,
-      this.browserAgentController);
+      this.browserAgentController, () => this.browserWindow.open(),
+      (taskId) => managedResumeUploads.cleanupTask(taskId));
     this.services = {
       ownerId: user.id,
       conversations,
@@ -153,6 +163,7 @@ export class UserServicesResolver {
       agentTaskScheduler,
       selectedFiles,
       deliveryResumeFiles,
+      managedResumeUploads,
       resumes,
       jds,
       applications,
@@ -168,7 +179,7 @@ export class UserServicesResolver {
       notes,
       noteProposals: new NoteProposalService(notes),
       reminders,
-      reminderProposals: new ReminderProposalService(reminders),
+      reminderProposals,
       reminderScheduler,
       trackerRecovery: new TrackerRecoveryService(
         syncStore, triggerSync, waitForInitialSync, () => this.auth.syncNow(),

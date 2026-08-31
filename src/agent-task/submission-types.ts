@@ -4,10 +4,11 @@ export interface SubmissionIntentV1 {
   ownerId: string;
   taskId: string;
   runId: string;
-  actionTokenId: string;
+  actionTokenId: string | null;
   applicationProposalId: string;
   jdId: string;
   resumeId: string;
+  resumeTitle: string;
   resumeContentHash: string;
   company: string;
   role: string;
@@ -16,6 +17,8 @@ export interface SubmissionIntentV1 {
   submitFillId: string;
   preparedAt: string;
   expiresAt: string;
+  confirmedByUserAt: string | null;
+  rejectedByUserAt: string | null;
   startedAt: string | null;
   submissionReceiptId: string | null;
 }

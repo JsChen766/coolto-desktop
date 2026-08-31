@@ -56,6 +56,70 @@ test("Delegation proposal always includes the internal task lifecycle", () => {
   assert.deepEqual(proposal.input.allowedActions, ["browser.read", "task.lifecycle"]);
 });
 
+test("Delegation proposal rejects invalid expiry and late auto start", () => {
+  const value = service();
+  assert.throws(() => value.proposals.prepare({
+    ...input(), expiresAt: "not-a-date",
+  }), /有效期无效/u);
+  assert.throws(() => value.proposals.prepare({
+    ...input(), connectorPolicy: {
+      autoStartAfter: new Date(Date.now() + 120_000).toISOString(),
+    },
+  }), /晚于授权有效期/u);
+});
+
+test("AI Native approval copy is kind-specific and hides internal scopes", () => {
+  const proposal = service().proposals.prepare({
+    ...input(), allowedDomains: [],
+    allowedActions: ["strategy.read", "strategy.write"],
+    jobCriteria: { loopKind: "application_strategy" },
+  });
+  const content = JSON.stringify(createAgentTaskApprovalDraft(proposal));
+  assert.match(content, /读取投递统计/u);
+  assert.match(content, /当前账号的投递统计/u);
+  assert.doesNotMatch(content, /strategy\.read|最低匹配|投递数量/u);
+});
+
+test("AI Native apply and App schedule policies are frozen in the grant", () => {
+  const value = service();
+  assert.throws(() => value.proposals.prepare({
+    ...input(),
+    allowedActions: [
+      "browser.read", "resume.read", "browser.submit", "tracker.application.create",
+    ],
+  }), /Resume ID.*contentHash.*confirm_each/u);
+  const apply = value.proposals.prepare({
+    ...input(),
+    allowedActions: [
+      "browser.read", "resume.read", "browser.submit", "tracker.application.create",
+    ],
+    assetPolicy: {
+      resumeId: "resume-1", resumeTitle: "Resume",
+      resumeContentHash: "a".repeat(64), submissionMode: "confirm_each",
+    },
+  });
+  assert.match(JSON.stringify(createAgentTaskApprovalDraft(apply)), /每个岗位提交前单独确认/u);
+
+  assert.throws(() => value.proposals.prepare({
+    ...input(), allowedActions: [
+      "mail.read", "mail.classify", "tracker.application.read",
+      "tracker.application.update", "tracker.interview.update",
+    ],
+    connectorPolicy: { appSchedule: true, mailConnectionIds: ["gmail-1"] },
+  }), /收\/发件方向/u);
+  const schedule = value.proposals.prepare({
+    ...input(), allowedActions: [
+      "mail.read", "mail.classify", "tracker.application.read",
+      "tracker.application.update", "tracker.interview.update",
+    ],
+    connectorPolicy: {
+      appSchedule: true, scheduleMailDirections: ["received", "sent"],
+      mailConnectionIds: ["gmail-1"],
+    },
+  });
+  assert.match(JSON.stringify(createAgentTaskApprovalDraft(schedule)), /收件、发件识别；写入前逐条确认/u);
+});
+
 test("Delegation approval names the Application read scope for the user", () => {
   const proposal = service().proposals.prepare({
     ...input(),

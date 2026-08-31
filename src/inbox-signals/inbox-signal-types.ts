@@ -1,9 +1,11 @@
 export type ConnectedInboxProvider = "gmail" | "outlook";
 export type InboxProvider = "browser_webmail" | ConnectedInboxProvider;
+export type MailDirection = "received" | "sent";
 
 export type ExternalSignalKind =
   | "application_confirmation" | "screening" | "interview_invite"
-  | "interview_change" | "offer" | "rejection" | "other";
+  | "interview_schedule" | "interview_change" | "offer" | "rejection"
+  | "deadline" | "portal_action" | "risk_signal" | "other";
 
 export interface InboxMessagePayloadV1 {
   version: 1;
@@ -11,6 +13,8 @@ export interface InboxMessagePayloadV1 {
   connectionId: string;
   sourceMessageId: string;
   internetMessageId: string | null;
+  direction: MailDirection;
+  directionEvidence?: string | null;
   sender: string;
   subject: string;
   receivedAt: string;
@@ -38,6 +42,7 @@ export interface ExternalSignalV1 {
   connectionId: string;
   sourceMessageId: string;
   sourceMessageHash: string;
+  direction: MailDirection;
   sender: string;
   subject: string;
   receivedAt: string;
@@ -61,6 +66,11 @@ export interface MailConnection {
 
 export interface MailConnectionRegistry {
   get(connectionId: string): Promise<MailConnection>;
+  list?(): Promise<Array<{
+    id: string;
+    provider: ConnectedInboxProvider;
+    accountEmail: string;
+  }>>;
 }
 
 export interface InboxIncrementalPage {

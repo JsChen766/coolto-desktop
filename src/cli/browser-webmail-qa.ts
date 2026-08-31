@@ -40,6 +40,7 @@ export async function runBrowserWebmailQa(input: {
     input.sitePolicyAllows ?? (() => true),
   );
   const capture = input.capture ?? {
+    direction: "received", directionEvidence: "Inbox",
     sender: "recruiter@example.com", subject: "Interview invitation",
     receivedAt: "2026-08-22T10:00:00.000Z", receivedAtEvidence: "Aug 22, 10:00",
     bodyText: "Your interview is scheduled for Monday at 10:00 HKT.",
@@ -60,6 +61,8 @@ export async function runBrowserWebmailQa(input: {
 }
 
 export interface BrowserWebmailQaCapture {
+  direction: "received" | "sent";
+  directionEvidence: string;
   sender: string;
   subject: string;
   receivedAt: string;

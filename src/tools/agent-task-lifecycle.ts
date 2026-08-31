@@ -59,7 +59,9 @@ export function createAgentTaskLifecycleTools(
       }),
       execute: async (_id, input) => {
         const value = input as { reason: "approval" | "takeover" | "answer"; summary: string };
-        const task = await controller.wait({ ...value, eventTypes: ["user.response"] });
+        const eventTypes = value.reason === "approval"
+          ? ["approval.accepted", "approval.rejected"] : ["user.response"];
+        const task = await controller.wait({ ...value, eventTypes });
         return { content: [{ type: "text", text: "任务已暂停并等待用户。" }], details: task,
           terminate: true };
       },

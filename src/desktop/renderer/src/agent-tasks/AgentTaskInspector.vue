@@ -6,6 +6,7 @@ import { computed, shallowRef } from "vue";
 
 import type { AgentTaskDetailView } from "@desktop/types";
 import { actionStatusLabel, taskStatusLabel, waitingReasonLabel } from "./agent-task-labels";
+import AgentTaskArtifactDetail from "./AgentTaskArtifactDetail.vue";
 
 const props = defineProps<{
   detail: AgentTaskDetailView;
@@ -34,6 +35,44 @@ const canCancel = computed(() => !["completed", "partially_completed", "canceled
   .includes(props.detail.task.status));
 const canRevoke = computed(() => Boolean(props.detail.grant && !props.detail.grant.revokedAt));
 const visibleLeads = computed(() => props.detail.leads.slice(0, 12));
+const loop = computed(() => props.detail.grant?.loop ?? null);
+const loopDescription = computed(() => {
+  if (loop.value?.kind === "resume_job_apply") {
+    return `${loop.value.resumeTitle} · ${loop.value.sources.join("、") || "岗位源未命名"}`;
+  }
+  if (loop.value?.kind === "mail_app_schedule") {
+    const directions = loop.value.directions.map((item) => item === "sent" ? "发件" : "收件");
+    const sources = [
+      ...(loop.value.browserWebmail ? ["Browser Webmail"] : []),
+      ...(loop.value.connections ? [`${loop.value.connections} 个直连邮箱`] : []),
+    ];
+    return `${directions.join("、")} · 每 ${loop.value.pollIntervalMinutes} 分钟 · ${sources.join("、")}`;
+  }
+  if (loop.value?.kind === "application_follow_up") {
+    return `每 ${loop.value.checkIntervalHours} 小时检查 · 当前投递`;
+  }
+  if (loop.value?.kind === "interview_briefing") {
+    return `提前 ${loop.value.wakeBeforeMinutes} 分钟 · 当前面试`;
+  }
+  if (loop.value?.kind === "application_strategy") {
+    return `每 ${loop.value.reviewIntervalDays} 天复盘 · 全部投递`;
+  }
+  if (loop.value?.kind === "risk_deadline_watch") {
+    return `收件监控 · 每 ${loop.value.pollIntervalMinutes} 分钟`;
+  }
+  return "";
+});
+const loopMeta = computed<readonly [string, string]>(() => {
+  switch (loop.value?.kind) {
+    case "resume_job_apply": return ["自动找岗 Loop", "每个岗位提交前单独确认"];
+    case "mail_app_schedule": return ["邮件日程 Loop", "业务日程写入前逐条确认"];
+    case "application_follow_up": return ["投递跟进 Loop", "邮件发送始终由你完成"];
+    case "interview_briefing": return ["面试简报 Loop", "结论必须保留来源"];
+    case "application_strategy": return ["策略复盘 Loop", "策略变更仅生成 Proposal"];
+    case "risk_deadline_watch": return ["风险截止 Loop", "提醒写入前逐条确认"];
+    default: return ["AI Native Loop", "范围外动作会被阻止"];
+  }
+});
 </script>
 
 <template>
@@ -79,6 +118,11 @@ const visibleLeads = computed(() => props.detail.leads.slice(0, 12));
         <div><dt>{{ $t('最近更新') }}</dt><dd>{{ new Date(detail.task.updatedAt).toLocaleString() }}</dd></div>
         <div><dt>{{ $t('动作回执') }}</dt><dd>{{ detail.receipts.length }}</dd></div>
       </dl>
+      <section v-if="loop" class="loop-context">
+        <span>{{ $t(loopMeta[0]) }}</span>
+        <strong>{{ loopDescription }}</strong>
+        <small>{{ $t(loopMeta[1]) }}</small>
+      </section>
       <button type="button" class="conversation-link" @click="emit('openConversation', detail.task.conversationId)">
         <Terminal :size="15" aria-hidden="true" />{{ $t('返回任务对话') }}
       </button>
@@ -89,6 +133,14 @@ const visibleLeads = computed(() => props.detail.leads.slice(0, 12));
           <span class="lead-score">{{ lead.score ?? '—' }}<small>/100</small></span>
           <span v-if="lead.shortlisted" class="shortlist-label">{{ $t('Shortlist') }}</span>
         </button>
+      </section>
+      <section v-if="detail.artifacts.length" class="artifact-section">
+        <header><h2>{{ $t('Loop 产物') }}</h2><span>{{ detail.artifacts.length }}</span></header>
+        <details v-for="item in detail.artifacts" :key="item.id" class="artifact-row">
+          <summary><span><strong>{{ item.title }}</strong><small>{{ item.summary }}</small></span>
+            <time :datetime="item.createdAt">{{ new Date(item.createdAt).toLocaleString() }}</time></summary>
+          <AgentTaskArtifactDetail :artifact="item" />
+        </details>
       </section>
       <p class="runtime-note">{{ $t('App 关闭、休眠、浏览器不可用或断网时任务不会继续外部动作。') }}</p>
     </section>
@@ -150,6 +202,8 @@ const visibleLeads = computed(() => props.detail.leads.slice(0, 12));
 .content-section { padding: 24px 0; } dl { display: grid; gap: 14px; margin: 0; }
 dl div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; } dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
 .overview-grid { display: grid; gap: 22px; } .conversation-link { width: fit-content; }
+.loop-context { display: grid; gap: 4px; padding: 12px 0; border-block: 1px solid var(--border); }
+.loop-context span, .loop-context small { color: var(--muted); font-size: 12px; }
 .lead-section { display: grid; gap: 5px; } .lead-section header { display: flex; justify-content: space-between; align-items: baseline; }
 .lead-section h2 { margin: 0; font-size: 14px; } .lead-section header span { color: var(--muted); font-size: 12px; }
 .lead-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 0;
@@ -157,6 +211,11 @@ dl div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; 
 .lead-row > span:first-child { display: grid; gap: 3px; min-width: 0; } .lead-row small { color: var(--muted); }
 .lead-score { font: 600 13px var(--font-mono); } .lead-score small { font-size: 9px; }
 .shortlist-label { padding: 3px 6px; border-radius: 6px; background: var(--surface-strong); font-size: 10px; }
+.artifact-section { display: grid; gap: 5px; } .artifact-section header { display: flex; justify-content: space-between; align-items: baseline; }
+.artifact-section h2 { margin: 0; font-size: 14px; } .artifact-section header span, .artifact-row small, .artifact-row time { color: var(--muted); font-size: 12px; }
+.artifact-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.artifact-row summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; cursor: pointer; }
+.artifact-row summary > span { display: grid; gap: 3px; } .artifact-row time { white-space: nowrap; }
 .timeline { display: grid; gap: 4px; } .timeline-row { display: grid; grid-template-columns: 12px 1fr; gap: 10px; padding: 10px 0; }
 .timeline-dot { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--muted); }
 .timeline-row p, .timeline-row small { margin: 3px 0 0; color: var(--muted); }

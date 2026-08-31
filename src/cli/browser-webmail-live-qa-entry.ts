@@ -132,11 +132,19 @@ function optionalCapture(
   const sender = process.env.COOLTO_WEBMAIL_LIVE_QA_SENDER?.trim();
   const receivedAt = process.env.COOLTO_WEBMAIL_LIVE_QA_RECEIVED_AT?.trim();
   const receivedAtEvidence = process.env.COOLTO_WEBMAIL_LIVE_QA_TIME_EVIDENCE?.trim();
-  if (!sender && !receivedAt && !receivedAtEvidence) return undefined;
-  if (!sender || !receivedAt || !receivedAtEvidence) {
-    throw new Error("capture 模式必须同时配置 sender、receivedAt 与 time evidence");
+  const direction = process.env.COOLTO_WEBMAIL_LIVE_QA_DIRECTION?.trim();
+  const directionEvidence = process.env.COOLTO_WEBMAIL_LIVE_QA_DIRECTION_EVIDENCE?.trim();
+  if (!sender && !receivedAt && !receivedAtEvidence && !direction && !directionEvidence) {
+    return undefined;
   }
-  return { sender, subject, receivedAt, receivedAtEvidence, bodyText };
+  if (!sender || !receivedAt || !receivedAtEvidence ||
+      !["received", "sent"].includes(direction ?? "") || !directionEvidence) {
+    throw new Error("capture 模式必须配置 sender、时间、direction 与逐字方向证据");
+  }
+  return {
+    sender, subject, receivedAt, receivedAtEvidence, bodyText,
+    direction: direction as "received" | "sent", directionEvidence,
+  };
 }
 
 async function waitForMailboxOrigin(

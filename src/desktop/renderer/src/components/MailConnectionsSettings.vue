@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { Check, LoaderCircle, Mail, Unplug } from "@lucide/vue";
+import { CalendarClock, Check, LoaderCircle, Mail, Unplug } from "@lucide/vue";
 import { onMounted, ref } from "vue";
 
 import type { DesktopApi, MailConnectionView, MailProviderView } from "@desktop/types";
+import MailScheduleLoopDialog from "../agent-tasks/MailScheduleLoopDialog.vue";
 
-const props = defineProps<{ api: DesktopApi }>();
+const props = defineProps<{ api: DesktopApi; conversationId: string }>();
+const emit = defineEmits<{ started: [taskId: string] }>();
 const providers = ref<MailProviderView[]>([]);
 const connections = ref<MailConnectionView[]>([]);
 const busy = ref<string>();
 const confirmingDisconnect = ref<string>();
 const error = ref<string>();
+const scheduleOpen = ref(false);
 
 onMounted(load);
 
@@ -82,9 +85,15 @@ function label(provider: MailProviderView["provider"]): string {
         <LoaderCircle v-if="busy === provider.provider" class="spin" :size="14" aria-hidden="true" />
         {{ provider.configured ? $t(`连接 ${label(provider.provider)}`) : $t(`${label(provider.provider)} 尚未配置`) }}
       </button>
+      <button class="secondary-button" type="button" @click="scheduleOpen = true">
+        <CalendarClock :size="14" aria-hidden="true" />{{ $t('联动 App 日程') }}
+      </button>
     </div>
     <p class="settings-section-desc">{{ $t('Gmail 使用 gmail.readonly；Outlook 使用 Mail.Read。发送权限始终为关闭。') }}</p>
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+    <MailScheduleLoopDialog v-if="scheduleOpen" :api="api"
+      :conversation-id="conversationId" :connections="connections"
+      @close="scheduleOpen = false" @started="scheduleOpen = false; emit('started', $event)" />
   </section>
 </template>
 

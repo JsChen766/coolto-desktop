@@ -27,13 +27,12 @@ export function useAppShell() {
   );
   const browser = useBrowserState();
   const fillProgress = useFillProgress();
-  const { page: browserPageHandoff, task: agentTaskFocusRequest } =
+  const { page: browserPageHandoff, task: agentTaskFocusRequest, focusTask } =
     useBrowserAgentTaskNavigation();
   const scroller = ref<HTMLElement>();
   const dark = ref(localStorage.getItem("coolto-theme") === "dark");
   const narrowScreen = window.matchMedia("(max-width: 820px)");
   useWindowCloseSave(resumeWorkspace);
-
   onMounted(() => {
     applyTheme();
     fillProgress.mount();
@@ -102,6 +101,10 @@ export function useAppShell() {
     closeNarrowSidebar();
     activeView.value = view;
   }
+  function openAgentTask(taskId: string): void {
+    focusTask(taskId);
+    openPrimaryView("agent_tasks");
+  }
   function openTracker(): void {
     resumePreview.resetResumePreview();
     closeNarrowSidebar();
@@ -132,7 +135,6 @@ export function useAppShell() {
     activeArtifactType.value = "match";
     artifactOpen.value = true;
   }
-
   async function toggleArtifact(): Promise<void> {
     artifactOpen.value = !artifactOpen.value;
     if (!artifactOpen.value) {
@@ -145,18 +147,15 @@ export function useAppShell() {
       await resumeWorkspace.openDraft(first.artifactId);
     }
   }
-
   async function toggleBrowser(): Promise<void> {
     if (browser.state.isOpen) await browser.close();
     else await browser.open({ theme: dark.value ? "dark" : "light" });
   }
-
   function draftCloudState(artifactId: string) {
     return resumeWorkspace.drafts.value.find(
       (draft) => draft.artifactId === artifactId,
     )?.cloudState;
   }
-
   function toggleTheme(): void {
     dark.value = !dark.value;
     localStorage.setItem("coolto-theme", dark.value ? "dark" : "light");
@@ -218,6 +217,7 @@ export function useAppShell() {
     fillProgress,
     ...resumePreview,
     openJdPanel,
+    openAgentTask,
     openPrimaryView,
     openMatchPanel,
     openResumeDraft,

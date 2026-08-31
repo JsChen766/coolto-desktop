@@ -54,6 +54,16 @@ import {
   createResumeStrategyChoiceExecutor,
   RESUME_STRATEGY_CHOICE_ACTION,
 } from "../resume/strategy/choice-approval.js";
+import type { ApplicationSubmissionService } from
+  "../desktop/main/agent-task/application-submission-service.js";
+import { createSubmissionApprovalExecutor } from
+  "../agent-task/submission-approval-executor.js";
+import { SUBMISSION_CONFIRM_ACTION } from "../agent-task/submission-approval.js";
+import type { AiNativeLoopService } from
+  "../desktop/main/agent-task/ai-native-loop-service.js";
+import { createLoopReminderApprovalExecutor } from
+  "../agent-task/loop-reminder-approval-executor.js";
+import { LOOP_REMINDER_ACTION } from "../agent-task/loop-reminder-approval.js";
 
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
@@ -72,6 +82,8 @@ export interface ActionApprovalDependencies {
   answerVault?: AnswerVaultStore;
   inboxApplicationProposals?: InboxSignalApplicationService;
   inboxInterviewProposals?: InboxSignalInterviewService;
+  applicationSubmissions?: ApplicationSubmissionService;
+  aiNativeLoops?: AiNativeLoopService;
 }
 
 export function createActionApprovalManager(
@@ -160,6 +172,18 @@ export function createActionApprovalManager(
     executors.register(
       INBOX_INTERVIEW_UPDATE_ACTION,
       createInboxInterviewApprovalExecutor(deps.inboxInterviewProposals),
+    );
+  }
+  if (deps.applicationSubmissions) {
+    executors.register(
+      SUBMISSION_CONFIRM_ACTION,
+      createSubmissionApprovalExecutor(deps.applicationSubmissions),
+    );
+  }
+  if (deps.aiNativeLoops) {
+    executors.register(
+      LOOP_REMINDER_ACTION,
+      createLoopReminderApprovalExecutor(deps.aiNativeLoops),
     );
   }
   return new ApprovalManager(new ApprovalStore(), executors);

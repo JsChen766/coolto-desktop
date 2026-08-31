@@ -99,6 +99,8 @@ test("delegation policy honors blocked domain, scope and fresh observation", asy
   assert.equal(decide({ targetOrigin: "https://blocked.jobs.example" }).reasonCode, "domain_blocked");
   assert.equal(decide({ freshObservation: false }).reasonCode, "fresh_observation_required");
   assert.equal(decide({ metadata: { ...metadata, requiredScopes: ["browser.submit"] } }).decision, "ask");
+  assert.equal(decide({ grant: { ...grant, expiresAt: "not-a-date" } }).reasonCode,
+    "grant_inactive");
   const revocation = await grants.revoke(task.id, "user");
   assert.equal(decide({ revocation }).reasonCode, "grant_revoked");
 });

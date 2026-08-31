@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BriefcaseBusiness, ExternalLink, FileText, Pencil, Trash2, X } from "@lucide/vue";
+import { BriefcaseBusiness, Clock3, ExternalLink, FileText, NotebookText, Pencil, Trash2, X } from "@lucide/vue";
 import { ref, watch } from "vue";
 
 import type {
@@ -40,6 +40,7 @@ const props = defineProps<{
   calendarSupported?: boolean;
   calendarBusyId?: string | undefined;
   calendarMessage?: string | undefined;
+  loopsEnabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -57,6 +58,7 @@ const emit = defineEmits<{
   editReminder: [value: Reminder];
   removeChild: [kind: "interview" | "note" | "reminder", id: string];
   syncInterview: [value: InterviewRound];
+  startLoop: [kind: "follow_up" | "briefing"];
 }>();
 
 const editing = ref(false);
@@ -115,7 +117,7 @@ function save(): void {
       <button v-for="tab in DETAIL_TABS" :key="tab.id" type="button" :class="{ active: activeTab === tab.id }" @click="activeTab = tab.id">{{ $t(tab.label) }}</button>
     </nav>
 
-    <form v-if="activeTab === 'overview' && editing" class="tracker-detail-edit" @submit.prevent="save">
+    <form v-if="activeTab === 'overview' && editing" class="tracker-detail-edit app-scrollbar" @submit.prevent="save">
       <ApplicationEditorFields
         v-model="form"
         :references="references"
@@ -128,7 +130,7 @@ function save(): void {
       </div>
     </form>
 
-    <div v-else-if="activeTab === 'overview'" class="tracker-detail-content">
+    <div v-else-if="activeTab === 'overview'" class="tracker-detail-content app-scrollbar">
       <dl class="tracker-detail-list">
         <div><dt>{{ $t('投递时间') }}</dt><dd>{{ application.appliedAt ? new Date(application.appliedAt).toLocaleString($locale()) : $t('待确认') }}</dd></div>
         <div><dt>{{ $t('投递方式') }}</dt><dd>{{ deliveryLabel(application.deliveryMethod) }}</dd></div>
@@ -164,7 +166,7 @@ function save(): void {
       >
         <ExternalLink :size="14" aria-hidden="true" />{{ $t('查看岗位链接') }}
       </button>
-      <div class="tracker-asset-links">
+      <div class="tracker-asset-links app-scrollbar">
         <button
           v-if="application.jdId"
           class="secondary-button icon-label"
@@ -180,6 +182,14 @@ function save(): void {
           @click="$emit('openAsset', 'resume', application.resumeId)"
         >
           <FileText :size="14" aria-hidden="true" />{{ $t('查看 Resume') }}
+        </button>
+        <button v-if="loopsEnabled && !['offer', 'rejected'].includes(application.status)"
+          class="secondary-button icon-label" type="button" @click="$emit('startLoop', 'follow_up')">
+          <Clock3 :size="14" aria-hidden="true" />{{ $t('安排跟进') }}
+        </button>
+        <button v-if="loopsEnabled && detail.interviews.some(item => item.status === 'scheduled')"
+          class="secondary-button icon-label" type="button" @click="$emit('startLoop', 'briefing')">
+          <NotebookText :size="14" aria-hidden="true" />{{ $t('准备面试') }}
         </button>
       </div>
     </div>

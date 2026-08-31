@@ -8,6 +8,12 @@ const AGENT_TASK_LIFECYCLE_TOOLS = new Set([
 ]);
 const AGENT_TASK_BOOTSTRAP_TOOLS = new Set([
   "prepare_agent_task",
+  "prepare_resume_job_loop",
+  "prepare_mail_schedule_loop",
+  "prepare_follow_up_loop",
+  "prepare_interview_briefing_loop",
+  "prepare_strategy_loop",
+  "prepare_risk_deadline_loop",
   "request_write_access",
 ]);
 

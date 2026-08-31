@@ -12,13 +12,18 @@ export function createDelegationGrant(
   input: DelegationGrantDraft,
   id = uuidV7(),
 ): DelegationGrantV1 {
-  if (Date.parse(input.validFrom) >= Date.parse(input.expiresAt)) {
+  const validFrom = Date.parse(input.validFrom);
+  const expiresAt = Date.parse(input.expiresAt);
+  if (!Number.isFinite(validFrom) || !Number.isFinite(expiresAt) ||
+      validFrom >= expiresAt) {
     throw new Error("DelegationGrant expiresAt 必须晚于 validFrom");
   }
   const grant = {
     version: 1 as const,
     id,
     ...structuredClone(input),
+    validFrom: new Date(validFrom).toISOString(),
+    expiresAt: new Date(expiresAt).toISOString(),
     allowedDomains: normalizeDomains(input.allowedDomains),
     blockedDomains: normalizeDomains(input.blockedDomains),
     allowedActions: [...new Set(input.allowedActions.map((value) => value.trim()))]

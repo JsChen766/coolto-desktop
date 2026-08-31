@@ -1,23 +1,30 @@
 import type { IpcMain } from "electron";
-
 import type {
   AgentTaskDelegationInput,
   AgentTaskDetailView,
   BrowserState,
+  MailScheduleLoopPrepareInput,
+  ResumeJobLoopPrepareInput,
 } from "../../shared/types.js";
 import type { UserServices } from "../user-services.js";
 import {
   listAgentTaskViews,
   readAgentTaskDetail,
 } from "./agent-task-view.js";
-
+import {
+  mailScheduleLoopTemplate,
+  resumeJobLoopTemplate,
+} from "../../../tools/ai-native-loop-templates.js";
+import { EXTENDED_LOOP_IPC_CHANNELS, registerExtendedLoopIpc } from
+  "./extended-loop-ipc.js";
 export const AGENT_TASK_IPC_CHANNELS = [
   "agent-tasks:list", "agent-tasks:get", "agent-tasks:prepare",
   "agent-tasks:execute-proposal", "agent-tasks:start", "agent-tasks:resume",
   "agent-tasks:pause", "agent-tasks:cancel", "agent-tasks:revoke",
   "agent-tasks:submission-receipt",
+  "agent-tasks:prepare-resume-job-loop", "agent-tasks:prepare-mail-schedule-loop",
+  ...EXTENDED_LOOP_IPC_CHANNELS,
 ] as const;
-
 export function registerAgentTaskIpc(
   ipcMain: IpcMain,
   services: () => Promise<UserServices>,
@@ -31,6 +38,27 @@ export function registerAgentTaskIpc(
   });
   ipcMain.handle("agent-tasks:prepare", async (_event, input: unknown) =>
     (await services()).agentTaskProposals.prepare(parseAgentTaskDelegationInput(input)));
+  registerExtendedLoopIpc(ipcMain, services);
+  ipcMain.handle("agent-tasks:prepare-resume-job-loop", async (_event, value: unknown) => {
+    const current = await services();
+    const input = parseResumeJobLoopInput(value);
+    const resume = await current.resumes.getResume(input.resumeId);
+    if (resume.status !== "active" || resume.qualityStatus !== "passed") {
+      throw new Error("只有 active 且质量通过的云端简历可以启动自动找岗");
+    }
+    return current.agentTaskProposals.prepare(resumeJobLoopTemplate({
+      ...input, resumeTitle: resume.title, resumeContentHash: resume.contentHash,
+    }));
+  });
+  ipcMain.handle("agent-tasks:prepare-mail-schedule-loop", async (_event, value: unknown) => {
+    const current = await services();
+    const input = parseMailScheduleLoopInput(value);
+    const available = new Set((await current.mailConnections.list()).map((item) => item.id));
+    if (input.mailConnectionIds.some((id) => !available.has(id))) {
+      throw new Error("邮件 Loop 包含不存在或不属于当前账号的邮箱连接");
+    }
+    return current.agentTaskProposals.prepare(mailScheduleLoopTemplate(input));
+  });
   ipcMain.handle("agent-tasks:execute-proposal", async (_event, value: unknown) => {
     const current = await services();
     const taskId = await current.agentTaskProposals.execute(
@@ -125,6 +153,66 @@ export function parseAgentTaskDelegationInput(
 
 export function parseAgentTaskId(value: unknown, name = "id"): string {
   return text(value, name, 200);
+}
+
+export function parseResumeJobLoopInput(value: unknown): ResumeJobLoopPrepareInput {
+  const input = object(value, [
+    "conversationId", "goal", "resumeId", "sources", "applicationDomains", "expiresAt",
+  ]);
+  if (!Array.isArray(input.sources) || input.sources.length < 1 || input.sources.length > 20) {
+    throw new Error("sources 必须包含 1–20 个岗位源");
+  }
+  return {
+    conversationId: text(input.conversationId, "conversationId", 200),
+    goal: text(input.goal, "goal", 4000),
+    resumeId: text(input.resumeId, "resumeId", 200),
+    sources: input.sources.map((source, index) => {
+      const item = object(source, ["provider", "sourceKey", "company"]);
+      if (item.provider !== "greenhouse" && item.provider !== "lever") {
+        throw new Error(`sources[${index}].provider 无效`);
+      }
+      return {
+        provider: item.provider,
+        sourceKey: text(item.sourceKey, `sources[${index}].sourceKey`, 100),
+        company: text(item.company, `sources[${index}].company`, 300),
+      };
+    }),
+    applicationDomains: strings(input.applicationDomains, "applicationDomains", 50),
+    expiresAt: text(input.expiresAt, "expiresAt", 100),
+  };
+}
+
+export function parseMailScheduleLoopInput(value: unknown): MailScheduleLoopPrepareInput {
+  const input = object(value, [
+    "conversationId", "goal", "directions", "browserWebmail", "mailConnectionIds",
+    "allowedDomains", "pollIntervalMinutes", "expiresAt",
+  ]);
+  const directions = strings(input.directions, "directions", 2);
+  if (!directions.length || directions.some((item) => !["received", "sent"].includes(item))) {
+    throw new Error("directions 必须是 received/sent");
+  }
+  const poll = input.pollIntervalMinutes;
+  if (!Number.isInteger(poll) || Number(poll) < 5 || Number(poll) > 1440) {
+    throw new Error("pollIntervalMinutes 必须是 5–1440 整数");
+  }
+  return {
+    conversationId: text(input.conversationId, "conversationId", 200),
+    goal: text(input.goal, "goal", 4000),
+    directions: [...new Set(directions)] as Array<"received" | "sent">,
+    browserWebmail: boolean(input.browserWebmail, "browserWebmail"),
+    mailConnectionIds: strings(input.mailConnectionIds, "mailConnectionIds", 20),
+    allowedDomains: strings(input.allowedDomains, "allowedDomains", 50),
+    pollIntervalMinutes: Number(poll),
+    expiresAt: text(input.expiresAt, "expiresAt", 100),
+  };
+}
+
+function object(value: unknown, allowed: string[]): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Loop input 必须是 object");
+  }
+  assertKeys(value, allowed);
+  return value as Record<string, unknown>;
 }
 
 function text(value: unknown, name: string, max: number): string {

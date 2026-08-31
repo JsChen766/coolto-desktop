@@ -88,6 +88,7 @@ export class InboxSignalApplicationService {
     if (!task?.activeRunId) throw new Error("Inbox Tracker Proposal 需要 running AgentTask");
     return task;
   }
+
 }
 
 function actionFor(
@@ -100,6 +101,7 @@ function actionFor(
   }
   const targets: Record<string, ApplicationStatus> = {
     screening: "screening", interview_invite: "interviewing",
+    interview_schedule: "interviewing",
     offer: "offer", rejection: "rejected",
   };
   const targetStatus = targets[kind];

@@ -12,14 +12,26 @@ const expect = (name: string, passed: boolean): void => {
 
 app.whenReady().then(async () => {
   const window = new BrowserWindow({
-    show: false, width: 1200, height: 800,
+    show: Boolean(process.env.COOLTO_AGENT_TASKS_UI_QA_SCREENSHOT), width: 1200, height: 800,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   try {
     await window.loadFile(join(__dirname, "../renderer/agent-tasks-qa.html"));
+    await window.webContents.setZoomFactor(1);
+    window.setContentSize(1200, 800);
     await waitFor(window, ".agent-tasks-view");
     await waitFor(window, ".mail-connection-row");
+    await waitFor(window, ".loop-dialog");
     const approval = await text(window);
+    expect("00d Resume Loop dialog freezes the selected asset and final confirmation",
+      approval.includes("用此简历自动找岗") && approval.includes("Backend Resume") &&
+      approval.includes("每个岗位提交前单独确认"));
+    const screenshotPath = process.env.COOLTO_AGENT_TASKS_UI_QA_SCREENSHOT;
+    if (screenshotPath) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await writeFile(screenshotVariant(screenshotPath, "resume"),
+        (await window.webContents.capturePage()).toPNG());
+    }
     expect("00 Answer Vault approval renders immutable facts",
       approval.includes("保存到 Answer Vault") &&
       approval.includes("Are you authorized to work in Canada?") &&
@@ -34,12 +46,33 @@ app.whenReady().then(async () => {
       approval.includes("qa@example.com") && approval.includes("gmail.readonly") &&
       approval.includes("发送权限始终为关闭"));
     await window.webContents.executeJavaScript(
-      "document.querySelector('#approval-qa')?.remove(); document.querySelector('#resume-strategy-qa')?.remove(); document.querySelector('#receipt-qa')?.remove(); document.querySelector('#mail-settings-qa')?.remove()", true,
+      "document.querySelector('#resume-loop-qa')?.remove()", true,
     );
+    await clickText(window, "联动 App 日程");
+    await waitFor(window, ".loop-dialog");
+    expect("00e Mail Loop dialog exposes source, direction and interval",
+      (await text(window)).includes("识别方向") && (await text(window)).includes("检查间隔"));
+    if (screenshotPath) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await writeFile(screenshotVariant(screenshotPath, "mail"),
+        (await window.webContents.capturePage()).toPNG());
+      await captureFeatureSet(window, screenshotPath);
+    }
+    await window.webContents.executeJavaScript(
+      "document.querySelector('#approval-qa')?.remove(); document.querySelector('#resume-strategy-qa')?.remove(); document.querySelector('#receipt-qa')?.remove(); document.querySelector('#mail-settings-qa')?.remove(); window.scrollTo(0, 0)", true,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 350));
     const wide = await inspect(window);
     expect("01 wide task list visible", wide.taskRows === 1 && wide.listVisible);
     expect("02 inspector shows local runtime", wide.text.includes("仅在 App 打开时运行"));
     expect("02a shortlist lead renders", wide.text.includes("Backend Engineer") && wide.text.includes("86"));
+    expect("02b Loop summary uses product labels without hashes",
+      wide.text.includes("自动找岗 Loop") && wide.text.includes("Backend Resume") &&
+      !wide.text.includes("resumeContentHash"));
+    if (screenshotPath) await writeFile(
+      screenshotVariant(screenshotPath, "task-center"),
+      (await window.webContents.capturePage()).toPNG(),
+    );
     await clickText(window, "动态");
     expect("03 activity source loads", (await text(window)).includes("grant_allowed"));
     await clickText(window, "回执");
@@ -84,7 +117,9 @@ app.whenReady().then(async () => {
       true,
     );
     expect("10 200 percent zoom has no page overflow", Boolean(overflow));
-    expect("11 rendered screenshot is non-empty", (await window.webContents.capturePage()).toPNG().byteLength > 1000);
+    const screenshot = (await window.webContents.capturePage()).toPNG();
+    expect("11 rendered screenshot is non-empty", screenshot.byteLength > 1000);
+    if (screenshotPath) await writeFile(screenshotPath, screenshot);
     await report({ passed: results.length, runtime: {
       electron: process.versions.electron, platform: process.platform,
     }, results });
@@ -147,4 +182,47 @@ async function waitText(window: BrowserWindow, value: string): Promise<void> {
 function report(value: unknown): Promise<void> {
   const path = process.env.COOLTO_AGENT_TASKS_UI_QA_REPORT;
   return path ? writeFile(path, JSON.stringify(value, null, 2), "utf8") : Promise.resolve();
+}
+
+function screenshotVariant(path: string, suffix: string): string {
+  return path.replace(/\.png$/iu, `-${suffix}.png`);
+}
+
+async function captureFeatureSet(window: BrowserWindow, path: string): Promise<void> {
+  await window.webContents.executeJavaScript(
+    "document.querySelector('.loop-dialog-backdrop')?.remove()", true,
+  );
+  await captureElement(window, "#approval-qa", screenshotVariant(path, "answer-vault"));
+  await captureElement(window, "#receipt-qa", screenshotVariant(path, "application"));
+  await captureElement(window, "#mail-settings-qa", screenshotVariant(path, "mail-settings"));
+  for (const [id, suffix] of [
+    ["follow-up-loop-qa", "follow-up"], ["briefing-loop-qa", "briefing"],
+    ["strategy-loop-qa", "strategy"], ["risk-loop-qa", "risk"],
+  ] as const) {
+    await window.webContents.executeJavaScript(
+      `document.getElementById(${JSON.stringify(id)})?.style.setProperty('display', 'block')`, true,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    await writeFile(screenshotVariant(path, suffix),
+      (await window.webContents.capturePage()).toPNG());
+    await window.webContents.executeJavaScript(
+      `document.getElementById(${JSON.stringify(id)})?.remove()`, true,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
+}
+
+async function captureElement(
+  window: BrowserWindow, selector: string, path: string,
+): Promise<void> {
+  const rect = await window.webContents.executeJavaScript(`(() => {
+    const element = document.querySelector(${JSON.stringify(selector)});
+    if (!(element instanceof HTMLElement)) throw new Error('fixture not found');
+    element.scrollIntoView({ block: 'center' });
+    const value = element.getBoundingClientRect();
+    return { x: Math.max(0, Math.floor(value.x)), y: Math.max(0, Math.floor(value.y)),
+      width: Math.ceil(value.width), height: Math.ceil(value.height) };
+  })()`, true) as Electron.Rectangle;
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  await writeFile(path, (await window.webContents.capturePage(rect)).toPNG());
 }

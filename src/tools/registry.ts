@@ -43,6 +43,9 @@ import type { TaskLifecycleController } from "../agent-task/task-lifecycle-contr
 import { createAgentTaskLifecycleTools } from "./agent-task-lifecycle.js";
 import type { AgentTaskProposalService } from "../desktop/main/agent-task/agent-task-proposal-service.js";
 import { createPrepareAgentTaskTool } from "./prepare-agent-task.js";
+import { createPrepareAiNativeLoopTools } from "./prepare-ai-native-loops.js";
+import { createAiNativeTools, type AiNativeToolDependencies } from
+  "./ai-native-tool-registry.js";
 import { applyExecutionPolicies } from "./tool-execution-policies.js";
 import type { JobScoutController } from "../job-scout/job-scout-controller.js";
 import { createJobScoutTools } from "./job-scout-tools.js";
@@ -59,7 +62,8 @@ import {
   type LocalFileToolDependencies,
 } from "./local-file-tools.js";
 export interface ToolRegistryDependencies extends
-  InboxToolRegistryDependencies, LocalFileToolDependencies {
+  InboxToolRegistryDependencies, LocalFileToolDependencies,
+  AiNativeToolDependencies {
   currentUserReader?: CurrentUserReader;
   userProfileReader?: UserProfileReader;
   profileProposals?: ProfileProposalExecutor;
@@ -180,9 +184,12 @@ export function createToolRegistry(
   if (dependencies.jobScout) {
     businessTools.push(...createJobScoutTools(dependencies.jobScout));
   }
-  if (dependencies.applicationSubmission) {
-    businessTools.push(...createApplicationSubmissionTools(dependencies.applicationSubmission));
+  if (dependencies.applicationSubmission && dependencies.approvalManager) {
+    businessTools.push(...createApplicationSubmissionTools(
+      dependencies.applicationSubmission, dependencies.approvalManager,
+    ));
   }
+  businessTools.push(...createAiNativeTools(dependencies));
   if (dependencies.answerVault) {
     businessTools.push(...createAnswerVaultTools({
       store: dependencies.answerVault,
@@ -219,6 +226,13 @@ export function createToolRegistry(
       conversationId: dependencies.conversationId,
       proposals: dependencies.agentTaskProposals,
       approvals: dependencies.approvalManager,
+    }));
+    businessTools.push(...createPrepareAiNativeLoopTools({
+      conversationId: dependencies.conversationId,
+      proposals: dependencies.agentTaskProposals,
+      approvals: dependencies.approvalManager,
+      ...(dependencies.resumeReader ? { resumes: dependencies.resumeReader } : {}),
+      ...(dependencies.inboxSignals ? { inboxSignals: dependencies.inboxSignals } : {}),
     }));
   }
 

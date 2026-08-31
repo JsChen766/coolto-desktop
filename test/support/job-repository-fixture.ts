@@ -47,6 +47,7 @@ export function repositoryResume(
       targetRole: "Engineer",
       jdId,
       status: options.status ?? "active",
+      qualityStatus: "passed",
       contentHash: `hash-${id}`,
       updatedAt: AT,
     },

@@ -25,11 +25,7 @@ import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
-import {
-  createResumeGenerationFollowUp,
-  createResumeOutputRepetitionRecovery,
-  createResumeTurnGovernorRecovery,
-} from "./resume-generation-follow-up.js";
+import { createResumeGenerationFollowUp, createResumeOutputRepetitionRecovery, createResumeTurnGovernorRecovery } from "./resume-generation-follow-up.js";
 import { createResumeInteractionStop } from "./resume-interaction-stop.js";
 import type { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
 import { JobScoutController } from "../../job-scout/job-scout-controller.js";
@@ -40,26 +36,26 @@ import type { MailConnectionRegistry } from "../../inbox-signals/inbox-signal-ty
 import { GmailInboxAdapter } from "../../inbox-signals/gmail-inbox-adapter.js";
 import { OutlookInboxAdapter } from "../../inbox-signals/outlook-inbox-adapter.js";
 import { InboxSignalController } from "../../inbox-signals/inbox-signal-controller.js";
-import { InboxApplicationCandidateReader } from
-  "../../inbox-signals/inbox-application-candidate-reader.js";
+import { InboxApplicationCandidateReader } from "../../inbox-signals/inbox-application-candidate-reader.js";
 import { InboxSignalApplicationService } from "./agent-task/inbox-signal-application-service.js";
 import { InboxSignalInterviewService } from "./agent-task/inbox-signal-interview-service.js";
 import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
 import type { InterviewProposalService } from "./tracker/interview-proposal-service.js";
 import { toolsForConversationRun } from "./agent-task/conversation-tool-scope.js";
-import type { DeliveryResumeFileStore } from
-  "../../delivery-resume-files/types.js";
-import type { ExperienceProposalService } from
-  "./experience-library/experience-proposal-service.js";
-import { LocalExperienceMaterialCommitter } from
-  "./experience-library/experience-material-committer.js";
-import { ExperienceMaterialIngestionStore } from
-  "../../experience/material-ingestion-store.js";
+import type { DeliveryResumeFileStore } from "../../delivery-resume-files/types.js";
+import type { ExperienceProposalService } from "./experience-library/experience-proposal-service.js";
+import { LocalExperienceMaterialCommitter } from "./experience-library/experience-material-committer.js";
+import { ExperienceMaterialIngestionStore } from "../../experience/material-ingestion-store.js";
+import { bindApprovalTaskWake } from "../../agent-task/approval-task-wake-bridge.js";
+import type { ManagedResumeUploadService } from "./agent-task/managed-resume-upload-service.js";
+import { AiNativeLoopService } from "./agent-task/ai-native-loop-service.js";
+import type { ReminderProposalService } from "./tracker/reminder-proposal-service.js";
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
   resumeCompiler: ResumePdfCompiler;
   selectedFiles: ConversationSelectedFiles;
   deliveryResumeFiles: DeliveryResumeFileStore;
+  managedResumeUploads: ManagedResumeUploadService;
   browserAgentController: BrowserAgentController;
   browserPageOperator: BrowserPageOperator;
   agentHarness: AgentHarnessServices;
@@ -69,6 +65,7 @@ export interface AgentContextFactoryDependencies {
   mailConnections: MailConnectionRegistry;
   interviews: InterviewSyncStore;
   interviewProposals: InterviewProposalService;
+  reminderProposals: ReminderProposalService;
   resumePublications: ResumePublicationGateway;
   experiences: ExperienceReader & ExperienceWriter;
   jds: JdReader & JdWriter;
@@ -94,15 +91,16 @@ export class AgentContextFactory {
     const matchReportStore = new MatchReportStore();
     const workspaceStore = new ResumeWorkspaceStore();
     const resumeCompiler = new TracedResumeCompiler(
-      deps.resumeCompiler, deps.traces, conversationId,
-    );
+      deps.resumeCompiler, deps.traces, conversationId);
     const inboxApplication = new InboxSignalApplicationService(
-      conversationId, deps.agentHarness, deps.applications,
-    );
-    const inboxInterview = new InboxSignalInterviewService(
-      conversationId, deps.agentHarness, deps.applications,
-      deps.interviews, deps.interviewProposals,
-    );
+      conversationId, deps.agentHarness, deps.applications);
+    const inboxInterview = new InboxSignalInterviewService(conversationId,
+      deps.agentHarness, deps.applications, deps.interviews, deps.interviewProposals);
+    const applicationSubmission = new ApplicationSubmissionService(conversationId,
+      deps.agentHarness, deps.browserAgentController, deps.jds,
+      deps.resumePublications, deps.applicationProposals, deps.managedResumeUploads);
+    const aiNativeLoops = new AiNativeLoopService(conversationId, deps.agentHarness,
+      deps.applications, deps.interviews, deps.jds, deps.resumePublications, deps.experiences, deps.reminderProposals);
     const approvalManager = createActionApprovalManager({
       experienceWriter: deps.experiences,
       importProposalStore: proposalStore,
@@ -118,15 +116,17 @@ export class AgentContextFactory {
       answerVault: deps.agentHarness.answers,
       inboxApplicationProposals: inboxApplication,
       inboxInterviewProposals: inboxInterview,
+      applicationSubmissions: applicationSubmission,
+      aiNativeLoops,
     });
+    bindApprovalTaskWake(approvalManager, conversationId, deps.agentHarness);
     const sourceBuilder = new ResumeSourceSnapshotBuilder({
       currentUser: deps.apiClient,
       profile: deps.profiles,
       jd: deps.jds,
       experience: deps.experiences,
     });
-    const currentUserMessage: { timestamp: number | undefined; text?: string } =
-      { timestamp: undefined };
+    const currentUserMessage: { timestamp: number | undefined; text?: string } = { timestamp: undefined };
     const materialIngestion = new ExperienceMaterialIngestionStore(
       selectedFiles,
       new LocalExperienceMaterialCommitter(deps.experiences, deps.experienceProposals),
@@ -143,10 +143,6 @@ export class AgentContextFactory {
       (reason) => deps.browserPageOperator.revokeWriteAccess(reason),
     );
     const jobScout = new JobScoutController(conversationId, deps.agentHarness);
-    const applicationSubmission = new ApplicationSubmissionService(
-      conversationId, deps.agentHarness, deps.browserAgentController,
-      deps.jds, deps.resumePublications, deps.applicationProposals,
-    );
     const inboxSignals = new InboxSignalController(
       conversationId, deps.agentHarness, deps.mailConnections,
       [new GmailInboxAdapter(), new OutlookInboxAdapter()], deps.applications,
@@ -170,6 +166,8 @@ export class AgentContextFactory {
       approvalManager,
       selectedFileRegistry: selectedFiles,
       deliveryResumeFiles: deps.deliveryResumeFiles,
+      managedResumeUploads: deps.managedResumeUploads,
+      aiNativeLoops,
       browserPageReader: deps.browserAgentController,
       browserAgentController: deps.browserAgentController,
       browserPageOperator: deps.browserPageOperator,
@@ -178,6 +176,8 @@ export class AgentContextFactory {
       conversationId,
       jobScout,
       applicationSubmission,
+      applications: deps.applications,
+      interviews: deps.interviews,
       answerVault: deps.agentHarness.answers,
       inboxSignals,
       inboxApplicationCandidates,

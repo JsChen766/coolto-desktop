@@ -84,15 +84,21 @@ export class ApprovalManager {
       ...(signal ? { signal } : {}),
     };
 
+    if (decision.type !== "accept") {
+      await executor.reject?.(context);
+      await this.emit({
+        type: "approval.resolved",
+        requestId,
+        decision: decision.type,
+      });
+      return;
+    }
+
     await this.emit({
       type: "approval.resolved",
       requestId,
       decision: decision.type,
     });
-    if (decision.type !== "accept") {
-      await executor.reject?.(context);
-      return;
-    }
 
     await this.executeAccepted(context, executor);
   }

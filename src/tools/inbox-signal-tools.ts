@@ -11,6 +11,10 @@ const fetchParameters = Type.Object({
   maxResults: Type.Optional(Type.Integer({ minimum: 1, maximum: 50 })),
 });
 const browserCaptureParameters = Type.Object({
+  direction: Type.Union([
+    Type.Literal("received"), Type.Literal("sent"),
+  ]),
+  directionEvidence: Type.String({ minLength: 1, maxLength: 500 }),
   sender: Type.String({ minLength: 1, maxLength: 500 }),
   subject: Type.String({ minLength: 1, maxLength: 1_000 }),
   receivedAt: Type.String({ minLength: 1, maxLength: 100 }),
@@ -29,7 +33,9 @@ const candidateParameters = Type.Object({
 const signalKind = Type.Union([
   Type.Literal("application_confirmation"), Type.Literal("screening"),
   Type.Literal("interview_invite"), Type.Literal("interview_change"),
-  Type.Literal("offer"), Type.Literal("rejection"), Type.Literal("other"),
+  Type.Literal("interview_schedule"),
+  Type.Literal("offer"), Type.Literal("rejection"), Type.Literal("deadline"),
+  Type.Literal("portal_action"), Type.Literal("risk_signal"), Type.Literal("other"),
 ]);
 const recordParameters = Type.Object({
   eventId: Type.String({ minLength: 1, maxLength: 200 }),
@@ -48,17 +54,29 @@ export function createInboxSignalTools(
   controller: InboxSignalController,
   candidates: InboxApplicationCandidateReader,
 ): AgentTool[] {
+  const connectionsTool: AgentTool = {
+      name: "list_mail_connections", label: "列出已连接邮箱",
+      description:
+        "列出当前账号已连接的 Gmail/Outlook ID、Provider 和账号邮箱，" +
+        "用于准备邮件 Loop；不返回 token、scope 或邮件内容。",
+      parameters: Type.Object({}),
+      execute: async () => result({ connections: await controller.listConnections() }),
+    };
   const fetchTool: AgentTool<typeof fetchParameters> = {
       name: "fetch_inbox_events", label: "增量读取求职邮箱",
       description: "从用户在 DelegationGrant 中选择的已连接 Gmail/Outlook 增量读取邮件。只返回事件摘要；不会发送、删除或修改邮件。",
       parameters: fetchParameters, executionMode: "sequential",
-      execute: async (_id, value) => result({ events: await controller.fetch(value) }),
+      execute: async (_id, value) => result({
+        events: await controller.fetch(value),
+        nextPollAt: await controller.nextPollAt(),
+      }),
     };
   const browserCaptureTool: AgentTool<typeof browserCaptureParameters> = {
       name: "capture_browser_mail_event", label: "捕获浏览器邮件事件",
       description:
         "默认通用 Webmail Source：在用户授权 domain 的当前具体邮件页面，用 fresh snapshot 逐字校验" +
-        "sender、subject、时间证据和必要正文，再写入 7 天加密 evidence。不会读取密码、点击链接、发送或修改邮件。",
+        "sender、subject、时间证据、方向证据和必要正文。" +
+        "再写入 7 天加密 evidence。不会读取密码、点击链接、发送或修改邮件。",
       parameters: browserCaptureParameters, executionMode: "sequential",
       execute: async (_id, value) => result(await controller.captureBrowser(value)),
     };
@@ -100,11 +118,13 @@ export function createInboxSignalTools(
         const signals = await controller.list();
         return projectedResult({
           signals: signals.map((signal) => projectSignal(signal, candidates)),
+          nextPollAt: await controller.nextPollAt(),
         }, { signals });
       },
     };
   return [
-    browserCaptureTool, fetchTool, readTool, candidateTool, recordTool, listTool,
+    connectionsTool, browserCaptureTool, fetchTool, readTool,
+    candidateTool, recordTool, listTool,
   ];
 }
 

@@ -18,6 +18,13 @@ import type {
 
 test("Inbox controller persists encrypted events, dedupes and records grounded signals", async () => {
   const value = await setup();
+  const pollNow = Date.now();
+  assert.equal(Date.parse(await value.controller.nextPollAt(pollNow)), pollNow + 15 * 60_000);
+  assert.deepEqual(await value.controller.listConnections(), [{
+    id: "gmail-1", provider: "gmail", accountEmail: "gmail-1@example.com",
+  }, {
+    id: "outlook-2", provider: "outlook", accountEmail: "outlook-2@example.com",
+  }]);
   const first = await value.controller.fetch({ connectionId: "gmail-1" });
   const second = await value.controller.fetch({ connectionId: "gmail-1" });
   assert.equal(first.length, 1);
@@ -61,13 +68,15 @@ test("AgentTask cannot wait while a delivered mail event is unclassified", async
   await value.controller.fetch({ connectionId: "gmail-1" });
   const lifecycle = new TaskLifecycleController("conversation", value.harness);
   await assert.rejects(lifecycle.wait({
-    reason: "timer", summary: "wait for more mail",
+    reason: "timer", wakeAfter: new Date(Date.now() + 60_000).toISOString(),
+    summary: "wait for more mail",
   }), /邮件未分类/u);
 });
 
 test("Browser Webmail captures only exact visible mail text and dedupes the message", async () => {
   const value = await setup();
   const input = {
+    direction: "received" as const, directionEvidence: "Inbox",
     sender: "recruiter@example.com", subject: "Interview invitation",
     receivedAt: "2026-08-22T10:00:00.000Z",
     receivedAtEvidence: "Aug 22, 10:00",
@@ -86,6 +95,7 @@ test("Browser Webmail captures only exact visible mail text and dedupes the mess
 test("Browser Webmail keeps distinct messages when a SPA reuses the same URL and envelope", async () => {
   const value = await setup();
   const shared = {
+    direction: "received" as const, directionEvidence: "Inbox",
     sender: "recruiter@example.com", subject: "Application update",
     receivedAt: "2026-08-22T10:00:00.000Z",
     receivedAtEvidence: "Aug 22, 10:00",
@@ -94,7 +104,7 @@ test("Browser Webmail keeps distinct messages when a SPA reuses the same URL and
     ...shared, bodyText: "Your application is under review.",
   });
   value.setBrowserText([
-    shared.sender, shared.subject, shared.receivedAtEvidence,
+    shared.directionEvidence, shared.sender, shared.subject, shared.receivedAtEvidence,
     "Please select an interview time.",
   ].join("\n"));
   const second = await value.controller.captureBrowser({
@@ -102,6 +112,34 @@ test("Browser Webmail keeps distinct messages when a SPA reuses the same URL and
   });
   assert.notEqual(second.eventId, first.eventId);
   assert.equal((await value.harness.events.all(value.taskId)).length, 2);
+});
+
+test("Browser Webmail requires visible direction evidence for sent schedule mail", async () => {
+  const value = await setup();
+  const input = {
+    direction: "sent" as const, directionEvidence: "Sent",
+    sender: "me@example.com", subject: "Interview confirmed",
+    receivedAt: "2026-08-22T11:00:00.000Z",
+    receivedAtEvidence: "Aug 22, 11:00",
+    bodyText: "Confirmed for Monday at 10:00 HKT.",
+  };
+  value.setBrowserText([
+    input.directionEvidence, input.sender, input.subject,
+    input.receivedAtEvidence, input.bodyText,
+  ].join("\n"));
+  const captured = await value.controller.captureBrowser(input);
+  assert.equal(captured.direction, "sent");
+  assert.equal((await value.controller.readEvent(captured.eventId)).direction, "sent");
+  assert.equal((await value.harness.events.all(value.taskId))[0]?.type, "mail.message_sent");
+  const signal = await value.controller.record({
+    eventId: captured.eventId, kind: "interview_schedule", confidence: 98,
+    applicationId: "application-1", rationale: "Outgoing confirmation is explicit",
+    evidenceQuotes: [input.bodyText],
+  });
+  assert.equal(signal.direction, "sent");
+  await assert.rejects(value.controller.captureBrowser({
+    ...input, directionEvidence: "",
+  }), /必须逐字来自当前页面/u);
 });
 
 async function setup() {
@@ -136,7 +174,7 @@ async function setup() {
     }),
   };
   let browserText = [
-    "recruiter@example.com", "Interview invitation", "Aug 22, 10:00",
+    "Inbox", "recruiter@example.com", "Interview invitation", "Aug 22, 10:00",
     "Your interview is scheduled for Monday at 10:00 HKT.",
     "Application update", "Your application is under review.",
   ].join("\n");
@@ -146,7 +184,7 @@ async function setup() {
       const selected = connections.get(id);
       if (!selected) throw new Error("connection missing");
       return selected;
-    } },
+    }, list: async () => [...connections.values()] },
     [adapter],
     { getApplication: async (id) => {
       if (id !== "application-1") throw new Error("application missing");
@@ -177,6 +215,7 @@ async function setup() {
 
 const message: InboxMessagePayloadV1 = {
   version: 1, provider: "gmail", connectionId: "gmail-1",
+  direction: "received",
   sourceMessageId: "message-1", internetMessageId: "<message-1@example.com>",
   sender: "jobs@example.com", subject: "Application received",
   receivedAt: "2026-08-22T10:00:00.000Z",

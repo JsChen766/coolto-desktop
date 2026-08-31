@@ -1,6 +1,6 @@
 # Browser Enhance：Agent 托管浏览器路线
 
-> 状态：BE0–BE5 与 BSF0–BSF3 对应基线已完成；Browser Shell Formalization BSF4 当前执行
+> 状态：BE0–BE5 与 BSF0–BSF4 已完成；BSF5/BE6 平台实测延期；BE7 代码闭环完成、真实运行验收待回补
 > 建立日期：2026-08-20
 > 前置基线：[浏览器自动填写路线](../browser-autofill-roadmap/README.md) B0–B5、
 > [P0 产品能力补齐路线](../p0-product-completion-roadmap/README.md) S3–S4
@@ -525,7 +525,7 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 | BE5 | Inbox Signals | 通用 Browser Webmail、可选 Gmail/Outlook 增量、求职邮件分类、状态/Interview Proposal | 原始邮件不越界持久化；错误自动迁移为 0；模糊信号进入确认队列 |
 | BSF | [Browser Shell Formalization](./browser-shell-formalization/README.md) | 独立 Browser 产品面、正式浏览器基础、Agent 可见层、新标签页、下载和跨平台验收 | **实测延期、未完成**：NVDA、真实接管、deep-link 经用户明确延后，后续与 macOS 收口回补 |
 | BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | **代码实现完成，macOS 验收延期**；拒绝、去重、时区、重启和真实 CRUD 门禁未在 Mac 执行 |
-| BE7 | AI Native Loops | Scout 调度、Follow-up、Briefing、Strategy Learner、风险提醒 | 每项有独立开关、停止条件、通知去重和效果指标 |
+| BE7 | AI Native Loops | Scout 调度、Follow-up、Briefing、Strategy Learner、风险提醒 | **代码闭环完成、实测待回补**：BE7.1–BE7.6 已完成专用 Loop、产物投影、审批边界与直接产品入口；真实账号、站点、长周期运行仍未验收 |
 | BE8 | 真实集成交付 | 真实账号/站点、长任务、断网、崩溃、跨账号、安全与发布验收 | 完整矩阵通过前不得宣称“完全托管可用” |
 
 Browser Enhance 内部长期顺序：
@@ -540,7 +540,7 @@ BE0、BE1、BE2 是任何自动提交的硬前置；不得先开放 submit 再�
 
 ```text
 BE0（已完成）→ BE1（已完成）→ BE2（已完成）→ BE3（已完成）→ BE4（已完成）→ BE5（手动确认基线已完成）
-→ BSF0（已完成）→ BSF1（已完成）→ BSF2（已完成）→ BSF3（已完成）→ BSF4（已完成并质检闭环）→ BSF5 Windows（实测延期）→ BE6（当前）→ BSF5 Windows/macOS 回补收口 → BE7 → BE8
+→ BSF0（已完成）→ BSF1（已完成）→ BSF2（已完成）→ BSF3（已完成）→ BSF4（已完成并质检闭环）→ BSF5 Windows（实测延期）→ BE6（代码完成、macOS 实测延期）→ BE7（当前）→ BSF5/BE6 平台回补 → BE8
 → S4.5 → S5 → R1
 ```
 
@@ -618,7 +618,7 @@ OTP/CAPTCHA takeover→resume、完整任务 deep-link 或 macOS BrowserWindow �
   可用性证明。生产真实域名的 `browser_submit` 继续默认 fail-closed，仅测试 origin 可通过显式环境配置；
   每个 Career/ATS 的条款、页面、账号、长任务和安全验收统一留在 BE8，完成前不得称“完全托管可用”。
 
-### BE5–BE6：联动门禁
+### BE5–BE7：联动门禁
 
 - 邮件信号先关联 Application，再提出状态迁移；不能按公司名模糊匹配就静默写入；
 - 后端非法状态迁移必须保留服务端错误，不能由 Agent 绕过；
@@ -668,6 +668,122 @@ OTP/CAPTCHA takeover→resume、完整任务 deep-link 或 macOS BrowserWindow �
 权限、macOS 14+ write-only/full-access、真实 create/dedupe/reschedule/cancel、TCC 拒绝/撤销、重启恢复、universal
 打包/entitlement/deep-link 均是 **未验收**；在真实 Mac 门禁通过前 BE6 不标记完整交付，也不以 Windows 静态审查
 冒充 EventKit 可用。
+
+**2026-08-31 BE7.1（用户优先的两条 AI Native Loop 宿主门禁）：**先将最新 `origin/app` 合入 Browser Enhance，
+在不回退 App onboarding、原始简历资产、WorkUnit 简历生成和现有 Browser/Calendar 能力的前提下完成冲突收口；
+合并提交为 `0f0ddcb`。随后只复用既有 Pi Agent、AgentTask、Job Scout、Inbox Signal、Proposal/Approval、
+Browser review 和 SubmissionReceipt，未增加第二套 loop/runtime：
+
+- “选简历→找岗位→填写→投递前确认”现在把 Resume ID、可读标题、contentHash 与
+  `submissionMode=confirm_each` 冻结进不可变 DelegationGrant，同时要求 `resume.read`；
+  `ApplicationSubmissionService` 在准备阶段再次拒绝切换 Resume。每个岗位在
+  `prepare_application_submission` 后生成独立 `browser.submission_confirm` Approval；拒绝时零点击、零
+  Application，接受后 AgentTask 由通用审批事件续跑，才在新的 active run 内签发两分钟 SubmissionToken。
+  因此等待检查点不会提前作废 token，页面、tab、origin、Resume hash 或 run 变化仍 fail-closed；
+- 审批续跑抽为通用 `Approval → EnvironmentEvent → AgentTaskScheduler` 桥。Approval 创建时绑定精确
+  running task，请求完成时只检查该 task；快速确认发生在 task 进入 waiting 前也不会丢事件，等待期间普通聊天
+  产生的无关审批不能误唤醒。Agent 使用
+  `task_need_user(reason=approval)` 后，成功执行任意既有 Approval 会收到 `approval.accepted`，明确拒绝收到
+  `approval.rejected`；Scheduler 只唤醒正在等待对应事件的同一 Conversation/Task，不替 Agent 选择业务步骤。
+  该机制同时覆盖 JD 保存、Application/Interview Proposal 和最终提交确认；
+- Browser Webmail 事件新增 `direction=received|sent`。收件与发件都必须提交当前页面逐字可见的
+  `directionEvidence` 并随 7 天 evidence 保存；草稿/编辑页不能冒充已发送；Gmail/Outlook API connector
+  仍明确只有 received。
+  新增 `interview_schedule` 归一化信号，收件邀请或用户发出的明确安排均可在可靠关联 Application、完整时间/
+  时区且 grant 冻结 `connectorPolicy.appSchedule=true + scheduleMailDirections` 后，沿既有
+  Application Proposal → Interview Proposal 写入 **App Tracker 日程**。所有邮件触发业务写入继续逐条
+  Approval，不依赖 macOS Calendar，也没有新增 `mail.send`；
+- BE7.1 独立质检补上三个缺口：审批与 task 精确关联/快确认竞态、started intent 恢复必须处于同一 running
+  AgentTask、Resume 标题/hash 漂移重新授权；随后全量门禁通过，BE7.1 才认定质检通过。
+
+**2026-08-31 BE7.2（正式 Loop 启动面与本地触发）：**继续复用 generic AgentTask，不建立业务状态机：
+
+- 新增 `prepare_resume_job_loop` 与 `prepare_mail_schedule_loop`，分别生成固定最小 scope 的不可变模板。
+  前者冻结 passed/active 发布 Resume 的 ID、标题、hash、Greenhouse/Lever source、申请 domain、JD read/write、
+  Answer Vault、Browser review 与逐岗位确认；后者冻结 Browser Webmail/已连接邮箱、received/sent、5–1440 分钟
+  本地轮询和逐条 Application/Interview Approval。模板创建前会真实重读 Resume 和当前账号邮箱连接，漂移、归档、
+  低质量或跨账号连接在显示 Delegation Panel 前拒绝；
+- 普通聊天保留两个正式模板工具，running AgentTask 自动移除这些 bootstrap 工具。每次 start/resume 的内部 prompt
+  都带当前不可变 grant 的最小 `allowedDomains/actions + jobCriteria + assetPolicy + connectorPolicy`，让 Agent 能取得
+  精确 Resume/source/connection 参数；不包含 token、邮件正文或 Answer Vault 内容，也不向用户播报内部 ID/hash；
+- `list_resumes/get_resume`、`search_jds/get_jd`、`prepare_jd_import` 获得明确的
+  `resume.read/jd.read/jd.write` capability，不再被 generic `app.tool.*` scope 意外拦截；新增只读
+  `list_mail_connections`，只返回当前账号 connection ID、Provider 和邮箱，不返回 OAuth scope/token/邮件；
+- 用户确认正式模板后，Scheduler 自动启动 `resume_job_apply` / `mail_app_schedule`，通用任务仍为手动启动。
+  自动 start、timer/approval resume 都先等待当前审批 runtime 结束；需要 Browser 时先打开可见 Browser，失败则保持
+  queued/waiting 且不消费 event。邮件 Loop 只在 App 打开期间按 Agent 选择的 timer 续跑；App 关闭无云端任务。
+- System prompt 升为 v151。最终 `npm run check` 全绿：1124 个源文件均 ≤250 行；1081 tests 中
+  1079 pass、2 platform skip、0 fail；Node/Preload/Vue typecheck、Node build、Electron production build 和
+  5 个 sandbox preload standalone 门禁通过。
+- 经用户确认 UI 后，求职仓库中只有 `active + qualityStatus=passed` 的云端 Resume 显示“自动找岗”；设置页邮箱区
+  增加“联动 App 日程”。两个居中浮窗均采用“配置 → 规范化授权审阅 → 确认并启动”两阶段，按钮保持单行，支持
+  Escape、焦点循环、深浅主题、窄窗、200% 缩放和 reduced motion。Task Center 概览只显示 Loop 类型、可读 Resume/
+  source 或邮件方向/间隔，不显示 raw scope/hash；
+- 新增专用 IPC `prepare-resume-job-loop` / `prepare-mail-schedule-loop`，Main 在生成 Proposal 前重读当前 Resume 与
+  邮箱连接，不信任 Renderer 提供标题/hash。UI 确认后执行既有 Proposal，Scheduler 自动启动并精确定位新任务；
+- 新增 `browser_upload_frozen_resume`：Main 按 grant 冻结的 active/passed Resume 和 exact contentHash 使用既有
+  Chromium compiler 生成单页 PDF，保存到 owner/task 隔离的 `userData/managed-resume-uploads`，以 `0600/0700`
+  权限和原子 rename 写入；模型/Renderer/工具回执均看不到绝对路径。只允许同一 Conversation 的 running
+  `resume_job_apply`，提交/拒绝、任务终态、撤销、清除本地数据和 24 小时启动清理都会回收文件；
+- System prompt 升为 v152。Windows Electron 43.2.0 Renderer QA 19/19，覆盖两个浮窗、Loop 摘要、宽/窄、深色、
+  键盘和 200% 缩放；视觉回看修复了隐藏窗口节流导致 opacity 动画暂停、浮窗近透明的问题，并将收件/发件保持同行。
+  最终 `npm run check` 全绿：1133 个源文件均 ≤250 行；1087 tests 中 1085 pass、2 platform skip、0 fail；
+  Node/Preload/Vue typecheck、Node build、Electron production build 和 5 个 sandbox preload standalone 门禁通过。
+
+当前认定 **BE7.1 质检通过、BE7.2 产品入口与托管上传实现完成**，仍不认定 BE7 完成。尚未执行真实 Electron
+选择 Resume→真实公网岗位→多页填写→字段 review→拒绝/接受提交确认，也未在真实收件箱/发件箱验证方向证据、
+Application 关联、审批续跑和 App 日程落地；Job Scout 当前真实来源仍受已冻结 Greenhouse/Lever source 限制，
+站点条款、CAPTCHA/登录接管和跨站表单兼容继续归 BE8。在 BE7.2 这一节点，Follow-up、Briefing、
+Strategy Learner 与风险提醒仍未实现，随后由下列 BE7.3–BE7.6 收口。
+
+**2026-08-31 BE7.3–BE7.6（其余四类 AI Native Loop 代码闭环）：**沿用 BE7.1/7.2 的 generic AgentTask、
+Pi Agent、Approval、LocalSyncStore/Outbox 和本地 Scheduler，不新增第二套 Agent runtime 或业务状态机：
+
+- BE7.3 Follow-up Autopilot 冻结单个非终态 Application、Webmail domain、1–720 小时间隔和有效期；Agent
+  只能读取该投递并记录不可静默改写的跟进草稿。网页可以被填好，但没有 `mail.send`，发送前固定
+  `task_need_user`，由用户检查并亲自点击；投递详情以单行操作入口启动；
+- BE7.4 Dynamic Briefing 冻结同一 Application 下的 scheduled Interview 与提前量；简报每个 section 至少
+  引用一个当前 `JD / Resume / Experience` 或授权 HTTPS 研究来源，错误 Application、非 scheduled 面试、
+  越界来源或未授权 Web domain 均在宿主层 fail-closed。投递详情只在存在 scheduled Interview 时显示“准备面试”；
+- BE7.5 Strategy Learner 使用当前账号全部 Application 生成 canonical snapshot hash；少于 5 条时拒绝形成
+  个人策略，快照漂移必须重新读取；快照包含状态、来源 origin、Resume 版本、周节奏与结果分布，对历史缺失的
+  BrowserLead match score 显式声明 limitation，不做推断。最多保留 5 条建议并固定“相关性不代表因果”说明。结果只进入本地
+  `strategy_proposal` 产物，不自动修改 Resume、JD、Application 或搜索偏好；设置页提供定期复盘入口；
+- BE7.6 Risk/Deadline Watch 冻结 Browser Webmail/当前账号只读邮箱、received 方向和 5–1440 分钟间隔。
+  风险/截止提示必须来自同一 task 的 ExternalSignal，并逐字复制邮件 evidenceQuotes；无原文证据拒绝记录，
+  风险只表述“需复核”。Reminder 复用现有 Proposal + Approval + Tracker/Outbox 写路径，新增 scope 映射和审批
+  executor，用户接受前零业务写入，拒绝后不续写；
+- 四类产物统一进入 owner/task 隔离的加密 Harness state，stable dedupe key + canonical contentHash 防止同一轮产物
+  被静默改写；旧 V1 state 缺少集合时安全补空数组。Task Center 默认投影标题、摘要、类型和时间，用户展开后可读取
+  跟进正文、简报 section、策略建议和风险 evidenceQuotes；来源 ID 仍转为产品标签，不向 Renderer 暴露内部 hash 或绝对路径；
+- 新增四个专用 Main IPC、Preload/DesktopApi、普通对话 prepare 工具和 running-task scope 收窄；Scheduler 只对
+  正式 Loop 自动启动，App 关闭后不运行。服务层再次验证 allowedAction、冻结 Application、Interview、signal 与
+  mail connection，避免仅依赖模型工具可见性；system prompt 升至 v154；
+- UI 继续使用已确认的黑/白/灰 token、克制 motion、reduced-motion、焦点循环和 App 既有 scrollbar；投递详情的
+  查看资产/安排跟进/准备面试按钮保持单行横向容器，设置页的策略/风险按钮同一行，不引入第二套主题；
+- `npm run check` 全绿：1149 个源文件均 ≤250 行；1093 tests 中 1091 pass、2 platform skip、0 fail；
+  Node/Preload/Vue typecheck、Node build、Electron production build 与 5 个 sandbox preload standalone 门禁通过。
+
+**2026-08-31 BE7 代码/逻辑质检修复：**用户要求在真实验收前先完成代码层审查；审查发现并一次收口以下问题：
+
+- 非法 `expiresAt` 曾因 `Date.parse=NaN` 绕过过期比较；现 Proposal、Grant 构造、Policy 与 startRun 四层均验证
+  finite timestamp 并 fail-closed。`task_wait(reason=timer)` 现在必须提交未来 ISO `wakeAfter`，缺失、过去或非法时间均
+  在结束 run 前拒绝；Scheduler 对旧非法状态也不再立即误唤醒；
+- Follow-up 与 Briefing 的首轮 `autoStartAfter` 由宿主分别按检查间隔、Interview scheduledAt 与提前量计算，Scheduler
+  到时才启动。Follow-up 计划时间与 IANA timezone 被验证，同一 Application 的后续轮次按冻结间隔允许、间隔内拒绝；
+  邮件轮询工具返回精确 `nextPollAt`，System Prompt 要求 timer 使用该值；
+- `riskMailDirections` / `scheduleMailDirections` 进入 Browser Webmail capture、API received fetch 和风险产物三层验证，
+  不再只是展示字段；Briefing 支持 `web:<HTTPS URL>`，但只接受当前 Grant 的 allowed domain；
+- Task Center 增加可展开产物详情；嵌套 Loop Escape 停止冒泡并恢复原焦点；Agent 授权卡按 Loop 类型显示相关字段，
+  新 scope 全部转换为产品文案，不再向用户显示内部权限名或无关“80%/投递数量”；
+- 最终 `npm run check` 全绿：1156 个源文件均 ≤250 行；1099 tests 中 1097 pass、2 platform skip、0 fail；
+  Node/Preload/Vue typecheck、Node build、Electron production build 与 5 个 sandbox preload standalone 门禁通过；
+  Windows Electron Agent Tasks UI 19/19 通过。
+
+本次只认定 **BE7.1–BE7.6 代码与自动门禁闭环**。按用户当前要求未执行新增四类入口的真实 Electron 操作、
+真实 Webmail 跟进填写、真实 Interview 简报来源回看、跨周 Strategy timer、真实截止邮件 → Reminder 审批/通知；
+此前 BE7.2 的真实岗位/投递与邮件日程闭环也仍未回补。因此 BE7 不标记为“真实交付完成”，这些运行证据与
+BSF5/BE6 平台验收一并回补后才能进入 BE8 的完整交付结论。
 
 **2026-08-23 BE5 实现进展（阶段仍未完成）：**
 
@@ -1029,8 +1145,8 @@ OTP/CAPTCHA takeover→resume、完整任务 deep-link 或 macOS BrowserWindow �
 
 - 本 README 是 `browser-enhance` 的唯一执行入口；阶段开始前先在对应阶段标题下补现状复核与
   用户确认结果，不创建平行路线；
-- BE0 已完成，正式完成记录为 [00-foundation](./00-foundation/README.md)；BE1–BE5 已在本 README
-  既有 5.1/5.3/6/7/8 节写回，不创建平行执行路线；当前唯一执行指针为 BSF4；
+- BE0 已完成，正式完成记录为 [00-foundation](./00-foundation/README.md)；BE1–BE7 进展已在本 README
+  既有 5.1/5.3/6/7/8 节写回，不创建平行执行路线；当前唯一执行指针为 BE7；
 - Browser Shell 正式化的聊天原始记录保留在
   [browser-shell-chrome-formalization-notes.md](./browser-shell-chrome-formalization-notes.md)，基于该记录形成的
   [Browser Shell AI Native 与正式浏览器体验子路线](./browser-shell-formalization/README.md)已于 2026-08-30

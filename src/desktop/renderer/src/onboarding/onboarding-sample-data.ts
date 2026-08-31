@@ -124,7 +124,8 @@ export function sampleResumeEntry(draft: ResumeDraftDetail): ResumeLibraryEntry 
     displayTitle: draft.title,
     cloud: {
       resumeId: SAMPLE_RESUME_ID, title: draft.title, targetRole: draft.targetRole,
-      jdId: SAMPLE_JD_ID, status: "active", contentHash: "a".repeat(64),
+      jdId: SAMPLE_JD_ID, status: "active", qualityStatus: "passed",
+      contentHash: "a".repeat(64),
       updatedAt: draft.updatedAt,
     },
     local: {

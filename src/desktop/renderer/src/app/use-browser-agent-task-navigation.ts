@@ -30,5 +30,10 @@ export function useBrowserAgentTaskNavigation() {
   });
   onBeforeUnmount(() => { for (const unsubscribe of unsubscribes) unsubscribe(); });
 
-  return { page: shallowReadonly(page), task: shallowReadonly(request) };
+  function focusTask(taskId: string): void {
+    const next = nextBrowserAgentTaskNavigation(request.value, taskId);
+    if (next) request.value = next;
+  }
+
+  return { page: shallowReadonly(page), task: shallowReadonly(request), focusTask };
 }

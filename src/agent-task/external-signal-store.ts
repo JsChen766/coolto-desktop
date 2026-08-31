@@ -8,6 +8,7 @@ import type {
   ExternalSignalV1,
   InboxCursorV1,
   InboxProvider,
+  MailDirection,
 } from "../inbox-signals/inbox-signal-types.js";
 
 export class ExternalSignalStore {
@@ -43,7 +44,7 @@ export class ExternalSignalStore {
   public record(input: {
     taskId: string; eventId: string; provider: InboxProvider;
     connectionId: string; sourceMessageId: string; sourceMessageHash: string;
-    sender: string; subject: string; receivedAt: string;
+    direction: MailDirection; sender: string; subject: string; receivedAt: string;
     kind: ExternalSignalKind; confidence: number; applicationId: string | null;
     rationale: string; evidenceQuotes: string[];
     securityFlags?: string[];

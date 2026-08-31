@@ -46,6 +46,7 @@ const {
   cloudCopyConfirmation,
   confirmCloudResumeCopy,
   openDialog,
+  openAgentTask,
   openPrimaryView,
   openResumeDraft,
   openTracker,
@@ -75,6 +76,11 @@ function guardNavigation(action: () => void | Promise<void>): void {
         (await mainWorkspace.value?.confirmExperienceLeave()) === false) return;
     await action();
   })();
+}
+
+function openTaskFromSettings(taskId: string): void {
+  settingsDialogOpen.value = false;
+  openAgentTask(taskId);
 }
 function requestPrimaryView(view: "agent_tasks" | "experiences" | "library"): void {
   if (activeView.value !== view) guardNavigation(() => openPrimaryView(view));
@@ -224,7 +230,9 @@ onBeforeUnmount(() => unsubscribeCalendar());
       @confirm="confirmCloudResumeCopy"
     />
     <ProfileDialog v-if="profileDialogOpen" :api="desktopApi" @close="closeProfile" />
-    <SettingsDialog v-if="settingsDialogOpen" :api="desktopApi" @close="settingsDialogOpen = false" @open-profile="openProfileFromSettings" />
+    <SettingsDialog v-if="settingsDialogOpen" :api="desktopApi"
+      :conversation-id="current?.id ?? ''" @close="settingsDialogOpen = false"
+      @open-profile="openProfileFromSettings" @open-agent-task="openTaskFromSettings" />
     <CreditsHost ref="creditsHost" :api="desktopApi" :user="user" />
     </div>
   </div>

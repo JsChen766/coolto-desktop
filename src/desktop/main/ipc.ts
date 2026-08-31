@@ -207,7 +207,7 @@ export function registerDesktopIpc(
     async () => (await servicesForCurrentUser()).profileProposals,
   );
   registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
-  registerAgentTaskIpc(ipcMain, servicesForCurrentUser);
+  registerAgentTaskIpc(ipcMain, servicesForCurrentUser, () => browserWindow.open());
   registerOnboardingIpc(ipcMain, servicesForCurrentUser);
 }
 

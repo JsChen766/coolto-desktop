@@ -10,6 +10,10 @@ import type { BrowserAgentController } from "../src/browser/agent-control-types.
 import { ApplicationSubmissionService } from "../src/desktop/main/agent-task/application-submission-service.js";
 import type { ApplicationProposalService } from "../src/desktop/main/application-library/application-proposal-service.js";
 import type { ApplicationCreateInput, ApplicationRecord } from "../src/tracker/types.js";
+import { createActionApprovalManager } from "../src/actions/create-action-approvals.js";
+import { ExperienceImportProposalStore } from "../src/import/proposal-store.js";
+import { createApplicationSubmissionTools } from
+  "../src/tools/application-submission-tools.js";
 
 test("confirmed browser submit creates one receipt and one Tracker Application", async () => {
   const value = await setup(false);
@@ -17,6 +21,7 @@ test("confirmed browser submit creates one receipt and one Tracker Application",
     jdId: "jd-1", resumeId: "resume-1",
     targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
   });
+  await value.submissions.confirm(intent.id);
   const receipt = await value.submissions.submit({
     intentId: intent.id, confirmationKind: "text",
     confirmationValue: "Application received",
@@ -38,6 +43,7 @@ test("uncertain submit creates pending-confirmation Application without resubmit
     jdId: "jd-1", resumeId: "resume-1",
     targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
   });
+  await value.submissions.confirm(intent.id);
   const receipt = await value.submissions.submit({
     intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
   });
@@ -63,13 +69,73 @@ test("submission preparation rejects duplicate Application and unqualified Resum
   );
 });
 
+test("each submission stays blocked until the selected Resume is confirmed", async () => {
+  const value = await setup(false);
+  const intent = await value.submissions.prepare({
+    jdId: "jd-1", resumeId: "resume-1",
+    targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
+  });
+  await assert.rejects(value.submissions.submit({
+    intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
+  }), /最终确认/u);
+  await value.submissions.reject(intent.id);
+  await assert.rejects(value.submissions.submit({
+    intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
+  }), /最终确认/u);
+  await assert.rejects(value.submissions.prepare({
+    jdId: "jd-1", resumeId: "resume-other",
+    targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
+  }), /冻结的简历/u);
+  assert.equal(value.submitCalls.length, 0);
+});
+
+test("prepare tool creates a per-job approval before browser_submit", async () => {
+  const value = await setup(false);
+  const approvals = createActionApprovalManager({
+    experienceWriter: {} as never,
+    importProposalStore: new ExperienceImportProposalStore(),
+    applicationSubmissions: value.submissions,
+  });
+  const prepare = createApplicationSubmissionTools(value.submissions, approvals)[0]!;
+  const result = await prepare.execute("prepare", {
+    jdId: "jd-1", resumeId: "resume-1",
+    targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
+  });
+  const details = result.details as { intent: { id: string }; approvalRequestId: string };
+  assert.equal(approvals.listPending()[0]?.actionType, "browser.submission_confirm");
+  await approvals.resolve(details.approvalRequestId, { type: "accept" });
+  assert.ok((await value.harness.submissions.getIntent(details.intent.id)).confirmedByUserAt);
+});
+
 test("started SubmissionIntent reconciles to pending without a second site click", async () => {
   const value = await setup(false);
   const intent = await value.submissions.prepare({
     jdId: "jd-1", resumeId: "resume-1",
     targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
   });
+  await value.submissions.confirm(intent.id);
+  const task = await value.harness.tasks.findRunningByConversation("conversation");
+  const active = await value.harness.grants.getActive(task!.id);
+  const token = await value.harness.ledger.issue({
+    ownerId: "owner", taskId: task!.id, runId: task!.activeRunId!,
+    toolName: "browser_submit", requestHash: "recovery-token",
+    grantHash: active.grant!.contentHash, targetOrigin: "https://jobs.example",
+    tabId: "tab-1", observationHash: null,
+    expiresAt: new Date(Date.now() + 30_000).toISOString(),
+  });
+  await value.harness.submissions.authorizeIntent({
+    intentId: intent.id, runId: task!.activeRunId!,
+    actionTokenId: token.id, expiresAt: token.expiresAt,
+  });
   await value.harness.submissions.claimIntent(intent.id, new Date().toISOString());
+  await value.harness.tasks.setHostStatus(task!.id, "paused");
+  await value.harness.ledger.reconcileInvalidatedRun(
+    task!.id, task!.activeRunId!, "run_interrupted_before_receipt",
+  );
+  await assert.rejects(value.submissions.submit({
+    intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
+  }), /running AgentTask/u);
+  await value.harness.tasks.startRun({ taskId: task!.id, wakeCause: "user" });
 
   const receipt = await value.submissions.submit({
     intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
@@ -85,6 +151,7 @@ test("deleting an Application removes its retained submission intent and receipt
     jdId: "jd-1", resumeId: "resume-1",
     targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
   });
+  await value.submissions.confirm(intent.id);
   const receipt = await value.submissions.submit({
     intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
   });
@@ -114,7 +181,12 @@ async function setup(
     ownerId, taskId: task.id, taskGoalHash: task.goalHash,
     allowedDomains: ["jobs.example"], blockedDomains: [],
     allowedActions: ["browser.submit", "tracker.application.create", "task.lifecycle"],
-    jobCriteria: {}, assetPolicy: {}, answerPolicy: {}, submissionBudget: {},
+    jobCriteria: {},
+    assetPolicy: {
+      resumeId: "resume-1", resumeTitle: "Resume",
+      resumeContentHash: "a".repeat(64), submissionMode: "confirm_each",
+    },
+    answerPolicy: {}, submissionBudget: {},
     unattended: true, validFrom: new Date(now - 1000).toISOString(),
     expiresAt: new Date(now + 60_000).toISOString(), policyVersion: "be4",
     confirmedByUserAt: new Date(now).toISOString(),
@@ -173,7 +245,7 @@ async function setup(
       id: "resume-1", title: "Resume", contentHash: "a".repeat(64),
       qualityStatus, status: "active",
     }) } as never,
-    proposals,
+    proposals, { cleanupTask: async () => undefined } as never,
   );
   return { harness, submissions, submitCalls, applicationInputs };
 }

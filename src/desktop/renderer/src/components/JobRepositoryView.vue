@@ -37,6 +37,7 @@ const emit = defineEmits<{
   tracker: [asset: TrackerAssetTarget];
   applications: [];
   delivery: [file: DeliveryResumeFile];
+  resumeLoop: [resume: JobRepositoryResume];
 }>();
 
 const repository = useJobRepository();
@@ -224,6 +225,7 @@ function trackResume(resume: JobRepositoryResume): void {
           @open="$emit('open', $event)"
           @record="recordResume(selectedResume)"
           @tracker="trackResume(selectedResume)"
+          @automate="$emit('resumeLoop', selectedResume)"
           @jd="showJdFromResume"
         />
         <DeliveryResumeFileDetail

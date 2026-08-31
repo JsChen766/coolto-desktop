@@ -1,7 +1,7 @@
 # Coolto P0 产品能力补齐路线
 
 > 状态：既有产品路线与完成记录保留为历史基线；后续开发已统一为一条正式执行链
-> 当前阶段：BE7 AI Native Loops；BSF5 与 BE6 的真实平台验收经用户明确延期，保持未完成并后续回补
+> 当前阶段：BE7 AI Native Loops 代码闭环完成、真实运行验收待回补；BSF5 与 BE6 的真实平台验收同样延期
 > 后续顺序：BE7 → BSF5/BE6 平台验收回补 → BE8 → S4.5 → S5 → R1
 > 建立日期：2026-07-24
 > 上游依赖：[简历生成交付路线](../resume-generation-roadmap/README.md) G1–G7 已完成
@@ -196,7 +196,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | BE5 | Inbox Signals | 默认 Browser Webmail、可选 Gmail/Outlook 增量、Application 关联与状态/Interview Proposal | ✅ 手动确认基线完成；自动关联准确率仍未评估，所有 Tracker/Interview 写入保持逐条 Approval |
 | BSF | Browser Shell Formalization | 独立 Browser 产品面、正式浏览器基础、Agent 可见层、新标签页与下载 | BSF0–BSF4 已完成；BSF5 Windows/macOS 剩余实测延期、未完成 |
 | BE6 | macOS Calendar | EventKit 最小权限、映射、改期/取消和去重 | 代码实现完成；真实 Mac 编译、TCC、CRUD、重启与打包验收延期、未完成 |
-| BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | **当前阶段（用户明确覆盖平台验收顺序）**；仅 App 打开时运行，优先日程联动与“选简历→找岗位→填写→投递前确认” |
+| BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | **代码与逻辑质检通过、实测待回补**：BE7.1–BE7.6 已完成专用授权、真实首轮/周期调度、数据/去重/停止契约、方向与来源校验、可展开产物、审批续跑及全量门禁；真实邮件/岗位/表单、长周期 timer 和通知验收仍未执行，详见 Browser Enhance 正式记录 |
 | BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |
 | S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；2026-08-29 L7–L12 WorkUnit 语义层与 5 份当前代码真实单次生成完成；L13–L17 已补齐首次经历引导、真正 `jd=null` 的独立通用简历及 tailored 8000 字后的策略卡；L19 新增用户坚持不匹配岗位并指定经历的 `user_directed` 路径，逐 Experience 基础简历优先、否则取其他简历最近版本，多来源合成且不做 JD adaptation，无 focus 均匀分配、有唯一 focus 多写，critical-skill 只警告且不触发 mismatch 卡；2026-08-30 新增独立本地用户原文件投递资产，不进入任何写作/匹配/复用链路，可由用户指定用于任意岗位；L18 general/fallback 与 L20 user-directed 的真实账号模型生成尚未执行，人工文字质量、Section H 和完整 token/质量对照仍待验收 |
 | S5 | 全产品联调与性能验收 | 对 P1–P4、J0–J3、E0–E6、S3–S4.5 做最终真实主路径和失败路径验收 | Section A 已完成；其余暂停至 S4.5 完成 |

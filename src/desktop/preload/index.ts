@@ -12,6 +12,7 @@ import type {
   DesktopApi,
 } from "../shared/types.js";
 import { onboardingPreloadApi } from "./onboarding-api.js";
+import { agentTasksPreloadApi } from "./agent-tasks-api.js";
 import { childApi, subscribeIpc } from "./ipc-helpers.js";
 
 const api: DesktopApi = {
@@ -188,19 +189,7 @@ const api: DesktopApi = {
     onOpenInterview: (listener) => subscribeIpc("calendar:open-interview", listener),
   },
   onboarding: onboardingPreloadApi,
-  agentTasks: {
-    list: () => ipcRenderer.invoke("agent-tasks:list"),
-    get: (taskId) => ipcRenderer.invoke("agent-tasks:get", taskId),
-    prepare: (input) => ipcRenderer.invoke("agent-tasks:prepare", input),
-    executeProposal: (id) => ipcRenderer.invoke("agent-tasks:execute-proposal", id),
-    start: (id) => ipcRenderer.invoke("agent-tasks:start", id),
-    resume: (id) => ipcRenderer.invoke("agent-tasks:resume", id),
-    pause: (id) => ipcRenderer.invoke("agent-tasks:pause", id),
-    cancel: (id) => ipcRenderer.invoke("agent-tasks:cancel", id),
-    revoke: (id) => ipcRenderer.invoke("agent-tasks:revoke", id),
-    submissionReceipt: (id) =>
-      ipcRenderer.invoke("agent-tasks:submission-receipt", id),
-  },
+  agentTasks: agentTasksPreloadApi,
   window: {
     minimize: () => ipcRenderer.invoke("window:minimize"),
     toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),

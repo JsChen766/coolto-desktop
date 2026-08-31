@@ -30,6 +30,8 @@ import type { ReminderSyncStore } from "./tracker/reminder-sync-store.js";
 import type { TrackerRecoveryService } from "./tracker/tracker-recovery-service.js";
 import type { UserFileServices } from "./user-file-services.js";
 import type { CalendarSyncService } from "./calendar/calendar-sync-service.js";
+import type { ManagedResumeUploadService } from
+  "./agent-task/managed-resume-upload-service.js";
 
 export interface UserServices extends UserFileServices {
   ownerId: string;
@@ -42,6 +44,7 @@ export interface UserServices extends UserFileServices {
   agentTasks: AgentTaskRunner;
   agentTaskProposals: AgentTaskProposalService;
   agentTaskScheduler: AgentTaskScheduler;
+  managedResumeUploads: ManagedResumeUploadService;
   resumes: ResumeSyncStore;
   jds: JdSyncStore;
   applications: ApplicationSyncStore;

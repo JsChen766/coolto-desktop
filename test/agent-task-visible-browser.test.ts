@@ -71,6 +71,7 @@ function detail(
       unattended: false,
       expiresAt: "2099-01-01T00:00:00.000Z",
       revokedAt: null,
+      loop: null,
     },
   };
 }

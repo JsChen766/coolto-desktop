@@ -47,6 +47,7 @@ export class TaskLifecycleController {
   }): Promise<AgentTaskV1> {
     const task = await this.#runningTask();
     const runId = task.activeRunId!;
+    const wakeAfter = normalizeWakeAfter(input.reason, input.wakeAfter);
     await this.services.leads.assertAllOpenLeadsEvaluated(task.id);
     await this.services.signals.assertAllMailEventsClassified(task.id);
     await this.checkpoint({ summary: input.summary });
@@ -54,7 +55,7 @@ export class TaskLifecycleController {
       taskId: task.id, runId, taskStatus: "waiting",
       waiting: {
         reason: input.reason,
-        wakeAfter: input.wakeAfter ?? null,
+        wakeAfter,
         eventTypes: [...new Set(input.eventTypes ?? [])],
       },
       stopReason: input.summary,
@@ -96,4 +97,16 @@ export class TaskLifecycleController {
     if (!task?.activeRunId) throw new Error("当前 Conversation 没有 running AgentTask");
     return task;
   }
+}
+
+function normalizeWakeAfter(
+  reason: NonNullable<AgentTaskV1["waiting"]>["reason"],
+  value: string | null | undefined,
+): string | null {
+  if (reason !== "timer") return value ?? null;
+  const timestamp = typeof value === "string" ? Date.parse(value) : Number.NaN;
+  if (!Number.isFinite(timestamp) || timestamp <= Date.now()) {
+    throw new Error("timer 等待必须提供未来的 wakeAfter");
+  }
+  return new Date(timestamp).toISOString();
 }

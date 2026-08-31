@@ -3,6 +3,7 @@ import type { AgentHarnessStateRepository } from "./agent-harness-state-reposito
 import { AgentTaskStore } from "./agent-task-store.js";
 import { DelegationGrantStore } from "./delegation-grant-store.js";
 import { EnvironmentEventStore } from "./environment-event-store.js";
+import { AiNativeArtifactStore } from "./ai-native-artifact-store.js";
 import { PolicyDecisionStore } from "./policy-decision-store.js";
 import type { AgentEvidenceStore } from "./evidence-types.js";
 import { BrowserLeadStore } from "./browser-lead-store.js";
@@ -15,6 +16,7 @@ export class AgentHarnessServices {
   readonly tasks: AgentTaskStore;
   readonly grants: DelegationGrantStore;
   readonly events: EnvironmentEventStore;
+  readonly aiNativeArtifacts: AiNativeArtifactStore;
   readonly ledger: ActionLedger;
   readonly policyDecisions: PolicyDecisionStore;
   readonly leads: BrowserLeadStore;
@@ -31,6 +33,7 @@ export class AgentHarnessServices {
     this.tasks = new AgentTaskStore(ownerId, repository);
     this.grants = new DelegationGrantStore(ownerId, repository);
     this.events = new EnvironmentEventStore(ownerId, repository);
+    this.aiNativeArtifacts = new AiNativeArtifactStore(ownerId, repository);
     this.ledger = new ActionLedger(ownerId, repository);
     this.policyDecisions = new PolicyDecisionStore(ownerId, repository);
     this.leads = new BrowserLeadStore(ownerId, repository);

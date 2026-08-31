@@ -37,6 +37,7 @@ import { ConversationRunGate } from "./conversation-run-gate.js";
 import { continueAfterResumeStrategyChoice, pendingResumeStrategyChoice } from "./resume-strategy-continuation.js";
 import { activateBestAvailableGeneralResume } from "./resume-strategy-general-selection.js";
 import { LocalExperienceMaterialCommitter } from "./experience-library/experience-material-committer.js";
+import type { ManagedResumeUploadService } from "./agent-task/managed-resume-upload-service.js";
 export class DesktopAgentRuntime {
   readonly #store: ConversationStore; readonly #resumeDrafts: ResumeDraftService;
   readonly #events: AgentRuntimeEvents;
@@ -56,8 +57,9 @@ export class DesktopAgentRuntime {
     agentTaskProposals: AgentTaskProposalService, resumePublications: ResumePublicationGateway,
     applications: ApplicationSyncStore, applicationProposals: ApplicationProposalService,
     deliveryResumeFiles: import("../../delivery-resume-files/types.js").DeliveryResumeFileStore,
-    mailConnections: MailConnectionRegistry, interviews: InterviewSyncStore,
-    interviewProposals: InterviewProposalService, experiences: ExperienceReader & ExperienceWriter,
+    managedResumeUploads: ManagedResumeUploadService, mailConnections: MailConnectionRegistry,
+    interviews: InterviewSyncStore, interviewProposals: InterviewProposalService, reminderProposals: import("./tracker/reminder-proposal-service.js").ReminderProposalService,
+    experiences: ExperienceReader & ExperienceWriter,
     jds: JdReader & JdWriter, profiles: UserProfileReader,
     profileProposals: ProfileProposalExecutor,
     experienceProposals: ExperienceProposalService,
@@ -75,7 +77,7 @@ export class DesktopAgentRuntime {
       selectedFiles,
       browserAgentController, browserPageOperator, agentHarness,
       agentTaskProposals, applications, applicationProposals, mailConnections,
-      deliveryResumeFiles, interviews, interviewProposals,
+      deliveryResumeFiles, managedResumeUploads, interviews, interviewProposals, reminderProposals,
       resumePublications,
       experiences,
       jds,
@@ -164,9 +166,7 @@ export class DesktopAgentRuntime {
     ).then(() => undefined);
   }
   public generationTrace(conversationId: string) { return this.#traces.latestForConversation(conversationId); }
-
-  public async resolveApproval(conversationId: string, requestId: string,
-    decision: ApprovalDecision): Promise<ConversationDetail> {
+  public async resolveApproval(conversationId: string, requestId: string, decision: ApprovalDecision): Promise<ConversationDetail> {
     const context = await this.#contextFor(conversationId);
     await this.#runGate.beginAfterCurrent(conversationId);
     this.#cancelRequested = false;
