@@ -28,6 +28,10 @@ import type { BrowserShortcutRouter } from "./browser-shortcut-router.js";
 import { BrowserTabControls } from "./browser-tab-controls.js";
 import type { BrowserZoomAction } from "./browser-tab-zoom.js";
 import { buildBrowserUserAgent } from "./browser-user-agent.js";
+import {
+  browserInitialNavigationUrl,
+  type BrowserInitialNavigationKind,
+} from "./browser-initial-navigation.js";
 
 export interface BrowserTabPresentationContext {
   locale: () => BrowserLocale;
@@ -136,11 +140,10 @@ export class BrowserTab {
     });
   }
 
-  public loadUrl(url?: string): void {
+  public loadUrl(url?: string, kind: BrowserInitialNavigationKind = "external"): void {
     const target = url?.trim();
     this.#displaySourceUrl = this.displayUrl && target ? target : undefined;
-    this.#navigate(target ? normalizeBrowserNavigationUrl(target) ?? this.#homeUrl()
-      : this.#homeUrl());
+    this.#navigate(browserInitialNavigationUrl(target, this.#homeUrl(), kind));
   }
   public navigate(url: string): void {
     const target = normalizeBrowserNavigationUrl(url);

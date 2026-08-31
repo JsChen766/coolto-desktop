@@ -46,7 +46,7 @@ export class BrowserTabManager {
     private readonly openTask: () => void = () => undefined,
   ) {}
 
-  public newTab(url?: string, displayUrl?: string): BrowserTab {
+  public newTab(url?: string, displayUrl?: string, hostInternal = false): BrowserTab {
     const tab = new BrowserTab(
       () => this.onChange(),
       (openUrl) => {
@@ -60,7 +60,7 @@ export class BrowserTabManager {
     );
     this.#tabs.push(tab);
     this.window.contentView.addChildView(tab.view);
-    tab.loadUrl(url);
+    tab.loadUrl(url, hostInternal ? "host-internal" : "external");
     this.select(tab.id);
     return tab;
   }

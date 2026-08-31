@@ -25,8 +25,11 @@ export class OnboardingBrowserDemo {
 
   public async openAndFill(theme: "light" | "dark"): Promise<void> {
     await this.#prepareResume();
+    const existingTabIds = new Set(
+      this.browser.tabs?.allTabs().map((tab) => tab.id) ?? [],
+    );
     this.browser.openOnboardingDemo(demoPageUrl(theme), theme);
-    await this.#waitForPage();
+    await this.#waitForPage(existingTabIds);
     this.operator.grantWriteAccess("填写 Coolto 本地一次性示例申请页");
     try {
       const elements = await this.operator.tagElements();
@@ -58,11 +61,17 @@ export class OnboardingBrowserDemo {
     await writeFile(this.#resumePath, minimalPdf(), { mode: 0o600 });
   }
 
-  async #waitForPage(): Promise<void> {
+  async #waitForPage(existingTabIds: ReadonlySet<string>): Promise<void> {
     const deadline = Date.now() + 12_000;
     while (Date.now() < deadline) {
-      const state = this.browser.getState();
-      if (state.pageTitle === PAGE_TITLE && !state.isLoading) return;
+      const tabs = this.browser.tabs;
+      const tab = tabs?.allTabs().find((candidate) =>
+        !existingTabIds.has(candidate.id) && candidate.getState().title === PAGE_TITLE);
+      const state = tab?.getState();
+      if (tab && state?.title === PAGE_TITLE && !state.isLoading) {
+        tabs?.select(tab.id);
+        return;
+      }
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     throw new Error("本地示例申请页加载超时");
