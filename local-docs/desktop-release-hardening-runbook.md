@@ -427,6 +427,35 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 - 非阻塞维护项不变：Actions Node 20 弃用提醒、Homepage SSH `bash -c` quoting 警告；两者未阻断
   workflow、备份、标题 smoke、公开 bundle 或下载链路的独立验证。
 
+### 10.12 已验证基线（2026-08-31，0.1.23 Browser Enhance 发布）
+
+- 发布源：Browser Enhance BE0–BE7 在本地合入最新 `origin/app` 0.1.22，并逐字段解决 ConversationStore、
+  Preload、ChatHeaderHost、App shell、Resume workspace 与 Conversation 类型冲突；`npm run check` 全绿后，
+  PR #51 合入受保护 `app`，merge commit 为 `138aec5c1aaf46f7e5f8d0dd4ef0572c9bc84759`，版本升至 0.1.23。
+- 首轮 macOS workflow `33383248866` 在 `native:build:mac` 正确发现 `calendar.rs` 的 macOS-only Rust
+  语法错误，未进入打包/上传；同期 Windows workflow `33383246087` 在 native build 阶段主动取消，同样未打包/
+  上传，避免同版本不同 app SHA。修复显式 unsafe 边界和 null guard 后由 PR #52 合入，最终 app commit 为
+  `38a813ef6604367cb26be418413956a3fc0454a6`。
+- 发布前本地 `npm run check` 全绿：1162 个源文件均不超过 250 行，1102 项测试中 1100 通过、2 项平台跳过、
+  0 失败，Node/Preload/Vue typecheck、Node/Electron production build 和 5 个 sandbox preload 门禁通过；
+  `cargo check --manifest-path native/coolto-core/Cargo.toml` 通过。
+- Windows workflow `33383594280` 成功：Rust native 3/3、protected Main、NSIS、release hardening、真实安装/
+  bootstrap/Renderer 持续健康与卸载清理、服务器上传全部通过；payload 1,487,651 bytes，native 276,992 bytes，
+  Fuses verified，Authenticode 仍为 NotSigned。
+- macOS workflow `33383597930` 成功：x64/arm64 native、双架构 ZIP/DMG、两端 release hardening 和服务器上传
+  通过；两端 payload 均为 1,487,651 bytes，native 均为 817,200 bytes，Fuses verified；签名 identity `-`
+  （ad-hoc），notarization 明确跳过。
+- Homepage workflow `33384212066` 成功；公开 bundle `index-DWLWSd2r.js` 为 312,552 bytes并包含 0.1.23
+  及 Windows/macOS 下载地址。公网 `latest.yml`、`latest-mac.yml` 和下载页均为 0.1.23；五个文件完成无
+  query URL 全字节下载，尺寸与 feed SHA-512 全部匹配，独立 SHA-256：Windows EXE 133,625,894 bytes，
+  `5CB39197513B4DA5E83B58A7F46B5218C40A5AA696014D7CE954880A4064376B`；Intel ZIP 188,903,390 bytes，
+  `582B3508E93759B26A652C397F9C2399AA115E3729E396CAFC02D3321351DFFE`；Apple Silicon ZIP
+  185,343,119 bytes，`4F273493A978065D1497290F2CCC3649E6C2F2F64D2C0E38C9E4276AD53FCB8D`；Intel DMG
+  191,798,942 bytes，`0AF5C9F242B7FDE244EE4243425A125707F0D5172559373D79AEB2151717AF90`；Apple Silicon
+  DMG 188,246,140 bytes，`E3EC3F964E191467ED9BE2472CFF54CB75F71098B4468FFE6828FDEA36652749`。
+- 本次发布完成不替代 BSF5 的真实登录/OTP/CAPTCHA/NVDA、BE6 EventKit 真机 CRUD/TCC 或 BE8 真实账号、
+  长任务、断网与跨账号验收；这些门禁继续保持未完成。
+
 ### 10.6 运维注意事项（坑）
 
 - **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过
