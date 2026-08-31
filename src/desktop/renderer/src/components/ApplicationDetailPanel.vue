@@ -36,6 +36,10 @@ const props = defineProps<{
   detail: ApplicationTrackerDetail;
   detailLoading?: boolean;
   submissionReceipt: SubmissionReceiptView | undefined;
+  focusInterviewId?: string | undefined;
+  calendarSupported?: boolean;
+  calendarBusyId?: string | undefined;
+  calendarMessage?: string | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -52,6 +56,7 @@ const emit = defineEmits<{
   addReminder: [];
   editReminder: [value: Reminder];
   removeChild: [kind: "interview" | "note" | "reminder", id: string];
+  syncInterview: [value: InterviewRound];
 }>();
 
 const editing = ref(false);
@@ -62,6 +67,10 @@ const DETAIL_TABS = [
   { id: "records", label: "记录" },
 ] as const;
 const form = ref(applicationFormOf(props.application));
+
+watch(() => props.focusInterviewId, (id) => { if (id) activeTab.value = "schedule"; }, {
+  immediate: true,
+});
 
 watch(
   () => props.application,
@@ -181,11 +190,16 @@ function save(): void {
       :interviews="detail.interviews"
       :reminders="detail.reminders"
       :busy="busy"
+      :focus-interview-id="focusInterviewId"
+      :calendar-supported="calendarSupported"
+      :calendar-busy-id="calendarBusyId"
+      :calendar-message="calendarMessage"
       @add-interview="$emit('addInterview')"
       @edit-interview="$emit('editInterview', $event)"
       @add-reminder="$emit('addReminder')"
       @edit-reminder="$emit('editReminder', $event)"
       @remove="(kind, id) => $emit('removeChild', kind, id)"
+      @sync-interview="$emit('syncInterview', $event)"
     />
     <ApplicationRecordPanel
       v-else

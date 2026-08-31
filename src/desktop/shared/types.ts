@@ -63,3 +63,4 @@ export type * from "./types/updates.js";
 export type * from "./types/agent-tasks.js";
 export type * from "./types/mail-connections.js";
 export type * from "./types/tracker-child-api.js";
+export type * from "./types/calendar.js";

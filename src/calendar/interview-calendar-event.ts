@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { InterviewRound } from "../tracker/child-types.js";
+import type { Reminder } from "../tracker/child-types.js";
 import type { ApplicationRecord } from "../tracker/types.js";
 import type { CalendarEventDraft } from "./calendar-types.js";
 
@@ -13,6 +14,7 @@ type CalendarInterview = Pick<
   "id" | "applicationId" | "roundNumber" | "interviewType" | "scheduledAt" |
   "timezone" | "durationMinutes" | "locationOrLink" | "status"
 >;
+type CalendarReminder = Pick<Reminder, "interviewRoundId" | "remindAt" | "status">;
 
 export type CalendarMappingErrorCode =
   | "application_mismatch"
@@ -32,6 +34,7 @@ export function interviewCalendarEvent(input: {
   application: CalendarApplication;
   interview: CalendarInterview;
   deepLink: string;
+  reminders?: CalendarReminder[];
 }): CalendarEventDraft {
   const { application, interview } = input;
   if (application.id !== interview.applicationId) {
@@ -61,6 +64,7 @@ export function interviewCalendarEvent(input: {
     meetingUrl: place.meetingUrl,
     notes: deepLink,
     deepLink,
+    alarmOffsetsMinutes: alarmOffsets(input.reminders ?? [], interview.id, start),
   };
 }
 
@@ -101,6 +105,19 @@ function validTimezone(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function alarmOffsets(
+  reminders: CalendarReminder[],
+  interviewId: string,
+  start: Date,
+): number[] {
+  return [...new Set(reminders.flatMap((reminder) => {
+    if (reminder.interviewRoundId !== interviewId || reminder.status !== "scheduled") return [];
+    const remindAt = Date.parse(reminder.remindAt);
+    if (!Number.isFinite(remindAt) || remindAt >= start.getTime()) return [];
+    return [Math.round((remindAt - start.getTime()) / 60_000)];
+  }))].sort((a, b) => a - b);
 }
 
 function typeLabel(type: CalendarInterview["interviewType"]): string {

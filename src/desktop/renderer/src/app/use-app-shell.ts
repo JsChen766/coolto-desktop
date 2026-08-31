@@ -189,6 +189,13 @@ export function useAppShell() {
       behavior: "smooth",
     });
   }
+
+  function openTrackerApplication(applicationId: string, interviewId: string): void {
+    resumePreview.resetResumePreview();
+    closeNarrowSidebar();
+    jobFlow.trackerContext.value = { applicationId, interviewId };
+    activeView.value = "tracker";
+  }
   const jobFlow = useJobFlowNavigation({
     activeView,
     closeNarrowSidebar,
@@ -224,6 +231,7 @@ export function useAppShell() {
     openMatchPanel,
     openResumeDraft,
     openTracker,
+    openTrackerApplication,
     ...jobFlow,
     clearExperienceImportFocus: experienceImport.clear,
     createChat,

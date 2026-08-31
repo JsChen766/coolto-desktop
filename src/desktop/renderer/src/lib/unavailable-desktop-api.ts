@@ -28,6 +28,10 @@ export function createUnavailableDesktopApi(): DesktopApi {
       providers: unavailable, list: unavailable,
       connect: unavailable, disconnect: unavailable,
     },
+    calendar: {
+      status: unavailable, requestAccess: unavailable, syncInterview: unavailable,
+      openSystemSettings: unavailable, onOpenInterview: () => () => undefined,
+    },
     conversations: {
       list: unavailable,
       create: unavailable,

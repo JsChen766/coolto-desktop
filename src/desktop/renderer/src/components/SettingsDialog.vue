@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, ref } from "vue";
 
 import type { DesktopApi } from "@desktop/types";
 import MailConnectionsSettings from "./MailConnectionsSettings.vue";
+import CalendarSettings from "./CalendarSettings.vue";
 
 const props = defineProps<{ api: DesktopApi }>();
 const emit = defineEmits<{
@@ -127,6 +128,7 @@ function keydown(event: KeyboardEvent): void {
       </section>
 
       <MailConnectionsSettings :api="api" />
+      <CalendarSettings :api="api" />
 
       <section class="settings-section">
         <div class="settings-section-title icon-label">

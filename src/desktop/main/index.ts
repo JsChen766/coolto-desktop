@@ -12,9 +12,11 @@ import { inspectResumePdf } from "../../resume/pdf-postflight.js";
 import { runResumePdfExportQa } from "./resume-pdf-export-qa.js";
 import { runResumePerformanceQa } from "./resume-performance-qa.js";
 import { initializeNativeProtection } from "./native-protection.js";
-
+import { CalendarDeepLinkRouter } from "./calendar/calendar-deep-link-router.js";
 let mainWindow: BrowserWindow | undefined;
-
+const calendarDeepLinks = new CalendarDeepLinkRouter(() => mainWindow);
+calendarDeepLinks.listen();
+calendarDeepLinks.acceptArguments(process.argv);
 // Production defaults: packaged builds must reach the production API and the
 // Credit/LLM gateway. Development and custom deployments can still override
 // via COOLTO_* environment variables (??= keeps an existing value).
@@ -22,22 +24,20 @@ if (app.isPackaged) {
   process.env.COOLTO_API_BASE_URL ??= "https://hkapi.coolto.com.cn";
   process.env.COOLTO_LLM_GATEWAY_BASE_URL ??= "https://credit.coolto.com.cn";
 }
-
 // Single instance: two processes writing the same conversation files corrupt
 // each other's atomic saves (EPERM on rename); keep one instance and focus it.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
+  app.on("second-instance", (_event, argv) => {
+    calendarDeepLinks.acceptArguments(argv);
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
   });
   app.whenReady().then(bootstrap);
 }
-
 initializeNativeProtection();
-
 function createWindow(): void {
   const isMac = process.platform === "darwin";
   const resumeCompiler = new ElectronResumeCompilerService(ipcMain);
@@ -81,6 +81,7 @@ function createWindow(): void {
   });
   window.once("ready-to-show", () => {
     window.show();
+    calendarDeepLinks.flush();
     const screenshotPath = app.isPackaged
       ? undefined
       : process.env.COOLTO_SCREENSHOT_PATH;

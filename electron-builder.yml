@@ -26,9 +26,19 @@ files:
 publish:
   provider: generic
   url: https://home.coolto.com.cn/downloads/
+protocols:
+  - name: Coolto
+    schemes:
+      - coolto
 mac:
   category: public.app-category.productivity
   identity: "-"
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSCalendarsUsageDescription: Coolto 仅在你确认后将面试写入系统日历。
+    NSCalendarsWriteOnlyAccessUsageDescription: Coolto 需要添加你确认的面试事件，不读取现有日历内容。
+    NSCalendarsFullAccessUsageDescription: 仅在改期或取消已关联事件时，Coolto 需要读取并更新该事件。
   # osx-sign would otherwise ad-hoc sign coolto-core.node, changing its bytes
   # and breaking the SHA-256 check embedded in the protected-main loader.
   # disable-library-validation entitlement allows the unsigned module to load.

@@ -64,6 +64,7 @@ import {
   MAIL_CONNECTION_IPC_CHANNELS,
   registerMailConnectionIpc,
 } from "./mail-connections/mail-connection-ipc.js";
+import { CALENDAR_IPC_CHANNELS, registerCalendarIpc } from "./calendar/calendar-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -91,6 +92,7 @@ export function registerDesktopIpc(
     ...WINDOW_CLOSE_IPC_CHANNELS,
     ...AGENT_TASK_IPC_CHANNELS,
     ...MAIL_CONNECTION_IPC_CHANNELS,
+    ...CALENDAR_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -121,6 +123,7 @@ export function registerDesktopIpc(
   registerCheckoutIpc(ipcMain, auth);
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
   registerMailConnectionIpc(ipcMain, servicesForCurrentUser);
+  registerCalendarIpc(ipcMain, servicesForCurrentUser);
 
   const updateService = new ElectronUpdateService(electronUpdaterDriver, {
     feedUrl:

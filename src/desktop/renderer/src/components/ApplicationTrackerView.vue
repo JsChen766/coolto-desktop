@@ -136,6 +136,7 @@ async function childrenChanged(): Promise<void> {
       :references="tracker.references.value"
       :busy="tracker.busy.value"
       :error="tracker.error.value"
+      :focus-interview-id="context?.interviewId"
       @close="tracker.selected.value = undefined"
       @update="updateSelected"
       @transition="prepareTransition(tracker.selected.value!, $event)"

@@ -77,6 +77,7 @@
 .tracker-child-item small { color: var(--muted); font-size: 10.5px; overflow-wrap: anywhere; }
 .tracker-child-item.overdue { border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); }
 .tracker-child-item.overdue small { color: var(--danger); }
+.tracker-child-item.selected { box-shadow: inset 0 0 0 1px var(--text-soft); }
 .tracker-child-item nav,
 .tracker-note-list nav { display: flex; gap: 3px; }
 .tracker-child-item nav button,

@@ -1,5 +1,4 @@
 import type { BrowserWindow } from "electron";
-
 import type { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type { BrowserAgentController } from "../../browser/agent-control-types.js";
 import type { BrowserPageOperator } from "../../browser/types.js";
@@ -44,6 +43,7 @@ import type { AgentTaskScheduler } from "../../agent-task/agent-task-scheduler.j
 import { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
 import { clearUserServices } from "./clear-user-services.js";
 import { ElectronMailConnectionService } from "./mail-connections/electron-mail-connection-service.js";
+import { createCalendarService } from "./calendar/create-calendar-service.js";
 export interface UserServices {
   ownerId: string;
   conversations: ConversationStore;
@@ -75,6 +75,7 @@ export interface UserServices {
   reminderScheduler: ReminderNotificationScheduler;
   trackerRecovery: TrackerRecoveryService;
   mailConnections: ElectronMailConnectionService;
+  calendar: ReturnType<typeof createCalendarService>;
 }
 export class UserServicesResolver {
   private services: UserServices | undefined;
@@ -86,7 +87,6 @@ export class UserServicesResolver {
     private readonly browserPageOperator: BrowserPageOperator,
     private readonly browserAgentStatus: BrowserAgentStatusBridge,
   ) {}
-
   public async get(): Promise<UserServices> {
     const user = this.auth.requireCurrentUser();
     if (this.services?.ownerId === user.id) return this.services;
@@ -136,6 +136,7 @@ export class UserServicesResolver {
     const interviewProposals = new InterviewProposalService(interviews);
     const notes = new NoteSyncStore(syncStore, triggerSync, waitForInitialSync);
     const reminders = new ReminderSyncStore(syncStore, triggerSync, waitForInitialSync);
+    const calendar = createCalendarService(user.id, applications, interviews, reminders);
     const trackerDetail = new ApplicationTrackerDetailService(
       new StatusEventReader(syncStore, waitForInitialSync), interviews, notes, reminders,
     );
@@ -196,10 +197,10 @@ export class UserServicesResolver {
         syncStore, triggerSync, waitForInitialSync, () => this.auth.syncNow(),
       ),
       mailConnections,
+      calendar,
     };
     return this.services;
   }
-
   public async clear(
     reason: "window_closed" | "account_changed" = "window_closed",
   ): Promise<void> {
@@ -210,7 +211,6 @@ export class UserServicesResolver {
       status: this.browserAgentStatus,
     });
   }
-
   /** Best-effort snapshot of the in-flight agent transcript. No-op when no
    * services or no running generation exist; never creates services (used at
    * window close / app quit, where the runtime must not be rebuilt). */

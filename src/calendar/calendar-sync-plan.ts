@@ -1,4 +1,5 @@
 import type { InterviewRound } from "../tracker/child-types.js";
+import type { Reminder } from "../tracker/child-types.js";
 import type { ApplicationRecord } from "../tracker/types.js";
 import {
   CalendarMappingError,
@@ -24,6 +25,7 @@ export function planInterviewCalendarSync(input: {
   deepLink: string;
   authorization: CalendarAuthorizationStatus;
   link: CalendarLink | null;
+  reminders?: Array<Pick<Reminder, "interviewRoundId" | "remindAt" | "status">>;
 }): CalendarSyncPlan {
   const linkError = validateLink(input.link, input.application.id, input.interview.id);
   if (linkError) return linkError;

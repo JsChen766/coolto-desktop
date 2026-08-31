@@ -1,4 +1,4 @@
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import type {
   ApplicationRecord,
@@ -45,7 +45,14 @@ export function useApplicationTrackerPage(
     return undefined;
   });
 
-  onMounted(() => tracker.load());
+  onMounted(async () => { await tracker.load(); focusApplication(context()?.applicationId); });
+  watch(() => context()?.applicationId, focusApplication);
+
+  function focusApplication(applicationId?: string): void {
+    if (!applicationId) return;
+    tracker.selected.value = tracker.applications.value.find((item) => item.id === applicationId);
+    if (tracker.selected.value) activeView.value = "schedule";
+  }
 
   function applicationsFor(statuses: readonly ApplicationStatus[]): ApplicationRecord[] {
     return applicationsInColumn(filtered.value, statuses);

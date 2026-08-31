@@ -11,6 +11,7 @@ import type {
   DesktopAgentEvent,
   DesktopApi,
 } from "../shared/types.js";
+import { childApi, subscribeIpc } from "./ipc-helpers.js";
 
 const api: DesktopApi = {
   platform: process.platform,
@@ -169,6 +170,13 @@ const api: DesktopApi = {
     disconnect: (connectionId) =>
       ipcRenderer.invoke("mail-connections:disconnect", connectionId),
   },
+  calendar: {
+    status: () => ipcRenderer.invoke("calendar:status"),
+    requestAccess: (level) => ipcRenderer.invoke("calendar:request-access", level),
+    syncInterview: (input) => ipcRenderer.invoke("calendar:sync-interview", input),
+    openSystemSettings: () => ipcRenderer.invoke("calendar:open-system-settings"),
+    onOpenInterview: (listener) => subscribeIpc("calendar:open-interview", listener),
+  },
   agentTasks: {
     list: () => ipcRenderer.invoke("agent-tasks:list"),
     get: (taskId) => ipcRenderer.invoke("agent-tasks:get", taskId),
@@ -223,24 +231,5 @@ const api: DesktopApi = {
       subscribeIpc("browser:open-page-in-app", listener),
   },
 };
-
-function childApi(channel: "interviews" | "notes" | "reminders") {
-  return {
-    prepareCreate: (input: unknown) => ipcRenderer.invoke(`${channel}:prepare-create`, input),
-    prepareUpdate: (input: unknown) => ipcRenderer.invoke(`${channel}:prepare-update`, input),
-    prepareDelete: (id: string) => ipcRenderer.invoke(`${channel}:prepare-delete`, id),
-    executeProposal: (id: string) => ipcRenderer.invoke(`${channel}:execute-proposal`, id),
-  };
-}
-
-function subscribeIpc<T>(
-  channel: string,
-  listener: (payload: T) => void,
-): () => void {
-  const handler = (_event: Electron.IpcRendererEvent, payload: T): void =>
-    listener(payload);
-  ipcRenderer.on(channel, handler);
-  return () => ipcRenderer.removeListener(channel, handler);
-}
 
 contextBridge.exposeInMainWorld("coolto", api);

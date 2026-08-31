@@ -196,7 +196,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionReceipt 与 Application Proposal | ✅ 2026-08-23 机制闭环完成；685 pass/2 skip，Browser 31/31、Harness 10/10、UI 14/14；真实域名 submit 仍待 BE8 逐域验收 |
 | BE5 | Inbox Signals | 默认 Browser Webmail、可选 Gmail/Outlook 增量、Application 关联与状态/Interview Proposal | ✅ **2026-08-30 手动确认基线完成**；个人 Outlook + 163 双站点的可见 Browser、登录接管、指定邮件读取、A/B 同主题碰撞、capture 幂等、三轮六次跨标签与 163 六页分页长列表均真实通过。Application 候选读取使用独立 `tracker.application.read`、事件绑定 `app_N` 引用并拒绝猜 ID/跨邮件/版本漂移；受控实模正向/歧义、真实 Electron 0 候选、伪造 `app_999` 拒绝与单条 null signal 均通过，完整 758 tests 为 756 pass/2 skip/0 fail。当前没有 ≥100 条真实邮件—Application 标注对，关联准确率明确记为**未评估**，不以合成样本冒充 ≥99%；所有邮件关联和 Tracker/Interview 写入继续逐条 Approval。≥99% 保留为 BE8 与任何自动写启用前的硬门禁，未通过前不存在自动写模式；Gmail API Connector 按用户确认不阻塞手动基线。 |
 | BSF | [Browser Shell Formalization](../browser-enhance/browser-shell-formalization/README.md) | 将 Browser Window 作为独立产品面，补正式浏览器基础、Agent 可见层、新标签页、下载和跨平台验收 | **实测延期、未完成**；menu/拼音/视觉/动画/键盘已通过，NVDA、真实接管、deep-link 由用户明确延后，后续与 macOS 收口一并回补 |
-| BE6 | macOS Calendar | EventKit 最小权限、映射、改期/取消和去重 | **当前阶段**；先完成平台中立合同、映射与去重，再在 macOS 完成原生权限和真实 Calendar 门禁 |
+| BE6 | macOS Calendar | EventKit 最小权限、映射、改期/取消和去重 | **代码实现完成，macOS 验收延期**；原生编译、权限、真实事件 CRUD、重启和打包门禁均待真实 Mac，未标记完整交付 |
 | BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | 待 BE6 与 BSF5 macOS 收口完成；仅 App 打开时运行 |
 | BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |
 | S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | 暂停至 BE8 完成；Section A–G、G-1 已完成，[S4.5.1](./S4.5.1-phase-driven-resume-generation.md) 真实稳定性门禁仍未通过 |

@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { Bell, CalendarClock, Pencil, Plus, Trash2 } from "@lucide/vue";
+import { Bell, CalendarClock, CalendarPlus, Pencil, Plus, Trash2 } from "@lucide/vue";
 import type { InterviewRound, Reminder } from "@desktop/types";
 import { INTERVIEW_STATUS_LABELS, INTERVIEW_TYPE_LABELS, REMINDER_STATUS_LABELS } from "../tracker/tracker-child-labels";
 import { localeCode, translate } from "../i18n/locale";
 
-defineProps<{ interviews: InterviewRound[]; reminders: Reminder[]; busy?: boolean }>();
+defineProps<{ interviews: InterviewRound[]; reminders: Reminder[]; busy?: boolean; focusInterviewId?: string | undefined; calendarSupported?: boolean; calendarBusyId?: string | undefined; calendarMessage?: string | undefined }>();
 defineEmits<{
   addInterview: []; editInterview: [value: InterviewRound];
   addReminder: []; editReminder: [value: Reminder];
   remove: [kind: "interview" | "reminder", id: string];
+  syncInterview: [value: InterviewRound];
 }>();
 
 function timeLabel(value: string | null): string {
@@ -21,12 +22,15 @@ function timeLabel(value: string | null): string {
     <section class="tracker-child-section">
       <header><div><CalendarClock :size="16" aria-hidden="true" /><strong>{{ $t('面试') }}</strong><span>{{ interviews.length }}</span></div><button type="button" :disabled="busy" @click="$emit('addInterview')"><Plus :size="14" />{{ $t('安排面试') }}</button></header>
       <div v-if="interviews.length" class="tracker-child-list">
-        <article v-for="item in interviews" :key="item.id" class="tracker-child-item">
+        <article v-for="item in interviews" :key="item.id" class="tracker-child-item"
+          :class="{ selected: item.id === focusInterviewId }"
+          :aria-current="item.id === focusInterviewId ? 'true' : undefined">
           <div><strong>{{ $tf('第 {round} 轮', { round: item.roundNumber }) }} · {{ INTERVIEW_TYPE_LABELS[item.interviewType] }}</strong><span>{{ INTERVIEW_STATUS_LABELS[item.status] }} · {{ timeLabel(item.scheduledAt) }}</span><small>{{ [item.interviewer, item.locationOrLink].filter(Boolean).join(' · ') || $t('暂无面试官或地点信息') }}</small></div>
-          <nav><button type="button" :aria-label="$t('修改面试')" @click="$emit('editInterview', item)"><Pencil :size="14" /></button><button type="button" :aria-label="$t('删除面试')" @click="$emit('remove', 'interview', item.id)"><Trash2 :size="14" /></button></nav>
+          <nav><button v-if="calendarSupported" type="button" :disabled="busy || Boolean(calendarBusyId)" :aria-label="$t('同步到 Calendar')" :title="$t('同步到 Calendar')" @click="$emit('syncInterview', item)"><CalendarPlus :size="14" :class="{ spin: calendarBusyId === item.id }" /></button><button type="button" :aria-label="$t('修改面试')" @click="$emit('editInterview', item)"><Pencil :size="14" /></button><button type="button" :aria-label="$t('删除面试')" @click="$emit('remove', 'interview', item.id)"><Trash2 :size="14" /></button></nav>
         </article>
       </div>
       <p v-else class="tracker-child-empty">{{ $t('尚未安排面试。') }}</p>
+      <p v-if="calendarMessage" class="tracker-child-empty" role="status">{{ $t(calendarMessage) }}</p>
     </section>
     <section class="tracker-child-section">
       <header><div><Bell :size="16" aria-hidden="true" /><strong>{{ $t('提醒') }}</strong><span>{{ reminders.length }}</span></div><button type="button" :disabled="busy" @click="$emit('addReminder')"><Plus :size="14" />{{ $t('添加提醒') }}</button></header>

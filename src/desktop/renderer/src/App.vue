@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import {
   ConversationDialog,
@@ -47,6 +47,7 @@ const {
   openPrimaryView,
   openResumeDraft,
   openTracker,
+  openTrackerApplication,
   requestEmailCode,
   resumePreviewChoice,
   resumeOperationContext,
@@ -109,6 +110,13 @@ watch([browserPageHandoff, current, user], ([request, conversation, account]) =>
   guardNavigation(() => selectChat(conversation.id));
 });
 const creditsHost = ref<InstanceType<typeof CreditsHost>>();
+let unsubscribeCalendar: () => void = () => undefined;
+onMounted(() => {
+  unsubscribeCalendar = desktopApi.calendar.onOpenInterview((target) => {
+    guardNavigation(() => openTrackerApplication(target.applicationId, target.interviewId));
+  });
+});
+onBeforeUnmount(() => unsubscribeCalendar());
 </script>
 
 <template>

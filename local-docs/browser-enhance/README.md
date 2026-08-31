@@ -524,7 +524,7 @@ Harness 不保存 `searching/filling/submitting/tracking` 等业务阶段。当�
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionToken/Receipt、Application Proposal | 自动提交仅发生在有效 grant；错误投递/重复 Application 为 0；实际 JD/Resume/hash 冻结正确 |
 | BE5 | Inbox Signals | 通用 Browser Webmail、可选 Gmail/Outlook 增量、求职邮件分类、状态/Interview Proposal | 原始邮件不越界持久化；错误自动迁移为 0；模糊信号进入确认队列 |
 | BSF | [Browser Shell Formalization](./browser-shell-formalization/README.md) | 独立 Browser 产品面、正式浏览器基础、Agent 可见层、新标签页、下载和跨平台验收 | **实测延期、未完成**：NVDA、真实接管、deep-link 经用户明确延后，后续与 macOS 收口回补 |
-| BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | **当前阶段**；拒绝权限可降级；无重复 event/同步回环；时区和重启恢复通过 |
+| BE6 | macOS Calendar | EventKit 权限、单向写入、映射、改期/取消；可选双向 | **代码实现完成，macOS 验收延期**；拒绝、去重、时区、重启和真实 CRUD 门禁未在 Mac 执行 |
 | BE7 | AI Native Loops | Scout 调度、Follow-up、Briefing、Strategy Learner、风险提醒 | 每项有独立开关、停止条件、通知去重和效果指标 |
 | BE8 | 真实集成交付 | 真实账号/站点、长任务、断网、崩溃、跨账号、安全与发布验收 | 完整矩阵通过前不得宣称“完全托管可用” |
 
@@ -645,6 +645,29 @@ OTP/CAPTCHA takeover→resume、完整任务 deep-link 或 macOS BrowserWindow �
   891 pass、2 个平台 skip、0 fail，Node/Preload/Vue typecheck、Node build、Electron production build 与 5 个
   sandbox preload standalone 门禁全部通过。Apple 权限依据：
   <https://developer.apple.com/documentation/EventKit/accessing-the-event-store>。
+
+**2026-08-31 BE6 代码实现收口（macOS 测试延期）：**按用户“当前不是 macOS、先不测试、继续完成 BE6”要求，
+完成剩余实现但未运行任何新增测试、构建或真实 Calendar 验收：
+
+- 复用现有 `coolto-core.node`，在 macOS 构建时编译同进程 Objective-C EventKit bridge；原生入口覆盖授权状态、
+  write-only/full-access 请求、create/update/cancel，同一长生命周期 `EKEventStore` 串行执行，未新增 helper 进程、
+  AppleScript、浏览器自动化或第二套 runtime；
+- `ElectronCalendarLinkStore` 按账号哈希隔离，在 `userData/calendar-links` 使用 `safeStorage` 加密、临时文件 rename
+  和全 store write chain 保存设备映射；清除本地数据同步清除映射。`CalendarSyncService` 重新读取正式 Application/
+  Interview/Reminder，串行同一 interview，执行后才写 link；失败不反写 Tracker；
+- 已关联 scheduled Reminder 映射为 Interview event 的 EventKit alarm；独立 Reminder 继续使用现有本地通知，避免
+  伪造时长。EventKit event 仍只包含最小字段和 Coolto deep-link；
+- Main IPC/Preload/DesktopApi 暴露 status、显式 requestAccess、syncInterview 和系统设置入口。设置页仅在 macOS
+  展示 Calendar 权限；Tracker 日程行由用户点击同步，需要时在同一操作中明确升级 full access；
+- 注册 `coolto://tracker/application/{id}?interview={id}`，支持首次启动、macOS `open-url` 与 second-instance，
+  Renderer 打开精确 Application 的日程并定位 Interview；安装配置加入协议、Calendar 使用说明与 calendar entitlement；
+- 静态质检关闭了非法 CalendarLink、隐含非空 draft、跨面试 link、deep-link 后到达、原子临时文件残留和跨面试
+  并发覆盖风险。所有新增业务源文件保持 ≤250 行。
+
+本记录只认定 **BE6 代码实现完成**。用户明确要求暂不测试，因此 native Rust/Objective-C 编译、macOS 12/13 legacy
+权限、macOS 14+ write-only/full-access、真实 create/dedupe/reschedule/cancel、TCC 拒绝/撤销、重启恢复、universal
+打包/entitlement/deep-link 均是 **未验收**；在真实 Mac 门禁通过前 BE6 不标记完整交付，也不以 Windows 静态审查
+冒充 EventKit 可用。
 
 **2026-08-23 BE5 实现进展（阶段仍未完成）：**
 

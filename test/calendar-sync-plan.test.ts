@@ -26,6 +26,7 @@ test("Interview maps to one minimal event with no JD or Resume payload", () => {
     startAt: "2026-09-02T02:00:00.000Z", endAt: "2026-09-02T03:00:00.000Z",
     timezone: "Asia/Hong_Kong", location: null,
     meetingUrl: "https://meet.example/interview", notes: deepLink, deepLink,
+    alarmOffsetsMinutes: [],
   });
   assert.equal(calendarEventFingerprint(event).length, 64);
   assert.doesNotMatch(JSON.stringify(event), /resume|jdTitle|resumeTitle/iu);

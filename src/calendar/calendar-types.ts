@@ -16,6 +16,7 @@ export interface CalendarEventDraft {
   meetingUrl: string | null;
   notes: string;
   deepLink: string;
+  alarmOffsetsMinutes: number[];
 }
 
 export interface CalendarLink {
@@ -26,6 +27,33 @@ export interface CalendarLink {
   eventFingerprint: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CalendarLinkRepository {
+  get(interviewId: string): Promise<CalendarLink | null>;
+  upsert(link: CalendarLink): Promise<void>;
+  remove(interviewId: string): Promise<void>;
+  clearAll(): Promise<void>;
+}
+
+export interface CalendarStatusView {
+  supported: boolean;
+  authorization: CalendarAuthorizationStatus;
+  canCreate: boolean;
+  canModify: boolean;
+  message: string;
+}
+
+export interface CalendarSyncResult {
+  outcome:
+    | "created"
+    | "updated"
+    | "canceled"
+    | "unchanged"
+    | "permission_required"
+    | "blocked";
+  message: string;
+  requiredAccess?: "write_only" | "full_access";
 }
 
 export type CalendarBlockedReason =
