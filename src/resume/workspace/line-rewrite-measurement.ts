@@ -1,5 +1,6 @@
 import type { ResumeCompiler } from "./compiler-port.js";
 import type { ResumeWorkspace } from "./types.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
 
 export interface LineRewriteTarget {
   bulletId: string;
@@ -39,7 +40,12 @@ export async function measureLineRewrites(
     const addedLines = bullet.lineCount - target.baselineLines;
     const characterGrowth = [...target.revisedText].length -
       [...target.existing].length;
-    const withinLineLimit = bullet.lineCount <= (workspace.maxBulletLines ?? 3);
+    const linePlan = workspace.bulletLinePlans?.[target.bulletId];
+    const lineLimit = factNeutralClosureActive(workspace)
+      ? undefined
+      : linePlan?.lockedLines ?? linePlan?.plannedLines;
+    const withinLineLimit = lineLimit === undefined ||
+      bullet.lineCount <= lineLimit;
     return {
       bulletId: target.bulletId,
       text: target.revisedText,

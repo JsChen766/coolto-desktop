@@ -77,6 +77,7 @@ test("task runner uses the existing prompt runtime and recovers interrupted runs
   assert.equal((await runner.start(first.task.id)).status, "completed");
   assert.ok(revoked.includes("task_completed"));
   assert.match(prompts[0] ?? "", /coolto_agent_task_start/u);
+  assert.match(prompts[0] ?? "", /不得因为结果不理想或希望获得更多信息而反复追问/u);
 
   const second = await setup();
   const active = await second.services.grants.getActive(second.task.id);

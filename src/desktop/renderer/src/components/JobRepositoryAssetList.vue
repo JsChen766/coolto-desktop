@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { BriefcaseBusiness, FileText, Link } from "@lucide/vue";
+import { BriefcaseBusiness, FileText, Link, Star } from "@lucide/vue";
 
-import type { JobRepositoryJd, JobRepositoryResume } from "@desktop/types";
+import type {
+  DeliveryResumeFile,
+  JobRepositoryJd,
+  JobRepositoryResume,
+} from "@desktop/types";
 import { STATUS_LABELS } from "../tracker/application-labels";
 import {
   assetSyncLabel,
@@ -15,6 +19,7 @@ defineProps<{
   view: "jobs" | "resumes";
   jds: readonly JobRepositoryJd[];
   resumes: readonly JobRepositoryResume[];
+  deliveryResumeFiles: readonly DeliveryResumeFile[];
   selectedId: string | undefined;
   emptyLabel: string;
 }>();
@@ -22,6 +27,7 @@ defineProps<{
 defineEmits<{
   selectJd: [id: string];
   selectResume: [entryId: string];
+  selectDeliveryFile: [entryId: string];
 }>();
 </script>
 
@@ -41,7 +47,7 @@ defineEmits<{
         <strong>{{ jd.title }}</strong>
         <small v-if="jobSubtitle(jd)">{{ jobSubtitle(jd) }}</small>
         <span class="repository-row-facts">
-          <span>{{ $tf('{count} 份针对性简历', { count: jd.targetedResumeIds.length }) }}</span>
+          <span>{{ $tf('{count} 份关联简历', { count: jd.targetedResumeEntryIds.length }) }}</span>
           <span>{{ $tf('{count} 次投递', { count: jd.applicationSummary.total }) }}</span>
           <span v-if="jd.applicationSummary.latest">
             {{ STATUS_LABELS[jd.applicationSummary.latest.status] }}
@@ -71,7 +77,7 @@ defineEmits<{
       <FileText :size="17" aria-hidden="true" />
       <span class="repository-asset-copy">
         <strong>{{ resume.entry.displayTitle }}</strong>
-        <small>{{ resume.entry.cloud?.targetRole ?? resumeKindLabel(resume) }}</small>
+        <small>{{ resume.entry.cloud?.targetRole ?? resume.entry.local?.targetRole ?? resumeKindLabel(resume) }}</small>
         <span class="repository-row-facts">
           <span><Link :size="11" aria-hidden="true" />{{ resumeKindLabel(resume) }}</span>
           <span>{{ $tf('{count} 次投递', { count: resume.applicationSummary.total }) }}</span>
@@ -86,9 +92,34 @@ defineEmits<{
         {{ resumeSyncLabel(resume.entry.syncStatus) }}
       </span>
       </button>
+      <p v-if="deliveryResumeFiles.length" class="repository-list-group-label">
+        {{ $tf('原始简历（{count}/3）', { count: Math.min(deliveryResumeFiles.length, 3) }) }}
+      </p>
+      <button
+        v-for="file in deliveryResumeFiles"
+        :key="`delivery:${file.id}`"
+        class="repository-asset-row delivery-resume-file-row"
+        :class="{ active: selectedId === `delivery:${file.id}` }"
+        type="button"
+        @click="$emit('selectDeliveryFile', `delivery:${file.id}`)"
+      >
+        <span class="delivery-resume-slot-marker" :aria-label="file.slot ? $tf('原始简历 {slot}', { slot: file.slot }) : $t('历史原始简历')">
+          <Star :size="17" fill="currentColor" aria-hidden="true" />
+          <b>{{ file.slot ?? '·' }}</b>
+        </span>
+        <span class="repository-asset-copy">
+          <strong>{{ file.title }}</strong>
+          <small>{{ file.originalFilename }}</small>
+          <span class="repository-row-facts">
+            <span>{{ file.slot ? $tf('原始简历 {slot}', { slot: file.slot }) : $t('历史原始简历') }}</span>
+            <span>{{ $t('仅本机') }}</span>
+          </span>
+        </span>
+        <span v-if="file.preferred" class="library-sync-badge">{{ $t('当前首选') }}</span>
+      </button>
     </template>
 
-    <p v-if="view === 'jobs' ? !jds.length : !resumes.length" class="repository-list-empty">
+    <p v-if="view === 'jobs' ? !jds.length : !resumes.length && !deliveryResumeFiles.length" class="repository-list-empty">
       {{ emptyLabel }}
     </p>
   </div>

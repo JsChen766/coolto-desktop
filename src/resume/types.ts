@@ -5,6 +5,8 @@
  * backend Resume document. Do not translate the payload into an App-only format.
  */
 
+import type { ResumeTailPolicyVersion } from "./tail-policy.js";
+
 export type ResumeTemplateId = "resume-standard" | "resume-sparse";
 
 export type ResumeSectionType =
@@ -88,6 +90,7 @@ export interface ResumeStructure {
   layout_template_id?: ResumeTemplateId;
   layout_profile_version?: string;
   layout_profile_hash?: string;
+  tail_policy_version?: ResumeTailPolicyVersion;
   layout_tuning?: ResumeLayoutTuning;
   layout_usage_ratio?: number;
   layout_target_band?: ResumeLayoutTargetBand;
@@ -100,6 +103,7 @@ export interface CurrentResumeStructure extends ResumeStructure {
   layout_template_id: ResumeTemplateId;
   layout_profile_version: string;
   layout_profile_hash: string;
+  tail_policy_version: ResumeTailPolicyVersion;
   layout_tuning: ResumeLayoutTuning;
   layout_target_band: ResumeLayoutTargetBand;
 }

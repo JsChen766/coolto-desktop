@@ -10,6 +10,7 @@ import type {
   LocalResumeDraft,
   ResumeDraftArtifactReference,
   ResumeDraftCheckpointReason,
+  ResumeDraftExperienceSyncState,
   ResumeDraftSummary,
 } from "../../../resume/draft/types.js";
 import { resumeGenerationReadiness } from "../../../resume/workspace/generation-readiness.js";
@@ -23,6 +24,14 @@ export class ResumeDraftService {
 
   public async list(): Promise<ResumeDraftSummary[]> {
     return (await this.repository.list()).map(summarizeDraft);
+  }
+
+  public listReusableDrafts(): Promise<LocalResumeDraft[]> {
+    return this.repository.list();
+  }
+
+  public getReusableDraft(artifactId: string): Promise<LocalResumeDraft> {
+    return this.repository.get(artifactId);
   }
 
   public get(artifactId: string): Promise<LocalResumeDraft> {
@@ -56,7 +65,10 @@ export class ResumeDraftService {
           workspace: input.workspace,
         });
     await this.repository.save(draft);
-    return { draft, created: !existing };
+    const saved = resumeGenerationReadiness(input.workspace).ready
+      ? await this.ensureGeneratedCheckpoint(draft.artifactId)
+      : draft;
+    return { draft: saved, created: !existing };
   }
 
   public async ensureGeneratedCheckpoint(
@@ -147,6 +159,20 @@ export class ResumeDraftService {
     return rejected;
   }
 
+  public async markExperienceSync(
+    artifactId: string,
+    state: ResumeDraftExperienceSyncState,
+  ): Promise<LocalResumeDraft> {
+    const draft = await this.repository.get(artifactId);
+    const updated: LocalResumeDraft = {
+      ...draft,
+      updatedAt: new Date().toISOString(),
+      experienceSync: structuredClone(state),
+    };
+    await this.repository.save(updated);
+    return updated;
+  }
+
   public artifactReference(draft: LocalResumeDraft): ResumeDraftArtifactReference {
     const checkpoint = draft.checkpoints.at(-1);
     const readiness = resumeGenerationReadiness(draft.workspace);
@@ -175,7 +201,9 @@ function workspaceContentChanged(
 ): boolean {
   return (
     JSON.stringify(base.structure) !== JSON.stringify(proposed.structure) ||
-    JSON.stringify(base.bindings) !== JSON.stringify(proposed.bindings)
+    JSON.stringify(base.bindings) !== JSON.stringify(proposed.bindings) ||
+    JSON.stringify(base.supplementalEvidence ?? []) !==
+      JSON.stringify(proposed.supplementalEvidence ?? [])
   );
 }
 

@@ -34,6 +34,7 @@ const statusLabel = computed(() => {
     v-if="runs.length"
     class="tool-activity"
     data-testid="tool-activity"
+    :data-tool-error="hasError || undefined"
     role="status"
     aria-live="polite"
   >

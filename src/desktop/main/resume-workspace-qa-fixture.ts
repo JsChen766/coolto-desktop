@@ -16,6 +16,10 @@ import type { EvidenceBindingInput } from "../../resume/workspace/types.js";
 
 export function createResumeWorkspaceQaFixture() {
   const fixture = getResumeFixture("zh-qualified");
+  // The production skeleton now uses 五号 body text. Keep this QA candidate
+  // representative of a one-page draft instead of the old 9.75pt capacity.
+  fixture.sections.find((section) => section.type === "experience")
+    ?.items.forEach((item) => item.bullets.pop());
   const sourceItems = fixture.sections.flatMap((section) =>
     section.type === "education" ||
     section.type === "experience" ||

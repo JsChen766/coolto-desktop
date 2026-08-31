@@ -1,28 +1,35 @@
 import { onMounted, ref } from "vue";
 
 import { desktopApi } from "../lib/desktop-api";
+import {
+  isAvailableGeneralResume,
+  resolveEmptyStateStage,
+  type EmptyStateStage,
+} from "./empty-state-stage";
 
-export type EmptyStateStage = 1 | 2 | 3 | 4;
+export type { EmptyStateStage } from "./empty-state-stage";
 
 export function useEmptyStateStages() {
-  const stage = ref<EmptyStateStage>(1);
+  const stage = ref<EmptyStateStage>("experience_intake");
 
   onMounted(async () => {
     try {
-      const [experiences, references, applications] = await Promise.all([
+      const [experiences, references, applications, resumes, deliveryFiles] = await Promise.all([
         desktopApi.experiences.search({ status: "active", limit: 500 }),
         desktopApi.applications.references(),
         desktopApi.applications.list({ limit: 500 }),
+        desktopApi.library.list(),
+        desktopApi.deliveryResumeFiles.list(),
       ]);
-      const experienceCount = experiences.items.length;
-      const jdCount = references.jds.length;
-      const applicationCount = applications.items.length;
-      if (experienceCount === 0) stage.value = 1;
-      else if (jdCount === 0) stage.value = 2;
-      else if (applicationCount === 0) stage.value = 3;
-      else stage.value = 4;
+      stage.value = resolveEmptyStateStage({
+        experienceCount: experiences.items.length,
+        generalResumeCount: resumes.filter(isAvailableGeneralResume).length,
+        deliveryResumeFileCount: deliveryFiles.length,
+        jdCount: references.jds.length,
+        applicationCount: applications.items.length,
+      });
     } catch {
-      stage.value = 1;
+      stage.value = "experience_intake";
     }
   });
 

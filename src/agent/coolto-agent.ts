@@ -1,38 +1,35 @@
 import { Agent, type AgentEvent, type AgentMessage, type AgentTool } from
   "@earendil-works/pi-agent-core";
-
 import { ApprovalManager } from "../approvals/approval-manager.js";
-import type {
-  ApprovalDecision,
-  ApprovalRequest,
-} from "../approvals/types.js";
-import {
-  isTransientModelError,
-  MODEL_TRANSIENT_ERROR,
-  OUTPUT_REPETITION_ERROR,
-  TURN_GOVERNOR_ERROR,
-} from "./agent-errors.js";
+import type { ApprovalDecision, ApprovalRequest } from "../approvals/types.js";
+import { isTransientModelError, MODEL_TRANSIENT_ERROR, OUTPUT_REPETITION_ERROR,
+  outputRepetitionError, turnGovernorError } from "./agent-errors.js";
 import type { CooltoAgentListener, CooltoAgentOptions } from "./coolto-agent-types.js";
 import { guardFailureEvent, mapPiEvent } from "./events.js";
-import { recoverFromOutputRepetition } from "./model-output-recovery.js";
+import { recoverFromOutputRepetition, recoverFromTurnGovernor,
+  recoveryRequiresToolCall, recoveryStreamOptions } from "./model-output-recovery.js";
 import { wrapResumeGenerationFollowUp } from "./internal-prompt.js";
-import { StreamingOutputRepetitionGuard } from "./output-repetition-guard.js";
+import { StreamingOutputRepetitionGuard, type OutputRepetitionReason } from "./output-repetition-guard.js";
 import type { TurnGovernor } from "./turn-governor.js";
 export class CooltoAgent {
   readonly #agent: Agent;
   readonly #approvalManager: ApprovalManager | undefined;
   readonly #outputRepetitionGuard = new StreamingOutputRepetitionGuard();
   readonly #turnGovernor: TurnGovernor | undefined;
+  readonly #outputRepetitionRecovery: CooltoAgentOptions["outputRepetitionRecovery"];
+  readonly #turnGovernorRecovery: CooltoAgentOptions["turnGovernorRecovery"];
   #modelCallCount = 0;
   #stoppedForOutputRepetition = false;
-  #outputRecoveryRemaining = 0;
+  #outputRepetitionReason: OutputRepetitionReason | undefined;
+  #requireToolCall = false;
   #modelErrorMessage: string | undefined;
   #transientRecoveryRemaining = 0;
   #promptSequence = 0;
-
   public constructor(options: CooltoAgentOptions) {
     this.#approvalManager = options.approvalManager;
     this.#turnGovernor = options.turnGovernor;
+    this.#outputRepetitionRecovery = options.outputRepetitionRecovery;
+    this.#turnGovernorRecovery = options.turnGovernorRecovery;
     this.#agent = new Agent({
       initialState: {
         systemPrompt: options.systemPrompt,
@@ -40,34 +37,34 @@ export class CooltoAgent {
         tools: options.tools,
         thinkingLevel: options.thinkingLevel ?? "off",
       },
-      streamFn: options.streamFn,
+      streamFn: (model, context, streamOptions) => options.streamFn(
+        model, context,
+        recoveryStreamOptions(streamOptions, this.#requireToolCall),
+      ),
       // Read-only tools may run together. Tools that mutate a workspace or
       // prepare an approval opt back into sequential execution themselves.
       toolExecution: "parallel",
       ...(options.getApiKey ? { getApiKey: options.getApiKey } : {}),
-      ...(options.beforeToolCall
-        ? { beforeToolCall: options.beforeToolCall }
-        : {}),
+      ...(options.beforeToolCall ? { beforeToolCall: options.beforeToolCall } : {}),
       ...(options.afterToolCall
         ? { afterToolCall: options.afterToolCall }
         : {}),
-      ...(options.transformContext
-        ? { transformContext: options.transformContext }
-        : {}),
+      ...(options.transformContext ? { transformContext: options.transformContext } : {}),
       ...(options.shouldStopAfterTurn
-        ? { shouldStopAfterTurn: options.shouldStopAfterTurn }
-        : {}),
+        ? { shouldStopAfterTurn: options.shouldStopAfterTurn } : {}),
     });
     this.#agent.subscribe((event) => {
       if (event.type === "message_start" && event.message.role === "assistant") {
         this.#modelCallCount += 1;
         this.#outputRepetitionGuard.reset();
+        this.#outputRepetitionReason = undefined;
       }
       if (
         event.type === "message_update" &&
-        (event.assistantMessageEvent.type === "text_delta" ||
-          event.assistantMessageEvent.type === "thinking_delta") &&
-        this.#outputRepetitionGuard.append(event.assistantMessageEvent.delta)
+        event.assistantMessageEvent.type === "text_delta" &&
+        (this.#outputRepetitionReason = this.#outputRepetitionGuard.append(
+          event.assistantMessageEvent.delta,
+        ))
       ) {
         this.#stoppedForOutputRepetition = true;
         this.#agent.abort();
@@ -77,34 +74,34 @@ export class CooltoAgent {
           ? event.message.errorMessage ?? "模型调用失败"
           : undefined;
       }
+      if (event.type === "tool_execution_start") {
+        this.#requireToolCall = false;
+      }
       if (
         event.type === "turn_end" &&
         event.message.role === "assistant" && event.toolResults.length === 0 &&
         event.message.stopReason !== "error" &&
         event.message.stopReason !== "aborted"
       ) {
-        const followUp = options.automaticFollowUp?.(this.#promptSequence);
+        const followUp = options.automaticFollowUp?.(this.#promptSequence, event.message);
         if (followUp) {
+          const instruction = typeof followUp === "string" ? followUp : followUp.instruction;
+          this.#requireToolCall = typeof followUp === "string" ? true : followUp.requireToolCall;
           this.#agent.followUp({ role: "user",
-            content: wrapResumeGenerationFollowUp(followUp), timestamp: Date.now() });
+            content: wrapResumeGenerationFollowUp(instruction), timestamp: Date.now() });
         }
       }
     });
   }
-
-  public get isRunning(): boolean {
-    return this.#agent.state.isStreaming;
-  }
-
+  public get isRunning(): boolean { return this.#agent.state.isStreaming; }
   /** Total assistant model calls across all prompts since construction. */
-  public get modelCallCount(): number {
-    return this.#modelCallCount;
+  public get modelCallCount(): number { return this.#modelCallCount; }
+  public get stoppedForOutputRepetition(): boolean { return this.#stoppedForOutputRepetition; }
+  public get outputRepetitionReason(): OutputRepetitionReason | undefined { return this.#outputRepetitionReason; }
+  public get runGuardStopReason() {
+    return this.#stoppedForOutputRepetition
+      ? this.#outputRepetitionReason : this.#turnGovernor?.stopReason;
   }
-
-  public get stoppedForOutputRepetition(): boolean {
-    return this.#stoppedForOutputRepetition;
-  }
-
   public get runStopError(): string | undefined {
     const guardError = this.#guardStopError;
     if (guardError) return guardError;
@@ -113,7 +110,6 @@ export class CooltoAgent {
       ? MODEL_TRANSIENT_ERROR
       : this.#modelErrorMessage;
   }
-
   public get toolNames(): string[] {
     return this.#agent.state.tools.map((tool) => tool.name);
   }
@@ -123,26 +119,32 @@ export class CooltoAgent {
   }
   public async prompt(input: string): Promise<void> {
     const text = input.trim();
-    if (text.length === 0) {
-      return;
-    }
+    if (text.length === 0) return;
     this.#stoppedForOutputRepetition = false;
+    this.#outputRepetitionReason = undefined;
     this.#promptSequence += 1;
-    this.#outputRecoveryRemaining = 2;
     this.#modelErrorMessage = undefined;
     this.#transientRecoveryRemaining = 1;
     this.#turnGovernor?.reset();
     this.#outputRepetitionGuard.reset();
     await this.#agent.prompt(text);
+    this.#requireToolCall = false;
     while (
       this.#stoppedForOutputRepetition &&
-      this.#outputRecoveryRemaining > 0 &&
       this.#discardAbortedAssistantMessage()
     ) {
-      this.#outputRecoveryRemaining -= 1;
+      const recoveryAuthority = this.#outputRepetitionReason
+        ? this.#outputRepetitionRecovery?.(
+            this.#promptSequence, this.#outputRepetitionReason)
+        : undefined;
       this.#stoppedForOutputRepetition = false;
       this.#outputRepetitionGuard.reset();
-      await recoverFromOutputRepetition(this.#agent);
+      this.#requireToolCall = recoveryRequiresToolCall(recoveryAuthority);
+      try {
+        await recoverFromOutputRepetition(this.#agent, recoveryAuthority);
+      } finally {
+        this.#requireToolCall = false;
+      }
     }
     if (
       isTransientModelError(this.#modelErrorMessage) &&
@@ -153,11 +155,14 @@ export class CooltoAgent {
       this.#modelErrorMessage = undefined;
       await this.#agent.continue();
     }
+    await recoverFromTurnGovernor(
+      this.#agent, this.#turnGovernor, this.#turnGovernorRecovery,
+      this.#promptSequence,
+    );
   }
   public getMessages(): AgentMessage[] {
     return structuredClone(this.#agent.state.messages);
   }
-
   public replaceMessages(messages: AgentMessage[]): void {
     if (this.isRunning) {
       throw new Error("Agent 运行期间不能切换对话");
@@ -167,7 +172,6 @@ export class CooltoAgent {
   public getPendingApprovals(): ApprovalRequest[] {
     return this.#approvalManager?.listPending() ?? [];
   }
-
   public async resolveApproval(
     requestId: string,
     decision: ApprovalDecision,
@@ -180,7 +184,6 @@ export class CooltoAgent {
       await this.prompt(decision.text);
     }
   }
-
   public cancel(): void {
     this.#agent.abort();
   }
@@ -208,10 +211,7 @@ export class CooltoAgent {
             mapped.type === "run.completed" &&
             this.#guardStopError
           ) {
-            if (
-              this.#stoppedForOutputRepetition &&
-              this.#outputRecoveryRemaining > 0
-            ) return;
+            if (this.#stoppedForOutputRepetition) return;
             await listener(guardFailureEvent(
               this.#guardStopError!, this.#turnGovernor?.stopReason,
             ), signal);
@@ -237,10 +237,12 @@ export class CooltoAgent {
     this.#agent.state.messages = messages.slice(0, -1);
     return true;
   }
-
   get #guardStopError(): string | undefined {
-    if (this.#stoppedForOutputRepetition) return OUTPUT_REPETITION_ERROR;
-    return this.#turnGovernor?.stopReason ? TURN_GOVERNOR_ERROR : undefined;
+    if (this.#stoppedForOutputRepetition) {
+      return outputRepetitionError(this.#outputRepetitionReason);
+    }
+    const reason = this.#turnGovernor?.stopReason;
+    return reason ? turnGovernorError(reason) : undefined;
   }
 }
 

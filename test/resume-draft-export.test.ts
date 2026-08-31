@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { createLocalResumeDraft } from "../src/resume/draft/projection.js";
 import type { LocalResumeDraft } from "../src/resume/draft/types.js";
+import { withResumeLineSpacing } from "../src/resume/layout-line-spacing.js";
 import {
   buildDraftPdfExportPayload,
   isExportableWorkspace,
@@ -21,6 +22,8 @@ import {
 
 test("buildDraftPdfExportPayload returns a frozen payload for a qualified draft", async () => {
   const { draft, workspace } = await createQualifiedDraft();
+  workspace.structure = withResumeLineSpacing(workspace.structure, 108);
+  draft.workspace = workspace;
   const payload = buildDraftPdfExportPayload({
     draft,
     expectedRevision: workspace.revision,
@@ -31,6 +34,7 @@ test("buildDraftPdfExportPayload returns a frozen payload for a qualified draft"
   assert.equal(payload.candidateRevision, workspace.revision);
   assert.equal(payload.title, draft.title);
   assert.equal(payload.suggestedFilename, resumePdfFilename(draft.title));
+  assert.equal(payload.structure.layout_tuning?.body_line_height, 1.2744);
   assert.equal(
     payload.structureHash,
     sha256(stableStringify(payload.structure)),
@@ -152,7 +156,7 @@ test("isExportableWorkspace gates current layout and revision failures", async (
   );
 });
 
-test("one-line tiered bullets cannot be saved or exported", async () => {
+test("one-line tiered bullets can be saved when every formal gate passes", async () => {
   const { draft, workspace } = await createQualifiedDraft();
   const workItem = workspace.structure.sections
     .find((section) => section.type === "experience")?.items[0];
@@ -165,16 +169,79 @@ test("one-line tiered bullets cannot be saved or exported", async () => {
   measured.lineCount = 1;
   draft.workspace = workspace;
 
-  assert.equal(isExportableWorkspace(workspace), false);
-  assert.throws(
+  assert.equal(isExportableWorkspace(workspace), true);
+  assert.doesNotThrow(
     () => buildDraftSavePayload({ draft, expectedRevision: workspace.revision }),
-    /实测必须达到 2–3 行/u,
   );
-  const error = await rejectExport({
+});
+
+test("a qualified general resume saves without a JD or target role", async () => {
+  const { draft, workspace } = await createQualifiedDraft();
+  workspace.sourceSnapshot = {
+    ...workspace.sourceSnapshot,
+    generationStrategy: "general",
+    jd: null,
+  };
+  draft.title = "通用简历";
+  draft.workspace = workspace;
+
+  const payload = buildDraftSavePayload({
     draft,
     expectedRevision: workspace.revision,
   });
-  assert.equal(error.code, "candidate_not_exportable");
+
+  assert.equal(payload.title, "通用简历");
+  assert.equal(payload.jdId, null);
+  assert.equal(payload.targetRole, null);
+});
+
+test("acknowledged critical-skill warning no longer blocks save or export", async () => {
+  const { draft, workspace } = await createQualifiedDraft();
+  const requirement = workspace.sourceSnapshot.jd!.requirements[0]!;
+  workspace.sourceSnapshot = {
+    ...workspace.sourceSnapshot,
+    jd: {
+      ...workspace.sourceSnapshot.jd!,
+      requirements: [{
+        ...requirement,
+        id: "req-k8s",
+        text: "Kubernetes 生产部署",
+        keywords: ["Kubernetes"],
+        category: "technical",
+        v2Category: "technology",
+        importance: "high",
+        v2Importance: "must_have",
+      }],
+    },
+  };
+  draft.workspace = workspace;
+  assert.equal(isExportableWorkspace(workspace), false);
+
+  const userDirected = {
+    ...structuredClone(workspace),
+    selectionPolicy: "user_directed" as const,
+  };
+  assert.equal(
+    isExportableWorkspace(userDirected),
+    true,
+    "an explicit user-directed mismatch must remain a warning, not a blocker",
+  );
+
+  workspace.factNeutralAuthorization = {
+    sourceRequestKind: "critical_skill",
+    confirmedAt: "2026-08-28T00:00:00.000Z",
+    confirmedMessageTimestamp: 100,
+  };
+  draft.workspace = workspace;
+  assert.equal(isExportableWorkspace(workspace), true);
+  assert.doesNotThrow(() => buildDraftSavePayload({
+    draft,
+    expectedRevision: workspace.revision,
+  }));
+  assert.doesNotThrow(() => buildDraftPdfExportPayload({
+    draft,
+    expectedRevision: workspace.revision,
+  }));
 });
 
 test("chained abstract padding cannot be saved or exported", async () => {
@@ -202,11 +269,14 @@ test("host save builds a new or replacement library payload from the local draft
   const { draft, workspace } = await createQualifiedDraft({
     withoutQualityReport: true,
   });
+  workspace.structure = withResumeLineSpacing(workspace.structure, 108);
+  draft.workspace = workspace;
   const created = buildDraftSavePayload({
     draft,
     expectedRevision: workspace.revision,
   });
   assert.equal(created.mode, "new_resume");
+  assert.equal(created.structured.layout_tuning?.body_line_height, 1.2744);
   assert.equal(created.structured.quality_status, "passed");
 
   const replacing = buildDraftSavePayload({

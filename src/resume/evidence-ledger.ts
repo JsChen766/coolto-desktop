@@ -11,6 +11,7 @@ import {
   reservedRangesFromBindings,
   validateEvidenceBinding,
 } from "./evidence-validation.js";
+import { resumeSourceRequirements } from "./source-strategy.js";
 
 export {
   EvidenceValidationError,
@@ -29,7 +30,7 @@ export class EvidenceLedger {
       snapshot.experiences.map((experience) => [experience.id, experience]),
     );
     this.#requirementIds = new Set(
-      snapshot.jd.requirements.map((requirement) => requirement.id),
+      resumeSourceRequirements(snapshot).map((requirement) => requirement.id),
     );
   }
 
@@ -43,7 +44,10 @@ export class EvidenceLedger {
     );
   }
 
-  public reserve(binding: BulletEvidenceBinding): void {
+  public reserve(
+    binding: BulletEvidenceBinding,
+    additionalNumericEvidence = "",
+  ): void {
     const normalized = normalizeEvidenceBinding(binding);
     if (this.#bindings.has(normalized.bulletId)) {
       throw new EvidenceValidationError(
@@ -56,6 +60,7 @@ export class EvidenceLedger {
       experiences: this.#experiences,
       requirementIds: this.#requirementIds,
       reservedRanges: reservedRangesFromBindings(this.#bindings.values()),
+      ...(additionalNumericEvidence ? { additionalNumericEvidence } : {}),
     });
     this.#bindings.set(normalized.bulletId, deepFreeze(normalized));
   }

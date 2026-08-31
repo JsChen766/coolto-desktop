@@ -207,9 +207,9 @@ export class BrowserWindowHost {
     return this.#tabs;
   }
 
-  public ensureFirstTab(url?: string): boolean {
+  public ensureFirstTab(url?: string, displayUrl?: string): boolean {
     if (!this.#tabs || this.#tabs.hasTabs()) return false;
-    this.#tabs.newTab(url);
+    this.#tabs.newTab(url, displayUrl);
     if (!url) this.#focusShell(BROWSER_SHELL_CHANNELS.focusAddress);
     return true;
   }

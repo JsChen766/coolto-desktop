@@ -9,6 +9,7 @@ import { ResumeSourceSnapshotBuilder } from
 
 export interface TailEvalBullet {
   currentText: string;
+  growthSeedText: string;
   sourceText: string;
 }
 
@@ -38,6 +39,25 @@ const EXTRA_SOURCE_FACTS = [
   "案例库保留企业原话、证据出处和编码标签，使跨行业结论能够回溯到访谈材料",
   "评分结果通过两名研究员交叉复核，对分歧项重新查阅原始材料后形成一致记录",
   "课题组依据治理、技术和变革管理三类障碍安排后续专家验证与案例补访",
+] as const;
+const GROWTH_SEED_FACTS = [
+  "模型版本另记更新时间、维护人与审阅状态",
+  "简报索引另列来源链接、发布日期和更新责任人",
+  "访谈底稿另记访谈时间、参会角色与待办事项",
+  "预测文件另设参数变更说明和审批状态记录",
+  "路线跟踪表另含数据日期、口径备注与审核人",
+  "报告附录另列问题清单、评审意见和处理状态",
+  "行业底稿另记资料日期、来源机构和复核结果",
+  "企业清单另含信息日期、跟进人员与验证状态",
+  "清洗日志另记规则版本、执行日期和复核结果",
+  "访谈台账另列受访角色、记录日期和确认状态",
+  "模型说明另记公式版本、检查人员和更新时间",
+  "流程台账另列节点责任人、材料状态和更新时间",
+  "竞品表另记采集日期、来源页面和审核状态",
+  "看板说明另列指标版本、更新日期和维护人员",
+  "案例索引另记访谈编号、整理日期和校验状态",
+  "评分底稿另列证据日期、复核人员和分歧状态",
+  "课题记录另含访谈日期、参与角色和验证状态",
 ] as const;
 let extraSourceFactIndex = 0;
 
@@ -133,10 +153,14 @@ export function createTailEvalFixture() {
 function bullet(currentText: string, omittedFact: string): TailEvalBullet {
   const expandedCurrentText = `${currentText}，${omittedFact}`;
   const extraFact = EXTRA_SOURCE_FACTS[extraSourceFactIndex++];
-  if (!extraFact) throw new Error("Tail eval fixture is missing an extra source fact");
+  const seedFact = GROWTH_SEED_FACTS[extraSourceFactIndex - 1];
+  if (!extraFact || !seedFact) {
+    throw new Error("Tail eval fixture is missing a source fact");
+  }
   return {
     currentText: expandedCurrentText,
-    sourceText: `${expandedCurrentText}；原始记录：${extraFact}`,
+    growthSeedText: `${expandedCurrentText}，${seedFact}`,
+    sourceText: `${expandedCurrentText}；补充记录：${seedFact}；原始记录：${extraFact}`,
   };
 }
 
@@ -162,7 +186,11 @@ function experience(
 function skillsExperience(): TailEvalExperience {
   const sourceText = "熟练使用 Python、SQL、Excel、Wind、Bloomberg、DCF 与财务建模，英语可作为工作语言";
   return {
-    id: "skills", bullets: [{ currentText: sourceText, sourceText }],
+    id: "skills", bullets: [{
+      currentText: sourceText,
+      growthSeedText: sourceText,
+      sourceText,
+    }],
     detail: detail({ id: "skills", category: "other", title: "专业技能",
       organization: "", role: "", startDate: null, endDate: null,
       content: `${sourceText}。`, tags: ["Python", "SQL", "Excel"],

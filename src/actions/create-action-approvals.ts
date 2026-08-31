@@ -34,7 +34,10 @@ import {
   RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
 } from "../resume/material/experience-sync-approval.js";
 import { createResumeExperienceSyncExecutor } from "../resume/material/experience-sync-executor.js";
-import type { ResumeExperienceSyncProposalPort } from "../resume/material/experience-sync-port.js";
+import type {
+  ResumeExperienceSyncDraftPort,
+  ResumeExperienceSyncProposalPort,
+} from "../resume/material/experience-sync-port.js";
 import type { AgentTaskProposalService } from "../desktop/main/agent-task/agent-task-proposal-service.js";
 import { AGENT_TASK_PROVISION_ACTION } from "../desktop/main/agent-task/agent-task-approval.js";
 import { createAgentTaskApprovalExecutor } from "../desktop/main/agent-task/agent-task-approval-executor.js";
@@ -47,6 +50,10 @@ import { createInboxApplicationApprovalExecutor } from "../inbox-signals/inbox-a
 import type { InboxSignalInterviewService } from "../desktop/main/agent-task/inbox-signal-interview-service.js";
 import { INBOX_INTERVIEW_UPDATE_ACTION } from "../inbox-signals/inbox-action-approval.js";
 import { createInboxInterviewApprovalExecutor } from "../inbox-signals/inbox-action-approval-executor.js";
+import {
+  createResumeStrategyChoiceExecutor,
+  RESUME_STRATEGY_CHOICE_ACTION,
+} from "../resume/strategy/choice-approval.js";
 
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
@@ -60,6 +67,7 @@ export interface ActionApprovalDependencies {
   resumeWorkspaceStore?: ResumeWorkspaceStore;
   resumeCompiler?: ResumeCompiler;
   resumeExperienceSyncProposals?: ResumeExperienceSyncProposalPort;
+  resumeDrafts?: ResumeExperienceSyncDraftPort;
   agentTaskProposals?: AgentTaskProposalService;
   answerVault?: AnswerVaultStore;
   inboxApplicationProposals?: InboxSignalApplicationService;
@@ -70,6 +78,10 @@ export function createActionApprovalManager(
   deps: ActionApprovalDependencies,
 ): ApprovalManager {
   const executors = new ActionExecutorRegistry();
+  executors.register(
+    RESUME_STRATEGY_CHOICE_ACTION,
+    createResumeStrategyChoiceExecutor(),
+  );
   executors.register(
     EXPERIENCE_IMPORT_ACTION_TYPE,
     createExperienceImportExecutor(
@@ -120,7 +132,10 @@ export function createActionApprovalManager(
   if (deps.resumeExperienceSyncProposals) {
     executors.register(
       RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
-      createResumeExperienceSyncExecutor(deps.resumeExperienceSyncProposals),
+      createResumeExperienceSyncExecutor(
+        deps.resumeExperienceSyncProposals,
+        deps.resumeDrafts,
+      ),
     );
   }
   if (deps.agentTaskProposals) {

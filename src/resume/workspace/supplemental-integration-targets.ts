@@ -1,0 +1,63 @@
+import type { ResumeWorkspace } from "./types.js";
+
+export interface SupplementalIntegrationTarget {
+  itemId: string;
+  experienceId: string;
+  requiredEdit: string;
+  currentBullets: Array<{
+    bulletId: string;
+    text: string;
+    origin: "grounded" | "agent_augmented";
+    evidenceIds: string[];
+    workUnitIds: string[];
+    requirementIds: string[];
+  }>;
+  supplementalEvidence: Array<{ evidenceId: string; text: string }>;
+}
+
+/** Each supplemented experience must contribute at least one formal bullet fact. */
+export function supplementalIntegrationTargets(
+  workspace: ResumeWorkspace,
+): SupplementalIntegrationTarget[] {
+  const supplemental = workspace.supplementalEvidence ?? [];
+  if (!supplemental.length) return [];
+  const used = new Set((workspace.bulletProvenance ?? []).flatMap(
+    (entry) => entry.evidenceIds,
+  ));
+  const pendingExperiences = new Set(supplemental
+    .filter((entry) => !used.has(entry.evidenceId))
+    .map((entry) => entry.experienceId)
+    .filter((experienceId) => !supplemental.some((entry) =>
+      entry.experienceId === experienceId && used.has(entry.evidenceId)
+    )));
+  if (!pendingExperiences.size) return [];
+  const provenance = new Map((workspace.bulletProvenance ?? []).map(
+    (entry) => [entry.bulletId, entry],
+  ));
+  return workspace.structure.sections.flatMap((section) =>
+    section.items.flatMap((item) => {
+      const experienceId = item.source_experience_id;
+      if (!experienceId || !pendingExperiences.has(experienceId)) return [];
+      return [{
+        itemId: item.id,
+        experienceId,
+        requiredEdit:
+          "一次完整重交 currentBullets：按最新 WorkUnit 分组保留或重组 bullet；每条绑定完整 workUnitIds 并引用其全部 evidence，补充事实若属于已有项目应合入同一 bullet，只有新 WorkUnit 才新增 bullet。不得只为过门禁机械追加原句。",
+        currentBullets: item.bullets.map((bullet) => {
+          const source = provenance.get(bullet.id);
+          return {
+            bulletId: bullet.id,
+            text: bullet.text,
+            origin: source?.origin ?? "grounded",
+            evidenceIds: [...(source?.evidenceIds ?? [])],
+            workUnitIds: [...(source?.workUnitIds ?? [])],
+            requirementIds: [...(source?.requirementIds ?? [])],
+          };
+        }),
+        supplementalEvidence: supplemental.filter((entry) =>
+          entry.experienceId === experienceId && !used.has(entry.evidenceId)
+        ).map(({ evidenceId, text }) => ({ evidenceId, text })),
+      }];
+    })
+  );
+}

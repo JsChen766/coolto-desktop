@@ -1,5 +1,4 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-
 import type {
   CurrentUserReader,
   ExperienceReader,
@@ -7,10 +6,10 @@ import type {
   UserProfileReader,
 } from "../api/types.js";
 import { SelectedFileRegistry } from "../files/selected-file-registry.js";
+import { ApprovalManager } from "../approvals/approval-manager.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import { JdProposalStore } from "../jd/proposal-store.js";
 import type { ResumePublicationGateway } from "../resume/save/types.js";
-import { createGetExperienceTool } from "./get-experience.js";
 import { createGetCurrentUserTool } from "./get-current-user.js";
 import { createGetUserProfileTool } from "./get-user-profile.js";
 import { createPrepareProfileUpdateTool } from "./prepare-profile-update.js";
@@ -23,9 +22,7 @@ import {
 import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
-import { createSearchExperiencesTool } from "./search-experiences.js";
 import { createSyncNowTool, type SyncNowResult } from "./sync-now.js";
-import { createSelectedFileTools } from "./selected-files.js";
 import { createResumeReadTools } from "./resume-tools.js";
 import { MatchReportStore } from "../match/report-store.js";
 import { createPrepareMatchAnalysisTool } from "./prepare-match-analysis.js";
@@ -39,6 +36,9 @@ import type { ProfileProposalExecutor } from "../profile/types.js";
 import { ExperienceReferenceRegistry } from "./experience-reference-registry.js";
 import { applyToolCapabilities } from "./tool-capabilities.js";
 import type { CapabilityAgentTool } from "./tool-capabilities.js";
+import { createExperienceTools } from "./experience-tool-registry.js";
+import type { ExperienceMaterialIngestionStore } from
+  "../experience/material-ingestion-store.js";
 import type { TaskLifecycleController } from "../agent-task/task-lifecycle-controller.js";
 import { createAgentTaskLifecycleTools } from "./agent-task-lifecycle.js";
 import type { AgentTaskProposalService } from "../desktop/main/agent-task/agent-task-proposal-service.js";
@@ -54,17 +54,23 @@ import {
   createInboxTools,
   type InboxToolRegistryDependencies,
 } from "./inbox-tool-registry.js";
-
-export interface ToolRegistryDependencies extends InboxToolRegistryDependencies {
+import {
+  createLocalFileTools,
+  type LocalFileToolDependencies,
+} from "./local-file-tools.js";
+export interface ToolRegistryDependencies extends
+  InboxToolRegistryDependencies, LocalFileToolDependencies {
   currentUserReader?: CurrentUserReader;
   userProfileReader?: UserProfileReader;
   profileProposals?: ProfileProposalExecutor;
   experienceReader?: ExperienceReader;
+  experienceMaterialIngestion?: ExperienceMaterialIngestionStore;
   jdReader?: JdReader;
   resumeReader?: ResumePublicationGateway;
   importProposalStore?: ExperienceImportProposalStore;
   jdProposalStore?: JdProposalStore;
   selectedFileRegistry?: SelectedFileRegistry;
+  approvalManager?: ApprovalManager;
   matchReportStore?: MatchReportStore;
   browserPageReader?: BrowserPageReader;
   browserAgentController?: BrowserAgentController;
@@ -79,7 +85,6 @@ export interface ToolRegistryDependencies extends InboxToolRegistryDependencies 
   /** Immediately runs one sync round; resolves with a result summary. */
   syncNow?: () => Promise<SyncNowResult>;
 }
-
 /**
  * This is the only place where tools are exposed to the model.
  * Business tools will be added here after their API adapters and policies exist.
@@ -87,7 +92,10 @@ export interface ToolRegistryDependencies extends InboxToolRegistryDependencies 
 export function createToolRegistry(
   dependencies: ToolRegistryDependencies = {},
 ): CapabilityAgentTool[] {
-  const experienceReferences = new ExperienceReferenceRegistry();
+  const experienceReferences = new ExperienceReferenceRegistry(() =>
+    dependencies.agentOrchestrated?.store.latest()?.sourceSnapshot.experiences
+      .map((experience) => experience.id)
+  );
   const businessTools: AgentTool[] = [];
 
   if (dependencies.syncNow) {
@@ -118,14 +126,9 @@ export function createToolRegistry(
     businessTools.push(...createJdTools(dependencies.jdReader));
   }
   if (dependencies.resumeReader) {
-    businessTools.push(...createResumeReadTools(dependencies.resumeReader, dependencies.jdReader));
+    businessTools.push(...createResumeReadTools(dependencies.resumeReader, dependencies.jdReader, dependencies.agentOrchestrated?.resumeDraftReader));
   }
-  if (dependencies.experienceReader) {
-    businessTools.push(
-      createSearchExperiencesTool(dependencies.experienceReader),
-      createGetExperienceTool(dependencies.experienceReader),
-    );
-  }
+  businessTools.push(...createExperienceTools(dependencies));
   if (
     dependencies.experienceReader &&
     dependencies.importProposalStore &&
@@ -148,11 +151,7 @@ export function createToolRegistry(
       ),
     );
   }
-  if (dependencies.selectedFileRegistry) {
-    businessTools.push(
-      ...createSelectedFileTools(dependencies.selectedFileRegistry),
-    );
-  }
+  businessTools.push(...createLocalFileTools(dependencies));
   if (
     dependencies.jdReader &&
     dependencies.experienceReader &&

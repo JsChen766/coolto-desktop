@@ -63,7 +63,7 @@ test("selected file registry only reads explicitly registered text files", async
   }
 });
 
-test("desktop attachment replacement is atomic and detects changed files", async () => {
+test("desktop attachment replacement is atomic and pins selected bytes", async () => {
   const directory = await mkdtemp(join(tmpdir(), "coolto-replace-"));
   const firstPath = join(directory, "first.md");
   const secondPath = join(directory, "second.txt");
@@ -87,28 +87,36 @@ test("desktop attachment replacement is atomic and detects changed files", async
     await assert.rejects(registry.read(first!.id), /明确选择/u);
 
     await writeFile(secondPath, "Second file changed after selection", "utf8");
-    await assert.rejects(registry.read(second!.id), /失效或被替换/u);
+    assert.equal(
+      Buffer.from((await registry.read(second!.id)).content).toString("utf8"),
+      "Second",
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 });
 
-test("selected file registry rejects oversized files without partial writes", async () => {
+test("selected file registry accepts 20MB and rejects anything larger", async () => {
   const directory = await mkdtemp(join(tmpdir(), "coolto-size-"));
   const validPath = join(directory, "valid.txt");
+  const acceptedPdfPath = join(directory, "accepted.pdf");
   const oversizedPath = join(directory, "oversized.pdf");
   await writeFile(validPath, "valid", "utf8");
+  await writeFile(acceptedPdfPath, "", "utf8");
   await writeFile(oversizedPath, "", "utf8");
-  await truncate(oversizedPath, 10 * 1024 * 1024 + 1);
+  await truncate(acceptedPdfPath, 20 * 1024 * 1024);
+  await truncate(oversizedPath, 20 * 1024 * 1024 + 1);
 
   try {
     const registry = new SelectedFileRegistry();
     await registry.registerPaths([validPath]);
+    const accepted = await registry.registerPaths([acceptedPdfPath]);
+    assert.equal(accepted[0]?.sizeBytes, 20 * 1024 * 1024);
     await assert.rejects(
       registry.registerPaths([oversizedPath]),
-      /超过 10MB/u,
+      /超过 20MB/u,
     );
-    assert.equal(registry.list().length, 1);
+    assert.equal(registry.list().length, 2);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

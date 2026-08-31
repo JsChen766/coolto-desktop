@@ -53,7 +53,9 @@ export function createGetResumeWorkspaceTool(
         details: {
           ...payload,
           loopGuardKey: progressKey,
-          ...(actionMode(receipt.nextAction) === "batch_tail_repair"
+          ...(["batch_tail_rewrite"].includes(
+            actionMode(receipt.nextAction),
+          )
             ? { turnGovernorPhaseKey: "resume_tail_repair" }
             : {}),
         },

@@ -74,7 +74,7 @@ import type {
   LibraryRestoreCheckpointInput,
   CloudResumePreview,
   ResumeDraftDetail,
-  ResumeDraftEditInput,
+  ResumeDraftEditInput, ResumeDraftLineSpacingInput,
   ResumeDraftExportPdfInput,
   ResumeDraftExportPdfResult,
   ResumeDraftRestoreInput,
@@ -84,6 +84,8 @@ import type { AppUpdateState, UpdateTrigger } from "./updates.js";
 import type { AgentTaskDesktopApi } from "./agent-tasks.js";
 import type { MailConnectionsDesktopApi } from "./mail-connections.js";
 import type { TrackerChildDesktopApi } from "./tracker-child-api.js";
+import type { DeliveryResumeFilesDesktopApi } from "./delivery-resume-files.js";
+import type { OnboardingDesktopApi } from "./onboarding.js";
 import type { CalendarDesktopApi } from "./calendar.js";
 export interface DesktopApi {
   platform: DesktopPlatform;
@@ -106,6 +108,7 @@ export interface DesktopApi {
   };
   mailConnections: MailConnectionsDesktopApi;
   calendar: CalendarDesktopApi;
+  onboarding: OnboardingDesktopApi;
   conversations: {
     list(): Promise<ConversationSummary[]>;
     create(): Promise<ConversationDetail>;
@@ -125,6 +128,7 @@ export interface DesktopApi {
     list(): Promise<ResumeDraftSummary[]>;
     get(artifactId: string): Promise<ResumeDraftDetail>;
     edit(input: ResumeDraftEditInput): Promise<ResumeDraftDetail>;
+    setLineSpacing(input: ResumeDraftLineSpacingInput): Promise<ResumeDraftDetail>;
     restore(input: ResumeDraftRestoreInput): Promise<ResumeDraftDetail>;
     accept(artifactId: string): Promise<ResumeDraftDetail>;
     reject(artifactId: string): Promise<ResumeDraftDetail>;
@@ -154,6 +158,7 @@ export interface DesktopApi {
     getCheckpoints(artifactId: string): Promise<ResumeDraftCheckpoint[]>;
     restoreCheckpoint(input: LibraryRestoreCheckpointInput): Promise<LocalResumeDraft>;
   };
+  deliveryResumeFiles: DeliveryResumeFilesDesktopApi;
   jobAssets: {
     get(): Promise<JobRepositorySnapshot>;
   };

@@ -7,18 +7,23 @@ import type { ResumeCompiler } from "../../resume/workspace/compiler-port.js";
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { createApplyResumeContentTool } from "./apply-content.js";
+import { createAssessResumeEvidenceTool } from "./assess-evidence.js";
 import { createAddResumeMaterialTool } from "./add-material.js";
 import { createDeclineResumeMaterialTool } from "./decline-material.js";
 import { createResumeWorkspaceTool } from "./create-workspace.js";
 import { createGetResumeWorkspaceTool } from "./get-workspace.js";
 import { createPrepareExperienceSyncTool } from "./prepare-experience-sync.js";
 import { createPauseResumeForMaterialTool } from "./pause-for-material.js";
+import { createConfirmNoResumeMaterialTool } from "./confirm-no-material.js";
+import type { ResumeReuseDraftSource } from
+  "../../resume/reuse/local-draft-source.js";
 
 export interface AgentOrchestratedDependencies {
   snapshotBuilder: ResumeSourceSnapshotBuilder;
   compiler: ResumeCompiler;
   store: ResumeWorkspaceStore;
   resumeReader?: ResumePublicationGateway;
+  resumeDraftReader?: ResumeReuseDraftSource;
   currentUserMessageTimestamp?: () => number | undefined;
   approvalManager?: ApprovalManager;
   experienceSyncProposals?: ResumeExperienceSyncProposalPort;
@@ -38,9 +43,16 @@ export function createAgentOrchestratedTools(
       dependencies.compiler,
       dependencies.store,
       dependencies.resumeReader,
+      dependencies.resumeDraftReader,
     ),
     createGetResumeWorkspaceTool(dependencies.store),
+    createAssessResumeEvidenceTool(dependencies.store),
     createPauseResumeForMaterialTool(dependencies.store),
+    createConfirmNoResumeMaterialTool(
+      dependencies.store,
+      dependencies.currentUserMessageTimestamp ?? (() => undefined),
+      dependencies.compiler,
+    ),
     createApplyResumeContentTool(
       dependencies.compiler,
       dependencies.store,

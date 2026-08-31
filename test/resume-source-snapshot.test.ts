@@ -21,6 +21,12 @@ import type {
   BulletEvidenceBinding,
   ResumeSourceSnapshot,
 } from "../src/resume/source-types.js";
+import { ResumeWorkspaceStore } from
+  "../src/resume/workspace/workspace-store.js";
+import { createResumeWorkspaceTool } from
+  "../src/tools/agent-orchestrated/create-workspace.js";
+import { FixtureResumeCompiler } from
+  "./support/resume-workspace-fixture.js";
 
 const CONTENT =
   "使用 Python 清洗运营数据，并为 3 个团队建立周度报表。随后设计异常检查规则。";
@@ -71,6 +77,36 @@ test("source fingerprint is independent from selected experience order", async (
   );
 });
 
+test("general resume source does not read or persist a JD", async () => {
+  const experience = createExperience();
+  const builder = new ResumeSourceSnapshotBuilder({
+    currentUser: {
+      getCurrentUser: async () => ({ id: "user-1", email: "alice@example.com" }),
+    },
+    profile: { getUserProfile: async () => createProfile() },
+    jd: {
+      listJds: async () => ({ items: [], nextCursor: null }),
+      getJd: async () => {
+        throw new Error("general resume must not read a JD");
+      },
+    },
+    experience: {
+      searchExperiences: async () => ({ items: [experience], nextCursor: null }),
+      getExperience: async () => experience,
+    },
+  });
+
+  const snapshot = await builder.buildGeneral({
+    experienceIds: ["exp-1"],
+    template: STANDARD_RESUME_TEMPLATE_SNAPSHOT,
+  });
+
+  assert.equal(snapshot.generationStrategy, "general");
+  assert.equal(snapshot.jd, null);
+  assert.equal(snapshot.experiences[0]?.id, "exp-1");
+  assert.match(snapshot.sourceFingerprint, /^[a-f0-9]{64}$/u);
+});
+
 test("resume source automatically includes every active education and orders it newest first", async () => {
   const work = createExperience();
   const olderEducation = educationExperience("edu-older", "rev-older", {
@@ -112,6 +148,107 @@ test("resume source automatically includes every active education and orders it 
       ?.items[0]?.raw_text,
     "GPA 3.8/4.0（专业前 10%）",
   );
+});
+
+test("auto education that becomes inactive during snapshot capture is skipped", async () => {
+  const work = createExperience();
+  const staleEducation = educationExperience("edu-stale", "rev-stale", {
+    title: "已失效学校",
+    startDate: "2020-09",
+    endDate: "2024-06",
+  });
+  const returnedEducation = structuredClone(staleEducation);
+  returnedEducation.status = "archived";
+  const byId = new Map([
+    [work.id, work],
+    [returnedEducation.id, returnedEducation],
+  ]);
+  const builder = new ResumeSourceSnapshotBuilder({
+    currentUser: {
+      getCurrentUser: async () => ({ id: "user-1", email: "alice@example.com" }),
+    },
+    profile: { getUserProfile: async () => createProfile() },
+    jd: {
+      listJds: async () => ({ items: [createJd()], nextCursor: null }),
+      getJd: async () => createJd(),
+    },
+    experience: {
+      searchExperiences: async () => ({
+        items: [staleEducation],
+        nextCursor: null,
+      }),
+      getExperience: async (experienceId) => byId.get(experienceId)!,
+    },
+  });
+
+  const snapshot = await builder.build(input);
+
+  assert.deepEqual(snapshot.experiences.map((item) => item.id), ["exp-1"]);
+});
+
+test("workspace creation skips one selected experience that became inactive", async () => {
+  const active = createExperience();
+  const stale = withExperienceIdentity(
+    createExperience(), "exp-stale", "rev-stale",
+  );
+  stale.status = "archived";
+  const education = educationExperience("edu-current", "rev-edu-current", {
+    title: "香港中文大学",
+    startDate: "2025-09",
+    endDate: "present",
+  });
+  const tool = createResumeWorkspaceTool(
+    createBuilderFromExperiences([active, stale, education]),
+    new FixtureResumeCompiler(),
+    new ResumeWorkspaceStore(),
+  );
+
+  const result = await tool.execute("skip-stale-selection", {
+    jdId: "jd-1",
+    language: "zh-CN",
+    experiences: [
+      { experienceId: "exp-1", tier: "secondary" },
+      { experienceId: "exp-stale", tier: "secondary" },
+    ],
+  });
+  const content = result.content[0];
+  assert.equal(content?.type, "text");
+  if (!content || content.type !== "text") throw new Error("缺少文本工具回执");
+  const payload = JSON.parse(content.text);
+
+  assert.equal(payload.status, "writing");
+  assert.equal(payload.nextAction.mode, "group_work_units");
+  assert.doesNotMatch(JSON.stringify(payload), /exp-stale/u);
+});
+
+test("create_resume_workspace starts a JD-free general resume workspace", async () => {
+  const work = createExperience();
+  const education = educationExperience("edu-current", "rev-edu-current", {
+    title: "香港中文大学",
+    startDate: "2025-09",
+    endDate: "present",
+  });
+  const store = new ResumeWorkspaceStore();
+  const tool = createResumeWorkspaceTool(
+    createBuilderFromExperiences([work, education]),
+    new FixtureResumeCompiler(),
+    store,
+  );
+
+  const result = await tool.execute("create-general", {
+    generationStrategy: "general",
+    language: "zh-CN",
+    experiences: [{ experienceId: "exp-1", tier: "main" }],
+  });
+  const content = result.content[0];
+  if (!content || content.type !== "text") throw new Error("缺少文本工具回执");
+  const payload = JSON.parse(content.text);
+
+  assert.equal(payload.source.jd, null);
+  assert.equal(payload.source.generationStrategy, "general");
+  assert.equal(store.latest()?.sourceSnapshot.generationStrategy, "general");
+  assert.equal(store.latest()?.sourceSnapshot.jd, null);
+  assert.equal(payload.nextAction.mode, "group_work_units");
 });
 
 test("snapshot builder fails closed on duplicate IDs and revision drift", async () => {

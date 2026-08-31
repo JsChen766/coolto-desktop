@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { parseCalendarDeepLink } from
-  "../src/desktop/main/calendar/calendar-deep-link-router.js";
+  "../src/desktop/main/calendar/calendar-deep-link.js";
 
 test("Calendar deep link selects one exact Application and Interview", () => {
   assert.deepEqual(parseCalendarDeepLink(

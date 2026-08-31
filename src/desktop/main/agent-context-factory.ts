@@ -24,8 +24,12 @@ import { ConversationSelectedFiles } from "./conversation-selected-files.js";
 import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
-import type { ResumeExperienceSyncProposalPort } from "../../resume/material/experience-sync-port.js";
-import { createResumeGenerationFollowUp } from "./resume-generation-follow-up.js";
+import type { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
+import {
+  createResumeGenerationFollowUp,
+  createResumeOutputRepetitionRecovery,
+  createResumeTurnGovernorRecovery,
+} from "./resume-generation-follow-up.js";
 import { createResumeInteractionStop } from "./resume-interaction-stop.js";
 import type { AgentTaskProposalService } from "./agent-task/agent-task-proposal-service.js";
 import { JobScoutController } from "../../job-scout/job-scout-controller.js";
@@ -43,11 +47,19 @@ import { InboxSignalInterviewService } from "./agent-task/inbox-signal-interview
 import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
 import type { InterviewProposalService } from "./tracker/interview-proposal-service.js";
 import { toolsForConversationRun } from "./agent-task/conversation-tool-scope.js";
-
+import type { DeliveryResumeFileStore } from
+  "../../delivery-resume-files/types.js";
+import type { ExperienceProposalService } from
+  "./experience-library/experience-proposal-service.js";
+import { LocalExperienceMaterialCommitter } from
+  "./experience-library/experience-material-committer.js";
+import { ExperienceMaterialIngestionStore } from
+  "../../experience/material-ingestion-store.js";
 export interface AgentContextFactoryDependencies {
   apiClient: CooltoApiClient;
   resumeCompiler: ResumePdfCompiler;
   selectedFiles: ConversationSelectedFiles;
+  deliveryResumeFiles: DeliveryResumeFileStore;
   browserAgentController: BrowserAgentController;
   browserPageOperator: BrowserPageOperator;
   agentHarness: AgentHarnessServices;
@@ -62,18 +74,17 @@ export interface AgentContextFactoryDependencies {
   jds: JdReader & JdWriter;
   profiles: UserProfileReader;
   profileProposals: ProfileProposalExecutor;
-  experienceSyncProposals: ResumeExperienceSyncProposalPort;
+  experienceProposals: ExperienceProposalService;
+  resumeDrafts: ResumeDraftService;
   events: AgentRuntimeEvents;
   traces: ResumeGenerationTraceStore;
   /** Immediately runs one sync round (agent sync_now tool). */
   syncNow: () => Promise<{ ok: boolean; message: string }>;
 }
-
 export class AgentContextFactory {
   public constructor(
     private readonly dependencies: AgentContextFactoryDependencies,
   ) {}
-
   public create(conversationId: string): ConversationAgentContext {
     const deps = this.dependencies;
     const config = readConfig();
@@ -83,9 +94,7 @@ export class AgentContextFactory {
     const matchReportStore = new MatchReportStore();
     const workspaceStore = new ResumeWorkspaceStore();
     const resumeCompiler = new TracedResumeCompiler(
-      deps.resumeCompiler,
-      deps.traces,
-      conversationId,
+      deps.resumeCompiler, deps.traces, conversationId,
     );
     const inboxApplication = new InboxSignalApplicationService(
       conversationId, deps.agentHarness, deps.applications,
@@ -103,7 +112,8 @@ export class AgentContextFactory {
       browserPageOperator: deps.browserPageOperator,
       resumeWorkspaceStore: workspaceStore,
       resumeCompiler,
-      resumeExperienceSyncProposals: deps.experienceSyncProposals,
+      resumeExperienceSyncProposals: deps.experienceProposals,
+      resumeDrafts: deps.resumeDrafts,
       agentTaskProposals: deps.agentTaskProposals,
       answerVault: deps.agentHarness.answers,
       inboxApplicationProposals: inboxApplication,
@@ -115,7 +125,14 @@ export class AgentContextFactory {
       jd: deps.jds,
       experience: deps.experiences,
     });
-    const currentUserMessage = { timestamp: undefined as number | undefined };
+    const currentUserMessage: { timestamp: number | undefined; text?: string } =
+      { timestamp: undefined };
+    const materialIngestion = new ExperienceMaterialIngestionStore(
+      selectedFiles,
+      new LocalExperienceMaterialCommitter(deps.experiences, deps.experienceProposals),
+      deps.browserAgentController,
+      () => currentUserMessage.text,
+    );
     const modelDependencies = createConfiguredModelDependencies(
       config,
       () => deps.apiClient.getSessionToken(),
@@ -144,6 +161,7 @@ export class AgentContextFactory {
       userProfileReader: deps.profiles,
       profileProposals: deps.profileProposals,
       experienceReader: deps.experiences,
+      experienceMaterialIngestion: materialIngestion,
       jdReader: deps.jds,
       resumeReader: deps.resumePublications,
       importProposalStore: proposalStore,
@@ -151,6 +169,7 @@ export class AgentContextFactory {
       matchReportStore,
       approvalManager,
       selectedFileRegistry: selectedFiles,
+      deliveryResumeFiles: deps.deliveryResumeFiles,
       browserPageReader: deps.browserAgentController,
       browserAgentController: deps.browserAgentController,
       browserPageOperator: deps.browserPageOperator,
@@ -169,9 +188,10 @@ export class AgentContextFactory {
         compiler: resumeCompiler,
         store: workspaceStore,
         resumeReader: deps.resumePublications,
+        resumeDraftReader: deps.resumeDrafts,
         currentUserMessageTimestamp: () => currentUserMessage.timestamp,
         approvalManager,
-        experienceSyncProposals: deps.experienceSyncProposals,
+        experienceSyncProposals: deps.experienceProposals,
       },
       syncNow: deps.syncNow,
     });
@@ -192,8 +212,19 @@ export class AgentContextFactory {
       tools,
       beforeToolCall: taskPolicy.beforeToolCall,
       afterToolCall: taskPolicy.afterToolCall,
-      shouldStopAfterTurn: createResumeInteractionStop(workspaceStore),
-      automaticFollowUp: createResumeGenerationFollowUp(workspaceStore),
+      shouldStopAfterTurn: createResumeInteractionStop(
+        workspaceStore,
+        () => currentUserMessage.text,
+      ),
+      automaticFollowUp: createResumeGenerationFollowUp(
+        workspaceStore,
+        () => currentUserMessage.timestamp,
+        () => currentUserMessage.text,
+      ),
+      outputRepetitionRecovery:
+        createResumeOutputRepetitionRecovery(workspaceStore),
+      turnGovernorRecovery:
+        createResumeTurnGovernorRecovery(workspaceStore),
     }, modelDependencies);
     const context: ConversationAgentContext = {
       agent,
@@ -201,10 +232,11 @@ export class AgentContextFactory {
       resumeCompiler,
       jdProposalStore,
       matchReportStore,
-      scopeTools: async () => agent.setTools(toolsForConversationRun(
-        tools,
-        Boolean(await deps.agentHarness.tasks.findRunningByConversation(conversationId)),
-      )),
+      scopeTools: async () => agent.setTools(toolsForConversationRun(tools, Boolean(
+        await deps.agentHarness.tasks.findRunningByConversation(conversationId),
+      ))),
+      approvalManager,
+      experienceSyncProposals: deps.experienceProposals,
       artifactIdByCandidate: new Map(),
       currentUserMessage,
       compaction: {

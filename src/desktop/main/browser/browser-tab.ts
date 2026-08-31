@@ -46,6 +46,7 @@ export class BrowserTab {
   #homeTaskKey = "";
   #showingErrorPage = false;
   readonly #controls: BrowserTabControls;
+  #displaySourceUrl: string | undefined;
 
   public constructor(
     private readonly onChange: () => void,
@@ -54,6 +55,7 @@ export class BrowserTab {
     shortcutRouter: BrowserShortcutRouter,
     window: () => BrowserWindow | undefined,
     onOpenTask: () => void,
+    private readonly displayUrl?: string,
   ) {
     this.view = new WebContentsView({
       webPreferences: {
@@ -136,6 +138,7 @@ export class BrowserTab {
 
   public loadUrl(url?: string): void {
     const target = url?.trim();
+    this.#displaySourceUrl = this.displayUrl && target ? target : undefined;
     this.#navigate(target ? normalizeBrowserNavigationUrl(target) ?? this.#homeUrl()
       : this.#homeUrl());
   }
@@ -199,7 +202,8 @@ export class BrowserTab {
       title: home ? this.presentation.locale() === "en-US" ? "New tab" : "新标签页"
         : failed ? browserErrorTitle(this.presentation.locale())
           : contents.getTitle() || (this.presentation.locale() === "en-US" ? "Loading…" : "加载中…"),
-      url: home ? null : failed ? this.#failure!.url : rawUrl || null,
+      url: home ? null : failed ? this.#failure!.url
+        : this.displayUrl && rawUrl === this.#displaySourceUrl ? this.displayUrl : rawUrl || null,
       isLoading: !this.#showingErrorPage && contents.isLoading(),
       canGoBack: contents.navigationHistory.canGoBack(),
       canGoForward: contents.navigationHistory.canGoForward(),

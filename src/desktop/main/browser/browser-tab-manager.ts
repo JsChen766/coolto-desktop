@@ -46,7 +46,7 @@ export class BrowserTabManager {
     private readonly openTask: () => void = () => undefined,
   ) {}
 
-  public newTab(url?: string): BrowserTab {
+  public newTab(url?: string, displayUrl?: string): BrowserTab {
     const tab = new BrowserTab(
       () => this.onChange(),
       (openUrl) => {
@@ -56,6 +56,7 @@ export class BrowserTabManager {
       this.shortcutRouter,
       () => this.window.isDestroyed() ? undefined : this.window,
       this.openTask,
+      displayUrl,
     );
     this.#tabs.push(tab);
     this.window.contentView.addChildView(tab.view);

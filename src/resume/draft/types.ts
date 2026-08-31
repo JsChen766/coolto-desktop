@@ -1,4 +1,5 @@
 import type { ResumeWorkspace } from "../workspace/types.js";
+import type { ResumeGenerationStrategy } from "../source-strategy.js";
 
 export type ResumeDraftCheckpointReason =
   | "generated"
@@ -31,6 +32,13 @@ export interface ResumeDraftCloudLink {
   entityVersion?: number;
 }
 
+export interface ResumeDraftExperienceSyncState {
+  evidenceFingerprint: string;
+  status: "pending_approval" | "accepted" | "rejected" | "stale";
+  approvalRequestId?: string;
+  updatedAt: string;
+}
+
 export interface LocalResumeDraft {
   schemaVersion: "local-resume-draft-v1";
   artifactId: string;
@@ -43,6 +51,7 @@ export interface LocalResumeDraft {
   checkpoints: ResumeDraftCheckpoint[];
   pendingChange: ResumeDraftPendingChange | null;
   cloudLink: ResumeDraftCloudLink | null;
+  experienceSync?: ResumeDraftExperienceSyncState;
 }
 
 export interface ResumeDraftArtifactReference {
@@ -62,16 +71,18 @@ export interface ResumeDraftArtifactReference {
 export interface ResumeDraftSummary {
   artifactId: string;
   title: string;
+  jdId: string | null;
+  jdTitle: string | null;
+  targetRole: string | null;
   conversationIds: string[];
   updatedAt: string;
   checkpointCount: number;
   hasPendingChange: boolean;
+  generationStrategy: ResumeGenerationStrategy;
+  generationReady: boolean;
   cloudState: "local_only" | "synced" | "local_changes";
   cloudResumeId?: string | null;
   workspaceStatus: ResumeWorkspace["status"];
-  generationReady: boolean;
-  jdId: string | null;
-  jdTitle: string | null;
 }
 
 export interface ResumeDraftCodec {

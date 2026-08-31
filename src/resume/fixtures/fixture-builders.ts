@@ -4,6 +4,7 @@ import type {
   ResumeSection,
   ResumeSectionItem,
 } from "../types.js";
+import { RESUME_TAIL_POLICY_V2 } from "../tail-policy.js";
 
 const STANDARD_PROFILE_VERSION = "resume-template-v2";
 const STANDARD_PROFILE_HASH =
@@ -61,6 +62,7 @@ export function baseStructure(
     layout_template_id: "resume-standard",
     layout_profile_version: STANDARD_PROFILE_VERSION,
     layout_profile_hash: STANDARD_PROFILE_HASH,
+    tail_policy_version: RESUME_TAIL_POLICY_V2.version,
     layout_tuning: {
       body_font_scale: 1,
       body_line_height: 1.18,

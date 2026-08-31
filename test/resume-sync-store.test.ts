@@ -40,6 +40,34 @@ test("new resume save reuses its local identity after draft linking fails", asyn
   assert.equal(linkAttempts, 2);
 });
 
+test("publishing a general resume keeps jdId null in the local Outbox", async () => {
+  const fake = new ResumeStoreFake();
+  const resumes = new ResumeSyncStore(
+    fake as unknown as LocalSyncStore,
+    () => undefined,
+    async () => undefined,
+    async () => undefined,
+  );
+  const { store, proposalBuilder, ready } = await createReadySaveFixture();
+  ready.sourceSnapshot = {
+    ...ready.sourceSnapshot,
+    generationStrategy: "general",
+    jd: null,
+  };
+  store.replace(ready, ready.revision);
+  const payload = proposalBuilder.build({
+    candidateId: ready.candidateId,
+    expectedRevision: ready.revision,
+    title: "通用简历",
+    mode: "new_resume",
+  });
+
+  await resumes.publishNew(payload, "general-save");
+
+  assert.equal(fake.enqueued[0]?.payload.jdId, null);
+  assert.equal(fake.enqueued[0]?.localPayload?.jdId, null);
+});
+
 async function savePayload(): Promise<ResumeSaveApprovalPayload> {
   const { proposalBuilder, ready } = await createReadySaveFixture();
   return proposalBuilder.build({

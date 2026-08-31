@@ -1,8 +1,5 @@
-import type {
-  DesktopAgentEvent,
-  DesktopAttachment,
-  MessageAttachmentStatus,
-} from "../../../shared/types.js";
+import type { DesktopAgentEvent, DesktopAttachment,
+  MessageAttachmentStatus } from "../../../shared/types.js";
 import { translate, translateFormat } from "../i18n/locale.js";
 
 export type AttachmentStatus =
@@ -27,6 +24,9 @@ export class AttachmentEventTracker {
   readonly #importRequests = new Map<
     string,
     { conversationId: string; fileId: string }
+  >();
+  readonly #deliverySaveCalls = new Map<
+    string, { conversationId: string; fileId: string }
   >();
   /** 按 fileId 的实时状态，供消息流里的附件卡片合并展示。 */
   readonly #runtimeStatus = new Map<string, MessageAttachmentStatus>();
@@ -86,6 +86,7 @@ export class AttachmentEventTracker {
     this.#attachments.clear();
     this.#parseCalls.clear();
     this.#importRequests.clear();
+    this.#deliverySaveCalls.clear();
     this.#runtimeStatus.clear();
   }
 
@@ -93,7 +94,29 @@ export class AttachmentEventTracker {
     conversationId: string,
     event: DesktopAgentEvent,
   ): AttachmentView | undefined {
-    if (event.type === "tool.started" && event.name === "parse_selected_file") {
+    if (
+      event.type === "tool.started" &&
+      event.name === "save_selected_file_as_delivery_resume"
+    ) {
+      const fileId = argumentFileId(event.arguments);
+      if (fileId) this.#deliverySaveCalls.set(event.callId, { conversationId, fileId });
+    } else if (
+      event.type === "tool.completed" &&
+      event.name === "save_selected_file_as_delivery_resume"
+    ) {
+      const selected = this.#deliverySaveCalls.get(event.callId);
+      this.#deliverySaveCalls.delete(event.callId);
+      if (selected) {
+        const status = event.isError ? "error" : "saved";
+        this.#setRuntimeStatus(selected.conversationId, selected.fileId, status);
+        this.#update(selected.conversationId, selected.fileId, {
+          status,
+          message: event.isError
+            ? translate("保存为用户原始简历失败，请查看上方错误并重试")
+            : undefined,
+        });
+      }
+    } else if (event.type === "tool.started" && event.name === "parse_selected_file") {
       const fileId = argumentFileId(event.arguments);
       if (!fileId) return this.get(conversationId);
       this.#parseCalls.set(event.callId, { conversationId, fileId });

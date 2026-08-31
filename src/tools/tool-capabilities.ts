@@ -20,6 +20,7 @@ const BROWSER_WRITE = new Set([
   "browser_tag_elements", "browser_fill_field", "browser_select_option",
   "browser_set_checked", "browser_click_element", "browser_scroll_to",
   "browser_upload_file", "browser_keypress", "browser_hover", "browser_drag",
+  "browser_upload_delivery_resume",
 ]);
 const TASK_LIFECYCLE = new Set([
   "task_checkpoint", "task_wait", "task_need_user", "task_complete",
@@ -139,6 +140,15 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
   };
   if (tool.name === "find_resume_reuse_candidates") return metadata({
     scope: "resume.read", read: true, fresh: false,
+  });
+  if (tool.name === "list_delivery_resume_files") return metadata({
+    scope: "delivery_resume_file.read", read: true, fresh: false,
+  });
+  if (tool.name === "select_delivery_resume_file") return metadata({
+    scope: "delivery_resume_file.select", fresh: false,
+  });
+  if (tool.name === "save_selected_file_as_delivery_resume") return metadata({
+    scope: "delivery_resume_file.create", fresh: false,
   });
   const sequential = tool.executionMode === "sequential";
   return metadata({

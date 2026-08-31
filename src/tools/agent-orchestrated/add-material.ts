@@ -12,12 +12,12 @@ import type {
 } from "../../resume/workspace/types.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { applyCriticalSkillGate } from "../../resume/workspace/critical-skill-gate.js";
-import {
-  applyBulletCountMaterialGate,
-  applyInitialMaterialFeasibilityGate,
-} from "../../resume/workspace/material-request-gate.js";
+import { applyBulletCountMaterialGate } from
+  "../../resume/workspace/material-request-gate.js";
 import { normalizeResumeMaterialRequest } from "../../resume/workspace/material-request.js";
 import { resumeContentProgressKey } from "../../resume/workspace/agent-progress-key.js";
+import { pendingResumeWorkUnitMap } from
+  "../../resume/workspace/work-unit-map.js";
 
 const parameters = Type.Object({
   candidateId: Type.String({ minLength: 1 }),
@@ -35,7 +35,7 @@ export function createAddResumeMaterialTool(
     name: "add_resume_material",
     label: "加入用户补充材料",
     description:
-      "把当前用户回答中明确提供的多条事实一次加入指定经历。工作区正在追问时必须原样传回 nextAction.requestId；事实会追加为稳定 evidence，不修改初始 source snapshot，也不重新编译。",
+      "把当前用户回答中可核验的事实一次完整加入指定经历。工作区正在追问时必须原样传回 nextAction.requestId。尽量保留背景、方法、对象、数字、产出、结果和结论，不要只提交简历最终采用的少量事实；宿主会把本批事实自动追加到对应 Experience 纯文本正文并创建一个 import revision，不再弹同步确认卡。事实仍会先作为当前 workspace 的 supplemental evidence 使用；随后用 apply_resume_content 批量改写。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {
@@ -88,14 +88,24 @@ export function createAddResumeMaterialTool(
         revision: workspace.revision + 1,
         status: "writing",
         supplementalEvidence: [...existing, ...added],
+        ...(workspace.workUnitMap ? {
+          workUnitMap: pendingResumeWorkUnitMap(
+            workspace.sourceSnapshot.sourceFingerprint,
+          ),
+        } : {}),
+        materialFollowUpPending: {
+          sourceRequestKind: activeRequest?.kind ?? "agent_declared",
+          targetExperienceId: params.experienceId,
+        },
       };
       delete resumedWorkspace.materialRequest;
       delete resumedWorkspace.lineRewriteProgress;
+      delete resumedWorkspace.pageFillProgress;
       delete resumedWorkspace.tailRepairProgress;
+      delete resumedWorkspace.factNeutralAuthorization;
+      delete resumedWorkspace.evidenceAssessment;
       const updated = store.replace(
-        applyInitialMaterialFeasibilityGate(
-          applyBulletCountMaterialGate(applyCriticalSkillGate(resumedWorkspace)),
-        ),
+        applyBulletCountMaterialGate(applyCriticalSkillGate(resumedWorkspace)),
         workspace.revision,
       );
       const payload = {

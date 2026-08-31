@@ -1,5 +1,7 @@
 import { applyAgentResumeContent } from "../../resume/workspace/agent-content-applier.js";
 import { workspaceEvidenceRecords } from "../../resume/workspace/agent-workspace-evidence.js";
+import { allocateResumeBulletId } from
+  "../../resume/workspace/bullet-id-allocation.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 
 type Workspace = ReturnType<ResumeWorkspaceStore["get"]>;
@@ -21,7 +23,7 @@ export function resolveResumeContentChanges(
   workspace: Workspace,
   params: {
     items?: readonly ItemInput[];
-    bulletUpdates?: readonly { bulletId: string; text: string }[];
+    bulletUpdates?: readonly BulletUpdate[];
     bulletRemovals?: readonly { bulletId: string }[];
     bulletAdditions?: readonly BulletAddition[];
   },
@@ -49,10 +51,10 @@ export function resolveResumeContentChanges(
 
 function expandBulletUpdates(
   workspace: Workspace,
-  updates: readonly { bulletId: string; text: string }[],
+  updates: readonly BulletUpdate[],
 ) {
   const seen = new Set<string>();
-  const byItem = new Map<string, Map<string, string>>();
+  const byItem = new Map<string, Map<string, BulletUpdateValue>>();
   for (const update of updates) {
     const bulletId = update.bulletId.trim();
     if (!bulletId || seen.has(bulletId)) {
@@ -60,8 +62,12 @@ function expandBulletUpdates(
     }
     seen.add(bulletId);
     const item = locateBulletItem(workspace, bulletId);
-    const changes = byItem.get(item.id) ?? new Map<string, string>();
-    changes.set(bulletId, update.text);
+    const changes = byItem.get(item.id) ??
+      new Map<string, BulletUpdateValue>();
+    changes.set(bulletId, {
+      text: update.text,
+      ...(update.evidenceIds ? { evidenceIds: update.evidenceIds } : {}),
+    });
     byItem.set(item.id, changes);
   }
   return changedItems(workspace, byItem, new Map(), new Map());
@@ -98,10 +104,17 @@ function expandBulletAdditions(
     );
     if (item.length !== 1) throw new Error(`item ${addition.itemId} 不在当前工作区`);
     const current = byItem.get(addition.itemId) ?? [];
+    const bulletId = allocateResumeBulletId(
+      addition.itemId,
+      [...item[0]!.bullets.map((bullet) => bullet.id),
+        ...current.flatMap((bullet) => bullet.bulletId ? [bullet.bulletId] : [])],
+    );
     current.push({
+      bulletId,
       text: addition.text,
       origin: addition.origin,
       ...(addition.evidenceIds ? { evidenceIds: addition.evidenceIds } : {}),
+      ...(addition.workUnitIds ? { workUnitIds: addition.workUnitIds } : {}),
       ...(addition.requirementIds
         ? { requirementIds: addition.requirementIds }
         : {}),
@@ -113,7 +126,7 @@ function expandBulletAdditions(
 
 function changedItems(
   workspace: Workspace,
-  updates: ReadonlyMap<string, ReadonlyMap<string, string>>,
+  updates: ReadonlyMap<string, ReadonlyMap<string, BulletUpdateValue>>,
   additions: ReadonlyMap<string, readonly BulletInput[]>,
   removals: ReadonlyMap<string, ReadonlySet<string>>,
 ) {
@@ -134,15 +147,28 @@ function changedItems(
           }
           return {
             bulletId: bullet.id,
-            text: changes?.get(bullet.id) ?? bullet.text,
+            text: changes?.get(bullet.id)?.text ?? bullet.text,
             origin: source.origin,
-            evidenceIds: source.evidenceIds,
+            evidenceIds: [...(changes?.get(bullet.id)?.evidenceIds ??
+              source.evidenceIds)],
+            workUnitIds: [...(source.workUnitIds ?? [])],
             requirementIds: source.requirementIds,
           };
         });
       return [{ itemId: item.id, bullets: [...bullets, ...(added ?? [])] }];
     }),
   );
+}
+
+interface BulletUpdate {
+  bulletId: string;
+  text: string;
+  evidenceIds?: readonly string[];
+}
+
+interface BulletUpdateValue {
+  text: string;
+  evidenceIds?: readonly string[];
 }
 
 function locateBulletItem(workspace: Workspace, bulletId: string) {

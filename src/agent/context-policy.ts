@@ -4,8 +4,10 @@ const SOURCE_TOOLS = new Set(["create_resume_workspace"]);
 const WORKSPACE_TOOLS = new Set([
   "create_resume_workspace",
   "get_resume_workspace",
+  "assess_resume_evidence",
   "apply_resume_content",
   "add_resume_material",
+  "confirm_no_resume_material",
   "pause_resume_for_material",
   "decline_resume_material",
   "prepare_experience_sync",
@@ -44,17 +46,19 @@ export async function compactResumeGenerationContext(
         latestError = -1;
       }
     });
-    const tailRepairPhase = isTailRepairAuthority(messages[latestWorkspace]);
+    const continuationPhase = isResumeContinuationAuthority(
+      messages[latestWorkspace],
+    );
     const managedResultIds = new Set<string>();
     const retainedResultIds = new Set<string>();
     messages.forEach((message, index) => {
       if (message.role !== "toolResult" || !isManagedTool(message.toolName)) return;
       managedResultIds.add(message.toolCallId);
       if (
-        (!tailRepairPhase && index === latestSource) ||
+        (!continuationPhase && index === latestSource) ||
         index === latestWorkspace ||
         index === latestError ||
-        (!tailRepairPhase && retainDiscoveryResult(
+        (!continuationPhase && retainDiscoveryResult(
           message.toolName, index, latestUser, latestSource, sourceCount,
         ))
       ) retainedResultIds.add(message.toolCallId);
@@ -101,7 +105,6 @@ export async function compactResumeGenerationContext(
           cloned.name === "apply_resume_content") {
           cloned.arguments = compactTailRepairArguments(
             cloned.arguments,
-            tailRepairPhase,
           );
         }
         content.push(cloned);
@@ -114,26 +117,29 @@ export async function compactResumeGenerationContext(
   }
 }
 
-function isTailRepairAuthority(
+function isResumeContinuationAuthority(
   message: AgentMessage | undefined,
 ): boolean {
   if (message?.role !== "toolResult" || !message.details ||
     typeof message.details !== "object") return false;
   const nextAction = (message.details as { nextAction?: unknown }).nextAction;
-  return Boolean(nextAction && typeof nextAction === "object" &&
-    ["batch_tail_repair", "batch_tail_reflow"].includes(
-      String((nextAction as { mode?: unknown }).mode),
-    ));
+  if (!nextAction || typeof nextAction !== "object") return false;
+  const mode = (nextAction as { mode?: unknown }).mode;
+  return mode === "adapt_reused_content" || mode === "increase_usage" ||
+    mode === "assess_evidence" ||
+    mode === "batch_tail_rewrite" ||
+    mode === "reduce_overflow" || mode === "repair_bullet_counts";
 }
 
 function compactTailRepairArguments(
   value: Record<string, unknown>,
-  tailRepairPhase: boolean,
 ): Record<string, unknown> {
-  const submissions = Array.isArray(value.tailGrowths)
-    ? value.tailGrowths
-    : tailRepairPhase && Array.isArray(value.lineRewrites)
-      ? value.lineRewrites
+  const isTail = Array.isArray(value.tailRewrites) ||
+    Array.isArray(value.tailGrowths);
+  const submissions = isTail
+    ? (value.tailRewrites ?? value.tailGrowths) as unknown[]
+    : Array.isArray(value.lineExpansions)
+      ? value.lineExpansions
       : undefined;
   if (!submissions) return value;
   return {
@@ -143,7 +149,7 @@ function compactTailRepairArguments(
     ...(typeof value.expectedRevision === "number"
       ? { expectedRevision: value.expectedRevision }
       : {}),
-    historicalTailSubmission: {
+    [isTail ? "historicalTailSubmission" : "historicalLineSubmission"]: {
       bulletIds: submissions.flatMap((entry) => {
         const candidate = entry && typeof entry === "object"
           ? entry as Record<string, unknown>

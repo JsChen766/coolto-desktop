@@ -41,6 +41,7 @@ export function applyCandidatePatch(
   sourceStructure: ResumeStructure,
   sourceBindings: readonly BulletEvidenceBinding[],
   operations: readonly ResumePatchOperation[],
+  additionalNumericEvidenceByBullet: ReadonlyMap<string, string> = new Map(),
 ): PatchedResumeCandidate {
   if (!operations.length) {
     throw new ResumeWorkspaceError(
@@ -73,7 +74,12 @@ export function applyCandidatePatch(
   }
   assertBindingCoverage(structure, bindings);
   const ledger = new EvidenceLedger(snapshot);
-  for (const binding of bindings.values()) ledger.reserve(binding);
+  for (const binding of bindings.values()) {
+    ledger.reserve(
+      binding,
+      additionalNumericEvidenceByBullet.get(binding.bulletId),
+    );
+  }
   return { structure, bindings: [...ledger.listBindings()] };
 }
 

@@ -57,7 +57,7 @@ function service(initial: "write_only" | "full_access") {
       upsert: async (link) => { links.set(link.interviewId, link); },
       remove: async (id) => { links.delete(id); },
       clearAll: async () => { links.clear(); } },
-    { get: async () => ({ id: "app-1", companyName: "Coolto",
+    { getApplication: async () => ({ id: "app-1", companyName: "Coolto",
       roleName: "Engineer" }) } as never,
     { get: async () => interview } as never,
     { list: async () => [] } as never,

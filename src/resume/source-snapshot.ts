@@ -11,8 +11,11 @@ import {
 } from "./source-normalization.js";
 import {
   RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION,
+  type GeneralResumeSourceSnapshot,
+  type GeneralResumeSourceSnapshotInput,
   type ResumeSourceSnapshot,
   type ResumeSourceSnapshotInput,
+  type TailoredResumeSourceSnapshot,
 } from "./source-types.js";
 import { ResumeSourceSnapshotError } from "./source-snapshot-error.js";
 import { deepFreeze, sha256, stableStringify } from "./stable-snapshot.js";
@@ -51,7 +54,7 @@ export class ResumeSourceSnapshotBuilder {
   public async build(
     input: ResumeSourceSnapshotInput,
     signal?: AbortSignal,
-  ): Promise<ResumeSourceSnapshot> {
+  ): Promise<TailoredResumeSourceSnapshot> {
     const jdId = input.jdId.trim();
     const experienceIds = input.experienceIds
       .map((value) => value.trim())
@@ -70,10 +73,21 @@ export class ResumeSourceSnapshotBuilder {
         this.#readers.experience.getExperience(experienceId, signal),
       ),
     );
+    const requestedExperienceIds = new Set(experienceIds);
     const normalizedExperiences = orderResumeSourceExperiences(
-      experiences.map((experience, index) =>
-        normalizeSourceExperience(experience, completeExperienceIds[index] ?? ""),
-      ),
+      experiences.flatMap((experience, index) => {
+        const experienceId = completeExperienceIds[index] ?? "";
+        try {
+          return [normalizeSourceExperience(experience, experienceId)];
+        } catch (error: unknown) {
+          if (
+            !requestedExperienceIds.has(experienceId) &&
+            error instanceof ResumeSourceSnapshotError &&
+            error.code === "inactive_experience"
+          ) return [];
+          throw error;
+        }
+      }),
     );
     const fingerprintPayload = {
       schemaVersion: RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION,
@@ -83,6 +97,61 @@ export class ResumeSourceSnapshotBuilder {
         profile,
       ),
       jd: normalizeSourceJd(jd, jdId),
+      experiences: normalizedExperiences,
+      template: input.template,
+    };
+    validateResumeContact(fingerprintPayload.profile);
+    return deepFreeze({
+      ...fingerprintPayload,
+      capturedAt: this.#now().toISOString(),
+      sourceFingerprint: sha256(stableStringify(fingerprintPayload)),
+    });
+  }
+
+  public async buildGeneral(
+    input: GeneralResumeSourceSnapshotInput,
+    signal?: AbortSignal,
+  ): Promise<GeneralResumeSourceSnapshot> {
+    const experienceIds = input.experienceIds
+      .map((value) => value.trim())
+      .sort((left, right) => left.localeCompare(right));
+    validateExperienceIds(experienceIds);
+    const [currentUser, profile, educationIds] = await Promise.all([
+      this.#readers.currentUser.getCurrentUser(signal),
+      this.#readers.profile.getUserProfile(signal),
+      this.#activeEducationIds(signal),
+    ]);
+    const completeExperienceIds = [...new Set([...experienceIds, ...educationIds])];
+    const experiences = await Promise.all(
+      completeExperienceIds.map((experienceId) =>
+        this.#readers.experience.getExperience(experienceId, signal),
+      ),
+    );
+    const requestedExperienceIds = new Set(experienceIds);
+    const normalizedExperiences = orderResumeSourceExperiences(
+      experiences.flatMap((experience, index) => {
+        const experienceId = completeExperienceIds[index] ?? "";
+        try {
+          return [normalizeSourceExperience(experience, experienceId)];
+        } catch (error: unknown) {
+          if (
+            !requestedExperienceIds.has(experienceId) &&
+            error instanceof ResumeSourceSnapshotError &&
+            error.code === "inactive_experience"
+          ) return [];
+          throw error;
+        }
+      }),
+    );
+    const fingerprintPayload = {
+      schemaVersion: RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION,
+      generationStrategy: "general" as const,
+      profile: normalizeSourceProfile(
+        currentUser.id,
+        currentUser.email,
+        profile,
+      ),
+      jd: null,
       experiences: normalizedExperiences,
       template: input.template,
     };
@@ -131,10 +200,20 @@ function validateResumeContact(profile: {
 }
 
 function validateRequest(jdId: string, experienceIds: readonly string[]): void {
-  if (!jdId || experienceIds.length === 0 || experienceIds.some((value) => !value)) {
+  if (!jdId) {
     throw new ResumeSourceSnapshotError(
       "invalid_snapshot_request",
       "A JD and at least one experience are required.",
+    );
+  }
+  validateExperienceIds(experienceIds);
+}
+
+function validateExperienceIds(experienceIds: readonly string[]): void {
+  if (experienceIds.length === 0 || experienceIds.some((value) => !value)) {
+    throw new ResumeSourceSnapshotError(
+      "invalid_snapshot_request",
+      "At least one experience is required.",
     );
   }
   if (new Set(experienceIds).size !== experienceIds.length) {

@@ -5,6 +5,8 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import { canonicalizeResumeBoundaryResponse } from
   "../src/desktop/main/resume-boundary-response.js";
+import { resumeAgentNextAction } from
+  "../src/resume/workspace/agent-next-action.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import { createDeclineResumeMaterialTool } from
   "../src/tools/agent-orchestrated/decline-material.js";
@@ -16,6 +18,8 @@ import {
   createWorkspaceSnapshotBuilder,
   FixtureResumeCompiler,
 } from "./support/resume-workspace-fixture.js";
+import { completeFixtureWorkUnits } from
+  "./support/resume-work-unit-fixture.js";
 
 test("material boundary replaces model process narration with the exact question", async () => {
   const { store, paused } = await pausedWorkspace();
@@ -38,6 +42,44 @@ test("material boundary replaces model process narration with the exact question
   assert.equal(assistantText(canonical.at(-1)), question);
   assert.doesNotMatch(assistantText(canonical.at(-1)), /system|tool loop/iu);
   assert.equal(paused.nextAction.mode, "request_more_material");
+});
+
+test("material boundary appends the host question without a model text turn", async () => {
+  const { store } = await pausedWorkspace();
+  const messages = [
+    user("继续生成", 1),
+    {
+      role: "assistant",
+      content: [{
+        type: "toolCall",
+        id: "pause-call",
+        name: "pause_resume_for_material",
+        arguments: {},
+      }],
+      api: "openai-completions",
+      provider: "deepseek",
+      model: "test-model",
+      stopReason: "toolUse",
+      usage: {
+        input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      timestamp: 2,
+    } as AgentMessage,
+    toolResult("pause_resume_for_material", 3),
+  ];
+
+  const canonical = canonicalizeResumeBoundaryResponse(
+    messages,
+    store.latest(),
+    0,
+  );
+
+  assert.equal(canonical.length, messages.length + 1);
+  assert.equal(
+    assistantText(canonical.at(-1)),
+    (resumeAgentNextAction(store.latest()!) as { question: string }).question,
+  );
 });
 
 test("decline response is canonical but a later no-tool reply stays untouched", async () => {
@@ -69,6 +111,37 @@ test("decline response is canonical but a later no-tool reply stays untouched", 
   assert.equal(assistantText(unchanged.at(-1)), "已停止。");
 });
 
+test("best-effort guard stop reports the preserved draft without a new question", async () => {
+  const store = new ResumeWorkspaceStore();
+  const created = result(await createResumeWorkspaceTool(
+    createWorkspaceSnapshotBuilder(), new FixtureResumeCompiler(), store,
+  ).execute("create", {
+    jdId: "jd-1", language: "zh-CN",
+    experiences: [{ experienceId: "work-1", tier: "main" }],
+  }));
+  const { workUnitMap: _semantic, ...legacyWorkspace } = store.latest()!;
+  void _semantic;
+  store.restore(legacyWorkspace);
+  const decline = createDeclineResumeMaterialTool(store, () => undefined);
+  await decline.execute("guard-stop", {
+    candidateId: created.candidateId,
+    expectedRevision: created.revision,
+    resolution: "best_effort_stalled",
+  });
+  const stopped = store.latest()!;
+  const messages = [
+    user("继续生成", 1),
+    toolResult("decline_resume_material", 2),
+    assistant("请再补充一项材料。", 3),
+  ];
+  const canonical = canonicalizeResumeBoundaryResponse(messages, stopped, 0);
+  assert.equal(
+    assistantText(canonical.at(-1)),
+    "自动写作已停止并保留当前最好草稿。这份简历尚未达到交付门槛。",
+  );
+  assert.doesNotMatch(assistantText(canonical.at(-1)), /请/u);
+});
+
 async function pausedWorkspace() {
   const store = new ResumeWorkspaceStore();
   const create = createResumeWorkspaceTool(
@@ -81,6 +154,19 @@ async function pausedWorkspace() {
     language: "zh-CN",
     experiences: [{ experienceId: "work-1", tier: "main" }],
   }));
+  created.revision = completeFixtureWorkUnits(store).revision;
+  const workspace = store.latest()!;
+  store.restore({
+    ...workspace,
+    reuseBase: {
+      kind: "local",
+      resumeId: "existing-resume",
+      sourceJdId: "jd-old",
+      contentHash: "hash-old",
+      retainedBulletCount: 0,
+      droppedBulletCount: 0,
+    },
+  });
   const pause = createPauseResumeForMaterialTool(store);
   const paused = result(await pause.execute("pause", {
     candidateId: created.candidateId,

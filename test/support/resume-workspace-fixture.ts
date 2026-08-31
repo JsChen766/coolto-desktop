@@ -18,8 +18,7 @@ import type { EvidenceBindingInput } from "../../src/resume/workspace/types.js";
 
 export const BASE_WORK_CONTENT =
   "使用 Python 清洗运营数据产品。为 3 个团队建立周度报表。设计异常检查规则并与业务团队协作。";
-export const WORK_CONTENT =
-  `${BASE_WORK_CONTENT}整理需求优先级并输出复盘结论。`;
+export const WORK_CONTENT = BASE_WORK_CONTENT;
 
 export function createWorkspaceSnapshotBuilder(
   options: {
@@ -108,6 +107,21 @@ export class FixtureResumeCompiler implements ResumeCompiler {
         lastLineWidthPx: bullet.text.endsWith("短尾") ? 200 : 480,
         availableLineWidthPx: 600,
         lastLineRatio: bullet.text.endsWith("短尾") ? 1 / 3 : 0.8,
+        fontSizePx: 13,
+        ceuPx: 13,
+        noWrapTextWidthPx: [...bullet.text].length * 13,
+        noWrapTextCjk: [...bullet.text].length,
+        tailPolicyVersion: "resume-tail-v2" as const,
+        tailProbe: {
+          styleSignature: "fixture-simsun-13",
+          separatorText: "，",
+          separatorWidthPx: 13,
+          hardCjk: 9,
+          minCjk: 10,
+          idealCjk: 12,
+          maxCjk: 16,
+          wrapRisk: "low" as const,
+        },
         passed: !bullet.text.endsWith("短尾"),
       })),
       violations,

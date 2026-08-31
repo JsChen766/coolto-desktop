@@ -32,6 +32,13 @@ export function createUnavailableDesktopApi(): DesktopApi {
       status: unavailable, requestAccess: unavailable, syncInterview: unavailable,
       openSystemSettings: unavailable, onOpenInterview: () => () => undefined,
     },
+    onboarding: {
+      status: unavailable,
+      start: unavailable,
+      advance: unavailable,
+      openBrowserDemo: unavailable,
+      complete: unavailable,
+    },
     conversations: {
       list: unavailable,
       create: unavailable,
@@ -50,6 +57,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
       list: unavailable,
       get: unavailable,
       edit: unavailable,
+      setLineSpacing: unavailable,
       restore: unavailable,
       accept: unavailable,
       reject: unavailable,
@@ -89,6 +97,13 @@ export function createUnavailableDesktopApi(): DesktopApi {
       deleteDraft: unavailable,
       getCheckpoints: unavailable,
       restoreCheckpoint: unavailable,
+    },
+    deliveryResumeFiles: {
+      list: unavailable,
+      importFile: unavailable,
+      rename: unavailable,
+      select: unavailable,
+      delete: unavailable,
     },
     jobAssets: {
       get: unavailable,

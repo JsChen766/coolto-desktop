@@ -54,7 +54,7 @@ export class CalendarSyncService {
 
   async #sync(applicationId: string, interviewId: string): Promise<CalendarSyncResult> {
     const [application, interview, authorization, link, reminders] = await Promise.all([
-      this.applications.get(applicationId), this.interviews.get(interviewId),
+      this.applications.getApplication(applicationId), this.interviews.get(interviewId),
       this.adapter.authorizationStatus(), this.links.get(interviewId),
       this.reminders.list(applicationId),
     ]);

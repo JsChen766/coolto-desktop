@@ -2,7 +2,8 @@
 import { computed } from "vue";
 import type { ChatMessage } from "@desktop/types";
 import {
-  ChatHeader, ChatMessageView, ChatRunTerminal, Composer,
+  ChatComposerHost, ChatHeader, ChatPendingAction, ChatRunTerminal,
+  ChatMessageView,
   EmptyState,
   ExperienceImportResultCard,
   FillProgressCard,
@@ -18,9 +19,18 @@ import type { AppShell } from "./use-app-shell";
 import { useStreamingElapsed } from "../chat/use-streaming-elapsed";
 import { useEmptyStateStages } from "./use-empty-state-stages";
 import ResumePreviewOutlet from "./ResumePreviewOutlet.vue";
-import ChatPendingAction from "./ChatPendingAction.vue";
-
-const props = defineProps<{ shell: AppShell }>();
+import { publishComposerDraft } from "../chat/composer-draft-channel";
+const props = defineProps<{
+  shell: AppShell;
+  composerDisabled?: boolean;
+  composerGuided?: boolean;
+  composerGuidedText?: string | undefined;
+  composerGuidedHighlight?: boolean;
+}>();
+defineEmits<{
+  composerFocus: [];
+  composerSend: [text: string];
+}>();
 const emptyStages = useEmptyStateStages();
 const {
   activeArtifactType,
@@ -31,7 +41,6 @@ const {
   browser,
   conversationAttachment,
   current,
-  desktopApi,
   draftCloudState,
   exportResume,
   fillProgress,
@@ -43,15 +52,13 @@ const {
   openMatchPanel,
   openPrimaryView,
   openResumeDraft,
-  openTracker,
+  openTracker, importDeliveryResumeFile,
   pendingApproval,
-  cloudCopyRequested,
-  clearResumeOperationContext,
-  requestCloudResumeCopy,
-  resumeOperationContext,
   resolveApproval,
   resumeWorkspace,
-  runError, running, saveResumeToCloud,
+  runError,
+  running,
+  saveResumeToCloud,
   scroller,
   send,
   sidebarOpen,
@@ -72,13 +79,11 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
     },
   );
 });
-
 const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
-
+const GENERAL_RESUME_PROMPT = "请基于我的全部经历生成一份不关联任何 JD 的高质量一页通用简历。";
 function continueLastRun(): void { void send("请继续完成刚才未完成的任务；从已保留的有效进度继续，如果缺少信息只问一个具体问题。"); }
 function restartLastRun(): void { void send("请重新开始刚才的任务，重新检查当前资料后执行；不要复用失败的中间状态。"); }
 </script>
-
 <template>
       <ChatHeader
         :title="!current || current.title === '新对话' ? $t('新对话') : current.title"
@@ -90,14 +95,15 @@ function restartLastRun(): void { void send("请重新开始刚才的任务，�
         :export-message="resumeWorkspace.exportMessage.value"
         :saving-to-library="resumeWorkspace.savingToLibrary.value"
         :save-message="resumeWorkspace.saveMessage.value"
+        :line-spacing-percent="resumeWorkspace.lineSpacing.percent.value" :line-spacing-maximum="resumeWorkspace.lineSpacing.maximumPercent.value" :line-spacing-saving="resumeWorkspace.lineSpacing.saving.value"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
         @toggle-artifact="toggleArtifact"
         @toggle-browser="toggleBrowser"
         @save-resume="saveResumeToCloud"
         @export-resume="exportResume"
+        @preview-line-spacing="resumeWorkspace.lineSpacing.preview" @commit-line-spacing="resumeWorkspace.lineSpacing.commit"
         @rename="current && openDialog('rename', { id: current.id, title: current.title, createdAt: current.createdAt, updatedAt: current.updatedAt, messageCount: current.messageCount })"
       />
-
       <div class="workspace-body">
         <section class="chat-pane">
           <div ref="scroller" class="message-scroller">
@@ -105,12 +111,13 @@ function restartLastRun(): void { void send("请重新开始刚才的任务，�
               <EmptyState
                 v-if="current.messages.length === 0 && !running"
                 :stage="emptyStages.stage.value"
+                @draft-prompt="publishComposerDraft"
                 @use-prompt="send"
                 @open-experiences="openPrimaryView('experiences')"
                 @open-library="openPrimaryView('library')"
                 @open-tracker="openTracker"
                 @open-browser="toggleBrowser"
-                @import-resume="conversationAttachment.select"
+                @import-resume="conversationAttachment.select" @save-delivery-resume="importDeliveryResumeFile"
               />
               <template v-for="message in messagesWithLiveStatus" :key="message.id">
                 <ChatMessageView :message="message" />
@@ -146,6 +153,7 @@ function restartLastRun(): void { void send("请重新开始刚才的任务，�
                   :key="artifact.proposalId"
                   :artifact="artifact"
                   @open="openExperienceImportResult(current.id, $event)"
+                  @generate-general="send(GENERAL_RESUME_PROMPT)"
                 />
               </template>
               <ChatRunTerminal v-if="current.lastRun && current.lastRun.status !== 'completed' && !running && !runError" :terminal="current.lastRun" @continue="continueLastRun" @restart="restartLastRun" @open-draft="openResumeDraft" />
@@ -193,6 +201,7 @@ function restartLastRun(): void { void send("请重新开始刚才的任务，�
                 :key="artifact.proposalId"
                 :artifact="artifact"
                 @open="openExperienceImportResult(current.id, $event)"
+                @generate-general="send(GENERAL_RESUME_PROMPT)"
               />
               <p v-if="runError" class="run-error" data-testid="chat-run-error">{{ runError }}</p>
               <ChatPendingAction
@@ -215,24 +224,16 @@ function restartLastRun(): void { void send("请重新开始刚才的任务，�
               />
             </div>
           </div>
-          <Composer
-            :disabled="!current"
-            :running="running"
-            :attachment="conversationAttachment.attachment.value"
-            :attachment-busy="conversationAttachment.selecting.value"
-            :attachment-error="conversationAttachment.error.value"
-            :resume-context="resumeOperationContext"
-            :cloud-copy-requested="cloudCopyRequested"
-            @send="send"
-            @cancel="desktopApi.agent.cancel"
-            @select-attachment="conversationAttachment.select"
-            @select-attachment-path="conversationAttachment.selectPath"
-            @remove-attachment="conversationAttachment.remove"
-            @clear-resume-context="clearResumeOperationContext"
-            @request-local-copy="requestCloudResumeCopy"
+          <ChatComposerHost
+            :shell="shell"
+            :disabled="composerDisabled || !current"
+            :guided="composerGuided"
+            :guided-text="composerGuidedText"
+            :guided-highlight="composerGuidedHighlight"
+            @guided-focus="$emit('composerFocus')"
+            @guided-send="$emit('composerSend', $event)"
           />
         </section>
-
         <ResumePreviewOutlet
           v-if="artifactOpen && activeArtifactType === 'resume'"
           :shell="shell"

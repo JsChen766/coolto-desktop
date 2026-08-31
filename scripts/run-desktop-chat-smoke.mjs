@@ -57,7 +57,6 @@ try {
     timeoutMs,
     Boolean(options.requireResumeReady),
     Boolean(options.acceptResumeAugmentation),
-    Boolean(options.acceptAgentTask),
   );
   result.durationMs = Date.now() - startedAt;
   result.agentEvents = await readAgentObservation(session);
@@ -107,7 +106,7 @@ async function findPage(base, waitMs) {
         target.type === "page" &&
         target.webSocketDebuggerUrl &&
         target.title === "Coolto" &&
-        /\/renderer\/index\.html$/u.test(target.url ?? ""),
+        isCooltoPageUrl(target.url),
       );
       if (page) return page;
     } catch {
@@ -116,6 +115,16 @@ async function findPage(base, waitMs) {
     await sleep(500);
   }
   fail(`No Coolto CDP page target at ${base} within ${waitMs}ms`);
+}
+
+function isCooltoPageUrl(value) {
+  try {
+    const url = new URL(value ?? "");
+    return /\/renderer\/index\.html$/u.test(url.pathname) ||
+      (url.hostname === "localhost" && url.pathname === "/");
+  } catch {
+    return false;
+  }
 }
 
 async function connect(url) {
@@ -259,76 +268,89 @@ async function installAgentObservation(session, stopAfterReuseWorkspace) {
   const installed = await evaluate(session, `(() => {
     window.__cooltoSmokeAgentUnsubscribe?.();
     window.__cooltoSmokeAgentEvents = [];
+    window.__cooltoSmokeResumeCallIds = [];
     window.__cooltoSmokeReuseCallIds = [];
     window.__cooltoSmokeStoppedAfterReuseWorkspace = false;
     const agent = window.coolto?.agent;
     if (!agent?.onEvent) return false;
     window.__cooltoSmokeAgentUnsubscribe = agent.onEvent((_conversationId, event) => {
-      if (event.type === "tool.started") {
+      if (event.type === "tool.started" && [
+        "find_resume_reuse_candidates", "create_resume_workspace",
+      ].includes(event.name)) {
         const args = event.arguments && typeof event.arguments === "object"
-          ? event.arguments
-          : {};
-        const growths = Array.isArray(args.tailGrowths) ? args.tailGrowths : [];
-        const reflows = Array.isArray(args.lineRewrites) ? args.lineRewrites : [];
+          ? event.arguments : {};
         window.__cooltoSmokeAgentEvents.push({
-          type: event.type,
-          callId: event.callId,
-          name: event.name,
-          status: "running",
-          ...(["find_resume_reuse_candidates", "create_resume_workspace"]
-            .includes(event.name) ? {
-              targetJdId: args.targetJdId ?? "",
-              jdId: args.jdId ?? "",
-              baseResumeId: args.baseResumeId ?? "",
-              experienceCount: Array.isArray(args.experiences)
-                ? args.experiences.length
-                : 0,
-            } : {}),
-          ...(event.name === "apply_resume_content" ? {
-            expectedRevision: args.expectedRevision,
-            inputMode: ["items", "bulletUpdates", "bulletRemovals",
-              "bulletAdditions", "tailGrowths", "lineRewrites"]
-              .find((key) => Array.isArray(args[key]) && args[key].length),
-            targetCount: growths.length || reflows.length,
-            tailGrowths: growths.map((entry) => ({
-              bulletId: entry?.bulletId ?? "",
-              growthText: entry?.growthText ?? "",
-              growthCharacters: [...(entry?.growthText ?? "")].length,
-            })),
-            tailReflows: reflows.map((entry) => ({
-              bulletId: entry?.bulletId ?? "",
-              revisedText: entry?.revisedText ?? "",
-            })),
-          } : {}),
-          ...(event.name === "capture_browser_mail_event" ? {
-            sender: String(args.sender ?? "").slice(0, 500),
-            subject: String(args.subject ?? "").slice(0, 1_000),
-            receivedAtEvidence: String(args.receivedAtEvidence ?? "").slice(0, 500),
-            bodyText: String(args.bodyText ?? "").slice(0, 500),
-          } : {}),
+          type: event.type, callId: event.callId, name: event.name,
+          targetJdId: args.targetJdId ?? "", jdId: args.jdId ?? "",
+          baseResumeId: args.baseResumeId ?? "",
+          baseDraftArtifactId: args.baseDraftArtifactId ?? "",
+          experienceCount: Array.isArray(args.experiences) ? args.experiences.length : 0,
         });
-        if (event.name === "create_resume_workspace" && args.baseResumeId) {
+        if (event.name === "create_resume_workspace" &&
+            (args.baseResumeId || args.baseDraftArtifactId)) {
           window.__cooltoSmokeReuseCallIds.push(event.callId);
         }
       }
-      if (event.type === "tool.completed") {
+      if (event.type === "tool.completed" &&
+          event.name === "create_resume_workspace" &&
+          window.__cooltoSmokeReuseCallIds.includes(event.callId)) {
+        window.__cooltoSmokeAgentEvents.push({
+          type: event.type, callId: event.callId, name: event.name,
+          isError: event.isError, error: event.error ?? "",
+        });
+        if (!event.isError && ${stopAfterReuseWorkspace}) {
+          window.__cooltoSmokeStoppedAfterReuseWorkspace = true;
+          void agent.cancel();
+        }
+      }
+      if (event.type === "tool.started" && event.name === "apply_resume_content") {
+        const args = event.arguments && typeof event.arguments === "object"
+          ? event.arguments
+          : {};
+        const rewrites = Array.isArray(args.tailRewrites) ? args.tailRewrites : [];
+        const growths = Array.isArray(args.tailGrowths) ? args.tailGrowths : [];
+        const reflows = Array.isArray(args.lineRewrites) ? args.lineRewrites : [];
+        window.__cooltoSmokeResumeCallIds.push(event.callId);
         window.__cooltoSmokeAgentEvents.push({
           type: event.type,
           callId: event.callId,
-          name: event.name,
-          status: event.isError ? "error" : "completed",
+          expectedRevision: args.expectedRevision,
+          inputMode: ["items", "bulletUpdates", "bulletRemovals",
+            "bulletAdditions", "tailRewrites", "tailGrowths", "lineRewrites"]
+            .find((key) => Array.isArray(args[key]) && args[key].length),
+          targetCount: rewrites.length || growths.length || reflows.length,
+          tailRewrites: rewrites.map((entry) => ({
+            bulletId: entry?.bulletId ?? "",
+            candidates: Array.isArray(entry?.candidates)
+              ? entry.candidates.map((candidate) => ({
+                  strategy: candidate?.strategy ?? "",
+                  revisedText: candidate?.revisedText ?? "",
+                }))
+              : [],
+          })),
+          tailGrowths: growths.map((entry) => ({
+            bulletId: entry?.bulletId ?? "",
+            growthText: entry?.growthText ?? "",
+            growthCharacters: [...(entry?.growthText ?? "")].length,
+          })),
+          tailReflows: reflows.map((entry) => ({
+            bulletId: entry?.bulletId ?? "",
+            revisedText: entry?.revisedText ?? "",
+          })),
+        });
+      }
+      if (
+        event.type === "tool.completed" &&
+        event.name === "apply_resume_content" &&
+        window.__cooltoSmokeResumeCallIds.includes(event.callId)
+      ) {
+        window.__cooltoSmokeAgentEvents.push({
+          type: event.type,
+          callId: event.callId,
           isError: event.isError,
           error: event.error ?? "",
           progress: event.progress,
         });
-        if (
-          event.name === "create_resume_workspace" &&
-          window.__cooltoSmokeReuseCallIds.includes(event.callId) &&
-          !event.isError && ${stopAfterReuseWorkspace}
-        ) {
-          window.__cooltoSmokeStoppedAfterReuseWorkspace = true;
-          void agent.cancel();
-        }
       }
     });
     return true;
@@ -349,20 +371,16 @@ async function waitForResult(
   waitMs,
   requireResumeReady,
   acceptResumeAugmentation,
-  acceptAgentTask,
 ) {
   const observedTools = new Map();
   const observedProgress = [];
   const progressSeen = new Set();
   let augmentationAcceptCount = 0;
-  let agentTaskAcceptCount = 0;
   let minimumAssistantCount = baseline.assistantCount + 1;
   let started = false;
   const state = await poll(waitMs, async () => {
     const current = await readState(session);
-    for (const tool of toolRunsFromEvents(await readAgentObservation(session))) {
-      observedTools.set(tool.callId, tool);
-    }
+    for (const tool of current.tools) observedTools.set(tool.callId, tool);
     if (current.progressLabel && !progressSeen.has(current.progressLabel)) {
       progressSeen.add(current.progressLabel);
       observedProgress.push(current.progressLabel);
@@ -374,36 +392,22 @@ async function waitForResult(
       !current.running &&
       current.approvalActionType === "resume.augmented.confirm"
     ) {
-      if (await acceptApproval(session, "resume.augmented.confirm")) {
+      if (await acceptResumeApproval(session)) {
         augmentationAcceptCount += 1;
         minimumAssistantCount = current.assistantCount + 1;
       }
       return undefined;
     }
-    if (
-      acceptAgentTask &&
-      !current.running &&
-      current.approvalActionType === "agent_task.provision"
-    ) {
-      if (await acceptApproval(session, "agent_task.provision")) {
-        agentTaskAcceptCount += 1;
-        minimumAssistantCount = current.assistantCount + 1;
-      }
-      return undefined;
-    }
-    const agentTaskSettled = agentTaskAcceptCount > 0 &&
-      current.agentTaskId && current.agentTaskId !== baseline.agentTaskId &&
-      ["waiting", "paused", "completed", "partially_completed", "failed",
-        "canceled", "expired"].includes(current.agentTaskStatus);
-    const requiredApprovalAccepted = !acceptAgentTask ||
-      agentTaskAcceptCount > 0 || Boolean(current.runError);
-    const requiredTaskSettled = !acceptAgentTask || agentTaskSettled ||
-      Boolean(current.runError);
+    const readyExperienceSync =
+      current.approvalActionType === "resume.experience.sync" &&
+      current.resumeWorkspaceStatus === "ready_for_approval" &&
+      current.resumeGenerationReady && current.resumePageCount === 1 &&
+      current.resumeUsageRatio >= 0.92;
     const finished = started && !current.running && (
-      current.assistantCount >= minimumAssistantCount || Boolean(current.runError) ||
-      current.stoppedAfterReuseWorkspace || agentTaskSettled
-    ) && !current.approvalActionType && requiredApprovalAccepted &&
-      requiredTaskSettled;
+      current.assistantCount >= minimumAssistantCount ||
+      Boolean(current.runError) || readyExperienceSync ||
+      current.stoppedAfterReuseWorkspace
+    ) && (!current.approvalActionType || readyExperienceSync);
     return finished ? current : undefined;
   }, "the chat run to complete");
   await settleCompletedTools(session, 2_000);
@@ -412,9 +416,7 @@ async function waitForResult(
     observedProgress.push(settledState.progressLabel);
   }
   const tools = [...observedTools.values()];
-  for (const tool of toolRunsFromEvents(await readAgentObservation(session))) {
-    observedTools.set(tool.callId, tool);
-  }
+  for (const tool of settledState.tools) observedTools.set(tool.callId, tool);
   tools.splice(0, tools.length, ...observedTools.values());
   const toolErrors = tools.filter((tool) => tool.status === "error");
   const resumeChanged = Boolean(settledState.resumeArtifactId) && (
@@ -426,24 +428,16 @@ async function waitForResult(
     settledState.resumeGenerationReady === true &&
     settledState.resumePageCount === 1 &&
     settledState.resumeUsageRatio >= 0.92;
-  const agentTaskCreated = Boolean(settledState.agentTaskId) &&
-    settledState.agentTaskId !== baseline.agentTaskId;
   return {
     success: !settledState.runError && toolErrors.length === 0 &&
-      (!requireResumeReady || resumeReady) &&
-      (!acceptAgentTask || (agentTaskAcceptCount === 1 && agentTaskCreated)),
+      (!requireResumeReady || resumeReady),
     finalResponse: settledState.lastAssistant,
     runError: settledState.runError,
+    approvalActionType: settledState.approvalActionType,
     tools,
     toolErrors,
     progressMessages: observedProgress,
     augmentationAcceptCount,
-    agentTask: {
-      required: acceptAgentTask,
-      accepted: agentTaskAcceptCount === 1 && agentTaskCreated,
-      status: agentTaskCreated ? settledState.agentTaskStatus : "",
-      goal: agentTaskCreated ? settledState.agentTaskGoal : "",
-    },
     resume: {
       required: requireResumeReady,
       changed: resumeChanged,
@@ -460,15 +454,12 @@ async function waitForResult(
 }
 
 async function readState(session) {
-  return evaluate(session, `(async () => {
+  return evaluate(session, `(() => {
     const input = document.querySelector('[data-testid="chat-composer-input"]');
     const messages = [...document.querySelectorAll('[data-testid="chat-message"]')];
     const assistant = messages.filter((item) => item.dataset.messageRole === "assistant");
     const resume = document.querySelector('[data-testid="resume-active-draft-status"]') ??
       [...document.querySelectorAll('[data-testid="resume-draft-status"]')].at(-1);
-    const agentTasks = await window.coolto.agentTasks.list();
-    const latestTask = [...agentTasks].sort((left, right) =>
-      right.updatedAt.localeCompare(left.updatedAt))[0];
     return {
       composerReady: input instanceof HTMLTextAreaElement && !input.disabled,
       sendReady: document.querySelector('[data-testid="chat-composer-send"]') instanceof HTMLButtonElement &&
@@ -479,10 +470,7 @@ async function readState(session) {
       lastAssistant: assistant.at(-1)?.textContent?.trim().slice(0, 8000) ?? "",
       runError: document.querySelector('[data-testid="chat-run-error"]')?.textContent?.trim() ?? "",
       progressLabel: document.querySelector('[data-testid="resume-generation-progress"]')?.textContent?.trim() ?? "",
-      approvalActionType: document.querySelector('[data-approval-action-type]')?.dataset.approvalActionType ?? "",
-      agentTaskId: latestTask?.id ?? "",
-      agentTaskStatus: latestTask?.status ?? "",
-      agentTaskGoal: latestTask?.goal ?? "",
+      approvalActionType: document.querySelector('[data-testid="approval-card"]')?.dataset.approvalActionType ?? "",
       stoppedAfterReuseWorkspace: window.__cooltoSmokeStoppedAfterReuseWorkspace === true,
       attachmentName: document.querySelector('[data-testid="chat-composer-attachment"] .composer-attachment-name')?.textContent?.trim() ?? "",
       attachmentError: document.querySelector('[data-testid="chat-composer-attachment-error"]')?.textContent?.trim() ?? "",
@@ -493,15 +481,21 @@ async function readState(session) {
       resumePageCount: Number(resume?.dataset.pageCount ?? 0),
       resumeUsageRatio: Number(resume?.dataset.pageUsageRatio ?? 0),
       resumeBlockerCodes: (resume?.dataset.blockerCodes ?? "").split(",").filter(Boolean),
+      tools: [...document.querySelectorAll('[data-testid="tool-run"]')].map((item) => ({
+        callId: item.dataset.toolCallId ?? "",
+        name: item.dataset.toolName ?? "",
+        status: item.dataset.toolStatus ?? "",
+        error: item.dataset.toolError ?? "",
+      })),
     };
   })()`);
 }
 
-async function acceptApproval(session, actionType) {
+async function acceptResumeApproval(session) {
   return evaluate(session, `(() => {
-    const card = document.querySelector('[data-approval-action-type]');
+    const card = document.querySelector('[data-testid="approval-card"]');
     const button = card?.querySelector('[data-testid="approval-accept"]');
-    if (card?.dataset.approvalActionType !== ${JSON.stringify(actionType)} ||
+    if (card?.dataset.approvalActionType !== "resume.augmented.confirm" ||
         !(button instanceof HTMLButtonElement) || button.disabled) return false;
     button.click();
     return true;
@@ -531,37 +525,10 @@ async function openResumePreview(session, artifactId, waitMs) {
 async function settleCompletedTools(session, waitMs) {
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
-    const events = await readAgentObservation(session);
-    if (!toolRunsFromEvents(events).some((tool) => tool.status === "running")) {
-      return;
-    }
+    const state = await readState(session);
+    if (!state.tools.some((tool) => tool.status === "running")) return;
     await sleep(100);
   }
-}
-
-function toolRunsFromEvents(events) {
-  const runs = new Map();
-  for (const event of events) {
-    if (event.type === "tool.started") {
-      runs.set(event.callId, {
-        callId: event.callId,
-        name: event.name,
-        status: "running",
-        error: "",
-      });
-    } else if (event.type === "tool.completed") {
-      const current = runs.get(event.callId) ?? {
-        callId: event.callId,
-        name: event.name,
-      };
-      runs.set(event.callId, {
-        ...current,
-        status: event.isError ? "error" : "completed",
-        error: event.error ?? "",
-      });
-    }
-  }
-  return [...runs.values()];
 }
 
 async function poll(waitMs, operation, description) {

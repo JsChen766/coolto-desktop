@@ -10,12 +10,12 @@ export async function uploadPageFile(
     pick(options: { accept: string; multiple: boolean }): Promise<string[]>;
   },
   touch: () => void,
+  registeredPaths?: readonly string[],
 ): Promise<FileUploadOutcome> {
   const probe = await probeFileInput(contents, fillId);
   if (!probe.ok) throw new Error(uploadReason(probe.reason));
-  const paths = await picker.pick({
-    accept: probe.accept,
-    multiple: probe.multiple,
+  const paths = registeredPaths?.length ? [...registeredPaths] : await picker.pick({
+    accept: probe.accept, multiple: probe.multiple,
   });
   if (paths.length === 0) return { cancelled: true };
   const result = await setFileInputFiles(contents, fillId, paths);

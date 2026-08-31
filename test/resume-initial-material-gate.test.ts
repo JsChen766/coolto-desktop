@@ -13,7 +13,7 @@ import { createResumeWorkspaceTool } from
 import { createWorkspaceSnapshotBuilder } from
   "./support/resume-workspace-fixture.js";
 
-test("physically unreachable material pauses before the first content write", async () => {
+test("sparse blank layout proceeds through grounded item-line planning", async () => {
   const store = new ResumeWorkspaceStore();
   const create = createResumeWorkspaceTool(
     createWorkspaceSnapshotBuilder({
@@ -33,11 +33,9 @@ test("physically unreachable material pauses before the first content write", as
     ],
   }));
 
-  assert.equal(result.status, "needs_user_decision");
-  assert.equal(result.materialRequest.kind, "layout_capacity_insufficient");
-  assert.equal(result.nextAction.mode, "request_more_material");
-  assert.match(result.nextAction.question, /真实事实/u);
-  assert.doesNotMatch(result.nextAction.question, /px|像素|candidate|UUID/iu);
+  assert.equal(result.status, "writing");
+  assert.equal(result.materialRequest, undefined);
+  assert.equal(result.nextAction.mode, "group_work_units");
   assert.equal(
     store.latest()!.structure.sections.some((section) =>
       section.items.some((item) => item.bullets.length > 0)

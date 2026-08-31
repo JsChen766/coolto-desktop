@@ -15,6 +15,7 @@ import type { ResumeWorkspace } from "./types.js";
 export interface LineRewriteInput {
   bulletId: string;
   revisedText: string;
+  contentMode?: "fact_neutral";
 }
 
 export interface LineRewriteSelection {
@@ -38,6 +39,8 @@ export interface LineRewriteFeedback {
   bulletId: string;
   status: "applied" | "rejected";
   progressType?: "stacked" | "height_growth";
+  /** Exact compact insertion that was rejected, so the model can avoid retrying it. */
+  rejectedInsertText?: string;
   failureType?:
     | "crossed_line_limit"
     | "unchanged_or_shorter"
@@ -117,7 +120,6 @@ export async function selectLineRewrites(
     ...rewriteFeedback(
       measured,
       new Set(updates.map((update) => update.bulletId)),
-      workspace.maxBulletLines ?? 3,
     ),
   ];
   const rejectedFeedback = feedback.filter((entry) =>
@@ -202,7 +204,6 @@ function rewriteDiagnostics(
 function rewriteFeedback(
   measured: readonly MeasuredLineRewrite[],
   applied: ReadonlySet<string>,
-  maximumLines: number,
 ): LineRewriteFeedback[] {
   return measured.map((rewrite) => {
     if (applied.has(rewrite.bulletId)) {
@@ -217,7 +218,7 @@ function rewriteFeedback(
         bulletId: rewrite.bulletId,
         status: "rejected",
         failureType: "crossed_line_limit",
-        reason: `改写实测为 ${rewrite.lineCount} 行，超过最多 ${maximumLines} 行；基于最新 currentText 少补一个最有价值的来源事实点`,
+        reason: `改写实测为 ${rewrite.lineCount} 行，超过该 bullet 已锁定的行数；基于最新 currentText 少补一个最有价值的来源事实点`,
       };
     }
     if (rewrite.characterGrowth <= 0) {

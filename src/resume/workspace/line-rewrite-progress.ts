@@ -1,5 +1,7 @@
 import type { ResumeWorkspace } from "./types.js";
 import { createResumeMaterialRequest } from "./material-request.js";
+import { factNeutralClosureActive } from "./first-generation-policy.js";
+import { stopFactNeutralClosure } from "./fact-neutral-stall.js";
 
 export const MAX_ZERO_GROWTH_ROUNDS = 2;
 export type LineRewritePhase = "bullet_depth" | "page_fill";
@@ -17,6 +19,15 @@ export function recordLineRewriteOutcome(
   const lineRewriteProgress = { phase, consecutiveZeroGrowthRounds };
   if (consecutiveZeroGrowthRounds < MAX_ZERO_GROWTH_ROUNDS) {
     return { ...workspace, lineRewriteProgress };
+  }
+  if (factNeutralClosureActive(workspace)) {
+    return stopFactNeutralClosure({
+      workspace: { ...workspace, lineRewriteProgress },
+      kind: "line_rewrite_stalled",
+      reason: phase === "bullet_depth"
+        ? "事实中性 bullet 深度收尾连续两轮没有真实增长"
+        : "事实中性篇幅收尾连续两轮没有真实页面增高",
+    });
   }
   const depth = phase === "bullet_depth";
   return {

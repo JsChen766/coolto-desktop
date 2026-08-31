@@ -7,6 +7,8 @@ import type {
   ExperienceReader,
   ExperienceSummary,
 } from "../api/types.js";
+import { experienceEvidenceEligibility } from
+  "../experience/evidence-eligibility.js";
 
 const EXPERIENCE_CATEGORIES = [
   "work",
@@ -61,13 +63,16 @@ export function createSearchExperiencesTool(
     name: "search_experiences",
     label: "搜索经历",
     description:
-      "列出或筛选当前登录用户的经历库，并返回语义判断所需的当前正文。模型看到的 id 是本轮稳定的短引用（如 exp_1），后续工具必须原样使用，不要抄写或猜测底层 UUID。需要历史版本或单条完整详情时，再使用 get_experience。",
+      "列出或筛选当前登录用户的经历库，并返回语义判断所需的当前正文。模型看到的 id 是 exp_... 形式的跨重启稳定短引用，后续工具必须原样使用，不要抄写或猜测底层 UUID。需要历史版本或单条完整详情时，再使用 get_experience。",
     parameters,
     execute: async (_toolCallId, params, signal) => {
       const result = await experienceReader.searchExperiences(params, signal);
+      const items = result.items.filter(
+        (item) => experienceEvidenceEligibility(item).eligible,
+      );
       const modelResult = {
         nextCursor: result.nextCursor,
-        items: result.items.map(projectExperienceForModel),
+        items: items.map(projectExperienceForModel),
       };
       return {
         content: [
@@ -76,7 +81,7 @@ export function createSearchExperiencesTool(
             text: JSON.stringify(modelResult),
           },
         ],
-        details: result,
+        details: { ...result, items },
       };
     },
   };

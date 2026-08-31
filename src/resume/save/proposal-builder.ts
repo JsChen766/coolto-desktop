@@ -8,6 +8,7 @@ import type {
   ResumeSaveMode,
 } from "./types.js";
 import { resumeGenerationReadiness } from "../workspace/generation-readiness.js";
+import { resumeSourceJd } from "../source-strategy.js";
 
 export interface BuildResumeSaveProposalInput {
   candidateId: string;
@@ -63,14 +64,15 @@ export class ResumeSaveProposalBuilder {
     const proposalId = `resume-save-${randomUUID()}`;
     const structured = structuredClone(workspace.structure);
     structured.layout_usage_ratio = workspace.compileResult.usageRatio;
+    const jd = resumeSourceJd(workspace.sourceSnapshot);
     return {
       proposalId,
       mode: input.mode,
       candidateId: workspace.candidateId,
       candidateRevision: workspace.revision,
       title,
-      targetRole: workspace.sourceSnapshot.jd.targetRole,
-      jdId: workspace.sourceSnapshot.jd.id,
+      targetRole: jd?.targetRole ?? null,
+      jdId: jd?.id ?? null,
       ...cloudTarget,
       sourceFingerprint: workspace.sourceSnapshot.sourceFingerprint,
       structured,

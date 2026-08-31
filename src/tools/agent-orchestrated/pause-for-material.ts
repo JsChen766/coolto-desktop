@@ -6,6 +6,9 @@ import { createResumeMaterialRequest } from "../../resume/workspace/material-req
 import { buildAgentWorkspaceReceipt } from "../../resume/workspace/agent-workspace-view.js";
 import { resumeGenerationReadiness } from "../../resume/workspace/generation-readiness.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
+import { initialMaterialQuestion } from "../../resume/workspace/material-question.js";
+import { hasPendingFirstGenerationGroundedWork } from
+  "../../resume/workspace/first-generation-policy.js";
 
 const parameters = Type.Object({
   candidateId: Type.String({ minLength: 1 }),
@@ -22,12 +25,12 @@ export function createPauseResumeForMaterialTool(
     name: "pause_resume_for_material",
     label: "等待用户补充简历素材",
     description:
-      "当你判断现有可靠事实无法继续忠实写作时，保存缺口和一个具体追问并暂停生成。targetExperienceId 只能复制工作区中的真实 sourceExperienceId；不确定时省略，绝不能传 search_experiences 的 exp_N 短引用。调用后停止工具循环，直接向用户提出 question。",
+      "当你判断现有可靠事实无法继续忠实写作时，保存缺口和一个具体追问并暂停生成。targetExperienceId 只能复制工作区中的真实 sourceExperienceId；不确定时省略，绝不能传 search_experiences 的 exp_... 短引用。调用后停止工具循环，直接向用户提出 question。",
     executionMode: "sequential",
     parameters,
     execute: async (_toolCallId, params) => {
       const reason = params.reason.trim();
-      const question = params.question.trim();
+      const question = initialMaterialQuestion(params.question);
       if (!reason || !question) {
         throw new Error("素材不足原因和用户追问均不能为空");
       }
@@ -39,6 +42,14 @@ export function createPauseResumeForMaterialTool(
       }
       if (resumeGenerationReadiness(workspace).ready) {
         throw new Error("当前简历已经通过全部门禁，不能进入素材补充状态");
+      }
+      if (workspace.factNeutralAuthorization) {
+        throw new Error("用户已结束补充并进入最终收尾，不能再次发起材料追问");
+      }
+      if (hasPendingFirstGenerationGroundedWork(workspace)) {
+        throw new Error(
+          "首次生成仍有可写的真实证据；必须先按当前 nextAction 写入全部可用 grounded bullet，不能提前向用户追问材料",
+        );
       }
       const requestedExperienceId = params.targetExperienceId?.trim();
       const targetExperienceId = requestedExperienceId &&
@@ -58,6 +69,7 @@ export function createPauseResumeForMaterialTool(
           kind: "agent_declared",
           reason,
           question,
+          discoveryStage: "guidance",
           ...(targetExperienceId ? { targetExperienceId } : {}),
         }),
       }, workspace.revision);

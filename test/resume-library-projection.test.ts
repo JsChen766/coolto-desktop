@@ -65,6 +65,39 @@ test("local only — no cloud", () => {
   assert.ok(entry.availableOperations.includes("delete_local_draft"));
 });
 
+test("a local general draft remains identifiable before cloud save", () => {
+  const draft = makeDraft({
+    workspace: {
+      revision: 5,
+      status: "ready_for_approval",
+      sourceSnapshot: { generationStrategy: "general" },
+    } as never,
+  });
+  const entry = buildEntryFromFull(null, draft);
+
+  assert.equal(entry.local?.generationStrategy, "general");
+  assert.equal(entry.local?.generationReady, true);
+  assert.equal(entry.local?.jdId, null);
+});
+
+test("a local tailored draft retains its source JD before cloud save", () => {
+  const draft = makeDraft({
+    workspace: {
+      revision: 5,
+      status: "ready_for_approval",
+      sourceSnapshot: {
+        generationStrategy: "tailored",
+        jd: { id: "jd-1", title: "平台工程师", targetRole: "平台工程师" },
+      },
+    } as never,
+  });
+  const entry = buildEntryFromFull(null, draft);
+
+  assert.equal(entry.local?.jdId, "jd-1");
+  assert.equal(entry.local?.jdTitle, "平台工程师");
+  assert.equal(entry.local?.targetRole, "平台工程师");
+});
+
 test("synced — hashes and revisions match", () => {
   const entry = buildEntryFromFull(
     makeCloud({ contentHash: "h1" }),

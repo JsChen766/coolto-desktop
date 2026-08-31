@@ -925,6 +925,20 @@ OTP/CAPTCHA takeover→resume、完整任务 deep-link 或 macOS BrowserWindow �
   未继续生成全文；临时 Resume 和新 JD 已按实际 entityVersion 通过 DELETE 接口清理，隔离登录态和本地
   草稿目录亦已删除。至此常规 prompt 的“找到候选 → Agent 读取判断 → 建立微调工作区”正向链路通过；
   完整生成的 token/耗时节省和最终质量等价性仍未验收。
+- 2026-08-27 真实 AI Builder 连续生成暴露 Reuse Memory 只检索 cloud Resume，而简历仓库中的合格稿实际
+  全部是 `local_only` ResumeDraft；真实账号 46 条本地草稿、0 条 cloud Resume，故三次虽然调用候选工具，
+  候选仍恒为空。现候选域扩展为 cloud `qualityStatus=passed` 与 local `generationReadiness.ready=true`、
+  无 pending change 的并集；同一 JD 的最新合格本地稿优先，`get_resume` 用 artifactId 读取，
+  `create_resume_workspace.baseDraftArtifactId` 复用其来源经历和 grounded bullet，宿主仍逐字重核当前
+  Experience evidence、重算 coverage，跨 JD 仍由 Agent 判断。相同 JD 的本地 item tier 原样保留，新增
+  经历才使用 Agent 新分级；否则原 secondary 可能被重标 main 并制造伪 bullet-count 缺口。
+- 完整 `npm run check` 全绿：893 个源文件 ≤250 行、770/770 tests、全部 typecheck/build。真实已登录
+  Electron 自然消息“请为岗位「AI Builder」生成针对性简历。”在 25.534 秒内执行
+  `search_jds → get_jd → find_resume_reuse_candidates → get_resume → 两次 Experience 检索 →
+  create_resume_workspace`，创建参数 `baseDraftArtifactId=07e029b8-d502-400a-b0f4-4c853b2e5e3f`、
+  experienceCount=7；新 artifact `27b22c79-592a-4465-92b5-fc257c958e3d` 直接达到
+  `ready_for_approval`、单页 92.78%、0 短尾、最低尾行 67.65%、0 blocker，并自动生成 checkpoint。
+  原基底 revision 17 未变化，无 cloud write/审批/保存/导出。完整跨 JD token/质量对照仍未执行，BE5 状态不变。
 
 ## 9. 站点政策与产品边界
 

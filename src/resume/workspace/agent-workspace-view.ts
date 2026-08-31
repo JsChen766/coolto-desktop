@@ -7,8 +7,8 @@ import { resumeAgentNextAction } from "./agent-next-action.js";
 import type { ResumeWorkspace } from "./types.js";
 import { normalizeResumeMaterialRequest } from "./material-request.js";
 import { pendingAugmentedContent } from "./augmentation-state.js";
-import { minimumResumeBulletCount } from "./bullet-count-rules.js";
-
+import { buildBulletDiagnostics, buildItemDiagnostics } from
+  "./agent-layout-diagnostics.js";
 export interface WorkspaceOperationReceipt {
   status: "success" | "partial_success" | "rejected";
   appliedItemIds: string[];
@@ -18,23 +18,18 @@ export interface WorkspaceOperationReceipt {
     errors?: WorkspaceBulletValidationError[];
   }>;
 }
-
 export interface WorkspaceBulletValidationError {
   bulletIndex: number;
   bulletId: string;
   code: string;
   message: string;
 }
-
 export function buildAgentWorkspaceView(
   workspace: ResumeWorkspace,
   operation?: WorkspaceOperationReceipt,
 ): object {
   const provenance = new Map(
     (workspace.bulletProvenance ?? []).map((entry) => [entry.bulletId, entry]),
-  );
-  const measurement = new Map(
-    workspace.compileResult.bullets.map((entry) => [entry.bulletId, entry]),
   );
   const items = workspace.structure.sections.flatMap((section) =>
     section.items.map((item) => ({
@@ -48,54 +43,23 @@ export function buildAgentWorkspaceView(
       rawText: item.raw_text,
       bullets: item.bullets.map((bullet) => {
         const source = provenance.get(bullet.id);
+        const linePlan = workspace.bulletLinePlans?.[bullet.id];
         return {
           bulletId: bullet.id,
           text: bullet.text,
           origin: source?.origin ?? "grounded",
           evidenceIds: source?.evidenceIds ?? [],
+          workUnitIds: source?.workUnitIds ?? [],
           requirementIds: source?.requirementIds ?? [],
           confirmation: source?.confirmation ?? "not_required",
+          plannedLines: linePlan?.plannedLines ?? null,
+          lockedLines: linePlan?.lockedLines ?? null,
         };
       }),
     })),
   );
-  const itemDiagnostics = items.flatMap((item) => {
-    const minimumRequired = minimumResumeBulletCount({
-      sectionType: item.sectionType, itemId: item.itemId,
-      ...(item.tier ? { tier: item.tier } : {}),
-    });
-    return minimumRequired ? [{
-        itemId: item.itemId,
-        tier: item.tier ?? "skills",
-        bulletCount: item.bullets.length,
-        minimumRequired,
-        passed: item.bullets.length >= minimumRequired,
-    }] : [];
-  });
-  const bulletDiagnostics = items.flatMap((item) =>
-    item.bullets.map((bullet) => {
-      const observed = measurement.get(bullet.bulletId);
-      const availableLineWidthPx = observed?.availableLineWidthPx ?? 0;
-      const passed = observed?.passed ?? false;
-      return {
-        bulletId: bullet.bulletId,
-        lineCount: observed?.lineCount ?? 0,
-        lastLineWidthPx: observed?.lastLineWidthPx ?? 0,
-        availableLineWidthPx,
-        lastLineRatio: observed?.lastLineRatio ?? 0,
-        minimumPassingTailWidthPx: round(availableLineWidthPx * 0.7),
-        tailWidthDeficitPx: round(
-          Math.max(
-            0,
-            availableLineWidthPx * 0.7 -
-              (observed?.lastLineWidthPx ?? 0) +
-              (passed ? 0 : 0.01),
-          ),
-        ),
-        passed,
-      };
-    }),
-  );
+  const itemDiagnostics = buildItemDiagnostics(workspace, items);
+  const bulletDiagnostics = buildBulletDiagnostics(workspace, items);
   const compile = workspace.compileResult;
   const readiness = resumeGenerationReadiness(workspace);
   const bodyLineHeightPx = Math.max(1, compile.bodyLineHeightPx);
@@ -114,16 +78,21 @@ export function buildAgentWorkspaceView(
   const minimumUsagePassed =
     compile.usedHeightPx + RESUME_LAYOUT_TOLERANCE_PX >=
     compile.availableHeightPx * RESUME_GLOBAL_MINIMUM_USAGE_RATIO;
-  const bulletCountsPassed = itemDiagnostics.every((item) => item.passed);
-  const bulletDepthPassed = !readiness.blockers.some(
-    (blocker) => blocker.code === "bullet_line_count_too_low",
-  );
+  const bulletCountsPassed = workspace.lineBudgetVersion === "item-lines-v1"
+    ? itemDiagnostics.every((item) => item.bulletCount > 0)
+    : itemDiagnostics.every((item) => item.passed);
+  const itemLinesPassed = workspace.lineBudgetVersion === "item-lines-v1"
+    ? itemDiagnostics.every((item) => item.passed)
+    : true;
   const bulletTailsPassed = bulletDiagnostics.every((bullet) => bullet.passed);
   const pendingConfirmation = pendingAugmentedContent(workspace);
   return {
     candidateId: workspace.candidateId,
     revision: workspace.revision,
     status: workspace.status,
+    selectionPolicy: workspace.selectionPolicy ?? "relevance",
+    ...(workspace.userDirectedSelection
+      ? { userDirectedSelection: workspace.userDirectedSelection } : {}),
     reuseBase: workspace.reuseBase ?? null,
     nextAction: resumeAgentNextAction(workspace),
     ...(workspace.materialRequest
@@ -139,6 +108,7 @@ export function buildAgentWorkspaceView(
         ...(blocker.itemId ? { itemId: blocker.itemId } : {}),
         ...(blocker.bulletId ? { bulletId: blocker.bulletId } : {}),
       })),
+      warnings: readiness.warnings.map((warning) => ({ code: warning.code })),
     },
     ...(operation ? { operation } : {}),
     resume: { items },
@@ -161,7 +131,7 @@ export function buildAgentWorkspaceView(
         singlePage,
         minimumUsagePassed,
         bulletCountsPassed,
-        bulletDepthPassed,
+        itemLinesPassed,
         bulletTailsPassed,
       },
       items: itemDiagnostics,
@@ -171,12 +141,14 @@ export function buildAgentWorkspaceView(
           code: violation.code,
           ...(violation.bulletId ? { bulletId: violation.bulletId } : {}),
         })),
-        ...itemDiagnostics
-          .filter((item) => !item.passed)
-          .map((item) => ({ code: "bullet_count_too_low", itemId: item.itemId })),
-        ...readiness.blockers.filter(
-          (blocker) => blocker.code === "bullet_line_count_too_low",
-        ),
+        ...itemDiagnostics.filter((item) => !item.passed).map((item) => ({
+          code: workspace.lineBudgetVersion === "item-lines-v1"
+            ? item.bulletCount > 0
+              ? "item_line_budget_shortfall"
+              : "item_empty"
+            : "bullet_count_too_low",
+          itemId: item.itemId,
+        })),
         ...pendingConfirmation.map((item) => ({
           code: "pending_augmented_confirmation",
           itemId: item.itemId,
@@ -187,7 +159,6 @@ export function buildAgentWorkspaceView(
     pendingConfirmation,
   };
 }
-
 /** Compact receipt; full current content is recoverable through get_resume_workspace. */
 export function buildAgentWorkspaceReceipt(
   workspace: ResumeWorkspace,
@@ -238,7 +209,6 @@ export function buildAgentWorkspaceReceipt(
     recovery: "需要完整当前简历时调用 get_resume_workspace；正常循环直接按 nextAction 批量继续",
   };
 }
-
 function round(value: number): number {
   return Number(value.toFixed(2));
 }

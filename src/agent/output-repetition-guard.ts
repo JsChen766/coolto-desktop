@@ -2,12 +2,16 @@ const MIN_PATTERN_CHARS = 64;
 const MAX_PATTERN_CHARS = 1_024;
 const REQUIRED_REPEATS = 4;
 const MAX_BUFFER_CHARS = 8_192;
-const MAX_NARRATIVE_CHARS = 6_000;
+const MAX_NARRATIVE_CHARS = 8_000;
+
+export type OutputRepetitionReason =
+  | "repeated_cycle"
+  | "narrative_limit";
 
 /**
- * Detects a long exact cycle or runaway narration inside one streamed model
- * response. Tool-call argument deltas do not enter this guard, so large batch
- * writes remain allowed while unproductive prose gets a guided retry.
+ * Detects a long exact cycle or runaway user-visible narration inside one
+ * streamed response. Tool-call arguments and hidden reasoning are governed by
+ * their own provider limits; only visible text enters this guard.
  */
 export class StreamingOutputRepetitionGuard {
   #buffer = "";
@@ -18,12 +22,16 @@ export class StreamingOutputRepetitionGuard {
     this.#narrativeCharacters = 0;
   }
 
-  public append(delta: string): boolean {
-    if (delta.length === 0) return false;
+  public append(delta: string): OutputRepetitionReason | undefined {
+    if (delta.length === 0) return undefined;
     this.#narrativeCharacters += [...delta].length;
-    if (this.#narrativeCharacters > MAX_NARRATIVE_CHARS) return true;
+    if (this.#narrativeCharacters > MAX_NARRATIVE_CHARS) {
+      return "narrative_limit";
+    }
     this.#buffer = (this.#buffer + delta).slice(-MAX_BUFFER_CHARS);
-    return hasRepeatedSuffix(normalize(this.#buffer));
+    return hasRepeatedSuffix(normalize(this.#buffer))
+      ? "repeated_cycle"
+      : undefined;
   }
 }
 

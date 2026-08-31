@@ -32,6 +32,7 @@ test("account change revokes gate, run and immutable grant", async () => {
     agentHarness: harness,
     agent: { cancel: () => calls.push("cancel") },
     selectedFiles: { clear: () => calls.push("files") },
+    deliveryResumeFiles: { clearStaging: async () => { calls.push("delivery-staging"); } },
     reminderScheduler: { dispose: () => calls.push("reminders") },
     agentTaskScheduler: { dispose: () => calls.push("task-scheduler") },
   } as unknown as UserServices;
@@ -45,7 +46,7 @@ test("account change revokes gate, run and immutable grant", async () => {
   assert.equal(active.revocation?.reason, "account_changed");
   assert.equal((await harness.tasks.get(task.id)).status, "paused");
   assert.deepEqual(calls, [
-    "gate:account_changed", "status", "cancel", "files",
+    "gate:account_changed", "status", "cancel", "files", "delivery-staging",
     "reminders", "task-scheduler",
   ]);
 });

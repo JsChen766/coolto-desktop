@@ -41,10 +41,17 @@ export function buildExperienceUpdate(
   });
   const writePayload = {
     revisionId,
-    ...next,
-    resumeSectionKey: section.sectionKey,
-    resumeSectionLabel: section.sectionLabel,
-    source: "manual",
+    category: next.category,
+    title: next.title,
+    content: next.content,
+    organization: next.organization,
+    role: next.role,
+    location: next.location,
+    startDate: next.startDate,
+    endDate: next.endDate,
+    tags: [...next.tags],
+    status: next.status,
+    source: changes.revisionSource ?? "manual",
   };
   const localPayload: Record<string, unknown> = {
     ...entity.payload,
@@ -71,7 +78,7 @@ export function buildExperienceUpdate(
       id: revisionId,
       experienceId: current.id,
       content,
-      source: "manual",
+      source: changes.revisionSource ?? "manual",
       revisionHash: nextHash,
       revisionNumber: number,
       createdAt: now,

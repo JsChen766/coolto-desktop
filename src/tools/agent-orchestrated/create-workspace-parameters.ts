@@ -15,15 +15,31 @@ const tier = Type.Union([
 ]);
 
 export const createWorkspaceParameters = Type.Object({
-  jdId: Type.String({ minLength: 1 }),
+  generationStrategy: Type.Optional(Type.Union([
+    Type.Literal("tailored"),
+    Type.Literal("general"),
+  ])),
+  selectionPolicy: Type.Optional(Type.Union([
+    Type.Literal("relevance"),
+    Type.Literal("user_directed"),
+  ])),
+  focusExperienceId: Type.Optional(Type.String({
+    minLength: 1,
+    description: "仅 user_directed 使用；唯一明显相关、应多分配正文行数的指定经历 ID",
+  })),
+  jdId: Type.Optional(Type.String({ minLength: 1 })),
   baseResumeId: Type.Optional(Type.String({
     minLength: 1,
     description: "仅使用 find_resume_reuse_candidates/get_resume 核验后由 Agent 选择的历史 Resume ID",
   })),
+  baseDraftArtifactId: Type.Optional(Type.String({
+    minLength: 1,
+    description: "仅使用 find_resume_reuse_candidates/get_resume 核验后的合格本地 ResumeDraft artifactId",
+  })),
   language: Type.Union([Type.Literal("zh-CN"), Type.Literal("en-US")]),
   experiences: Type.Array(Type.Object({
     experienceId: Type.String({
-      description: "原样使用 search_experiences 返回的短 id（如 exp_1）",
+      description: "原样使用 search_experiences 返回的 exp_... 短 id",
       minLength: 1,
     }),
     tier: Type.Optional(tier),
@@ -48,4 +64,3 @@ export const createWorkspaceParameters = Type.Object({
     }),
   }))),
 });
-

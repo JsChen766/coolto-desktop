@@ -12,22 +12,15 @@ import ComposerResumeContext from "./ComposerResumeContext.vue";
 import IconButton from "./IconButton.vue";
 import ResumePickerPopup from "./ResumePickerPopup.vue";
 import type { ResumeChatReference } from "@desktop/types";
-import type { AttachmentView } from "../attachments/use-conversation-attachment";
 import { attachmentStatus, fileSize } from "../attachments/attachment-formatters";
+import { subscribeComposerDraft } from "../chat/composer-draft-channel";
 import { subscribeResumeReference } from "../resume-workspace/resume-reference-channel";
 import { translate } from "../i18n/locale";
 import { useComposerDrop } from "../chat/use-composer-drop";
-import { useComposerPageHandoff } from "../chat/use-composer-page-handoff";
+import { useGuidedComposer } from "../chat/use-guided-composer";
+import type { ComposerProps } from "./composer-props";
 
-const props = defineProps<{
-  disabled?: boolean;
-  running?: boolean;
-  attachment?: AttachmentView | undefined;
-  attachmentBusy?: boolean;
-  attachmentError?: string | undefined;
-  resumeContext?: ResumeChatReference | undefined;
-  cloudCopyRequested?: boolean;
-}>();
+const props = defineProps<ComposerProps>();
 
 const emit = defineEmits<{
   send: [text: string, reference?: ResumeChatReference];
@@ -37,6 +30,7 @@ const emit = defineEmits<{
   removeAttachment: [];
   clearResumeContext: [];
   requestLocalCopy: [];
+  focus: [];
 }>();
 
 const text = ref("");
@@ -45,6 +39,7 @@ const pickerOpen = ref(false);
 const textarea = useTemplateRef<HTMLTextAreaElement>("textarea");
 const effectiveReference = computed(() => reference.value ?? props.resumeContext);
 let unsubscribeReference: (() => void) | undefined;
+let unsubscribeDraft: (() => void) | undefined;
 
 const {
   dragActive,
@@ -59,9 +54,13 @@ const {
 
 onMounted(() => {
   unsubscribeReference = subscribeResumeReference(selectReference);
+  unsubscribeDraft = subscribeComposerDraft(fillDraft);
 });
 
-onBeforeUnmount(() => unsubscribeReference?.());
+onBeforeUnmount(() => {
+  unsubscribeReference?.();
+  unsubscribeDraft?.();
+});
 
 function resize(): void {
   const element = textarea.value;
@@ -69,11 +68,19 @@ function resize(): void {
   element.style.height = "auto";
   element.style.height = `${Math.min(element.scrollHeight, 180)}px`;
 }
-useComposerPageHandoff(text, textarea, resize);
+function fillDraft(value: string): void {
+  text.value = value;
+  void nextTick(() => { resize(); textarea.value?.focus(); });
+}
+const guidance = useGuidedComposer({
+  preset: () => props.guidedText,
+  text,
+  resized: () => void nextTick(resize),
+});
 
 function send(): void {
   const value = text.value.trim();
-  if (!value || props.disabled || props.running) return;
+  if (!value || props.disabled || props.running || guidance.typing.value) return;
   emit("send", value, effectiveReference.value);
   text.value = "";
   reference.value = undefined;
@@ -113,7 +120,7 @@ function selectReference(selected: ResumeChatReference): void {
     <div
       class="composer"
       data-testid="chat-composer-surface"
-      :class="{ 'drag-active': dragActive }"
+      :class="{ 'drag-active': dragActive, 'guided-highlight': guidedHighlight }"
       @dragenter.prevent="dragActive = true"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
@@ -183,7 +190,9 @@ function selectReference(selected: ResumeChatReference): void {
         :aria-label="$t('消息输入框')"
         :placeholder="$t('给 Coolto 发消息…')"
         :disabled="disabled"
+        :readonly="guided"
         @input="resize"
+        @focus="$emit('focus')"
         @keydown="handleKeydown"
       />
       <div class="composer-actions">
@@ -191,14 +200,14 @@ function selectReference(selected: ResumeChatReference): void {
           <IconButton
             :icon="Plus"
             :label="$t('选择已有简历')"
-            :disabled="disabled || running"
+            :disabled="disabled || running || guided"
             :size="17"
             @click="pickerOpen = true"
           />
           <IconButton
             :icon="Paperclip"
-            :label="$t('选择简历附件')"
-            :disabled="disabled || running || attachmentBusy"
+            :label="$t('选择经历材料')"
+            :disabled="disabled || running || attachmentBusy || guided"
             :size="17"
             @click="$emit('selectAttachment')"
           />
@@ -222,7 +231,7 @@ function selectReference(selected: ResumeChatReference): void {
           data-testid="chat-composer-send"
           :aria-label="$t('发送')"
           :title="$t('发送')"
-          :disabled="disabled || !text.trim()"
+          :disabled="disabled || guidance.typing.value || !text.trim()"
           @click="send"
         >
           <ArrowUp :size="17" :stroke-width="2.2" />

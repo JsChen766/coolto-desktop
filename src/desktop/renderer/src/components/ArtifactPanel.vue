@@ -25,6 +25,7 @@ const props = defineProps<{
   error?: string | undefined;
   localSaveState: "idle" | "dirty" | "saving" | "saved" | "error";
   repositoryPreview?: boolean;
+  lineSpacingPercent: number;
 }>();
 
 defineEmits<{
@@ -34,6 +35,7 @@ defineEmits<{
   accept: [];
   reject: [];
   back: [];
+  lineSpacingMaximum: [value: number];
 }>();
 
 const historyOpen = ref(false);
@@ -137,8 +139,10 @@ const localState = computed(() => {
 
       <A4ResumeEditor
         :draft="draft"
+        :line-spacing-percent="lineSpacingPercent"
         @edit="$emit('edit', $event)"
         @autosave="$emit('autosave', $event)"
+        @line-spacing-maximum="$emit('lineSpacingMaximum', $event)"
       />
 
       <footer v-if="draft.pendingChange" class="resume-change-actions">

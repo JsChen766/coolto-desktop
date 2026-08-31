@@ -105,7 +105,7 @@ function createWindow(): void {
 
   const browser = registerBrowserIpc(ipcMain, window);
   registerDesktopIpc(ipcMain, window, resumeCompiler, browser.agentController,
-    browser.pageOperator, browser.agentStatus, () => browser.open());
+    browser.pageOperator, browser.agentStatus, browser);
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {

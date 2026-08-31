@@ -16,6 +16,8 @@ import SettingsDialog from "./components/SettingsDialog.vue";
 import CreditsHost from "./components/CreditsHost.vue";
 import WindowTitleBar from "./components/WindowTitleBar.vue";
 import ForcedUpdateDialog from "./components/ForcedUpdateDialog.vue";
+import OnboardingWorkspace from "./onboarding/OnboardingWorkspace.vue";
+import { useOnboarding } from "./onboarding/use-onboarding";
 
 const shell = useAppShell();
 const mainWorkspace = ref<InstanceType<typeof AppMainWorkspace>>();
@@ -64,6 +66,7 @@ const {
   user,
   verifyEmailCode,
 } = shell;
+const onboarding = useOnboarding(shell);
 
 function guardNavigation(action: () => void | Promise<void>): void {
   void (async () => {
@@ -162,7 +165,7 @@ onBeforeUnmount(() => unsubscribeCalendar());
       :resume-drafts="resumeWorkspace.drafts.value"
       :current-draft-id="resumeWorkspace.activeDraft.value?.artifactId"
       :active-view="activeView"
-      :generating="running"
+      :generating="running || onboarding.blocking.value"
       :update-state="updateState"
       :update-checking="updateChecking"
       :update-up-to-date="updateUpToDate"
@@ -193,7 +196,12 @@ onBeforeUnmount(() => unsubscribeCalendar());
       @click="sidebarOpen = false"
     />
 
-    <AppMainWorkspace ref="mainWorkspace" :shell="shell" />
+    <OnboardingWorkspace
+      v-if="onboarding.blocking.value"
+      :shell="shell"
+      :controller="onboarding"
+    />
+    <AppMainWorkspace v-else ref="mainWorkspace" :shell="shell" />
 
     <ConversationDialog
       v-if="dialog"

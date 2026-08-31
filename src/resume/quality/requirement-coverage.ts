@@ -3,6 +3,7 @@ import type {
   ResumeSourceRequirementSnapshot,
   ResumeSourceSnapshot,
 } from "../source-types.js";
+import { resumeSourceRequirements } from "../source-strategy.js";
 
 export function isMustHave(
   requirement: ResumeSourceRequirementSnapshot,
@@ -20,7 +21,7 @@ export function calculateRequirementQuality(
   const covered = new Set(
     bindings.flatMap((binding) => [...binding.matchedRequirementIds]),
   );
-  const requirements = snapshot.jd.requirements;
+  const requirements = resumeSourceRequirements(snapshot);
   const mustHave = requirements.filter(isMustHave);
   const totalWeight = requirements.reduce((sum, requirement) => sum + weight(requirement), 0);
   const coveredWeight = requirements
@@ -54,7 +55,11 @@ export function textSupportsRequirement(
   text: string,
 ): boolean {
   const haystack = text.toLocaleLowerCase();
-  return requirementTerms(requirement).some((term) => haystack.includes(term));
+  return requirementTerms(requirement).some((term) =>
+    haystack.includes(term) || equivalentTerms(term).some((equivalent) =>
+      haystack.includes(equivalent)
+    )
+  );
 }
 
 export function matchedRequirementIdsForText(
@@ -62,11 +67,26 @@ export function matchedRequirementIdsForText(
   text: string,
 ): string[] {
   const haystack = text.toLocaleLowerCase();
-  return snapshot.jd.requirements
+  return resumeSourceRequirements(snapshot)
     .filter((requirement) =>
-      requirementTerms(requirement).some((term) => haystack.includes(term)),
+      requirementTerms(requirement).some((term) =>
+        haystack.includes(term) || equivalentTerms(term).some((equivalent) =>
+          haystack.includes(equivalent)
+        )
+      ),
     )
     .map((requirement) => requirement.id);
+}
+
+const EQUIVALENT_TERM_GROUPS = [
+  ["金融建模", "财务建模", "财务模型", "金融模型", "financial modeling", "financial model"],
+  ["办公常用工具", "办公工具", "microsoft office", "office", "excel", "word", "powerpoint", "powerbi", "ppt"],
+] as const;
+
+function equivalentTerms(term: string): readonly string[] {
+  return EQUIVALENT_TERM_GROUPS.find((group) =>
+    group.some((anchor) => term.includes(anchor))
+  ) ?? [];
 }
 
 function requirementTerms(requirement: ResumeSourceRequirementSnapshot): string[] {

@@ -42,5 +42,5 @@ test("resume library preserves a local draft JD for repository aggregation", asy
   assert.equal(entries[0]?.local?.jdTitle, jd.title);
   assert.equal(snapshot.resumes[0]?.primaryJd.state, "linked");
   assert.equal(snapshot.resumes[0]?.primaryJd.id, jd.id);
-  assert.deepEqual(snapshot.jds[0]?.targetedResumeIds, [entries[0]?.entryId]);
+  assert.deepEqual(snapshot.jds[0]?.targetedResumeEntryIds, [entries[0]?.entryId]);
 });

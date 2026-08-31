@@ -1,6 +1,6 @@
 import type { JdArtifactData, MatchReportArtifactData } from "./artifacts.js";
 import type { BrowserFillRecordView } from "./browser.js";
-import type { CreditBalanceDetail } from "./conversations.js";
+import type { ChatMessage, CreditBalanceDetail } from "./conversations.js";
 import type { ResumeToolProgress } from "../../../agent/tool-progress.js";
 
 export type { ResumeToolProgress } from "../../../agent/tool-progress.js";
@@ -53,6 +53,7 @@ export type DesktopApprovalDecision =
 export type DesktopAgentEvent =
   | { type: "run.started" }
   | { type: "message.delta"; text: string }
+  | { type: "assistant.notice"; message: ChatMessage }
   | { type: "tool.started"; callId: string; name: string; arguments: unknown }
   | {
       type: "tool.completed";
@@ -67,7 +68,7 @@ export type DesktopAgentEvent =
   | { type: "run.completed" }
   | { type: "turn.completed" }
   | { type: "resume.draft.updated"; artifactId: string }
-  | { type: "resume.draft.saving" }
+  | { type: "resume.draft.saving"; replacePreview?: boolean }
   | { type: "resume.draft.save-failed"; message: string }
   | { type: "approval.required"; request: DesktopApprovalRequest }
   | {

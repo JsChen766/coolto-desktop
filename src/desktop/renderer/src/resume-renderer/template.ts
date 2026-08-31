@@ -10,6 +10,11 @@ import {
   RESUME_DEFAULT_TARGET_USAGE_RATIO,
   RESUME_GLOBAL_MINIMUM_USAGE_RATIO,
 } from "../../../../resume/compiler-types";
+import {
+  RESUME_LINE_SPACING_MAX_PERCENT,
+  RESUME_LINE_SPACING_MIN_PERCENT,
+  scaledResumeBodyLineHeight,
+} from "../../../../resume/layout-line-spacing";
 
 export interface ResumeTemplateManifestEntry {
   template_id: ResumeTemplateId;
@@ -157,8 +162,14 @@ export function applyResumeTemplateStyle(
   const bodyScale = clamp(tuning?.body_font_scale, 1, 1.08, 1);
   const lineHeight = clamp(
     tuning?.body_line_height,
-    template.styles.body.line_height,
-    1.28,
+    scaledResumeBodyLineHeight(
+      template.styles.body.line_height,
+      RESUME_LINE_SPACING_MIN_PERCENT,
+    ),
+    scaledResumeBodyLineHeight(
+      template.styles.body.line_height,
+      RESUME_LINE_SPACING_MAX_PERCENT,
+    ),
     template.styles.body.line_height,
   );
   const sectionScale = clamp(tuning?.section_gap_scale, 1, 2.5, 1);
@@ -219,4 +230,3 @@ export function applyResumeTemplateStyle(
     element.style.setProperty(name, value);
   }
 }
-

@@ -1,4 +1,4 @@
-import type { ResumeSourceSnapshot } from "../source-types.js";
+import type { TailoredResumeSourceSnapshot } from "../source-types.js";
 import { ResumeSourceSnapshotBuilder } from "../source-snapshot.js";
 import { STANDARD_RESUME_TEMPLATE_SNAPSHOT } from "../template-contract.js";
 import { buildResumeSkeleton } from "../workspace/candidate-skeleton.js";
@@ -43,7 +43,7 @@ export class ResumeLayoutInspector {
     );
   }
 
-  #buildSnapshot(input: LayoutInspectInput): Promise<ResumeSourceSnapshot> {
+  #buildSnapshot(input: LayoutInspectInput): Promise<TailoredResumeSourceSnapshot> {
     return this.snapshotBuilder.build({
       jdId: input.jdId,
       experienceIds: input.experienceIds,

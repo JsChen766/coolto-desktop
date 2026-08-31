@@ -124,7 +124,6 @@ export class ResumeCandidatePatcher {
             sourceSnapshot: current.sourceSnapshot,
             bindings: patched.bindings,
           },
-          current.maxBulletLines ?? 3,
         ),
         structure: patched.structure,
         bindings: patched.bindings,

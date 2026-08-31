@@ -166,10 +166,12 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
     this.gate.touch();
   }
 
-  public async uploadFile(fillId: string): Promise<FileUploadOutcome> {
+  public async uploadFile(fillId: string, registeredPaths?: readonly string[]):
+  Promise<FileUploadOutcome> {
     const ctx = this.#requireGranted();
     return uploadPageFile(
       ctx.webContents, fillId, this.filePicker, () => this.gate.touch(),
+      registeredPaths,
     );
   }
 

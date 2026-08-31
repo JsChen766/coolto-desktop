@@ -11,6 +11,7 @@ import type {
   DesktopAgentEvent,
   DesktopApi,
 } from "../shared/types.js";
+import { onboardingPreloadApi } from "./onboarding-api.js";
 import { childApi, subscribeIpc } from "./ipc-helpers.js";
 
 const api: DesktopApi = {
@@ -62,6 +63,8 @@ const api: DesktopApi = {
     list: () => ipcRenderer.invoke("resume-drafts:list"),
     get: (artifactId) => ipcRenderer.invoke("resume-drafts:get", artifactId),
     edit: (input) => ipcRenderer.invoke("resume-drafts:edit", input),
+    setLineSpacing: (input) =>
+      ipcRenderer.invoke("resume-drafts:set-line-spacing", input),
     restore: (input) => ipcRenderer.invoke("resume-drafts:restore", input),
     accept: (artifactId) =>
       ipcRenderer.invoke("resume-drafts:accept", artifactId),
@@ -88,6 +91,13 @@ const api: DesktopApi = {
       ipcRenderer.invoke("library:get-checkpoints", artifactId),
     restoreCheckpoint: (input) =>
       ipcRenderer.invoke("library:restore-checkpoint", input),
+  },
+  deliveryResumeFiles: {
+    list: () => ipcRenderer.invoke("delivery-resume-files:list"),
+    importFile: () => ipcRenderer.invoke("delivery-resume-files:import"),
+    rename: (input) => ipcRenderer.invoke("delivery-resume-files:rename", input),
+    select: (input) => ipcRenderer.invoke("delivery-resume-files:select", input),
+    delete: (input) => ipcRenderer.invoke("delivery-resume-files:delete", input),
   },
   jobAssets: {
     get: () => ipcRenderer.invoke("job-assets:get"),
@@ -177,6 +187,7 @@ const api: DesktopApi = {
     openSystemSettings: () => ipcRenderer.invoke("calendar:open-system-settings"),
     onOpenInterview: (listener) => subscribeIpc("calendar:open-interview", listener),
   },
+  onboarding: onboardingPreloadApi,
   agentTasks: {
     list: () => ipcRenderer.invoke("agent-tasks:list"),
     get: (taskId) => ipcRenderer.invoke("agent-tasks:get", taskId),

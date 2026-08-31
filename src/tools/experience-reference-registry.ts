@@ -1,13 +1,19 @@
+import { createHash } from "node:crypto";
+
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 
 const REFERENCE_TOOLS = new Set([
   "search_experiences",
   "get_experience",
+  "find_resume_reuse_candidates",
   "create_resume_workspace",
   "get_resume_workspace",
   "apply_resume_content",
   "add_resume_material",
+  "confirm_no_resume_material",
   "prepare_experience_sync",
+  "begin_experience_material_ingestion",
+  "record_experience_material_chunk",
 ]);
 
 /** Keeps long experience UUIDs out of the model-visible resume workflow. */
@@ -15,11 +21,16 @@ export class ExperienceReferenceRegistry {
   readonly #canonicalByReference = new Map<string, string>();
   readonly #referenceByCanonical = new Map<string, string>();
 
+  public constructor(
+    private readonly restoredExperienceIds?: () => readonly string[] | undefined,
+  ) {}
+
   public wrap(tool: AgentTool): AgentTool {
     if (!REFERENCE_TOOLS.has(tool.name)) return tool;
     return {
       ...tool,
       execute: async (toolCallId, params, signal, onUpdate) => {
+        this.#seedRestoredExperienceIds();
         const resolved = this.#replaceReferences(params, "resolve");
         this.#captureExperienceIds(resolved);
         const result = await tool.execute(toolCallId, resolved, signal, onUpdate);
@@ -33,10 +44,21 @@ export class ExperienceReferenceRegistry {
     const normalized = canonicalId.trim();
     const existing = this.#referenceByCanonical.get(normalized);
     if (existing) return existing;
-    const reference = `exp_${this.#referenceByCanonical.size + 1}`;
-    this.#referenceByCanonical.set(normalized, reference);
-    this.#canonicalByReference.set(reference, normalized);
-    return reference;
+    const digest = createHash("sha256").update(normalized).digest("hex");
+    for (let length = 12; length <= digest.length; length += 4) {
+      const reference = `exp_${digest.slice(0, length)}`;
+      const current = this.#canonicalByReference.get(reference);
+      if (!current || current === normalized) {
+        this.#referenceByCanonical.set(normalized, reference);
+        this.#canonicalByReference.set(reference, normalized);
+        return reference;
+      }
+    }
+    throw new Error("无法为经历生成唯一短引用");
+  }
+
+  #seedRestoredExperienceIds(): void {
+    this.restoredExperienceIds?.()?.forEach((id) => this.referenceFor(id));
   }
 
   #projectResult(result: AgentToolResult<unknown>): AgentToolResult<unknown> {
@@ -64,6 +86,12 @@ export class ExperienceReferenceRegistry {
       if (Array.isArray(items)) items.forEach((item) => this.#captureId(item));
     }
     if (toolName === "get_experience") this.#captureId(details);
+    if (toolName === "find_resume_reuse_candidates") {
+      this.#captureExperienceIds(details);
+    }
+    if (toolName === "record_experience_material_chunk") {
+      this.#captureExperienceIds(details);
+    }
     if (toolName === "create_resume_workspace" || toolName === "get_resume_workspace") {
       const experiences = (details as {
         source?: { experiences?: unknown };
@@ -88,10 +116,12 @@ export class ExperienceReferenceRegistry {
     }
     for (const [key, entry] of Object.entries(value)) {
       if (key === "experienceId" && typeof entry === "string" && entry.trim()) {
-        this.referenceFor(entry);
+        if (!isShortReference(entry)) this.referenceFor(entry);
       } else if (key === "experienceIds" && Array.isArray(entry)) {
         entry.forEach((id) => {
-          if (typeof id === "string" && id.trim()) this.referenceFor(id);
+          if (typeof id === "string" && id.trim() && !isShortReference(id)) {
+            this.referenceFor(id);
+          }
         });
       } else {
         this.#captureExperienceIds(entry);
@@ -116,4 +146,8 @@ export class ExperienceReferenceRegistry {
       ]),
     );
   }
+}
+
+function isShortReference(value: string): boolean {
+  return /^exp_[a-z0-9]+$/iu.test(value.trim());
 }

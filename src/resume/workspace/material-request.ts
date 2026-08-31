@@ -1,32 +1,20 @@
+import type {
+  ResumeMaterialRequest,
+  ResumeMaterialRequestResolution,
+  ResumeMaterialRequestStatus,
+} from "./material-request-types.js";
 import type { ResumeWorkspace } from "./types.js";
 
-export type ResumeMaterialRequestKind =
-  | "agent_declared"
-  | "critical_skill"
-  | "bullet_count_insufficient"
-  | "layout_capacity_insufficient"
-  | "line_rewrite_stalled"
-  | "tail_repair_stalled";
-
-export type ResumeMaterialRequestStatus = "awaiting_response" | "declined";
-
-export interface ResumeMaterialRequest {
-  /** Optional only for drafts produced before request identities were introduced. */
-  id?: string;
-  kind?: ResumeMaterialRequestKind;
-  reason: string;
-  question: string;
-  targetExperienceId?: string;
-  requestedAt: string;
-  /** Missing on legacy drafts and interpreted as awaiting_response. */
-  status?: ResumeMaterialRequestStatus;
-  respondedAt?: string;
-  sourceMessageTimestamp?: number;
-}
-
-type MaterialRequestInput = Pick<
+export type {
   ResumeMaterialRequest,
-  "kind" | "reason" | "question" | "targetExperienceId"
+  ResumeMaterialRequestKind,
+  ResumeMaterialRequestResolution,
+  ResumeMaterialRequestStatus,
+} from "./material-request-types.js";
+
+type MaterialRequestInput = Omit<
+  ResumeMaterialRequest,
+  "id" | "requestedAt" | "status" | "respondedAt" | "sourceMessageTimestamp"
 >;
 
 export function createResumeMaterialRequest(

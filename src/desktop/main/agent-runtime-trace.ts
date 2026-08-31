@@ -34,6 +34,8 @@ export function traceStopReason(
   if (/insufficient[_ -]?credits|余额不足/iu.test(message)) {
     return "insufficient_credits";
   }
+  if (/可见内容连续循环/iu.test(message)) return "output_repeated_cycle";
+  if (/可见说明超过/iu.test(message)) return "output_narrative_limit";
   if (/重复|repetition|same output/iu.test(message)) return "repetition_guard";
   if (/turn.*limit|tool.*limit|调用上限|轮次上限/iu.test(message)) {
     return "turn_limit";

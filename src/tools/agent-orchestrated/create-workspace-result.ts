@@ -49,8 +49,11 @@ export function createWorkspaceResult(
   selectionMode: "created" | "unchanged" | "reselected",
   newItemIds: readonly string[],
 ) {
+  const workspaceView = buildAgentWorkspaceView(workspace) as {
+    nextAction?: { mode?: string };
+  };
   const payload = {
-    ...buildAgentWorkspaceView(workspace),
+    ...workspaceView,
     sourceSelection: {
       mode: selectionMode,
       selectedExperienceCount: workspace.sourceSnapshot.experiences.length,
@@ -59,6 +62,15 @@ export function createWorkspaceResult(
         ? "write_all_new_items_only_then_compile"
         : "write_current_unwritten_items",
     },
+    ...(selectionMode === "unchanged" ? {
+      recovery: {
+        repeated: true,
+        instruction:
+          "工作区与当前来源选择完全相同，禁止再次调用 create_resume_workspace；" +
+          `立即执行当前 nextAction${workspaceView.nextAction?.mode
+            ? `.mode=${workspaceView.nextAction.mode}` : ""}`,
+      },
+    } : {}),
     wholePageBudget: wholePageWritingBudget(workspace),
     ...buildAgentSourceView(workspace),
   };

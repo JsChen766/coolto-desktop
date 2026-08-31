@@ -102,6 +102,7 @@ test("source projection exposes evidence capacity without a fixed bullet plan", 
       availableEvidenceCount: number;
       plannedBullets?: number;
     }>;
+    evidenceInstructions: { draftPlanRule: string };
   };
 
   assert.equal(
@@ -113,6 +114,9 @@ test("source projection exposes evidence capacity without a fixed bullet plan", 
     projection.experiences.find(({ id }) => id === "work-1")?.plannedBullets,
     undefined,
   );
+  assert.match(projection.evidenceInstructions.draftPlanRule, /WorkUnits/u);
+  assert.match(projection.evidenceInstructions.draftPlanRule, /total item lines/u);
+  assert.doesNotMatch(projection.evidenceInstructions.draftPlanRule, /main.*3/u);
 });
 
 async function snapshotWithContent(content: string) {

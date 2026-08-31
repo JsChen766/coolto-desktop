@@ -6,6 +6,8 @@ export const RESUME_EXPERIENCE_SYNC_ACTION_TYPE =
 
 export interface ResumeExperienceSyncPayload {
   proposalIds: string[];
+  artifactId?: string;
+  evidenceFingerprint?: string;
 }
 
 export function createExperienceSyncApprovalDraft(
@@ -15,13 +17,15 @@ export function createExperienceSyncApprovalDraft(
     actionType: RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
     scopeKey: "resume-experience-sync",
     risk: "write",
-    title: "把补充内容保存到经历仓库",
+    title: "将补充事实同步到经历仓库",
     description:
-      "接受后会把本轮用户补充事实追加到对应经历，并加入本地同步队列。",
+      "经历仓库会保留本轮材料中全部可核验事实，当前简历只选择与岗位和版面最相关的部分。接受后会把以下事实追加到对应经历并加入本地同步队列；拒绝则只保留在当前简历草稿中。",
     preview: {
-      summary: [{ label: "待更新经历", value: `${proposals.length} 条` }],
+      summary: [
+        { label: "待更新经历", value: `${proposals.length} 条` },
+        { label: "保存范围", value: "本轮全部可核验事实" },
+      ],
       items: proposals.map((proposal) => ({
-        id: proposal.experienceId,
         title: proposal.current?.title ?? proposal.experienceId,
         description: addedText(proposal),
       })),
@@ -31,8 +35,12 @@ export function createExperienceSyncApprovalDraft(
 
 export function createExperienceSyncPayload(
   proposals: readonly ExperienceWriteProposal[],
+  context?: { artifactId: string; evidenceFingerprint: string },
 ): ResumeExperienceSyncPayload {
-  return { proposalIds: proposals.map((proposal) => proposal.id) };
+  return {
+    proposalIds: proposals.map((proposal) => proposal.id),
+    ...(context ? context : {}),
+  };
 }
 
 export function readExperienceSyncPayload(
@@ -43,7 +51,23 @@ export function readExperienceSyncPayload(
   if (!Array.isArray(ids) || !ids.length || ids.some((id) => typeof id !== "string")) {
     throw new Error("经历同步审批 Payload 无效");
   }
-  return { proposalIds: [...ids] };
+  const source = payload as {
+    artifactId?: unknown;
+    evidenceFingerprint?: unknown;
+  };
+  const artifactId = typeof source.artifactId === "string"
+    ? source.artifactId : undefined;
+  const evidenceFingerprint = typeof source.evidenceFingerprint === "string"
+    ? source.evidenceFingerprint : undefined;
+  if (Boolean(artifactId) !== Boolean(evidenceFingerprint)) {
+    throw new Error("经历同步审批的草稿来源无效");
+  }
+  return {
+    proposalIds: [...ids],
+    ...(artifactId && evidenceFingerprint
+      ? { artifactId, evidenceFingerprint }
+      : {}),
+  };
 }
 
 function addedText(proposal: ExperienceWriteProposal): string {

@@ -86,12 +86,12 @@ test("hidden renderer uses real DOM geometry and an isolated Chromium host", asy
     ),
   ]);
   assert.match(fontReadiness, /document\.fonts\.ready/);
-  assert.match(bulletMeasurement, /range\.getClientRects\(\)/);
+  assert.match(bulletMeasurement, /measureVisualLines/);
   assert.match(
     bulletMeasurement,
     /passesBulletTailGate/,
   );
-  assert.match(bulletMeasurement, /Number\.parseFloat\(style\.fontSize/);
+  assert.match(bulletMeasurement, /measureTailBudgetProbe/);
   assert.match(markdown, /marked\.parseInline/);
   assert.match(markdown, /element\.removeAttribute/);
   assert.match(service, /show: false/);

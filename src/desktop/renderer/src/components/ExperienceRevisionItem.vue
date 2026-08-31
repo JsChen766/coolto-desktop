@@ -4,6 +4,7 @@ import { ref } from "vue";
 
 import type { ExperienceRevision } from "@desktop/types";
 import { experienceRevisionSourceLabel } from "../../../../experience/history-model";
+import { stripMaterialMarkers } from "../../../../experience/material-content";
 import { localeCode, translate } from "../i18n/locale";
 
 defineProps<{
@@ -43,7 +44,7 @@ function formatDate(value: string): string {
       </button>
     </header>
     <p class="experience-revision-content" :class="{ expanded }">
-      {{ revision.content }}
+      {{ stripMaterialMarkers(revision.content) }}
     </p>
     <footer v-if="!pending">
       <button

@@ -20,7 +20,8 @@ export function samePublishedResumeSeed(
   left: ResumeWorkspace["reuseBase"],
   right: ResumeWorkspace["reuseBase"],
 ): boolean {
-  return left?.resumeId === right?.resumeId &&
+  return (left?.kind ?? "cloud") === (right?.kind ?? "cloud") &&
+    left?.resumeId === right?.resumeId &&
     left?.contentHash === right?.contentHash;
 }
 
@@ -31,6 +32,12 @@ export function seedFromPublishedResume(input: {
 }): PublishedResumeSeedResult {
   assertEligibleBase(input.base, input.fresh.language);
   const structure = structuredClone(input.fresh);
+  if (sameLayoutTemplate(structure, input.base.structured) &&
+    input.base.structured.layout_tuning) {
+    structure.layout_tuning = structuredClone(
+      input.base.structured.layout_tuning,
+    );
+  }
   const priorItems = new Map(input.base.structured.sections.flatMap((section) =>
     section.items.flatMap((item) => item.source_experience_id
       ? [[itemKey(section.type, item.source_experience_id), item] as const]
@@ -143,10 +150,16 @@ function itemKey(type: string, experienceId: string): string {
   return `${type}:${experienceId}`;
 }
 
+function sameLayoutTemplate(left: ResumeStructure, right: ResumeStructure) {
+  return left.layout_template_id === right.layout_template_id &&
+    left.layout_profile_version === right.layout_profile_version &&
+    left.layout_profile_hash === right.layout_profile_hash;
+}
+
 function assertEligibleBase(base: ResumeFull, language: string): void {
   if (base.qualityStatus !== "passed" || base.status === "archived" ||
-      base.deletedAt || !base.jdId) {
-    throw new Error("历史 Resume 未通过质量门槛、已归档或缺少来源 JD");
+      base.deletedAt) {
+    throw new Error("历史 Resume 未通过质量门槛或已归档");
   }
   if (base.structured.language !== language) {
     throw new Error("历史 Resume 语言与新工作区不一致，不能作为基底");

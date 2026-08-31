@@ -12,6 +12,7 @@ import {
   toExperienceWritePayload,
 } from "../src/desktop/main/experience-library/experience-sync-mapping.js";
 import { filterExperiences } from "../src/desktop/main/experience-library/experience-search.js";
+import { createSearchExperiencesTool } from "../src/tools/search-experiences.js";
 
 const baseInput: ExperienceCreateInput = {
   category: "work",
@@ -180,4 +181,30 @@ test("filterExperiences sorts by updatedAt desc then paginates by cursor", () =>
   const second = filterExperiences(all, { limit: 2, cursor: first.nextCursor! });
   assert.deepEqual(second.items.map((e) => e.id), ["a"]);
   assert.equal(second.nextCursor, null);
+});
+
+test("Agent experience discovery excludes conflict and failed evidence", async () => {
+  const eligible = detailFixture("eligible", { syncStatus: "pending" });
+  const conflict = detailFixture("conflict", { syncStatus: "conflict" });
+  const failed = detailFixture("failed", { syncStatus: "failed" });
+  const tool = createSearchExperiencesTool({
+    searchExperiences: async () => ({
+      items: [eligible, conflict, failed],
+      nextCursor: null,
+    }),
+    getExperience: async () => eligible,
+  });
+
+  const result = await tool.execute("search-for-resume", {}, undefined);
+  const content = result.content[0];
+  assert.equal(content?.type, "text");
+  if (!content || content.type !== "text") throw new Error("缺少文本工具回执");
+  const payload = JSON.parse(content.text) as {
+    items: Array<{ id: string }>;
+  };
+  assert.deepEqual(payload.items.map((item) => item.id), ["eligible"]);
+  assert.deepEqual(
+    (result.details as { items: ExperienceDetail[] }).items.map((item) => item.id),
+    ["eligible"],
+  );
 });

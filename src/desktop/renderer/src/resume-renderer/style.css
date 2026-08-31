@@ -179,6 +179,9 @@ body {
   flex: 1;
   min-width: 0;
   margin-top: 0;
+  text-align: justify;
+  text-align-last: auto;
+  text-justify: inter-character;
 }
 
 .resume-document-richtext p {

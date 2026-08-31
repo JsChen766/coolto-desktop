@@ -8,7 +8,6 @@ import type {
   ResumeLibrarySyncStatus,
 } from "./types.js";
 import { computeSyncStatus } from "./sync-status.js";
-import { resumeDraftSummaryState } from "../draft/summary-state.js";
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -140,25 +139,31 @@ function toLocalSummary(draft: ResumeDraftSummary): ResumeLibraryLocalSummary {
   return {
     artifactId: draft.artifactId,
     title: draft.title,
+    jdId: draft.jdId,
+    jdTitle: draft.jdTitle,
+    targetRole: draft.targetRole,
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpointCount,
     hasPendingChange: draft.hasPendingChange,
-    workspaceStatus: draft.workspaceStatus,
+    generationStrategy: draft.generationStrategy,
     generationReady: draft.generationReady,
-    jdId: draft.jdId,
-    jdTitle: draft.jdTitle,
   };
 }
 
 function toLocalSummaryFromFull(draft: LocalResumeDraft): ResumeLibraryLocalSummary {
-  const state = resumeDraftSummaryState(draft.workspace);
+  const jd = draft.workspace?.sourceSnapshot?.jd;
   return {
     artifactId: draft.artifactId,
     title: draft.title,
+    jdId: jd?.id ?? null,
+    jdTitle: jd?.title ?? null,
+    targetRole: jd?.targetRole ?? null,
     updatedAt: draft.updatedAt,
     checkpointCount: draft.checkpoints.length,
     hasPendingChange: draft.pendingChange != null,
-    ...state,
+    generationStrategy: draft.workspace?.sourceSnapshot?.generationStrategy === "general"
+      ? "general" : "tailored",
+    generationReady: draft.workspace?.status === "ready_for_approval",
   };
 }
 

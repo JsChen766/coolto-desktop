@@ -51,7 +51,7 @@ export function useApplicationTrackerPage(
   function focusApplication(applicationId?: string): void {
     if (!applicationId) return;
     tracker.selected.value = tracker.applications.value.find((item) => item.id === applicationId);
-    if (tracker.selected.value) activeView.value = "schedule";
+    if (tracker.selected.value) activeView.value = "calendar";
   }
 
   function applicationsFor(statuses: readonly ApplicationStatus[]): ApplicationRecord[] {

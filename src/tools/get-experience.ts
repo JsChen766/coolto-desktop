@@ -6,7 +6,7 @@ import type { ExperienceReader } from "../api/types.js";
 const parameters = Type.Object({
   experienceId: Type.String({
     description:
-      "要读取的经历引用。优先原样使用 search_experiences 返回的短 id（如 exp_1），也接受用户明确提供的真实 ID。",
+      "要读取的经历引用。优先原样使用 search_experiences 返回的 exp_... 短 id，也接受用户明确提供的真实 ID。",
     minLength: 1,
   }),
 });

@@ -118,6 +118,23 @@ approvalApp.config.globalProperties.$t = translate;
 approvalApp.config.globalProperties.$locale = localeCode;
 approvalApp.config.globalProperties.$tf = translateFormat;
 approvalApp.mount("#approval-qa");
+const strategyApp = createApp(ChatPendingAction, {
+  request: {
+    id: "approval-resume-strategy-qa",
+    actionType: "resume.strategy.choose",
+    risk: "write",
+    title: "这份岗位暂时无法生成可信的针对性简历",
+    description:
+      "现有经历与这个岗位的匹配度太低，继续改写容易产生弱相关或空泛内容。你可以直接使用通用简历继续投递，或者不继续投递这个岗位。",
+    preview: { summary: [] },
+    createdAt: now,
+  },
+  busy: false,
+});
+strategyApp.config.globalProperties.$t = translate;
+strategyApp.config.globalProperties.$locale = localeCode;
+strategyApp.config.globalProperties.$tf = translateFormat;
+strategyApp.mount("#resume-strategy-qa");
 const application: ApplicationRecord = {
   id: "application-qa", jdId: "jd-qa", resumeId: "resume-qa",
   companyName: "Acme", roleName: "Backend Engineer",

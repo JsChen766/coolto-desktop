@@ -3,6 +3,8 @@ export { default as ApprovalCard } from "../components/ApprovalCard.vue";
 export { default as ExperienceImportResultCard } from "../components/ExperienceImportResultCard.vue";
 export { default as ArtifactPanel } from "../components/ArtifactPanel.vue";
 export { default as ChatHeader } from "../components/ChatHeader.vue";
+export { default as ChatComposerHost } from "./ChatComposerHost.vue";
+export { default as ChatPendingAction } from "./ChatPendingAction.vue";
 export { default as ChatMessageView } from "../components/ChatMessage.vue";
 export { default as ChatRunTerminal } from "../components/ChatRunTerminal.vue";
 export { default as Composer } from "../components/Composer.vue";

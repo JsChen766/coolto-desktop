@@ -83,6 +83,13 @@ export function createBrowserDemoApi(): DesktopApi {
       openSystemSettings: async () => undefined,
       onOpenInterview: () => () => undefined,
     },
+    onboarding: {
+      status: async () => ({ version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }),
+      start: async () => ({ status: { version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }, conversation: null }),
+      advance: async () => { throw new Error("Browser Demo 不运行首次体验"); },
+      openBrowserDemo: async () => undefined,
+      complete: async () => ({ status: { version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }, conversation: null }),
+    },
     conversations: chat.conversations,
     attachments: chat.attachments,
     getPathForFile: () => "",
@@ -114,6 +121,13 @@ export function createBrowserDemoApi(): DesktopApi {
       submissionReceipt: async () => undefined,
     },
     library: createDemoLibraryApi(),
+    deliveryResumeFiles: {
+      list: async () => [],
+      importFile: async () => undefined,
+      rename: async () => { throw new Error("Demo 不支持投递文件维护"); },
+      select: async () => { throw new Error("Demo 不支持投递文件维护"); },
+      delete: async () => undefined,
+    },
     jobAssets: createDemoJobAssetsApi(now),
     experiences: {
       search: async () => ({ items: [], nextCursor: null }),
