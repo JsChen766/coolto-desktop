@@ -69,7 +69,8 @@ jobs:
           # URLs are template-concatenated in the bundle, so verify the
           # injected version literal and the per-platform file-name fragments.
           grep -q "${VERSION}" dist/assets/*.js
-          grep -q "arm64-mac.zip" dist/assets/*.js
+          grep -q "arm64.dmg" dist/assets/*.js
+          grep -q "x64.dmg" dist/assets/*.js
           grep -q "x64.exe" dist/assets/*.js
           echo "bundle references version ${VERSION}"
 
