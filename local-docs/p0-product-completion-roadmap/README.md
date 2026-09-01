@@ -3624,8 +3624,13 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   `npm run package:win` 完成 Rust 3/3、protected Main、NSIS、release hardening、真实隔离安装、非空
   Renderer/bootstrap 持续健康和卸载清理；本地 EXE 135,157,313 bytes，SHA-256
   `B46DC3977140FA6D87315D7DD21FBE57EE2D510E3D8C129B18F89C563AEAB9DC`，Authenticode 为
-  `NotSigned`。受保护 `app` PR、Windows/macOS 发布 workflow、公网上传与五文件全字节校验仍待完成，
-  因此此时不能把 0.1.26 标记为已发布。
+  `NotSigned`。PR #58 已合入受保护 `app`；Windows workflow `33527128929`、macOS workflow
+  `33527135094` 均成功完成对应平台构建、hardening、验收和上传。Homepage 首轮因旧 ZIP 检查正确失败，
+  PR #59 对齐当前 DMG/EXE 下载合同后，第二轮 `33529553999` 成功部署。公网 feeds、下载页和首页 bundle
+  均为 0.1.26，Win EXE、Intel/Apple Silicon ZIP 与 DMG 五文件已完成全字节尺寸、feed SHA-512 与独立
+  SHA-256 验证；完整哈希见[发布手册 10.15](../desktop-release-hardening-runbook.md#1015-已验证基线2026-09-020126-experiencecalendar-修复)。
+  Windows 仍 `NotSigned`，macOS 仍 ad-hoc/未 notarize；macOS 13 Rosetta 真实点击和原教育附件重放仍待用户
+  真机回补，不能用本次 CI 构建证据替代。
 - 2026-08-31 按用户确认补齐本地 ResumeDraft 与聊天的持续交互：Conversation 新增本地
   `activeResumeArtifactId`，宿主以幂等 Link Service 同时维护 ResumeDraft `conversationIds`，关系元数据不改
   Resume revision、正文或云端。点击侧栏本地简历会过滤已删除引用并进入最近更新的关联对话，Composer 持续
