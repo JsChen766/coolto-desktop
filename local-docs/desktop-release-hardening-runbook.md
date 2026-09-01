@@ -515,7 +515,7 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 - Actions 仍提示 `actions/checkout@v4` / `setup-node@v4` 的 Node 20 弃用警告；未阻断本次构建、验收、上传或
   公网独立验证。本次发布不替代 BSF5、BE6、BE8 的延期真实验收，Roadmap 阶段状态不变。
 
-### 10.15 发布进行中（2026-09-01，0.1.26 Experience/Calendar 修复）
+### 10.15 已验证基线（2026-09-02，0.1.26 Experience/Calendar 修复）
 
 - 发布源从 `origin/app@8ce5f81` 的独立干净 worktree 建立，只集成 `4ce6851` 与 `07f51f5`；公网
   Win/mac feed 在改版本前均为 0.1.25，故新版本使用 0.1.26，未覆盖已发布版本。
@@ -527,8 +527,27 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
   本地 EXE 为 135,157,313 bytes，SHA-256
   `B46DC3977140FA6D87315D7DD21FBE57EE2D510E3D8C129B18F89C563AEAB9DC`；Main loader 1,097 bytes、
   payload 1,494,655 bytes、native 272,896 bytes、Fuses verified；Authenticode 实测 `NotSigned`。
-- 该本地产物只用于发布前验收，不上传；Windows/macOS CI 会各自重新生成随机保护密钥。受保护 `app` PR、
-  双平台 workflow、服务器上传、公网 feed/下载页和五文件全字节 SHA-512/SHA-256 校验仍待完成。
+- 该本地产物只用于发布前验收，未上传；PR #58 合入受保护 `app`，release merge commit 为
+  `84ab255a1a86efae3bcebe584dbaa40934047245`。Windows workflow `33527128929` 成功（7m12s）：
+  payload 1,494,655 bytes、native 276,992 bytes、Fuses verified，真实安装器 bootstrap/非空 Renderer/
+  持续健康/卸载和服务器上传全部通过。公网 EXE 的 Authenticode 实测仍为 `NotSigned`。
+- macOS workflow `33527135094` 成功（5m55s）：Intel/Apple Silicon 两端 payload 均为 1,494,655 bytes、
+  native 均为 817,200 bytes、Fuses verified；配置仍为 identity `-`（ad-hoc），日志明确跳过 notarization。
+- Homepage 首轮 run `33527954468` 正确在旧 `arm64-mac.zip` 门禁失败、未部署。官网源码实际使用
+  `arm64.dmg`/`x64.dmg`；PR #59 将门禁对齐三类真实下载模板并以 merge commit
+  `a75bca1a20c89c90215482737be42d97f3400bbf` 合入，第二轮 run `33529553999` 成功部署。
+  公网 bundle `index-BMcqb4Kv.js` 为 317,213 bytes，SHA-256
+  `2A789C84DED7E814F089E52C3029E8EA87FD4FDCD5B08FC20D08C6D5530A73A4`，包含 0.1.26 与 Win/mac 下载模板。
+- 公网 `latest.yml`、`latest-mac.yml` 和下载页均为 0.1.26。五个文件完成无 query URL 全字节下载，
+  精确尺寸与 feed SHA-512 全部匹配；独立 SHA-256：Windows EXE 133,634,010 bytes，
+  `809DDCF7ED8044DCA0138136FE6784653FD5C87A146566B3B4874288A37004CD`；Intel ZIP 188,910,000 bytes，
+  `70916CE259E358498E70B576E537800252BFC91839362FE2448423D9B45A6A92`；Apple Silicon ZIP
+  185,349,731 bytes，`C429FC4E83C70B20C6037E4226428C1D4CBA0B9D310B8D1B610205EB638D26F4`；Intel DMG
+  191,823,454 bytes，`4478CD5F192D56E4AF409146D3493A509BDC97A51B582F34120ADCA9A6BA0765`；Apple Silicon DMG
+  188,262,969 bytes，`72B7B956568B2E7DCA9951C57C6165DE0338EF13AD1866B2DBE30B9392293638`。
+- Actions 仍提示 checkout/setup-node 的 Node 20 弃用警告；未阻断构建。0.1.26 完成跨平台构建和公网分发，
+  但不替代 macOS 13 Rosetta 卡片点击、原反馈教育附件、真实模型拆分审批、BE6 EventKit CRUD/TCC 或
+  BSF5/BE8 延期验收；这些真实场景仍不能由 CI/Windows 证据冒充完成。
 
 ### 10.6 运维注意事项（坑）
 
