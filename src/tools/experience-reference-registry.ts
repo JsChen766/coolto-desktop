@@ -14,6 +14,7 @@ const REFERENCE_TOOLS = new Set([
   "prepare_experience_sync",
   "begin_experience_material_ingestion",
   "record_experience_material_chunk",
+  "prepare_experience_maintenance",
 ]);
 
 /** Keeps long experience UUIDs out of the model-visible resume workflow. */

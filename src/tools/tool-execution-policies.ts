@@ -3,6 +3,7 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 const SEQUENTIAL_TOOL_NAMES = new Set([
   "sync_now", "prepare_profile_update", "prepare_experience_import",
   "begin_experience_material_ingestion", "record_experience_material_chunk",
+  "prepare_experience_maintenance",
   "prepare_jd_import", "prepare_match_analysis", "create_resume_workspace",
   "pause_resume_for_material", "apply_resume_content", "add_resume_material",
   "decline_resume_material", "prepare_experience_sync", "prepare_agent_task",
