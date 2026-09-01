@@ -170,6 +170,7 @@ export const domainMessages: Record<string, string> = {
   "项目": "Project",
   "教育": "Education",
   "志愿": "Volunteer",
+  "专业技能": "Professional skills",
   "待同步": "Pending sync",
   "同步失败": "Sync failed",
   "个人信息": "Personal information",

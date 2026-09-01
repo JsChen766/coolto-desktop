@@ -64,6 +64,10 @@ import type { AiNativeLoopService } from
 import { createLoopReminderApprovalExecutor } from
   "../agent-task/loop-reminder-approval-executor.js";
 import { LOOP_REMINDER_ACTION } from "../agent-task/loop-reminder-approval.js";
+import { EXPERIENCE_MAINTENANCE_ACTION_TYPE } from
+  "../experience/maintenance-approval.js";
+import { createExperienceMaintenanceExecutor } from
+  "./experience-maintenance-executor.js";
 
 export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
@@ -141,13 +145,18 @@ export function createActionApprovalManager(
       ),
     );
   }
-  if (deps.resumeExperienceSyncProposals) {
+  const experienceProposals = deps.resumeExperienceSyncProposals;
+  if (experienceProposals) {
     executors.register(
       RESUME_EXPERIENCE_SYNC_ACTION_TYPE,
       createResumeExperienceSyncExecutor(
-        deps.resumeExperienceSyncProposals,
+        experienceProposals,
         deps.resumeDrafts,
       ),
+    );
+    executors.register(
+      EXPERIENCE_MAINTENANCE_ACTION_TYPE,
+      createExperienceMaintenanceExecutor(experienceProposals),
     );
   }
   if (deps.agentTaskProposals) {

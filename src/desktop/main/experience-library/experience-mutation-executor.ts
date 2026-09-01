@@ -47,4 +47,20 @@ export class ExperienceMutationExecutor {
     if (!entity) throw new Error("经历本地写入失败");
     return { experience: toExperienceDetail(entity), removedLocal: false };
   }
+
+  public executeMany(executions: readonly ExperienceExecution[]): ExperienceExecutionResult[] {
+    const mutations = executions.map((execution) => {
+      if (execution.mode !== "enqueue") {
+        throw new Error("批量经历修正只支持普通新建或更新");
+      }
+      return execution.mutation;
+    });
+    this.local.enqueueMany(mutations);
+    this.trigger();
+    return mutations.map((mutation) => {
+      const entity = this.local.getEntity("experience", mutation.entityId);
+      if (!entity) throw new Error("经历批量本地写入失败");
+      return { experience: toExperienceDetail(entity), removedLocal: false };
+    });
+  }
 }

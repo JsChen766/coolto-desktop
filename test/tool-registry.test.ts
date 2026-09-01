@@ -148,6 +148,26 @@ test("material ingestion resolves a short target Experience reference", async ()
   assert.equal(received, canonicalId);
 });
 
+test("Experience maintenance resolves short references inside batch operations", async () => {
+  const canonicalId = "01a00a4f-f312-7132-8036-984b133ae3ea";
+  const registry = new ExperienceReferenceRegistry();
+  const reference = registry.referenceFor(canonicalId);
+  let received = "";
+  const wrapped = registry.wrap({
+    name: "prepare_experience_maintenance", label: "test",
+    description: "test", parameters: {} as never,
+    execute: async (_callId, params) => {
+      received = (params as { operations: Array<{ experienceId: string }> })
+        .operations[0]!.experienceId;
+      return { content: [{ type: "text" as const, text: "{}" }], details: {} };
+    },
+  });
+  await wrapped.execute("maintenance", {
+    operations: [{ kind: "update", experienceId: reference }],
+  });
+  assert.equal(received, canonicalId);
+});
+
 test("authenticated registry exposes the current user tool", async () => {
   const tools = createToolRegistry({
     currentUserReader: {

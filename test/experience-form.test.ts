@@ -7,6 +7,7 @@ import {
   emptyExperienceDraft,
   experienceFormErrors,
   normalizeExperienceTags,
+  patchForExperienceKind,
   sameExperienceDraft,
   toExperienceCreateInput,
   toExperienceUpdateInput,
@@ -30,6 +31,8 @@ test("experience form preserves empty, month, day and present date semantics", (
     startDate: "2024-03",
     endDate: "present",
     tags: [],
+    resumeSectionKey: null,
+    resumeSectionLabel: null,
     status: "active",
   });
 
@@ -54,6 +57,26 @@ test("create omits empty optional values while update explicitly clears them", (
   });
   assert.equal(toExperienceUpdateInput(draft).organization, null);
   assert.equal(toExperienceUpdateInput(draft).endDate, null);
+});
+
+test("professional skills reuse the other section contract without dates", () => {
+  const draft = {
+    ...emptyExperienceDraft(),
+    ...patchForExperienceKind("skills"),
+    title: "技术栈",
+    content: "TypeScript、Vue、Electron",
+    tags: ["TypeScript", "Vue"],
+  };
+  assert.deepEqual(toExperienceCreateInput(draft), {
+    category: "other",
+    title: "技术栈",
+    content: "TypeScript、Vue、Electron",
+    tags: ["TypeScript", "Vue"],
+    resumeSectionKey: "skills",
+    resumeSectionLabel: "专业技能",
+  });
+  assert.equal(experienceFormErrors(draft).startDate, undefined);
+  assert.equal(experienceFormErrors(draft).endDate, undefined);
 });
 
 test("tags use NFKC trim and case-insensitive deduplication", () => {

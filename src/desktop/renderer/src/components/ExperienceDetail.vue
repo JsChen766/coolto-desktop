@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ArrowLeft, Ellipsis, MapPin, Pencil } from "@lucide/vue";
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import type { ExperienceDetail, ExperienceRevision } from "@desktop/types";
 import {
-  EXPERIENCE_CATEGORY_LABELS,
+  experienceCategoryLabel,
   EXPERIENCE_SYNC_LABELS,
   experienceDateRange,
 } from "../../../../experience/timeline-labels";
@@ -12,7 +12,7 @@ import { translateDateRange } from "../i18n/locale";
 import ExperienceHistory from "./ExperienceHistory.vue";
 import { stripMaterialMarkers } from "../../../../experience/material-content";
 
-defineProps<{ experience: ExperienceDetail; busy?: boolean }>();
+const props = defineProps<{ experience: ExperienceDetail; busy?: boolean }>();
 const emit = defineEmits<{
   action: [value: "archive" | "restore" | "delete"];
   back: [];
@@ -21,6 +21,7 @@ const emit = defineEmits<{
   resolveSync: [];
 }>();
 const menuOpen = ref(false);
+const dateRange = computed(() => experienceDateRange(props.experience));
 const editable = (experience: ExperienceDetail) =>
   experience.syncStatus !== "conflict" && experience.syncStatus !== "failed";
 
@@ -52,7 +53,7 @@ function closeMenu(): void {
       <div class="experience-detail-title">
         <h2>{{ experience.title }}</h2>
         <p>
-          <span>{{ $t(EXPERIENCE_CATEGORY_LABELS[experience.category]) }}</span>
+          <span>{{ $t(experienceCategoryLabel(experience)) }}</span>
           <span v-if="experience.status === 'archived'">{{ $t('已归档') }}</span>
         </p>
       </div>
@@ -116,9 +117,9 @@ function closeMenu(): void {
       </div>
 
       <dl class="experience-facts">
-        <div>
+        <div v-if="dateRange">
           <dt>{{ $t('时间') }}</dt>
-          <dd>{{ translateDateRange(experienceDateRange(experience)) }}</dd>
+          <dd>{{ translateDateRange(dateRange) }}</dd>
         </div>
         <div v-if="experience.organization">
           <dt>{{ $t('组织') }}</dt>

@@ -3,6 +3,7 @@ import type {
   ExperienceSummary,
 } from "../api/types.js";
 import { normalizeExperienceText } from "./text-highlight.js";
+import { isSkillsExperience } from "./experience-kind.js";
 
 export interface ExperienceTimelineFilters {
   query: string;
@@ -42,7 +43,8 @@ export function groupExperienceTimeline(
   }
   return [...groups].map(([key, items]) => ({
     key,
-    label: key === "present" ? "至今" : key === "missing" ? "日期待补充" : key,
+    label: key === "present" ? "至今"
+      : key === "missing" ? "日期待补充" : key === "skills" ? "专业技能" : key,
     items,
   }));
 }
@@ -84,6 +86,7 @@ function searchText(experience: ExperienceSummary): string {
 }
 
 function experienceGroupKey(experience: ExperienceSummary): string {
+  if (isSkillsExperience(experience)) return "skills";
   if (experience.endDate === "present") return "present";
   return experience.endDate?.slice(0, 4) || "missing";
 }
@@ -92,6 +95,9 @@ function compareExperienceTimeline(
   left: ExperienceSummary,
   right: ExperienceSummary,
 ): number {
+  if (isSkillsExperience(left) !== isSkillsExperience(right)) {
+    return isSkillsExperience(left) ? 1 : -1;
+  }
   return compareNumber(endRank(right.endDate), endRank(left.endDate))
     || compareNumber(startRank(right.startDate), startRank(left.startDate))
     || right.createdAt.localeCompare(left.createdAt)

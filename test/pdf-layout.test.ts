@@ -25,10 +25,10 @@ function item(span: FakeItem) {
 test("single column: rows are ordered by y, spans within a row by x", () => {
   const text = extractLayoutText({
     items: [
-      item({ str: "Engineer", x: 200, y: 30 }),
-      item({ str: "Senior", x: 72, y: 30 }),
+      item({ str: "Engineer", x: 200, y: 90 }),
+      item({ str: "Senior", x: 72, y: 90 }),
       item({ str: "Experience", x: 72, y: 60 }),
-      item({ str: "Summary", x: 72, y: 90 }),
+      item({ str: "Summary", x: 72, y: 30 }),
     ],
   });
   assert.equal(text, "Senior Engineer\nExperience\nSummary");
@@ -38,13 +38,13 @@ test("two columns: left column is emitted before right column", () => {
   const text = extractLayoutText({
     items: [
       // 右栏（先出现，验证输出不按输入顺序）
-      item({ str: "Phone", x: 420, y: 30 }),
+      item({ str: "Phone", x: 420, y: 90 }),
       item({ str: "Email", x: 420, y: 60 }),
-      item({ str: "LinkedIn", x: 420, y: 90 }),
+      item({ str: "LinkedIn", x: 420, y: 30 }),
       // 左栏
-      item({ str: "Alice Chen", x: 72, y: 30 }),
+      item({ str: "Alice Chen", x: 72, y: 90 }),
       item({ str: "Full-stack developer", x: 72, y: 60 }),
-      item({ str: "6 years experience", x: 72, y: 90 }),
+      item({ str: "6 years experience", x: 72, y: 30 }),
     ],
   });
   assert.equal(
@@ -56,11 +56,11 @@ test("two columns: left column is emitted before right column", () => {
 test("sparse header fragments on both sides do not trigger column split", () => {
   const text = extractLayoutText({
     items: [
-      item({ str: "Alice Chen", x: 72, y: 30 }),
-      item({ str: "2026-08-15", x: 500, y: 30 }),
-      item({ str: "Summary paragraph", x: 72, y: 60 }),
-      item({ str: "Experience paragraph", x: 72, y: 90 }),
-      item({ str: "Education paragraph", x: 72, y: 120 }),
+      item({ str: "Alice Chen", x: 72, y: 120 }),
+      item({ str: "2026-08-15", x: 500, y: 120 }),
+      item({ str: "Summary paragraph", x: 72, y: 90 }),
+      item({ str: "Experience paragraph", x: 72, y: 60 }),
+      item({ str: "Education paragraph", x: 72, y: 30 }),
     ],
   });
   assert.ok(text.includes("Alice Chen 2026-08-15"), `got: ${text}`);
@@ -94,11 +94,11 @@ test("a full-width band inside a two-column page stays readable", () => {
   // 页底全宽元素中心居中，不应把输出打乱成无意义交错
   const text = extractLayoutText({
     items: [
-      item({ str: "Skills", x: 72, y: 30 }),
-      item({ str: "TypeScript", x: 72, y: 60 }),
-      item({ str: "Education", x: 420, y: 30 }),
-      item({ str: "Tsinghua", x: 420, y: 60 }),
-      item({ str: "References available on request", x: 200, y: 120, width: 260 }),
+      item({ str: "Skills", x: 72, y: 120 }),
+      item({ str: "TypeScript", x: 72, y: 90 }),
+      item({ str: "Education", x: 420, y: 120 }),
+      item({ str: "Tsinghua", x: 420, y: 90 }),
+      item({ str: "References available on request", x: 200, y: 30, width: 260 }),
     ],
   });
   assert.ok(text.includes("Skills"), `got: ${text}`);

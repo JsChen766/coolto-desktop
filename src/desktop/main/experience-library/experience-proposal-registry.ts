@@ -69,8 +69,31 @@ export class ExperienceProposalRegistry {
   }
 
   public execute(proposalId: string): ExperienceExecutionResult {
+    const stored = this.#required(proposalId);
+    this.#assertCurrent(stored);
+    const result = this.executor.execute(stored.execution);
+    this.#proposals.delete(proposalId);
+    return result;
+  }
+
+  public executeMany(proposalIds: readonly string[]): ExperienceExecutionResult[] {
+    if (!proposalIds.length || new Set(proposalIds).size !== proposalIds.length) {
+      throw new Error("经历批量确认内容无效");
+    }
+    const stored = proposalIds.map((id) => this.#required(id));
+    stored.forEach((item) => this.#assertCurrent(item));
+    const results = this.executor.executeMany(stored.map((item) => item.execution));
+    proposalIds.forEach((id) => this.#proposals.delete(id));
+    return results;
+  }
+
+  #required(proposalId: string): StoredProposal {
     const stored = this.#proposals.get(proposalId);
     if (!stored) throw new Error("确认内容已失效，请重新检查");
+    return stored;
+  }
+
+  #assertCurrent(stored: StoredProposal): void {
     const current = this.local.getEntity("experience", stored.view.experienceId);
     const createDrift = stored.view.kind === "create" && Boolean(current);
     const updateDrift = stored.view.kind !== "create" && (
@@ -81,9 +104,6 @@ export class ExperienceProposalRegistry {
     if (createDrift || updateDrift) {
       throw new Error("经历已变化，请重新检查后再确认");
     }
-    const result = this.executor.execute(stored.execution);
-    this.#proposals.delete(proposalId);
-    return result;
   }
 
   public discard(proposalId: string): void {
