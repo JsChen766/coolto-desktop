@@ -1,9 +1,11 @@
-import { shell } from "electron";
+import { app, shell } from "electron";
 
 import type {
   CalendarAdapter,
   CalendarEventIdentity,
 } from "../../../calendar/calendar-adapter.js";
+import { canUseNativeEventKit } from
+  "../../../calendar/native-eventkit-compatibility.js";
 import type {
   CalendarAuthorizationStatus,
   CalendarEventDraft,
@@ -21,7 +23,7 @@ type CalendarBinding = Required<Pick<
 
 export class NativeEventKitAdapter implements CalendarAdapter {
   public async authorizationStatus(): Promise<CalendarAuthorizationStatus> {
-    if (process.platform !== "darwin") return "unavailable";
+    if (!nativeEventKitAvailable()) return "unavailable";
     const binding = requireCalendarBinding();
     return authorization(binding.calendarAuthorizationStatus!());
   }
@@ -65,7 +67,7 @@ export class NativeEventKitAdapter implements CalendarAdapter {
 }
 
 function requireCalendarBinding(): CalendarBinding {
-  if (process.platform !== "darwin") throw new Error("当前设备不支持 macOS Calendar");
+  if (!nativeEventKitAvailable()) throw new Error("当前运行方式不支持 macOS Calendar");
   const binding = nativeCore();
   if (!binding?.calendarAuthorizationStatus || !binding.calendarRequestAccess ||
       !binding.calendarCreateEvent || !binding.calendarUpdateEvent ||
@@ -73,6 +75,10 @@ function requireCalendarBinding(): CalendarBinding {
     throw new Error("当前 macOS 构建缺少 EventKit 原生适配器");
   }
   return binding as CalendarBinding;
+}
+
+function nativeEventKitAvailable(): boolean {
+  return canUseNativeEventKit(process.platform, app.runningUnderARM64Translation);
 }
 
 function response(serialized: string): Record<string, unknown> {
