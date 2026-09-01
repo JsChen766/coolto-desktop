@@ -3604,6 +3604,28 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   Node/Preload/Renderer typecheck、Node/Electron production
   build 与 `git diff --check` 通过。真实写入已进入 LocalSyncStore/Outbox；本轮后端离线，云端 replay 未复验，
   但没有新增或修改后端契约。未 package、commit、push、上传或发版。
+- 2026-09-01 根据 `0901需求表` 两条 P0 反馈补齐经历导入与技能型 Experience：真实 PDF.js 坐标复现
+  证明旧 `pdf-layout` 把页面按底部到顶部输出，现统一为视觉顶部到页面底部，并用真实三行 PDF 与既有
+  单/双栏 fixture 回归；材料宿主与旧导入候选同时拒绝把多个明确教育时间区间写进一条新 education
+  Experience。普通对话新增 `prepare_experience_maintenance`，复用既有 Experience Proposal、宿主审批、
+  乐观锁和 LocalSyncStore/Outbox；一次拆分可冻结“更新原记录 + 新建记录”，接受前零写入，接受时通过
+  SQLite 本地批量事务入队，任一 mutation 无效时整批回滚。后端五类 category 未变，前端把“专业技能”
+  映射到现有 `other + skills section`，新建时不显示或写入组织、角色、地点与日期，时间线和详情不再把
+  技能标成“日期待补充”。真实 development Electron 已验证“专业技能”选项可见，选择后仅保留标题、标签
+  和正文，放弃表单后无写入；反馈原始附件尚未取得，因此该真实 bad case 重放、真实模型对话拆分审批和
+  云端双实体 replay 仍为待验收项。脏功能工作区门禁通过：1170 个源文件均 ≤250 行、1122 pass/2 platform
+  skip、Node/Preload/Renderer typecheck、Node/Electron production build 与 sandbox preload 门禁通过；
+  未 package、commit、push、上传或发版。
+- 2026-09-01 启动 0.1.26 双平台发布：公网 `latest.yml`/`latest-mac.yml` 均仍为 0.1.25；从
+  `origin/app@8ce5f81` 建立干净 `codex/release-0.1.26` worktree，只集成 `4ce6851`（Rosetta 下禁用
+  EventKit 探测）与 `07f51f5`（教育拆分/技能日期）并把版本提升至 0.1.26。npm 官方源生产依赖审计为
+  0 漏洞；干净 worktree `npm run check` 通过：1169 个源文件均 ≤250 行、1119 pass/2 platform skip、
+  双 typecheck、Node/Electron production build 与 5 个 sandbox preload 门禁全绿。本地 Windows
+  `npm run package:win` 完成 Rust 3/3、protected Main、NSIS、release hardening、真实隔离安装、非空
+  Renderer/bootstrap 持续健康和卸载清理；本地 EXE 135,157,313 bytes，SHA-256
+  `B46DC3977140FA6D87315D7DD21FBE57EE2D510E3D8C129B18F89C563AEAB9DC`，Authenticode 为
+  `NotSigned`。受保护 `app` PR、Windows/macOS 发布 workflow、公网上传与五文件全字节校验仍待完成，
+  因此此时不能把 0.1.26 标记为已发布。
 - 2026-08-31 按用户确认补齐本地 ResumeDraft 与聊天的持续交互：Conversation 新增本地
   `activeResumeArtifactId`，宿主以幂等 Link Service 同时维护 ResumeDraft `conversationIds`，关系元数据不改
   Resume revision、正文或云端。点击侧栏本地简历会过滤已删除引用并进入最近更新的关联对话，Composer 持续

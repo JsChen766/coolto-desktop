@@ -21,54 +21,61 @@ export class LocalOutboxStore {
   }
 
   public enqueue(mutation: EnqueueMutation): string {
-    return withImmediateTransaction(this.database, () => {
-      const existing = this.#find(mutation.operationId);
-      if (existing) {
-        this.#assertSame(existing, mutation);
-        return existing.operation_id;
-      }
-      const createdAt = mutation.createdAt ?? new Date().toISOString();
-      this.database
-        .prepare(`
-          INSERT INTO local_outbox (
-            operation_id, entity_type, entity_id, action, expected_version,
-            payload, status, created_at, next_attempt_at
-          ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-        `)
-        .run(
-          mutation.operationId,
-          mutation.entityType,
-          mutation.entityId,
-          mutation.action,
-          mutation.expectedVersion,
-          this.codec.encode(mutation.payload),
-          createdAt,
-          createdAt,
-        );
-      this.database
-        .prepare(`
-          INSERT INTO sync_entities (
-            entity_type, entity_id, entity_version, local_version,
-            sync_status, operation, changed_at, payload
-          ) VALUES (?, ?, ?, 1, 'pending', ?, ?, ?)
-          ON CONFLICT (entity_type, entity_id) DO UPDATE SET
-            local_version = sync_entities.local_version + 1,
-            sync_status = 'pending',
-            last_error_code = NULL,
-            operation = excluded.operation,
-            changed_at = excluded.changed_at,
-            payload = excluded.payload
-        `)
-        .run(
-          mutation.entityType,
-          mutation.entityId,
-          mutation.expectedVersion ?? 0,
-          mutation.action === "delete" ? "delete" : "upsert",
-          createdAt,
-		  this.codec.encode(mutation.localPayload ?? mutation.payload),
-        );
-      return mutation.operationId;
-    });
+    return withImmediateTransaction(this.database, () => this.#enqueue(mutation));
+  }
+
+  public enqueueMany(mutations: readonly EnqueueMutation[]): string[] {
+    return withImmediateTransaction(this.database,
+      () => mutations.map((mutation) => this.#enqueue(mutation)));
+  }
+
+  #enqueue(mutation: EnqueueMutation): string {
+    const existing = this.#find(mutation.operationId);
+    if (existing) {
+      this.#assertSame(existing, mutation);
+      return existing.operation_id;
+    }
+    const createdAt = mutation.createdAt ?? new Date().toISOString();
+    this.database
+      .prepare(`
+        INSERT INTO local_outbox (
+          operation_id, entity_type, entity_id, action, expected_version,
+          payload, status, created_at, next_attempt_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+      `)
+      .run(
+        mutation.operationId,
+        mutation.entityType,
+        mutation.entityId,
+        mutation.action,
+        mutation.expectedVersion,
+        this.codec.encode(mutation.payload),
+        createdAt,
+        createdAt,
+      );
+    this.database
+      .prepare(`
+        INSERT INTO sync_entities (
+          entity_type, entity_id, entity_version, local_version,
+          sync_status, operation, changed_at, payload
+        ) VALUES (?, ?, ?, 1, 'pending', ?, ?, ?)
+        ON CONFLICT (entity_type, entity_id) DO UPDATE SET
+          local_version = sync_entities.local_version + 1,
+          sync_status = 'pending',
+          last_error_code = NULL,
+          operation = excluded.operation,
+          changed_at = excluded.changed_at,
+          payload = excluded.payload
+      `)
+      .run(
+        mutation.entityType,
+        mutation.entityId,
+        mutation.expectedVersion ?? 0,
+        mutation.action === "delete" ? "delete" : "upsert",
+        createdAt,
+        this.codec.encode(mutation.localPayload ?? mutation.payload),
+      );
+    return mutation.operationId;
   }
 
   public listReady(now: string, limit: number): PendingOperation[] {

@@ -2,7 +2,7 @@
 import type { ExperienceSummary } from "@desktop/types";
 import { computed } from "vue";
 import {
-  EXPERIENCE_CATEGORY_LABELS,
+  experienceCategoryLabel,
   EXPERIENCE_SYNC_LABELS,
   experienceDateRange,
   experienceSubtitle,
@@ -20,6 +20,7 @@ const props = defineProps<{
 defineEmits<{ select: [experienceId: string] }>();
 
 const subtitle = computed(() => experienceSubtitle(props.experience));
+const dateRange = computed(() => experienceDateRange(props.experience));
 const context = computed(() => {
   const value = experienceMatchContext(props.experience, props.query);
   if (value?.startsWith("地点：")) {
@@ -44,7 +45,8 @@ const context = computed(() => {
     :aria-current="selected ? 'true' : undefined"
     @click="$emit('select', experience.id)"
   >
-    <span class="experience-timeline-date">{{ translateDateRange(experienceDateRange(experience)) }}</span>
+    <span v-if="dateRange" class="experience-timeline-date">{{ translateDateRange(dateRange) }}</span>
+    <span v-else class="experience-timeline-date" aria-hidden="true" />
     <span class="experience-timeline-marker" aria-hidden="true"><i /></span>
     <span class="experience-timeline-copy">
       <strong><ExperienceHighlightedText :text="experience.title" :query="query" /></strong>
@@ -52,7 +54,7 @@ const context = computed(() => {
         <ExperienceHighlightedText :text="subtitle" :query="query" />
       </span>
       <span class="experience-timeline-meta">
-        {{ $t(EXPERIENCE_CATEGORY_LABELS[experience.category]) }}
+        {{ $t(experienceCategoryLabel(experience)) }}
         <span
           v-if="experience.syncStatus && experience.syncStatus !== 'clean'"
           class="experience-sync-label"

@@ -12,7 +12,9 @@ export function createResumeExperienceSyncExecutor(
   return {
     execute: async (context) => {
       const payload = readExperienceSyncPayload(context.payload);
-      const results = payload.proposalIds.map((id) => proposals.execute(id));
+      const results = proposals.executeMany
+        ? proposals.executeMany(payload.proposalIds)
+        : payload.proposalIds.map((id) => proposals.execute(id));
       if (drafts && payload.artifactId && payload.evidenceFingerprint) {
         await drafts.markExperienceSync(payload.artifactId, {
           evidenceFingerprint: payload.evidenceFingerprint,

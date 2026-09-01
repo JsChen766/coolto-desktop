@@ -18,6 +18,7 @@ import type {
   ExperienceMaterialSource,
   ExperienceMaterialTarget,
 } from "./material-ingestion-types.js";
+import { assertSingleEducationPeriod } from "./material-partition.js";
 
 interface MaterialChunkState extends ExperienceMaterialChunkView {
   recordedText?: string;
@@ -59,6 +60,9 @@ export class ExperienceMaterialIngestionStore {
     target: ExperienceMaterialTarget,
   ): Promise<{ sessionId: string; chunk: ExperienceMaterialChunkView }> {
     const material = await this.readMaterial(source);
+    if (target.kind === "new" && target.category === "education") {
+      assertSingleEducationPeriod(material.chunks.map((chunk) => chunk.text).join("\n"));
+    }
     const chunks = material.chunks.map((chunk): MaterialChunkState => ({
       chunkId: chunk.id,
       label: chunk.label,

@@ -515,6 +515,21 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 - Actions 仍提示 `actions/checkout@v4` / `setup-node@v4` 的 Node 20 弃用警告；未阻断本次构建、验收、上传或
   公网独立验证。本次发布不替代 BSF5、BE6、BE8 的延期真实验收，Roadmap 阶段状态不变。
 
+### 10.15 发布进行中（2026-09-01，0.1.26 Experience/Calendar 修复）
+
+- 发布源从 `origin/app@8ce5f81` 的独立干净 worktree 建立，只集成 `4ce6851` 与 `07f51f5`；公网
+  Win/mac feed 在改版本前均为 0.1.25，故新版本使用 0.1.26，未覆盖已发布版本。
+- npm 官方源生产依赖审计为 0 漏洞；`npm run check` 通过：1169 个源文件均不超过 250 行，1121 项测试中
+  1119 通过、2 项平台跳过、0 失败，Node/Preload/Vue typecheck、Node/Electron production build 与
+  5 个 sandbox preload 门禁通过。
+- 本地 Windows `npm run package:win` 全链通过：Rust 3/3、protected Main、NSIS、release hardening、
+  真实隔离安装、`COOLTO_MAIN_BOOTSTRAP_READY`、非空 Renderer 持续健康、进程树终止与卸载清理均完成。
+  本地 EXE 为 135,157,313 bytes，SHA-256
+  `B46DC3977140FA6D87315D7DD21FBE57EE2D510E3D8C129B18F89C563AEAB9DC`；Main loader 1,097 bytes、
+  payload 1,494,655 bytes、native 272,896 bytes、Fuses verified；Authenticode 实测 `NotSigned`。
+- 该本地产物只用于发布前验收，不上传；Windows/macOS CI 会各自重新生成随机保护密钥。受保护 `app` PR、
+  双平台 workflow、服务器上传、公网 feed/下载页和五文件全字节 SHA-512/SHA-256 校验仍待完成。
+
 ### 10.6 运维注意事项（坑）
 
 - **Windows GitHub runner 冷启动不能用固定 10 秒 marker 窗口。** 0.1.19 首次 Windows CI 已通过

@@ -101,6 +101,10 @@ export class LocalSyncStore {
     return this.#outbox.enqueue(mutation);
   }
 
+  public enqueueMany(mutations: readonly EnqueueMutation[]): string[] {
+    return this.#outbox.enqueueMany(mutations);
+  }
+
   public resolveCreateIdentity(
     entityType: SyncEntityType,
     idempotencyKey: string,

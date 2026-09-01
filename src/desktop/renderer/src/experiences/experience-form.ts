@@ -4,6 +4,8 @@ import type {
   ExperienceUpdateInput,
 } from "../../../../api/types.js";
 import type { ExperienceProposalSnapshot } from "../../../../experience/maintenance-types.js";
+import type { ExperienceKind } from "../../../../experience/experience-kind.js";
+import { fieldsForExperienceKind } from "../../../../experience/experience-kind.js";
 import {
   experienceValidationIssues,
   type ExperienceValidationField,
@@ -18,6 +20,8 @@ export interface ExperienceFormDraft {
   organization: string;
   role: string;
   location: string;
+  resumeSectionKey: string | null;
+  resumeSectionLabel: string | null;
   startMode: StartDateMode;
   startValue: string;
   endMode: EndDateMode;
@@ -45,6 +49,8 @@ export function emptyExperienceDraft(): ExperienceFormDraft {
     organization: "",
     role: "",
     location: "",
+    resumeSectionKey: null,
+    resumeSectionLabel: null,
     startMode: "none",
     startValue: "",
     endMode: "none",
@@ -69,6 +75,8 @@ export function draftFromExperience(
     organization: experience.organization ?? "",
     role: experience.role ?? "",
     location: experience.location ?? "",
+    resumeSectionKey: experience.resumeSectionKey ?? null,
+    resumeSectionLabel: experience.resumeSectionLabel ?? null,
     startMode: start.mode,
     startValue: start.value,
     endMode: end.mode,
@@ -104,6 +112,8 @@ export function toExperienceCreateInput(
     ...(value.startDate ? { startDate: value.startDate } : {}),
     ...(value.endDate ? { endDate: value.endDate } : {}),
     tags: value.tags,
+    ...(value.resumeSectionKey ? { resumeSectionKey: value.resumeSectionKey } : {}),
+    ...(value.resumeSectionLabel ? { resumeSectionLabel: value.resumeSectionLabel } : {}),
   };
 }
 
@@ -121,6 +131,8 @@ export function toExperienceUpdateInput(
     startDate: value.startDate,
     endDate: value.endDate,
     tags: value.tags,
+    resumeSectionKey: value.resumeSectionKey,
+    resumeSectionLabel: value.resumeSectionLabel,
     status: value.status,
   };
 }
@@ -163,8 +175,8 @@ function snapshot(draft: ExperienceFormDraft): ExperienceProposalSnapshot {
     startDate: value.startDate,
     endDate: value.endDate,
     tags: value.tags,
-    resumeSectionKey: null,
-    resumeSectionLabel: null,
+    resumeSectionKey: value.resumeSectionKey,
+    resumeSectionLabel: value.resumeSectionLabel,
     status: value.status,
     revisionId: "form-revision",
     revisionHash: "form-revision-hash",
@@ -182,8 +194,21 @@ function normalized(draft: ExperienceFormDraft) {
     startDate: dateValue(draft.startMode, draft.startValue),
     endDate: dateValue(draft.endMode, draft.endValue),
     tags: normalizeExperienceTags(draft.tags, draft.tagInput),
+    resumeSectionKey: draft.resumeSectionKey,
+    resumeSectionLabel: draft.resumeSectionLabel,
     status: draft.status,
   };
+}
+
+export function patchForExperienceKind(kind: ExperienceKind): Partial<ExperienceFormDraft> {
+  const fields = fieldsForExperienceKind(kind);
+  return kind === "skills"
+    ? {
+        ...fields,
+        organization: "", role: "", location: "",
+        startMode: "none", startValue: "", endMode: "none", endValue: "",
+      }
+    : fields;
 }
 
 function dateMode(value: string | null): { mode: StartDateMode; value: string } {

@@ -111,7 +111,7 @@ function renderColumn(spans: Span[]): string {
  * 贪心基于 y 排序后的序列，pdfjs 同视觉行 span 的 y 差通常在 1pt 以内。
  */
 function clusterRows(spans: Span[]): Span[][] {
-  const sorted = [...spans].sort((left, right) => left.y - right.y);
+  const sorted = [...spans].sort((left, right) => right.y - left.y);
   const rows: Span[][] = [];
   let current: Span[] | undefined;
   let baseY = 0;

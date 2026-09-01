@@ -106,6 +106,24 @@ test("outbox replays offline create update delete in entity order", () => {
   state.database.close();
 });
 
+test("outbox batch rolls back every local mutation when one item is invalid", () => {
+  const state = stores();
+  const first = {
+    operationId: "op-batch", entityType: "experience" as const,
+    entityId: "exp-batch-1", action: "create" as const, expectedVersion: null,
+    payload: { title: "first" }, localPayload: projection("exp-batch-1", "first"),
+  };
+  assert.throws(() => state.outbox.enqueueMany([
+    first,
+    { ...first, entityId: "exp-batch-2", payload: { title: "different" },
+      localPayload: projection("exp-batch-2", "different") },
+  ]), /operationId/u);
+  assert.equal(state.outbox.listReady("9999-01-01T00:00:00Z", 10).length, 0);
+  assert.equal(state.entities.get("experience", "exp-batch-1"), undefined);
+  assert.equal(state.entities.get("experience", "exp-batch-2"), undefined);
+  state.database.close();
+});
+
 test("validation failure is failed and accepting server restores baseline", () => {
   const state = stores();
   const id = "exp-2";

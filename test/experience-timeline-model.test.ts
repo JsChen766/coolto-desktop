@@ -8,6 +8,7 @@ import {
   experienceMatchContext,
 } from "../src/experience/timeline-model.js";
 import {
+  experienceCategoryLabel,
   experienceDateRange,
 } from "../src/experience/timeline-labels.js";
 import {
@@ -44,6 +45,20 @@ test("month precision sorts by month end and remains unexpanded in labels", () =
     startDate: "2022-01",
     endDate: "2024-02",
   })), "2022.01 – 2024.02");
+});
+
+test("professional skills stay outside the missing-date group", () => {
+  const skills = experience("skills", {
+    category: "other", startDate: null, endDate: null,
+    resumeSectionKey: "skills", resumeSectionLabel: "专业技能",
+  });
+  const groups = groupExperienceTimeline([
+    skills,
+    experience("missing", { startDate: null, endDate: null }),
+  ]);
+  assert.deepEqual(groups.map((group) => group.label), ["日期待补充", "专业技能"]);
+  assert.equal(experienceDateRange(skills), "");
+  assert.equal(experienceCategoryLabel(skills), "专业技能");
 });
 
 test("experience filters normalize NFKC and require every exact tag", () => {

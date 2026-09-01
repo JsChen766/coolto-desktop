@@ -4,6 +4,7 @@ import type {
 } from "../api/types.js";
 import type { ExperienceImportCandidate } from "./types.js";
 import { normalizeResumeSection } from "../resume/contracts/section-contract.js";
+import { assertSingleEducationPeriod } from "../experience/material-partition.js";
 
 const CATEGORIES = new Set<ExperienceCategory>([
   "work",
@@ -25,6 +26,7 @@ export function normalizeImportCandidate(
   if (!CATEGORIES.has(input.category)) {
     throw new Error(`不支持的经历类别：${String(input.category)}`);
   }
+  if (input.category === "education") assertSingleEducationPeriod(content);
 
   const section = normalizeResumeSection({
     coreCategory: input.category,

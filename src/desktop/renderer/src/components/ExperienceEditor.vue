@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 
-import { EXPERIENCE_CATEGORY_LABELS } from "../../../../experience/timeline-labels";
+import {
+  EXPERIENCE_KIND_LABELS,
+  experienceKind,
+  type ExperienceKind,
+} from "../../../../experience/experience-kind";
 import {
   cloneExperienceDraft,
   experienceFormErrors,
   normalizeExperienceTags,
+  patchForExperienceKind,
   sameExperienceDraft,
   type ExperienceFormDraft,
   type ExperienceFormErrors,
@@ -30,6 +35,7 @@ const errors = ref<ExperienceFormErrors>({});
 const formElement = ref<HTMLFormElement>();
 const dirty = computed(() => !sameExperienceDraft(form.value, props.initial));
 const errorList = computed(() => [...new Set(Object.values(errors.value))]);
+const kind = computed(() => experienceKind(form.value));
 
 watch(dirty, (value) => emit("dirty", value), { immediate: true });
 
@@ -42,6 +48,12 @@ function patch(changes: Partial<ExperienceFormDraft>): void {
 
 function updateTags(value: { tags: string[]; tagInput: string }): void {
   patch(value);
+}
+
+function updateKind(event: Event): void {
+  patch(patchForExperienceKind(
+    (event.target as HTMLSelectElement).value as ExperienceKind,
+  ));
 }
 
 async function submit(): Promise<void> {
@@ -106,14 +118,12 @@ async function submit(): Promise<void> {
           <span>{{ $t('类别') }}</span>
           <select
             data-field="category"
-            :value="form.category"
+            :value="kind"
             :disabled="busy"
-            @change="patch({
-              category: ($event.target as HTMLSelectElement).value as ExperienceFormDraft['category'],
-            })"
+            @change="updateKind"
           >
             <option
-              v-for="(label, value) in EXPERIENCE_CATEGORY_LABELS"
+              v-for="(label, value) in EXPERIENCE_KIND_LABELS"
               :key="value"
               :value="value"
             >
@@ -134,7 +144,7 @@ async function submit(): Promise<void> {
         </label>
       </div>
 
-      <div class="experience-form-grid experience-form-grid-three">
+      <div v-if="kind !== 'skills'" class="experience-form-grid experience-form-grid-three">
         <label v-for="field in ['organization', 'role', 'location'] as const"
           :key="field" class="experience-form-field">
           <span>{{ field === "organization" ? $t('组织') : field === "role" ? $t('角色') : $t('地点') }}</span>
@@ -150,6 +160,7 @@ async function submit(): Promise<void> {
       </div>
 
       <ExperienceDateFields
+        v-if="kind !== 'skills'"
         :draft="form"
         :errors="errors"
         :disabled="busy"

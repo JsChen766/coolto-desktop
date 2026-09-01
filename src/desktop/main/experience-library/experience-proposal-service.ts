@@ -204,6 +204,10 @@ export class ExperienceProposalService {
     return this.#registry.execute(proposalId);
   }
 
+  public executeMany(proposalIds: readonly string[]) {
+    return this.#registry.executeMany(proposalIds);
+  }
+
   public discard(proposalId: string): void {
     this.#registry.discard(proposalId);
   }
