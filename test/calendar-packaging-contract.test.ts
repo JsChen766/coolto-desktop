@@ -24,6 +24,27 @@ test("native core links EventKit without a helper process", async () => {
   assert.match(rust, /calendarRequestAccess/u);
 });
 
+test("macOS native build and release gates execute the Calendar export", async () => {
+  const [nativeBuild, releaseAudit, runtimeAudit] = await Promise.all([
+    source("../scripts/build-native-core.mjs"),
+    source("../scripts/verify-release-hardening.mjs"),
+    source("../scripts/verify-native-calendar-runtime.mjs"),
+  ]);
+  assert.match(nativeBuild, /verify-native-calendar-runtime\.mjs/u);
+  assert.match(releaseAudit, /verifyNativeCalendarRuntime/u);
+  assert.match(runtimeAudit, /calendarAuthorizationStatus/u);
+  assert.match(runtimeAudit, /___isPlatformVersionAtLeast/u);
+});
+
+test("macOS development loads the same universal binding whose hash is injected", async () => {
+  const [viteConfig, nativeProtection] = await Promise.all([
+    source("../electron.vite.config.ts"),
+    source("../src/desktop/main/native-protection.ts"),
+  ]);
+  assert.match(viteConfig, /coolto-core\.darwin-universal\.node/u);
+  assert.match(nativeProtection, /darwin-universal/u);
+});
+
 function source(path: string): Promise<string> {
   return readFile(new URL(path, import.meta.url), "utf8");
 }

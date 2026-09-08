@@ -35,9 +35,27 @@ fn build_calendar_bridge() {
   ]);
   println!("cargo:rustc-link-search=native={}", output.display());
   println!("cargo:rustc-link-lib=static=coolto_calendar_bridge");
+  let clang_resource = command_output("xcrun", &[
+    "--sdk", "macosx", "clang", "--print-resource-dir",
+  ]);
+  let clang_runtime = std::path::PathBuf::from(clang_resource).join("lib/darwin");
+  println!("cargo:rustc-link-search=native={}", clang_runtime.display());
+  println!("cargo:rustc-link-lib=static=clang_rt.osx");
   println!("cargo:rustc-link-lib=framework=EventKit");
   println!("cargo:rustc-link-lib=framework=Foundation");
   println!("cargo:rerun-if-changed=src/calendar_bridge.m");
+}
+
+fn command_output(command: &str, arguments: &[&str]) -> String {
+  let output = std::process::Command::new(command)
+    .args(arguments)
+    .output()
+    .unwrap_or_else(|error| panic!("failed to run {command}: {error}"));
+  assert!(output.status.success(), "{command} failed with {}", output.status);
+  String::from_utf8(output.stdout)
+    .expect("command output must be UTF-8")
+    .trim()
+    .into()
 }
 
 fn run(command: &str, arguments: &[&str]) {

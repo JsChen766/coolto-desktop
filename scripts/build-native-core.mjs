@@ -70,6 +70,16 @@ if (targetName === "mac-universal") {
     "-output",
     "native/coolto-core/artifacts/coolto-core.darwin-universal.node",
   ]);
+  for (const binding of [
+    "coolto-core.darwin-arm64.node",
+    "coolto-core.darwin-x64.node",
+    "coolto-core.darwin-universal.node",
+  ]) {
+    run(process.execPath, [
+      "scripts/verify-native-calendar-runtime.mjs",
+      join("native", "coolto-core", "artifacts", binding),
+    ]);
+  }
 }
 const testTriple = target.triples?.[0] ?? target.triple;
 run(join(cargoBin, process.platform === "win32" ? "cargo.exe" : "cargo"), [
