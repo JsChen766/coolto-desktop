@@ -7,6 +7,7 @@ defineProps<{
   description: string;
   actionLabel?: string | undefined;
   secondaryLabel?: string | undefined;
+  skipLabel?: string | undefined;
   busy?: boolean;
   error?: string | undefined;
   aboveComposer?: boolean;
@@ -15,6 +16,7 @@ defineProps<{
 defineEmits<{
   action: [];
   secondary: [];
+  skip: [];
 }>();
 </script>
 
@@ -32,6 +34,15 @@ defineEmits<{
       <small v-if="error" class="onboarding-guide-error" role="alert">{{ error }}</small>
     </span>
     <span class="onboarding-guide-actions">
+      <button
+        v-if="skipLabel"
+        class="onboarding-guide-secondary"
+        type="button"
+        :disabled="busy"
+        @click="$emit('skip')"
+      >
+        {{ $t(skipLabel) }}
+      </button>
       <button
         v-if="secondaryLabel"
         class="onboarding-guide-secondary"

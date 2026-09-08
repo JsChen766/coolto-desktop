@@ -50,6 +50,11 @@ export function useChatAuth(
     if (authenticated) emailChallenge.value = undefined;
   }
 
+  function resetEmailChallenge(): void {
+    emailChallenge.value = undefined;
+    loginError.value = undefined;
+  }
+
   async function logout(): Promise<void> {
     await cancelRunning();
     await desktopApi.auth.logout();
@@ -82,6 +87,7 @@ export function useChatAuth(
     loginError,
     logout,
     requestEmailCode,
+    resetEmailChallenge,
     restore,
     user,
     verifyEmailCode,

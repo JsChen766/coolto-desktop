@@ -15,6 +15,13 @@ export const onboardingMessages: Record<string, string> = {
   "上传现有简历": "Upload an existing resume",
   "直接告诉我一段经历": "Tell me about an experience",
   "稍后再说": "Maybe later",
+  "跳过引导": "Skip tour",
+  "跳过整个新手引导？": "Skip the entire tour?",
+  "所有示例数据、临时简历和示例浏览器页面都会清理。你的正式账号数据不会受到影响，之后将直接进入 Coolto 首页。":
+    "All sample data, temporary resumes and sample browser pages will be removed. Your real account data will not be affected, and you will go directly to the Coolto home screen.",
+  "继续引导": "Continue tour",
+  "跳过并进入首页": "Skip and go to home",
+  "正在跳过…": "Skipping…",
   "把真实经历整理成通用简历": "Turn your experience into a general resume",
   "你可以继续补充成果或上传材料；准备好后，我会从经历仓库中选择最能体现能力和影响力的内容，生成一份不关联任何 JD 的一页通用简历。":
     "Add more achievements or upload supporting material. When ready, I’ll select the strongest evidence from your experience library and create a one-page general resume with no JD attached.",

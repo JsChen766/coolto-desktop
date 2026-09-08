@@ -39,5 +39,6 @@ export interface OnboardingDesktopApi {
   start(locale: OnboardingLocale): Promise<OnboardingResult>;
   advance(action: OnboardingAction, locale: OnboardingLocale): Promise<OnboardingResult>;
   openBrowserDemo(theme: "light" | "dark"): Promise<void>;
+  skip(): Promise<OnboardingResult>;
   complete(locale: OnboardingLocale): Promise<OnboardingResult>;
 }

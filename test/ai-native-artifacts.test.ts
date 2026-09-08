@@ -15,24 +15,26 @@ import type { JsonValue } from "../src/agent-task/json-types.js";
 
 test("follow-up and briefing artifacts are task-scoped, grounded and immutable", async () => {
   const follow = await setup("application_follow_up", { applicationId: "app-1" });
+  const firstSchedule = futureTimestamp(24);
+  const nextSchedule = futureTimestamp(72);
   const draft = await follow.service.createFollowUp({
     applicationId: "app-1", subject: "Following up",
     body: "I am following up on the Backend Engineer application.",
-    scheduledFor: "2026-09-05T09:00:00Z", timezone: "Asia/Hong_Kong",
+    scheduledFor: firstSchedule, timezone: "Asia/Hong_Kong",
   });
   assert.equal(draft.kind, "follow_up_draft");
   await assert.rejects(follow.service.createFollowUp({
     applicationId: "app-1", subject: "Following up", body: "Changed silently",
-    scheduledFor: "2026-09-05T09:00:00Z", timezone: "Asia/Hong_Kong",
+    scheduledFor: firstSchedule, timezone: "Asia/Hong_Kong",
   }), /尚未达到授权检查间隔/u);
   const nextDraft = await follow.service.createFollowUp({
     applicationId: "app-1", subject: "Second follow-up", body: "Checking in again.",
-    scheduledFor: "2026-09-07T09:00:00Z", timezone: "Asia/Hong_Kong",
+    scheduledFor: nextSchedule, timezone: "Asia/Hong_Kong",
   });
   assert.equal(nextDraft.kind, "follow_up_draft");
   await assert.rejects(follow.service.createFollowUp({
     applicationId: "app-1", subject: "Bad timezone", body: "Checking in.",
-    scheduledFor: "2026-09-09T09:00:00Z", timezone: "Mars/Olympus",
+    scheduledFor: futureTimestamp(96), timezone: "Mars/Olympus",
   }), /IANA timezone/u);
 
   const brief = await setup("interview_briefing", {
@@ -49,6 +51,10 @@ test("follow-up and briefing artifacts are task-scoped, grounded and immutable",
     sections: [{ heading: "Unknown", content: "Unknown", sourceRefs: ["jd:other"] }],
   }), /来源不属于/u);
 });
+
+function futureTimestamp(hours: number): string {
+  return new Date(Date.now() + hours * 3_600_000).toISOString();
+}
 
 test("Strategy Learner freezes metrics and refuses undersized data", async () => {
   const small = await setup("application_strategy", {}, 4);

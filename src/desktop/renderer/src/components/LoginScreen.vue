@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowRight } from "@lucide/vue";
-import { onBeforeUnmount, ref, watch } from "vue";
+import { ArrowLeft, ArrowRight } from "@lucide/vue";
+import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 
 import type { EmailChallengeView } from "@desktop/types";
 
@@ -12,11 +12,13 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+  changeEmail: [];
   requestCode: [email: string];
   verifyCode: [email: string, challengeId: string, code: string];
 }>();
 
 const email = ref("");
+const emailInput = ref<HTMLInputElement>();
 const code = ref("");
 const retryAfter = ref(0);
 let retryTimer: ReturnType<typeof setInterval> | undefined;
@@ -50,6 +52,15 @@ function submit(): void {
     emit("verifyCode", normalizedEmail, props.challenge.challengeId, code.value);
   }
 }
+
+function changeEmail(): void {
+  code.value = "";
+  emit("changeEmail");
+  void nextTick(() => {
+    emailInput.value?.focus();
+    emailInput.value?.select();
+  });
+}
 </script>
 
 <template>
@@ -62,9 +73,20 @@ function submit(): void {
       </div>
 
       <form class="login-form" @submit.prevent="submit">
+        <button
+          v-if="challenge"
+          class="login-back-button"
+          type="button"
+          :disabled="busy"
+          @click="changeEmail"
+        >
+          <ArrowLeft :size="14" :stroke-width="1.9" aria-hidden="true" />
+          <span>{{ $t('修改邮箱') }}</span>
+        </button>
         <label>
           <span>{{ $t('邮箱') }}</span>
           <input
+            ref="emailInput"
             v-model="email"
             type="email"
             autocomplete="username"

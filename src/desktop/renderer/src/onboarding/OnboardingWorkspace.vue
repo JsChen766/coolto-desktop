@@ -9,6 +9,7 @@ import ApplicationTrackerView from "../components/ApplicationTrackerView.vue";
 import ExperienceLibraryView from "../components/ExperienceLibraryView.vue";
 import JobRepositoryView from "../components/JobRepositoryView.vue";
 import OnboardingGuideBar from "./OnboardingGuideBar.vue";
+import OnboardingSkipDialog from "./OnboardingSkipDialog.vue";
 import type { OnboardingController } from "./use-onboarding";
 import { SAMPLE_JD_ID } from "./onboarding-sample-api";
 import { translate } from "../i18n/locale";
@@ -21,6 +22,7 @@ const props = defineProps<{
 const experienceSeen = ref(false);
 const applicationSeen = ref(false);
 const composerFocused = ref(false);
+const skipDialogOpen = ref(false);
 const navigation = ref<JobRepositoryNavigationState>({
   view: "jobs",
   query: "",
@@ -113,6 +115,10 @@ async function secondaryAction(): Promise<void> {
   else if (step.value === "complete") await props.controller.complete(false);
 }
 
+async function confirmSkip(): Promise<void> {
+  if (await props.controller.skip()) skipDialogOpen.value = false;
+}
+
 async function sendGuidedPrompt(): Promise<void> {
   if (step.value === "welcome") {
     await props.controller.advance("accept_sample_profile");
@@ -142,7 +148,13 @@ async function generateResume(
     <div v-else-if="controller.error.value && !controller.active.value" class="onboarding-page-state" role="alert">
       <strong>{{ $t('首次体验暂时无法启动') }}</strong>
       <span>{{ controller.error.value }}</span>
-      <button class="primary-button" type="button" @click="controller.retry">{{ $t('重试') }}</button>
+      <div class="onboarding-page-actions">
+        <button class="secondary-button" type="button" :disabled="controller.busy.value"
+          @click="skipDialogOpen = true">
+          {{ $t('跳过引导') }}
+        </button>
+        <button class="primary-button" type="button" @click="controller.retry">{{ $t('重试') }}</button>
+      </div>
     </div>
     <template v-else>
       <ExperienceLibraryView
@@ -180,13 +192,22 @@ async function generateResume(
         :description="guide.description"
         :action-label="guide.action"
         :secondary-label="guide.secondary"
+        skip-label="跳过引导"
         :busy="controller.busy.value"
         :error="controller.error.value"
         :above-composer="step === 'welcome'"
         @action="primaryAction"
         @secondary="secondaryAction"
+        @skip="skipDialogOpen = true"
       />
     </template>
+    <OnboardingSkipDialog
+      v-if="skipDialogOpen"
+      :busy="controller.busy.value"
+      :error="controller.error.value"
+      @close="skipDialogOpen = false"
+      @confirm="confirmSkip"
+    />
   </main>
 </template>
 
@@ -203,4 +224,5 @@ async function generateResume(
   text-align: center;
 }
 .onboarding-page-state strong { color: var(--text); }
+.onboarding-page-actions { display: flex; gap: 8px; }
 </style>

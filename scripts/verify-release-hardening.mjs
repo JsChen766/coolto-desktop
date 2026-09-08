@@ -4,6 +4,7 @@ import { basename, join, resolve } from "node:path";
 
 import { extractFile, listPackage } from "@electron/asar";
 import { FuseV1Options, getCurrentFuseWire } from "@electron/fuses";
+import { verifyNativeCalendarRuntime } from "./verify-native-calendar-runtime.mjs";
 
 const appPath = resolve(process.argv[2] ?? "");
 if (!process.argv[2]) throw new Error("Usage: verify-release-hardening <app-path>");
@@ -65,6 +66,9 @@ if (
 ) {
   throw new Error("Native protection module exposes an unsafe release interface");
 }
+const calendarRuntime = isMac
+  ? verifyNativeCalendarRuntime(nativePath)
+  : { skipped: "not macOS" };
 
 const fuses = await getCurrentFuseWire(executable);
 const enabled = 49;
@@ -90,7 +94,9 @@ if (sourceMaps.length) {
   throw new Error(`Release contains source maps:\n${sourceMaps.join("\n")}`);
 }
 process.stdout.write(
-  `${JSON.stringify({ appPath, asarFiles: files.length, entryBytes: entry.byteLength, payloadBytes: payload.byteLength, nativeBytes: nativeSize, fuses: "verified" }, null, 2)}\n`,
+  `${JSON.stringify({ appPath, asarFiles: files.length, entryBytes: entry.byteLength,
+    payloadBytes: payload.byteLength, nativeBytes: nativeSize,
+    calendarRuntime, fuses: "verified" }, null, 2)}\n`,
 );
 
 function requireFile(files, expectedPath) {

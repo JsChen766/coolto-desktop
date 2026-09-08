@@ -195,7 +195,7 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 | BE4 | Managed Apply + Tracker | 多页填表、Answer Vault、SubmissionReceipt 与 Application Proposal | ✅ 2026-08-23 机制闭环完成；685 pass/2 skip，Browser 31/31、Harness 10/10、UI 14/14；真实域名 submit 仍待 BE8 逐域验收 |
 | BE5 | Inbox Signals | 默认 Browser Webmail、可选 Gmail/Outlook 增量、Application 关联与状态/Interview Proposal | ✅ 手动确认基线完成；自动关联准确率仍未评估，所有 Tracker/Interview 写入保持逐条 Approval |
 | BSF | Browser Shell Formalization | 独立 Browser 产品面、正式浏览器基础、Agent 可见层、新标签页与下载 | BSF0–BSF4 已完成；BSF5 Windows/macOS 剩余实测延期、未完成 |
-| BE6 | macOS Calendar | EventKit 最小权限、映射、改期/取消和去重 | 代码实现完成；真实 Mac 编译、TCC、CRUD、重启与打包验收延期、未完成 |
+| BE6 | macOS Calendar | EventKit 最小权限、映射、改期/取消和去重 | ⚠️ 0.1.26 源码已修复 EventKit bridge 未绑定 `__isPlatformVersionAtLeast` 的原生崩溃，ARM64 本地加固包与首次引导点击回归通过；x64 Bundle、TCC/CRUD/重启与正式发版仍待执行，未完成 |
 | BE7 | AI Native Loops | Scout、Follow-up、Briefing、Strategy Learner 和风险提醒 | **代码与逻辑质检通过、实测待回补**：BE7.1–BE7.6 已完成专用授权、真实首轮/周期调度、数据/去重/停止契约、方向与来源校验、可展开产物、审批续跑及全量门禁；真实邮件/岗位/表单、长周期 timer 和通知验收仍未执行，详见 Browser Enhance 正式记录 |
 | BE8 | Browser Enhance 真实交付 | 真实站点/账号、长任务、断网、崩溃、跨账号、安全与发布验收 | 待 BE7 完成；完整矩阵通过前不得称完全托管可用 |
 | S4.5 | 简历生成与交付修复 | 个人资料、可扩展内容、教育排版、十分钟生成目标、预览直接导出与应用自动更新 | Section A–G、G-1 已完成；2026-08-29 L7–L12 WorkUnit 语义层与 5 份当前代码真实单次生成完成；L13–L17 已补齐首次经历引导、真正 `jd=null` 的独立通用简历及 tailored 8000 字后的策略卡；L19 新增用户坚持不匹配岗位并指定经历的 `user_directed` 路径，逐 Experience 基础简历优先、否则取其他简历最近版本，多来源合成且不做 JD adaptation，无 focus 均匀分配、有唯一 focus 多写，critical-skill 只警告且不触发 mismatch 卡；2026-08-30 新增独立本地用户原文件投递资产，不进入任何写作/匹配/复用链路，可由用户指定用于任意岗位；L18 general/fallback 与 L20 user-directed 的真实账号模型生成尚未执行，人工文字质量、Section H 和完整 token/质量对照仍待验收 |
@@ -286,6 +286,12 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 - **阶段结论**：首次实测的两个阻塞和 JD 状态缺陷均已修复，新增的卡片消息位置问题也已通过真实
   Electron 复验；结合首次验收已通过的 OTP、Experience/JD 离线重放、账号隔离与本地 Resume 重启
   持久化证据，N1 标记完成。此次未 commit。
+- **OTP 登录邮箱回退补强（2026-09-08）**：验证码阶段新增沿用现有 token 与 Lucide 的小号“修改邮箱”
+  返回操作；回退只清除当前 challenge、验证码和错误，保留原邮箱并恢复可编辑、自动聚焦和全选，
+  不影响重新发送或登录会话。新增 1 个 UI 接线回归测试；`npm run check` 全绿（1124/1124 tests，
+  Node/preload/renderer typecheck、Node/Electron build 与 250 行门禁全部通过）。隔离 userData + 本地 mock API
+  的真实 Electron 已复验鼠标回退、立即覆盖错误邮箱，以及验证码输入框 `Shift+Tab` 聚焦返回操作并用
+  Enter 激活；浅色主题无布局溢出。本次未执行真实邮件投递、打包、commit 或 push。
 
 ##### N1 历史消息展示隐私复验（2026-07-28，已通过）
 
@@ -3631,6 +3637,59 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   SHA-256 验证；完整哈希见[发布手册 10.15](../desktop-release-hardening-runbook.md#1015-已验证基线2026-09-020126-experiencecalendar-修复)。
   Windows 仍 `NotSigned`，macOS 仍 ad-hoc/未 notarize；macOS 13 Rosetta 真实点击和原教育附件重放仍待用户
   真机回补，不能用本次 CI 构建证据替代。
+- 2026-09-08 用户报告 0.1.26 Apple Silicon 在首次引导中点击后 `EXC_BAD_ACCESS (SIGSEGV)`。使用公网
+  `Coolto-0.1.26-arm64-mac.zip`（SHA-256 与 10.15 记录一致）和隔离的现有登录会话完整重放：聊天、经历、
+  简历和 Browser Shell 填写均通过；点击第 5 步 Nova Labs 投递卡片时稳定复现主进程 signal 11。调用链为
+  `ApplicationDetailShell` 立即查询 `calendar.status()`，继而进入 `calendarAuthorizationStatus()`。
+  同一发布 `.node` 在 Node 中单独调用该导出也稳定以退出码 139 崩溃；LLDB 显示 native frame 从
+  `coolto_calendar_authorization_status` 调用地址 `0x0`，`nm` 同时证明
+  `___isPlatformVersionAtLeast` 仍是 `dynamically looked up`。根因是 Objective-C bridge 中的
+  `@available(macOS 14.0, *)` 生成了 clang runtime helper，但 `build.rs` 只把手工编译的 archive、EventKit
+  和 Foundation 交给 Rust/N-API 最终链接，未把 helper 实现链接进 `.node`；动态查找失败后 lazy call 跳到
+  null。临时向进程提供同名 helper 后，同一二进制正常返回 `not_determined`，因果对照通过。现有测试只做
+  源码合同/Mock adapter，macOS release audit 只检查导出、ASAR 和 Fuses，均未执行 EventKit native 导出，
+  因而发布门禁误放行。此轮只诊断和写回，未修改业务代码、未打包、未 commit/push/上传/发版；修复及
+  `calendarAuthorizationStatus`/权限请求/CRUD 的真实 ARM64 与 x64 回归仍为 BE6 阻塞项。
+- 2026-09-08 同轮修复完成：`build.rs` 从当前 Xcode/Command Line Tools 的 clang resource directory 显式
+  链入 `libclang_rt.osx.a`，并新增独立 Calendar native runtime verifier。`native:build:mac` 现在逐一审计
+  ARM64、x86_64 和 Universal 三个 `.node`，拒绝任何 slice 遗留
+  `___isPlatformVersionAtLeast` undefined symbol；宿主架构还会在隔离子进程中真实调用
+  `calendarAuthorizationStatus()`。release hardening 同样执行该 verifier，不再只检查 native export 存在。
+  回归先在旧模块稳定失败，再在修复模块通过：ARM64/Universal 均返回 `not_determined`，x86_64 slice 的
+  undefined-symbol 审计通过，Rust 3/3 通过。全量 `npm run check` 为 1169 个源文件 ≤250 行、1122/1122
+  tests、双 typecheck、Node/Electron production build 和 5 个 sandbox preload 门禁全绿；为恢复该门禁，
+  同时把一个已经过期的 2026-09-05/07 固定 follow-up 测试日期改为相对未来时间，未改变业务策略。
+  用户随后要求直接启动本地源码，`npm run desktop:dev` 首次发现开发模式实际加载 ARM64 thin binding、
+  `electron.vite.config.ts` 却注入 Universal binding SHA，完整性检查因此主动拒绝启动；现统一让 macOS
+  development 加载 Universal binding，并新增路径一致性合同。补齐本地 Electron binary 后，开发版已从
+  `http://localhost:5173/` 打开真实窗口并持续运行；默认本地 API 因本机无 Docker/8080 后端而明确
+  `ECONNREFUSED`，随后仅对测试进程覆盖生产 API URL，用户完成 OTP 登录。真实账号投递追踪中依次打开
+  腾讯、带两轮面试/提醒的美团投递详情，并进入日程页；两次 `calendar.status()` 均完成，详情与 Calendar
+  操作入口正常显示，主进程/Renderer 持续存活，终端无 SIGSEGV、未处理异常或 native error。未点击“同步到
+  Calendar”，避免在未取得系统权限/真实日历写入专项授权时改变 TCC 或日历数据。双 typecheck 与 Calendar
+  合同 4/4 通过。
+  随后重新生成随机保护密钥、protected Main，并完成本机 ARM64 DMG 与 app hardening：Main loader 1,097
+  bytes、payload 1,494,655 bytes、Universal native 834,176 bytes、Fuses 与深度 codesign 均通过，ad-hoc、
+  未 notarize。使用现有登录会话的隔离副本完整重放首次引导，原来必崩的第 5 步 Nova Labs 投递卡片点击后
+  投递详情正常展开，Calendar 状态查询完成，主进程与 Renderer 持续存活。测试 DMG 为 173,372,969 bytes，
+  SHA-256 `DEDC56CA1199240AC9EB95E9A0CD01C11F83E1952B8658107C34122DD7AE1914`；它是同版本随机密钥的本地
+  验证产物，不上传、不发布。临时登录副本和临时 Rust 工具链已移入废纸篓；未 commit/push。x64 Bundle
+  实际启动、Calendar 权限弹窗与 CRUD 会改变系统权限/日历，仍留待专门授权后的 BE6 验收，阶段不标完成。
+  用户随后授权将修复提交到全新分支 `codex/fix-macos-calendar-crash-20260908` 并推送；该分支在创建前已确认
+  本地与远程均不存在，不覆盖任何现有分支，且提交明确排除用户原有 `.DS_Store` 修改。
+- 2026-09-08 首次引导新增“跳过全部步骤”闭环：欢迎、经历、简历、Browser、Browser Review、Tracker 和
+  完成页共用常驻“跳过引导”次要操作，启动失败页也保留退出路径；点击后使用既有 Dialog 视觉二次确认，
+  “继续引导”不改变进度，“跳过并进入首页”由新增 `onboarding:skip` IPC 先关闭 Browser Shell、撤销示例
+  写权限并删除账号级临时目录，再把当前引导对话清空/重命名为普通“新对话”，将当前账号 onboarding 状态
+  幂等写为 `completed`，最后撤销 sample API override、恢复真实本地/云端 projection。未增加第二套状态或
+  提升 `ONBOARDING_VERSION`，已完成用户不会被重新触发；跳过不调用模型、不消耗额度、不写业务云端。
+  自动化先红后绿：任意活跃 step 跳过、未开始跳过、重复跳过、Browser cleanup-before-skip、UI/中英文合同
+  共 7 项专项通过；全量 `npm run check` 为 1170 个源文件 ≤250 行、1128/1128 tests、双 typecheck、
+  Node/Electron production build 与 5 个 sandbox preload 门禁全绿。真实 Electron 使用生产 API 和现有登录
+  会话的两个隔离 userData 验证：欢迎页打开确认框后取消仍留在引导，再次确认进入正常业务页；同一目录重启
+  后不再出现引导；另一目录推进到 Browser Review，示例 PDF 实际存在时跳过，随后 PDF 与 owner 临时目录
+  清除、示例资产退出且真实页面恢复，终端无未处理异常。测试登录副本已移入废纸篓；未请求 Calendar 权限、
+  未改真实日历、未 commit/push 本次新增改动。
 - 2026-08-31 按用户确认补齐本地 ResumeDraft 与聊天的持续交互：Conversation 新增本地
   `activeResumeArtifactId`，宿主以幂等 Link Service 同时维护 ResumeDraft `conversationIds`，关系元数据不改
   Resume revision、正文或云端。点击侧栏本地简历会过滤已删除引用并进入最近更新的关联对话，Composer 持续

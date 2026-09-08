@@ -548,6 +548,28 @@ Secrets：`RELEASE_SERVER_SSH_KEY`（ed25519，公钥在服务器 authorized_key
 - Actions 仍提示 checkout/setup-node 的 Node 20 弃用警告；未阻断构建。0.1.26 完成跨平台构建和公网分发，
   但不替代 macOS 13 Rosetta 卡片点击、原反馈教育附件、真实模型拆分审批、BE6 EventKit CRUD/TCC 或
   BSF5/BE8 延期验收；这些真实场景仍不能由 CI/Windows 证据冒充完成。
+- 2026-09-08 补充失败证据：公网 0.1.26 ARM64 ZIP 在真实 macOS 首次引导第 5 步点击 Nova Labs 投递卡片
+  时稳定 `EXC_BAD_ACCESS/SIGSEGV`；前四步和 Browser Shell 填写通过。投递详情挂载会立即调用
+  `calendarAuthorizationStatus()`，该发布 `.node` 的同一导出在独立 Node 进程中也稳定退出 139。LLDB
+  定位 native bridge 从 `coolto_calendar_authorization_status` 跳到 `0x0`，`nm` 证明 Objective-C
+  `@available(macOS 14.0, *)` 生成的 `___isPlatformVersionAtLeast` 仍为 dynamic lookup；`build.rs` 手工
+  编译/归档 bridge 后没有把对应 clang runtime helper 链入最终 Rust/N-API 模块。临时提供该符号后，同一
+  二进制正常返回 `not_determined`。因此 0.1.26 的 macOS 构建/签名/哈希/Fuses 证据仍成立，但不能证明
+  EventKit 运行时健康；后续门禁必须实际调用 Calendar native exports，并覆盖投递详情打开和权限请求。
+  本轮只诊断和写回，未修复、打包、commit、push、上传或发版。
+- 同轮源码修复与本地 ARM64 回归：native build 显式从 clang resource directory 链入
+  `libclang_rt.osx.a`；新增 verifier 对 ARM64/x86_64/Universal 每个 slice 拒绝未解析的
+  `___isPlatformVersionAtLeast`，并在宿主架构隔离调用 `calendarAuthorizationStatus()`。同一 verifier 已接入
+  `build-native-core.mjs` 和 `verify-release-hardening.mjs`。旧发布模块先稳定失败，修复后 ARM64/Universal
+  返回 `not_determined`、x86_64 undefined-symbol 审计通过、Rust 3/3；`npm run check` 为 1122/1122
+  tests、1169 个源文件 ≤250 行、双 typecheck、双 production build 与 sandbox preload 全绿。真实本地
+  ARM64 app hardening/Fuses/deep codesign 通过，使用隔离登录会话重放首次引导后，原崩溃的 Nova Labs 投递
+  卡片可正常展开详情且进程持续健康。DMG 173,372,969 bytes，SHA-256
+  `DEDC56CA1199240AC9EB95E9A0CD01C11F83E1952B8658107C34122DD7AE1914`；仍为 ad-hoc、未 notarize，且为
+  同版本随机密钥本地验证产物，不得上传或发布。x64 Bundle、TCC 权限弹窗和 Calendar CRUD 尚未实测，
+  不得据此把 BE6 或正式发布标为完成。用户随后授权在新建且远程不存在的
+  `codex/fix-macos-calendar-crash-20260908` 分支提交并推送本修复；不覆盖既有分支，且排除用户原有
+  `.DS_Store` 修改。
 
 ### 10.6 运维注意事项（坑）
 

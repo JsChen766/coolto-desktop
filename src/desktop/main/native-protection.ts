@@ -63,7 +63,7 @@ function developmentBindingPath(): string | undefined {
     process.platform === "win32" && process.arch === "x64"
       ? "win32-x64-msvc"
       : process.platform === "darwin" && process.arch === "arm64"
-        ? "darwin-arm64"
+        ? "darwin-universal"
         : undefined;
   return suffix
     ? join(process.cwd(), "native", "coolto-core", "artifacts", `coolto-core.${suffix}.node`)
