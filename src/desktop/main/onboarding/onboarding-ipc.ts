@@ -42,6 +42,11 @@ export function registerOnboardingIpc(
       theme === "dark" ? "dark" : "light",
     );
   });
+  ipcMain.handle("onboarding:skip", async () => {
+    const current = await servicesForCurrentUser();
+    await current.onboardingBrowser.cleanup();
+    return current.onboarding.skip();
+  });
   ipcMain.handle("onboarding:complete", async (_event, locale: unknown) => {
     const current = await servicesForCurrentUser();
     const status = await current.onboarding.status();
@@ -66,5 +71,6 @@ export const ONBOARDING_IPC_CHANNELS = [
   "onboarding:start",
   "onboarding:advance",
   "onboarding:browser-demo",
+  "onboarding:skip",
   "onboarding:complete",
 ] as const;

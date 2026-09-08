@@ -3677,6 +3677,19 @@ readiness、来源 Experience 或布局质量，Job Asset 只能显示“未关�
   实际启动、Calendar 权限弹窗与 CRUD 会改变系统权限/日历，仍留待专门授权后的 BE6 验收，阶段不标完成。
   用户随后授权将修复提交到全新分支 `codex/fix-macos-calendar-crash-20260908` 并推送；该分支在创建前已确认
   本地与远程均不存在，不覆盖任何现有分支，且提交明确排除用户原有 `.DS_Store` 修改。
+- 2026-09-08 首次引导新增“跳过全部步骤”闭环：欢迎、经历、简历、Browser、Browser Review、Tracker 和
+  完成页共用常驻“跳过引导”次要操作，启动失败页也保留退出路径；点击后使用既有 Dialog 视觉二次确认，
+  “继续引导”不改变进度，“跳过并进入首页”由新增 `onboarding:skip` IPC 先关闭 Browser Shell、撤销示例
+  写权限并删除账号级临时目录，再把当前引导对话清空/重命名为普通“新对话”，将当前账号 onboarding 状态
+  幂等写为 `completed`，最后撤销 sample API override、恢复真实本地/云端 projection。未增加第二套状态或
+  提升 `ONBOARDING_VERSION`，已完成用户不会被重新触发；跳过不调用模型、不消耗额度、不写业务云端。
+  自动化先红后绿：任意活跃 step 跳过、未开始跳过、重复跳过、Browser cleanup-before-skip、UI/中英文合同
+  共 7 项专项通过；全量 `npm run check` 为 1170 个源文件 ≤250 行、1128/1128 tests、双 typecheck、
+  Node/Electron production build 与 5 个 sandbox preload 门禁全绿。真实 Electron 使用生产 API 和现有登录
+  会话的两个隔离 userData 验证：欢迎页打开确认框后取消仍留在引导，再次确认进入正常业务页；同一目录重启
+  后不再出现引导；另一目录推进到 Browser Review，示例 PDF 实际存在时跳过，随后 PDF 与 owner 临时目录
+  清除、示例资产退出且真实页面恢复，终端无未处理异常。测试登录副本已移入废纸篓；未请求 Calendar 权限、
+  未改真实日历、未 commit/push 本次新增改动。
 - 2026-08-31 按用户确认补齐本地 ResumeDraft 与聊天的持续交互：Conversation 新增本地
   `activeResumeArtifactId`，宿主以幂等 Link Service 同时维护 ResumeDraft `conversationIds`，关系元数据不改
   Resume revision、正文或云端。点击侧栏本地简历会过滤已删除引用并进入最近更新的关联对话，Composer 持续

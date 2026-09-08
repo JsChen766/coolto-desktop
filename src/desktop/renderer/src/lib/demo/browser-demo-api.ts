@@ -88,6 +88,7 @@ export function createBrowserDemoApi(): DesktopApi {
       start: async () => ({ status: { version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }, conversation: null }),
       advance: async () => { throw new Error("Browser Demo 不运行首次体验"); },
       openBrowserDemo: async () => undefined,
+      skip: async () => ({ status: { version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }, conversation: null }),
       complete: async () => ({ status: { version: 1, state: "completed", step: "completed", conversationId: null, completedAt: new Date().toISOString() }, conversation: null }),
     },
     conversations: chat.conversations,

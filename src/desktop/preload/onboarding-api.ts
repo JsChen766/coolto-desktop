@@ -9,5 +9,6 @@ export const onboardingPreloadApi: OnboardingDesktopApi = {
     ipcRenderer.invoke("onboarding:advance", action, locale),
   openBrowserDemo: (theme) =>
     ipcRenderer.invoke("onboarding:browser-demo", theme),
+  skip: () => ipcRenderer.invoke("onboarding:skip"),
   complete: (locale) => ipcRenderer.invoke("onboarding:complete", locale),
 };

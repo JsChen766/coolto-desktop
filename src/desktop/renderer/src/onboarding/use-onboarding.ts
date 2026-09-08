@@ -1,9 +1,7 @@
 import { computed, ref, watch } from "vue";
 
-import type {
-  OnboardingAction,
-  OnboardingStatus,
-} from "@desktop/types";
+import type { OnboardingAction, OnboardingResult, OnboardingStatus } from
+  "@desktop/types";
 import type { AppShell } from "../app/use-app-shell";
 import {
   getBaseDesktopApi,
@@ -145,20 +143,46 @@ export function useOnboarding(shell: AppShell) {
     try {
       const result = await base.onboarding.complete(appLocale.value);
       status.value = result.status;
-      setDesktopApiOverride(undefined);
-      runtime = undefined;
-      shell.resumeWorkspace.clear();
-      await shell.resumeWorkspace.loadDrafts();
-      if (result.conversation) await shell.reloadConversation(result.conversation.id);
-      shell.activeView.value = "chat";
-      shell.artifactOpen.value = false;
-      active.value = false;
-      if (startExperience) await shell.createChat();
+      await finish(result, startExperience);
     } catch (cause) {
       error.value = messageOf(cause);
     } finally {
       busy.value = false;
     }
+  }
+
+  async function skip(): Promise<boolean> {
+    if (busy.value) return false;
+    busy.value = true;
+    error.value = undefined;
+    initialization += 1;
+    try {
+      const result = await base.onboarding.skip();
+      status.value = result.status;
+      await finish(result, false);
+      return true;
+    } catch (cause) {
+      error.value = messageOf(cause);
+      return false;
+    } finally {
+      busy.value = false;
+    }
+  }
+
+  async function finish(
+    result: OnboardingResult,
+    startExperience: boolean,
+  ): Promise<void> {
+    setDesktopApiOverride(undefined);
+    runtime = undefined;
+    shell.resumeWorkspace.clear();
+    await shell.resumeWorkspace.loadDrafts();
+    if (result.conversation) await shell.reloadConversation(result.conversation.id);
+    else await shell.createChat();
+    shell.activeView.value = "chat";
+    shell.artifactOpen.value = false;
+    active.value = false;
+    if (startExperience) await shell.createChat();
   }
 
   async function retry(): Promise<void> {
@@ -184,7 +208,7 @@ export function useOnboarding(shell: AppShell) {
 
   return {
     active, advance, blocking, busy, checking, complete, error,
-    openBrowserDemo, reopenBrowserDemo, retry, status,
+    openBrowserDemo, reopenBrowserDemo, retry, skip, status,
   };
 }
 
