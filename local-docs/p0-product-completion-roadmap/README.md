@@ -286,6 +286,12 @@ N0（已完成）→ N1（已完成）→ S3（已完成）
 - **阶段结论**：首次实测的两个阻塞和 JD 状态缺陷均已修复，新增的卡片消息位置问题也已通过真实
   Electron 复验；结合首次验收已通过的 OTP、Experience/JD 离线重放、账号隔离与本地 Resume 重启
   持久化证据，N1 标记完成。此次未 commit。
+- **OTP 登录邮箱回退补强（2026-09-08）**：验证码阶段新增沿用现有 token 与 Lucide 的小号“修改邮箱”
+  返回操作；回退只清除当前 challenge、验证码和错误，保留原邮箱并恢复可编辑、自动聚焦和全选，
+  不影响重新发送或登录会话。新增 1 个 UI 接线回归测试；`npm run check` 全绿（1124/1124 tests，
+  Node/preload/renderer typecheck、Node/Electron build 与 250 行门禁全部通过）。隔离 userData + 本地 mock API
+  的真实 Electron 已复验鼠标回退、立即覆盖错误邮箱，以及验证码输入框 `Shift+Tab` 聚焦返回操作并用
+  Enter 激活；浅色主题无布局溢出。本次未执行真实邮件投递、打包、commit 或 push。
 
 ##### N1 历史消息展示隐私复验（2026-07-28，已通过）
 

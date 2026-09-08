@@ -118,6 +118,22 @@
   font-size: 12px;
 }
 
+.login-back-button {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: -3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.login-back-button:hover:not(:disabled),
+.login-back-button:focus-visible {
+  color: var(--text-soft);
+}
+
 .login-mode-button {
   align-self: center;
   background: transparent;
@@ -159,4 +175,3 @@
   font-size: 11.5px;
   color: var(--muted-light);
 }
-

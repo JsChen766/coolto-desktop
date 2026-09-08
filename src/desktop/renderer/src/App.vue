@@ -52,6 +52,7 @@ const {
   openTracker,
   openTrackerApplication,
   requestEmailCode,
+  resetEmailChallenge,
   resumePreviewChoice,
   resumeOperationContext,
   resumeWorkspace,
@@ -154,6 +155,7 @@ onBeforeUnmount(() => unsubscribeCalendar());
       :challenge="emailChallenge"
       :first-visit="firstVisit"
       @request-code="requestEmailCode"
+      @change-email="resetEmailChallenge"
       @verify-code="verifyEmailCode"
     />
 
