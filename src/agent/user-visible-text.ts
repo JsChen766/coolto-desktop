@@ -17,7 +17,8 @@ const INTERNAL_TOOL_NAMES = new Set([
   "read_inbox_event", "record_inbox_signal", "get_jd", "search_jds",
   "fetch_job_source", "list_job_leads", "record_job_lead_evaluation",
   "prepare_agent_task", "prepare_jd_import", "prepare_match_analysis",
-  "prepare_profile_update", "get_resume", "list_resumes", "get_runtime_info",
+  "prepare_profile_update", "get_preferences", "resolve_preferences",
+  "prepare_preference_change", "get_resume", "list_resumes", "get_runtime_info",
   "search_experiences", "list_selected_files", "parse_selected_file", "sync_now",
 ]);
 

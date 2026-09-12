@@ -31,9 +31,10 @@ import type {
   ExperienceDetail,
   ExperienceSearchOptions,
   ExperienceSearchResult,
+  UserProfile,
 } from "../../../api/types.js";
 import type {
-  ProfileContactUpdate,
+  ProfileChangeSet,
   ProfileContactView,
   ProfileWriteProposal,
 } from "../../../profile/types.js";
@@ -86,6 +87,9 @@ import type { TrackerChildDesktopApi } from "./tracker-child-api.js";
 import type { DeliveryResumeFilesDesktopApi } from "./delivery-resume-files.js";
 import type { OnboardingDesktopApi } from "./onboarding.js";
 import type { CalendarDesktopApi } from "./calendar.js";
+import type { LocalClearResultView, PrivacyDesktopApi } from "./privacy.js";
+import type { PreferenceDesktopApi } from "./preferences.js";
+import type { MaterialApi } from "./material.js";
 export interface DesktopApi {
   platform: DesktopPlatform;
   auth: {
@@ -108,15 +112,17 @@ export interface DesktopApi {
   mailConnections: MailConnectionsDesktopApi;
   calendar: CalendarDesktopApi;
   onboarding: OnboardingDesktopApi;
+  privacy: PrivacyDesktopApi;
   conversations: ConversationsDesktopApi;
   attachments: {
     list(conversationId: string): Promise<DesktopAttachment[]>;
     select(conversationId: string): Promise<DesktopAttachment | undefined>;
-    selectPath(conversationId: string, path: string): Promise<DesktopAttachment | undefined>;
+    selectFile(
+      conversationId: string,
+      file: File,
+    ): Promise<DesktopAttachment | undefined>;
     remove(input: AttachmentRemoveInput): Promise<void>;
   };
-  /** 渲染层拖入文件时拿真实路径（webUtils.getPathForFile 的 preload 包装）。 */
-  getPathForFile(file: File): string;
   resumeDrafts: {
     list(): Promise<ResumeDraftSummary[]>;
     get(artifactId: string): Promise<ResumeDraftDetail>;
@@ -175,22 +181,24 @@ export interface DesktopApi {
   };
   profile: {
     get(): Promise<ProfileContactView>;
-    prepareUpdate(changes: ProfileContactUpdate): Promise<ProfileWriteProposal>;
-    prepareReapply(changes: ProfileContactUpdate): Promise<ProfileWriteProposal>;
+    prepareUpdate(changes: ProfileChangeSet): Promise<ProfileWriteProposal>;
+    prepareReapply(changes: ProfileChangeSet): Promise<ProfileWriteProposal>;
     prepareAcceptServer(): Promise<ProfileWriteProposal>;
-    executeProposal(proposalId: string): Promise<import("../../../api/types.js").UserProfile>;
+    executeProposal(proposalId: string): Promise<UserProfile>;
   };
+  preferences: PreferenceDesktopApi;
+  material: MaterialApi;
   applications: {
     list(options?: ApplicationListOptions): Promise<ApplicationListResult>;
     references(): Promise<ApplicationReferenceOptions>;
     get(applicationId: string): Promise<ApplicationRecord>;
-    create(input: ApplicationCreateInput): Promise<ApplicationRecord>;
     prepareCreate(input: ApplicationCreateInput): Promise<ApplicationWriteProposal>;
     prepareUpdate(input: ApplicationPrepareUpdateRequest): Promise<ApplicationWriteProposal>;
-    executeProposal(proposalId: string): Promise<ApplicationRecord>;
-    update(input: ApplicationUpdateRequest): Promise<ApplicationRecord>;
-    transition(input: ApplicationTransitionRequest): Promise<ApplicationRecord>;
-    delete(applicationId: string): Promise<ApplicationTombstone>;
+    prepareTransition(input: ApplicationTransitionRequest): Promise<{ id: string }>;
+    prepareDelete(applicationId: string): Promise<{ id: string }>;
+    executeProposal(
+      proposalId: string,
+    ): Promise<ApplicationRecord | ApplicationTombstone>;
   };
   tracker: {
     detail(applicationId: string): Promise<ApplicationTrackerDetail>;
@@ -216,7 +224,7 @@ export interface DesktopApi {
     onSaveBeforeClose(listener: () => void): () => void;
   };
   data: {
-    clearLocal(): Promise<void>;
+    clearLocal(): Promise<LocalClearResultView>;
   };
   browser: BrowserDesktopApi;
 }

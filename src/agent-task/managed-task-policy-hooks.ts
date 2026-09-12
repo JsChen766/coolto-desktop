@@ -1,8 +1,4 @@
-import type {
-  AfterToolCallContext,
-  BeforeToolCallContext,
-  BeforeToolCallResult,
-} from "@earendil-works/pi-agent-core";
+import type { AfterToolCallContext, BeforeToolCallContext, BeforeToolCallResult } from "@earendil-works/pi-agent-core";
 
 import type { BrowserAgentController } from "../browser/agent-control-types.js";
 import type { CapabilityAgentTool } from "../tools/tool-capabilities.js";
@@ -10,13 +6,15 @@ import { requireToolCapability } from "../tools/tool-capabilities.js";
 import { canonicalHash } from "./canonical-hash.js";
 import { evaluateDelegationPolicy } from "./delegation-policy.js";
 import type { AgentHarnessServices } from "./agent-harness-services.js";
+import type { PolicyDecisionV1 } from "./grant-types.js";
 import type { ActionTokenV1 } from "./receipt-types.js";
 import { ManagedTaskExecutionState } from "./managed-task-execution-state.js";
 import { constrainManagedReadSurface } from "./managed-task-read-surface.js";
+import { managedTaskTargetContext, toManagedTaskJson } from "./managed-task-target-context.js";
 import {
-  managedTaskTargetContext,
-  toManagedTaskJson,
-} from "./managed-task-target-context.js";
+  advanceTaskStageAfterAction,
+  advanceTaskStageAfterObservation,
+} from "./task-stage-runtime.js";
 
 const TERMINAL_TOOLS = new Set(["task_wait", "task_need_user", "task_complete"]);
 const BROWSER_ACCESS_SCOPES = new Set([
@@ -51,6 +49,15 @@ export class ManagedTaskPolicyHooks {
       this.options.conversationId,
     );
     if (!task?.activeRunId) return undefined;
+    this.#execution.resetForTask(task.id);
+    if (this.#execution.takeoverBlocked() &&
+        context.toolCall.name !== "browser_recruiting_form_observe" &&
+        !TERMINAL_TOOLS.has(context.toolCall.name)) {
+      const reason = this.#execution.takeoverStatus() === "invalidated"
+        ? "招聘页面接管上下文已失效，请重新授权或创建任务"
+        : "招聘页面正在等待用户接管，模型观察和写入已暂停";
+      return { block: true, reason };
+    }
     const calls = context.assistantMessage.content.filter((part) => part.type === "toolCall");
     if (calls.length > 1 && calls.some((call) => TERMINAL_TOOLS.has(call.name))) {
       return {
@@ -70,6 +77,7 @@ export class ManagedTaskPolicyHooks {
     const observation = this.#execution.observation(
       task.activeRunId, target.tabId, target.url,
     );
+    const stage = this.options.services.stages.current(task.id, task.activeRunId);
     const observationHash = observation.hash;
     const requestHash = canonicalHash(toManagedTaskJson({
       taskId: task.id,
@@ -79,6 +87,9 @@ export class ManagedTaskPolicyHooks {
       targetOrigin: target.origin,
       tabId: target.tabId,
       observationHash,
+      currentStage: stage?.stage ?? null,
+      stageTransitionId: stage?.transitionId ?? null,
+      grantHash: grant?.contentHash ?? null,
     }));
     const policy = {
       ownerId: task.ownerId,
@@ -97,6 +108,7 @@ export class ManagedTaskPolicyHooks {
         target.origin,
         context.toolCall.name,
       ),
+      ...(stage ? { currentStage: stage.stage, stageTransitionId: stage.transitionId } : {}),
     };
     const decision = constrainManagedReadSurface({
       browser: this.options.browser,
@@ -193,18 +205,31 @@ export class ManagedTaskPolicyHooks {
   public afterToolCall = async (
     context: AfterToolCallContext,
   ): Promise<undefined> => {
+    const wasTakeoverBlocked = this.#execution.takeoverBlocked();
     try {
-      await this.#execution.after(context);
+      const receiptRecorded = await this.#execution.after(context);
+      await advanceTaskStageAfterObservation(
+        this.options.services, this.options.conversationId,
+        context.toolCall.name, context.isError,
+      );
+      await advanceTaskStageAfterAction(
+        this.options.services, this.options.conversationId, receiptRecorded,
+      );
+      const takeover = this.#execution.takeoverStatus();
+      if (takeover !== "agent" && !wasTakeoverBlocked) {
+        this.options.revokeBrowserAccess?.(`recruiting_form_${takeover}`);
+      }
       return undefined;
     } finally {
       this.options.services.runtimeProjection.finish(context.toolCall.id);
     }
   };
 
+
   async #recordBlock(
     taskId: string,
     toolCallId: string,
-    decision: Awaited<ReturnType<typeof evaluateDelegationPolicy>>,
+    decision: PolicyDecisionV1,
     token: ActionTokenV1 | null,
     reasonCode: string,
   ): Promise<void> {

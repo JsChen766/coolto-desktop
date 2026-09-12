@@ -11,7 +11,8 @@ import { SubmissionStore } from "./submission-store.js";
 import { AnswerVaultStore } from "./answer-vault-store.js";
 import { ExternalSignalStore } from "./external-signal-store.js";
 import { AgentRuntimeProjectionObserver } from "./runtime-projection-observer.js";
-
+import { PreferenceSuggestionStore } from "../desktop/main/agent-task/preference-suggestion-store.js";
+import { TaskStageController, type CapabilityStage, type ProfilePreferenceContextSnapshot, type StageTransitionV1 } from "./stage-policy.js";
 export class AgentHarnessServices {
   readonly tasks: AgentTaskStore;
   readonly grants: DelegationGrantStore;
@@ -23,7 +24,10 @@ export class AgentHarnessServices {
   readonly submissions: SubmissionStore;
   readonly answers: AnswerVaultStore;
   readonly signals: ExternalSignalStore;
+  readonly preferenceSuggestions: PreferenceSuggestionStore;
+  readonly stages = new TaskStageController();
   readonly runtimeProjection = new AgentRuntimeProjectionObserver();
+  profilePreferenceContext?: () => Promise<ProfilePreferenceContextSnapshot>;
 
   public constructor(
     ownerId: string,
@@ -40,13 +44,38 @@ export class AgentHarnessServices {
     this.submissions = new SubmissionStore(ownerId, repository);
     this.answers = new AnswerVaultStore(ownerId, repository);
     this.signals = new ExternalSignalStore(ownerId, repository);
+    this.preferenceSuggestions = new PreferenceSuggestionStore(ownerId, repository);
   }
 
   public clearAll(): Promise<void> {
+    this.stages.clearAll();
     return Promise.all([
       this.repository.clear(),
       this.evidence?.clearAll() ?? Promise.resolve(),
     ]).then(() => undefined);
+  }
+
+  public async transitionStage(input: {
+    ownerId: string;
+    taskId: string;
+    runId: string;
+    grantHash: string;
+    to: CapabilityStage;
+    profileVersion?: number | null;
+    preferenceResolutionHash?: string | null;
+    reason: string;
+  }): Promise<StageTransitionV1> {
+    const transition = this.stages.transition(input);
+    await this.repository.update((state) => {
+      state.stageTransitions.push(transition);
+      const run = state.runs.find((candidate) => candidate.id === input.runId);
+      if (run) {
+        run.currentStage = transition.to;
+        run.stageTransitionId = transition.id;
+      }
+      return undefined;
+    });
+    return transition;
   }
 
   public subscribe(listener: () => void): () => void {

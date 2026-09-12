@@ -17,6 +17,7 @@ import { createPauseResumeForMaterialTool } from "./pause-for-material.js";
 import { createConfirmNoResumeMaterialTool } from "./confirm-no-material.js";
 import type { ResumeReuseDraftSource } from
   "../../resume/reuse/local-draft-source.js";
+import type { ResumeProfilePreferenceBinding } from "../../resume/workspace/profile-preference-binding.js";
 
 export interface AgentOrchestratedDependencies {
   snapshotBuilder: ResumeSourceSnapshotBuilder;
@@ -27,6 +28,7 @@ export interface AgentOrchestratedDependencies {
   currentUserMessageTimestamp?: () => number | undefined;
   approvalManager?: ApprovalManager;
   experienceSyncProposals?: ResumeExperienceSyncProposalPort;
+  profilePreferenceContext?: () => Promise<ResumeProfilePreferenceBinding>;
 }
 
 /**
@@ -44,6 +46,7 @@ export function createAgentOrchestratedTools(
       dependencies.store,
       dependencies.resumeReader,
       dependencies.resumeDraftReader,
+      dependencies.profilePreferenceContext,
     ),
     createGetResumeWorkspaceTool(dependencies.store),
     createAssessResumeEvidenceTool(dependencies.store),

@@ -2,8 +2,10 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import type { ApprovalManager } from "../approvals/approval-manager.js";
-import { createSubmissionApprovalDraft } from
-  "../agent-task/submission-approval.js";
+import {
+  createSubmissionApprovalDraft,
+  createSubmissionReceiptConfirmationDraft,
+} from "../agent-task/submission-approval.js";
 import type { ApplicationSubmissionService } from "../desktop/main/agent-task/application-submission-service.js";
 
 const prepareParameters = Type.Object({
@@ -88,5 +90,40 @@ export function createApplicationSubmissionTools(
         };
       },
     },
+    {
+      name: "confirm_submission_receipt",
+      label: "确认待核验投递",
+      description:
+        "仅在用户明确确认不确定的站点结果后，将既有本地 SubmissionReceipt 关联到唯一" +
+        " Tracker Application；不会再次点击站点提交。",
+      parameters: syncParameters,
+      executionMode: "sequential",
+      execute: async (_id, input) => {
+        const receiptId = readReceiptId(input);
+        const authority = await service.assertReceiptAuthority(receiptId);
+        const approvalPayload = { receiptId, taskId: authority.taskId };
+        const approval = await approvals.request(
+          createSubmissionReceiptConfirmationDraft(receiptId), approvalPayload,
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify({
+            receiptId,
+            approvalRequestId: approval.id,
+            instruction: "待核验投递确认卡已显示；只有用户接受后才创建 Tracker Application。",
+          }) }],
+          details: { receiptId, taskId: authority.taskId, approvalRequestId: approval.id },
+        };
+      },
+    },
   ];
+}
+function readReceiptId(input: unknown): string {
+  if (input === null || typeof input !== "object") {
+    throw new Error("SubmissionReceipt 参数无效");
+  }
+  const value = Reflect.get(input, "receiptId");
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("SubmissionReceipt 参数无效");
+  }
+  return value;
 }

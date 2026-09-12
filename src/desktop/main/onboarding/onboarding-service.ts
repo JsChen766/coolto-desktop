@@ -18,6 +18,7 @@ import {
 export interface OnboardingStateRepository {
   read(): Promise<OnboardingStatus | undefined>;
   write(status: OnboardingStatus): Promise<void>;
+  clear?(): Promise<void>;
 }
 
 export interface OnboardingConversationStore {
@@ -104,6 +105,9 @@ export class OnboardingService {
     };
     await this.state.write(status);
     return { status, conversation };
+  }
+  public async clearLocal(): Promise<void> {
+    await this.state.clear?.();
   }
 
   async #requireActive(): Promise<OnboardingStatus> {

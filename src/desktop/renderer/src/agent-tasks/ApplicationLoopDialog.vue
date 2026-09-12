@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { Clock3, NotebookText, X } from "@lucide/vue";
+import { computed } from "vue";
 import type { ApplicationRecord, DesktopApi, InterviewRound } from "@desktop/types";
+import DialogSelect from "../components/DialogSelect.vue";
 import LoopDelegationReview from "./LoopDelegationReview.vue";
+import {
+  loopCheckIntervalHourOptions,
+  loopExpiry7And30Options,
+  loopInterviewSelectOptions,
+  loopWakeBeforeMinuteOptions,
+} from "./loop-select-options";
 import { useApplicationLoopDialog } from "./use-application-loop-dialog";
 import { useLoopDialogFocus } from "./use-loop-dialog-focus";
 
@@ -11,6 +19,10 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ close: []; started: [taskId: string] }>();
 const state = useApplicationLoopDialog({ ...props, started: (id) => emit("started", id) });
+const checkIntervalOptions = loopCheckIntervalHourOptions();
+const expiryOptions = loopExpiry7And30Options();
+const wakeBeforeOptions = loopWakeBeforeMinuteOptions();
+const interviewOptions = computed(() => loopInterviewSelectOptions(state.scheduled));
 function dismiss(): void { if (!state.busy.value) emit("close"); }
 const focus = useLoopDialogFocus(dismiss);
 </script>
@@ -33,16 +45,27 @@ const focus = useLoopDialogFocus(dismiss);
         <label v-else><span>{{ $t('允许研究域名（可选）') }}</span>
           <input v-model="state.form.domains" :placeholder="$t('多个域名用逗号分隔')" /></label>
         <div v-if="kind === 'follow_up'" class="loop-two-column">
-          <label><span>{{ $t('检查间隔') }}</span><select v-model="state.form.checkIntervalHours">
-            <option :value="24">{{ $t('每天') }}</option><option :value="72">{{ $t('每 3 天') }}</option>
-            <option :value="168">{{ $t('每周') }}</option></select></label>
-          <label><span>{{ $t('授权有效期') }}</span><select v-model="state.form.expiryDays"><option :value="7">7 天</option><option :value="30">30 天</option></select></label>
+          <label><span>{{ $t('检查间隔') }}</span><DialogSelect
+            :model-value="String(state.form.checkIntervalHours)"
+            :options="checkIntervalOptions"
+            @update:model-value="state.form.checkIntervalHours = Number($event)"
+          /></label>
+          <label><span>{{ $t('授权有效期') }}</span><DialogSelect
+            :model-value="String(state.form.expiryDays)"
+            :options="expiryOptions"
+            @update:model-value="state.form.expiryDays = Number($event)"
+          /></label>
         </div>
         <div v-else class="loop-two-column">
-          <label><span>{{ $t('面试场次') }}</span><select v-model="state.form.interviewId" required>
-            <option v-for="item in state.scheduled" :key="item.id" :value="item.id">{{ $tf('第 {round} 轮', { round: item.roundNumber }) }} · {{ item.scheduledAt ? new Date(item.scheduledAt).toLocaleString() : '' }}</option>
-          </select></label>
-          <label><span>{{ $t('提前准备') }}</span><select v-model="state.form.wakeBeforeMinutes"><option :value="60">1 小时</option><option :value="1440">1 天</option><option :value="4320">3 天</option></select></label>
+          <label><span>{{ $t('面试场次') }}</span><DialogSelect
+            v-model="state.form.interviewId"
+            :options="interviewOptions"
+          /></label>
+          <label><span>{{ $t('提前准备') }}</span><DialogSelect
+            :model-value="String(state.form.wakeBeforeMinutes)"
+            :options="wakeBeforeOptions"
+            @update:model-value="state.form.wakeBeforeMinutes = Number($event)"
+          /></label>
         </div>
         <p class="loop-rule">{{ $t(kind === 'follow_up' ? '只填写跟进邮件，最终发送由你点击。' : '简报必须引用当前 JD、Resume 或经历，不写入业务事实。') }}</p>
       </form>

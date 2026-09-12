@@ -7,6 +7,7 @@ import type { BrowserDownloadResult } from "../../../browser/agent-control-types
 import { BrowserDownloadProjectionStore } from
   "../../../browser/browser-download-projection.js";
 import type { BrowserDownloadView } from "../../shared/types.js";
+import { onBrowserSessionChanged } from "./browser-session.js";
 
 const RECENT_MS = 30_000;
 
@@ -64,14 +65,24 @@ export class BrowserDownloadTracker {
       this.#notify();
     });
   };
-
+  #session: Session;
+  #unsubscribeScope: () => void;
   public constructor(
-    private readonly session: Session,
+    private readonly getSession: () => Session,
     private readonly downloadRoot: string,
     private readonly changed: () => void = () => undefined,
   ) {
     mkdirSync(downloadRoot, { recursive: true });
-    session.on("will-download", this.#onDownload);
+    this.#session = getSession();
+    this.#session.on("will-download", this.#onDownload);
+    this.#unsubscribeScope = onBrowserSessionChanged((session) => this.#rebind(session));
+  }
+
+  #rebind(session: Session): void {
+    if (session === this.#session) return;
+    this.#session.removeListener("will-download", this.#onDownload);
+    this.#session = session;
+    this.#session.on("will-download", this.#onDownload);
   }
 
   public snapshot(): BrowserDownloadView[] { return this.#projection.snapshot(); }
@@ -103,7 +114,8 @@ export class BrowserDownloadTracker {
 
   public dispose(): void {
     this.#disposed = true;
-    this.session.removeListener("will-download", this.#onDownload);
+    this.#session.removeListener("will-download", this.#onDownload);
+    this.#unsubscribeScope();
     this.#records.length = 0;
     this.#projection.clear();
     this.#reservedPaths.clear();

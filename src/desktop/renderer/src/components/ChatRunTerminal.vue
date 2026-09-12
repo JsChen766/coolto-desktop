@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { CircleAlert, CirclePause, MessageCircleQuestion } from "@lucide/vue";
+import {
+  CircleAlert,
+  CircleCheck,
+  CirclePause,
+  MessageCircleQuestion,
+  Square,
+} from "@lucide/vue";
 import type { ConversationRunTerminal } from "@desktop/types";
 
 const props = defineProps<{ terminal: ConversationRunTerminal }>();
@@ -10,7 +16,9 @@ defineEmits<{
 }>();
 
 function title(): string {
+  if (props.terminal.status === "ready_for_approval") return "简历已就绪";
   if (props.terminal.status === "cancelled") return "任务已取消";
+  if (props.terminal.status === "stopped") return "已停止追问";
   if (props.terminal.status === "needs_user_decision") return "等待你补充信息";
   return "任务未完成";
 }
@@ -18,13 +26,19 @@ function title(): string {
 
 <template>
   <aside class="chat-run-terminal" :class="`is-${terminal.status}`" role="status">
-    <CirclePause v-if="terminal.status === 'cancelled'" :size="17" aria-hidden="true" />
+    <CircleCheck
+      v-if="terminal.status === 'ready_for_approval'"
+      :size="17"
+      aria-hidden="true"
+    />
+    <CirclePause v-else-if="terminal.status === 'cancelled'" :size="17" aria-hidden="true" />
+    <Square v-else-if="terminal.status === 'stopped'" :size="17" aria-hidden="true" />
     <MessageCircleQuestion
       v-else-if="terminal.status === 'needs_user_decision'"
       :size="17"
       aria-hidden="true"
     />
-    <CircleAlert v-else :size="17" aria-hidden="true" />
+    <CircleAlert v-else aria-hidden="true" :size="17" />
     <div>
       <strong>{{ $t(title()) }}</strong>
       <span>{{ $t(terminal.message ?? '最近一次任务未完成。') }}</span>

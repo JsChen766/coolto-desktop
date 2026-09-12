@@ -1,4 +1,5 @@
 import { CooltoApiTransport } from "./api-transport.js";
+import { PrivacyApi } from "./privacy-api.js";
 import { ExperienceApi } from "./experience-api.js";
 import { JdWriterApi } from "./jd-writer-api.js";
 import { ProfileJdApi } from "./profile-jd-api.js";
@@ -58,6 +59,7 @@ export class CooltoApiClient
   readonly #resumePublications: ResumePublicationApi;
   readonly #resumeLibrary: ResumeLibraryApi;
   readonly #sync: SyncApi;
+  readonly #privacy: PrivacyApi;
 
   public constructor(options: CooltoApiClientOptions) {
     this.#transport = new CooltoApiTransport(
@@ -70,6 +72,7 @@ export class CooltoApiClient
     this.#resumePublications = new ResumePublicationApi(this.#transport);
     this.#resumeLibrary = new ResumeLibraryApi(this.#transport);
     this.#sync = new SyncApi(this.#transport);
+    this.#privacy = new PrivacyApi(this.#transport);
   }
 
   public get isAuthenticated(): boolean {
@@ -90,6 +93,24 @@ export class CooltoApiClient
 
   public get sync(): SyncApi {
     return this.#sync;
+  }
+  public get privacy(): PrivacyApi {
+    return this.#privacy;
+  }
+
+  public requestControl<T>(
+    path: string,
+    token: string,
+    init: RequestInit = {},
+  ): Promise<T> {
+    return this.#transport.requestControl(path, token, init);
+  }
+  public requestAckReplay<T>(
+    path: string,
+    idempotencyKey: string,
+    init: RequestInit = {},
+  ): Promise<T> {
+    return this.#transport.requestAckReplay(path, idempotencyKey, init);
   }
 
   public restoreSession(accessToken: string): void {

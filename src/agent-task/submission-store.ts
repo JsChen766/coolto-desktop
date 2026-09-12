@@ -86,6 +86,39 @@ export class SubmissionStore {
       return intent;
     });
   }
+  public getReceipt(receiptId: string): Promise<SubmissionReceiptV1> {
+    return this.repository.read((state) => {
+      const receipt = state.submissionReceipts.find((value) => value.id === receiptId);
+      const intent = receipt && state.submissionIntents.find((value) =>
+        value.id === receipt.intentId);
+      if (!receipt || receipt.ownerId !== this.ownerId || !intent ||
+          intent.ownerId !== this.ownerId || intent.taskId !== receipt.taskId) {
+        throw new Error("SubmissionReceipt 不存在或与 SubmissionIntent 不匹配");
+      }
+      return receipt;
+    });
+  }
+  public getReceiptForConversation(
+    receiptId: string,
+    conversationId: string,
+    currentTaskId: string,
+  ): Promise<{ receipt: SubmissionReceiptV1; intent: SubmissionIntentV1 }> {
+    return this.repository.read((state) => {
+      const receipt = state.submissionReceipts.find((value) => value.id === receiptId);
+      const intent = receipt && state.submissionIntents.find((value) =>
+        value.id === receipt.intentId);
+      if (!receipt || receipt.ownerId !== this.ownerId || !intent ||
+          intent.ownerId !== this.ownerId || intent.taskId !== receipt.taskId ||
+          intent.submissionReceiptId !== receipt.id || intent.runId !== receipt.runId) {
+        throw new Error("SubmissionReceipt 不存在或与 SubmissionIntent 不匹配");
+      }
+      const task = requireTask(state.tasks, receipt.taskId, this.ownerId);
+      if (task.id !== currentTaskId || task.conversationId !== conversationId) {
+        throw new Error("SubmissionReceipt 与当前 AgentTask/Conversation 不一致");
+      }
+      return { receipt, intent };
+    });
+  }
 
   public createReceipt(
     input: Omit<SubmissionReceiptV1, "version" | "id" | "ownerId">,
@@ -119,6 +152,19 @@ export class SubmissionStore {
         throw new Error("SubmissionReceipt 已关联其他 Application");
       }
       receipt.applicationId = applicationId;
+      return receipt;
+    });
+  }
+  public confirmReceipt(
+    receiptId: string,
+    confirmedAt: string,
+  ): Promise<SubmissionReceiptV1> {
+    return this.repository.update((state) => {
+      const receipt = state.submissionReceipts.find((value) => value.id === receiptId);
+      if (!receipt || receipt.ownerId !== this.ownerId) {
+        throw new Error("SubmissionReceipt 不存在");
+      }
+      if (receipt.status === "pending") receipt.userConfirmedAt ??= confirmedAt;
       return receipt;
     });
   }

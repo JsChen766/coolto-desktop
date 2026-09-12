@@ -2,6 +2,7 @@ import type { ApprovalManager } from "../approvals/approval-manager.js";
 import type { ApprovalEvent } from "../approvals/types.js";
 import type { AgentHarnessServices } from "./agent-harness-services.js";
 import { canonicalHash } from "./canonical-hash.js";
+import { advanceTaskStageAfterApproval } from "./task-stage-runtime.js";
 
 /** Converts completed user approval decisions into generic AgentTask wake events. */
 export function bindApprovalTaskWake(
@@ -31,6 +32,9 @@ export function bindApprovalTaskWake(
     if (!task || task.conversationId !== conversationId ||
         !["running", "waiting"].includes(task.status) ||
         task.status === "waiting" && task.waiting?.reason !== "approval") return;
+    if (decision === "accepted" && task.activeRunId) {
+      await advanceTaskStageAfterApproval(services, task.id, task.activeRunId);
+    }
     await services.events.enqueue({
       taskId: task.id, source: "approval", type: `approval.${decision}`,
       trust: "trusted_system", occurredAt: new Date().toISOString(),

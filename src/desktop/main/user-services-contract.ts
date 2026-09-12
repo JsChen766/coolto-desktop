@@ -15,6 +15,8 @@ import type { OnboardingBrowserDemo } from "./onboarding/onboarding-browser-demo
 import type { OnboardingService } from "./onboarding/onboarding-service.js";
 import type { ProfileProposalService } from "./profile/profile-proposal-service.js";
 import type { ProfileSyncStore } from "./profile/profile-sync-store.js";
+import type { PreferenceProposalService } from "./preference/preference-proposal-service.js";
+import type { PreferenceSyncStore } from "./preference/preference-sync-store.js";
 import type { ResumeDraftEditingService } from "./resume-drafts/draft-editing-service.js";
 import type { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import type { ResumeConversationLinkService } from
@@ -34,9 +36,12 @@ import type { UserFileServices } from "./user-file-services.js";
 import type { CalendarSyncService } from "./calendar/calendar-sync-service.js";
 import type { ManagedResumeUploadService } from
   "./agent-task/managed-resume-upload-service.js";
+import type { MaterialUserHostBundle } from "./material/open-material-user-host.js";
 
 export interface UserServices extends UserFileServices {
   ownerId: string;
+  apiBaseUrl: string;
+  scopeDigest: string;
   conversations: ConversationStore;
   resumeDrafts: ResumeDraftService;
   resumeConversationLinks: ResumeConversationLinkService;
@@ -57,6 +62,8 @@ export interface UserServices extends UserFileServices {
   profileProposals: ProfileProposalService;
   experienceHistory: ExperienceHistoryService;
   experienceProposals: ExperienceProposalService;
+  preferences: PreferenceSyncStore;
+  preferenceProposals: PreferenceProposalService;
   trackerDetail: ApplicationTrackerDetailService;
   interviews: InterviewSyncStore;
   interviewProposals: InterviewProposalService;
@@ -70,4 +77,5 @@ export interface UserServices extends UserFileServices {
   calendar: CalendarSyncService;
   onboarding: OnboardingService;
   onboardingBrowser: OnboardingBrowserDemo;
+  material: MaterialUserHostBundle;
 }

@@ -1,30 +1,41 @@
 import { session, type Session } from "electron";
 
-const BROWSER_PARTITION = "persist:browser";
+import { localScopeKey } from "../../../privacy/local-scope.js";
 
-let cachedSession: Session | undefined;
+const ANONYMOUS_PARTITION = "persist:browser-anonymous";
+let activePartition = ANONYMOUS_PARTITION;
+const sessions = new Map<string, Session>();
 const permissionListeners = new Set<(event: BrowserPermissionDeniedEvent) => void>();
+const scopeListeners = new Set<(value: Session) => void>();
 
 export interface BrowserPermissionDeniedEvent {
   origin: string | null;
   permission: string;
 }
 
-/**
- * B0-D3: 所有内置浏览器网站共享单一 persist partition，
- * 行为与真实浏览器一致，Cookie 跨 App 重启保留；与主窗口 defaultSession 隔离。
- */
+export function setBrowserSessionScope(apiBaseUrl: string, ownerId: string): void {
+  activePartition = partitionFor(apiBaseUrl, ownerId);
+  const current = getBrowserSession();
+  for (const listener of scopeListeners) listener(current);
+}
+
+export function resetBrowserSessionScope(): void {
+  activePartition = ANONYMOUS_PARTITION;
+  const current = getBrowserSession();
+  for (const listener of scopeListeners) listener(current);
+}
+
+export function getBrowserSessionForScope(apiBaseUrl: string, ownerId: string): Session {
+  return getSession(partitionFor(apiBaseUrl, ownerId));
+}
+
 export function getBrowserSession(): Session {
-  if (!cachedSession) {
-    cachedSession = session.fromPartition(BROWSER_PARTITION);
-    cachedSession.setPermissionCheckHandler(() => false);
-    cachedSession.setPermissionRequestHandler((contents, permission, callback) => {
-      callback(false);
-      const event = { origin: safeOrigin(contents.getURL()), permission };
-      for (const listener of permissionListeners) listener(event);
-    });
-  }
-  return cachedSession;
+  return getSession(activePartition);
+}
+
+export function onBrowserSessionChanged(listener: (value: Session) => void): () => void {
+  scopeListeners.add(listener);
+  return () => scopeListeners.delete(listener);
 }
 
 export function onBrowserPermissionDenied(
@@ -32,6 +43,24 @@ export function onBrowserPermissionDenied(
 ): () => void {
   permissionListeners.add(listener);
   return () => permissionListeners.delete(listener);
+}
+
+function partitionFor(apiBaseUrl: string, ownerId: string): string {
+  return `persist:browser-${localScopeKey(apiBaseUrl, ownerId)}`;
+}
+
+function getSession(partition: string): Session {
+  const existing = sessions.get(partition);
+  if (existing) return existing;
+  const current = session.fromPartition(partition);
+  current.setPermissionCheckHandler(() => false);
+  current.setPermissionRequestHandler((contents, permission, callback) => {
+    callback(false);
+    const event = { origin: safeOrigin(contents.getURL()), permission };
+    for (const listener of permissionListeners) listener(event);
+  });
+  sessions.set(partition, current);
+  return current;
 }
 
 function safeOrigin(value: string): string | null {
@@ -43,4 +72,4 @@ function safeOrigin(value: string): string | null {
   }
 }
 
-export { BROWSER_PARTITION };
+export const BROWSER_PARTITION = ANONYMOUS_PARTITION;

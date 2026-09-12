@@ -6,12 +6,14 @@ import { desktopErrorMessage } from
   "../src/desktop/renderer/src/chat/desktop-error-message.js";
 
 test("background sync completion reloads the experience projection", async () => {
-  const [runtime, preload, library] = await Promise.all([
+  const [runtime, runtimeCore, preload, library] = await Promise.all([
     source("../src/desktop/main/sync/sync-runtime.ts"),
+    source("../src/desktop/main/sync/sync-runtime-core.ts"),
     source("../src/desktop/preload/index.ts"),
     source("../src/desktop/renderer/src/experiences/use-experience-library.ts"),
   ]);
-  assert.match(runtime, /finally[\s\S]+#listeners/u);
+  assert.match(runtimeCore, /finally[\s\S]+#listeners/u);
+  assert.match(runtime, /SyncRuntimeCore/u);
   assert.match(preload, /sync:completed/u);
   assert.match(library, /onSyncCompleted[\s\S]+load\(selectedId\.value\)/u);
 });

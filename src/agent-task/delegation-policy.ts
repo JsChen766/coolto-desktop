@@ -4,6 +4,7 @@ import type {
   PolicyDecisionV1,
 } from "./grant-types.js";
 import type { ToolCapabilityMetadataV1 } from "./tool-capability-types.js";
+import { stageScopes, type CapabilityStage } from "./stage-policy.js";
 
 export interface DelegationPolicyInput {
   ownerId: string;
@@ -19,6 +20,8 @@ export interface DelegationPolicyInput {
   unattended: boolean;
   freshObservation: boolean;
   sitePolicyAllowed: boolean;
+  currentStage?: CapabilityStage;
+  stageTransitionId?: string | null;
   now?: string;
 }
 
@@ -49,6 +52,21 @@ export function evaluateDelegationPolicy(
   if (domainDecision) return decision(input, now, "block", domainDecision, grant);
   if (!input.metadata.requiredScopes.every((scope) => grant.allowedActions.includes(scope))) {
     return decision(input, now, "ask", "scope_not_granted", grant);
+  }
+  if (input.currentStage &&
+      input.currentStage !== "observe" && !input.stageTransitionId) {
+    return decision(input, now, "block", "stage_transition_missing", grant);
+  }
+  if (input.currentStage &&
+      input.currentStage === "observe" &&
+      input.metadata.sideEffect !== "read" &&
+      !input.metadata.requiredScopes.every((scope) => scope === "task.lifecycle")) {
+    return decision(input, now, "block", "stage_scope_not_granted", grant);
+  }
+  if (input.currentStage && input.currentStage !== "observe" &&
+      !input.metadata.requiredScopes.every((scope) =>
+        stageScopes(grant, input.currentStage!).includes(scope))) {
+    return decision(input, now, "block", "stage_scope_not_granted", grant);
   }
   if (input.metadata.requiresFreshObservation && !input.freshObservation) {
     return decision(input, now, "block", "fresh_observation_required", grant);
@@ -101,6 +119,8 @@ function decision(
     requestHash: input.requestHash,
     grantId: grant?.id ?? null,
     grantHash: grant?.contentHash ?? null,
+    ...(input.currentStage ? { currentStage: input.currentStage } : {}),
+    ...(input.stageTransitionId === undefined ? {} : { stageTransitionId: input.stageTransitionId }),
     actionTokenId: null,
     decidedAt: now,
   };

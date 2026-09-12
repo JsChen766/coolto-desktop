@@ -24,8 +24,15 @@ export async function runManagedApplyQa(input: {
   await harness.grants.create({
     ownerId, taskId: task.id, taskGoalHash: task.goalHash,
     allowedDomains: ["127.0.0.1"], blockedDomains: [],
-    allowedActions: ["browser.submit", "tracker.application.create", "task.lifecycle"],
-    jobCriteria: {}, assetPolicy: {}, answerPolicy: {}, submissionBudget: {},
+    allowedActions: [
+      "browser.submit", "tracker.application.create", "resume.read", "task.lifecycle",
+    ],
+    jobCriteria: {},
+    assetPolicy: {
+      resumeId: "resume-qa", resumeTitle: "QA Resume",
+      resumeContentHash: "b".repeat(64), submissionMode: "confirm_each",
+    },
+    answerPolicy: {}, submissionBudget: {},
     unattended: true, validFrom: new Date(now - 1000).toISOString(),
     expiresAt: new Date(now + 60_000).toISOString(), policyVersion: "be4-qa",
     confirmedByUserAt: new Date(now).toISOString(),
@@ -51,6 +58,7 @@ export async function runManagedApplyQa(input: {
         preparedAt: new Date().toISOString(),
       } as const;
     },
+    findExistingBySubmissionKey: async () => undefined,
     execute: async (): Promise<ApplicationRecord> => {
       applicationCount += 1;
       return {
@@ -79,6 +87,7 @@ export async function runManagedApplyQa(input: {
     jdId: "jd-qa", resumeId: "resume-qa",
     targetUrl: input.targetUrl, submitFillId,
   });
+  await service.confirm(intent.id);
   const receipt = await service.submit({
     intentId: intent.id, confirmationKind: "text",
     confirmationValue: "Application received", timeoutMs: 5_000,

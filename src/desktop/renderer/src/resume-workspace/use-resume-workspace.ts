@@ -155,6 +155,7 @@ export function useResumeWorkspace() {
       const result = await desktopApi.resumeDrafts.exportPdf({
         artifactId: draft.artifactId,
         expectedRevision: draft.revision,
+        ...(draft.deliveryManifest ? { deliveryManifest: { consumer: draft.deliveryManifest.consumer, candidateId: draft.deliveryManifest.candidateId, revision: draft.deliveryManifest.revision, observedRevision: draft.deliveryManifest.observedRevision, sourceFingerprint: draft.deliveryManifest.sourceFingerprint, structureHash: draft.deliveryManifest.structureHash, compileHash: draft.deliveryManifest.compileHash } } : {}),
       });
       if (result.status === "exported") {
         exportMessage.value = translateFormat("已导出到 {file}", { file: result.filename });
@@ -167,7 +168,6 @@ export function useResumeWorkspace() {
       exporting.value = false;
     }
   }
-
   async function saveActiveDraft(): Promise<void> {
     await lineSpacing.flush();
     if (!await flushPendingEdits()) return;
@@ -180,6 +180,7 @@ export function useResumeWorkspace() {
       activeDraft.value = await desktopApi.resumeDrafts.save({
         artifactId: draft.artifactId,
         expectedRevision: draft.revision,
+        ...(draft.deliveryManifest ? { deliveryManifest: { consumer: draft.deliveryManifest.consumer, candidateId: draft.deliveryManifest.candidateId, revision: draft.deliveryManifest.revision, observedRevision: draft.deliveryManifest.observedRevision, sourceFingerprint: draft.deliveryManifest.sourceFingerprint, structureHash: draft.deliveryManifest.structureHash, compileHash: draft.deliveryManifest.compileHash } } : {}),
       });
       await loadDrafts();
       saveMessage.value = translate("已保存到简历库");
@@ -207,9 +208,7 @@ export function useResumeWorkspace() {
     saveMessage.value = "";
     localSaveState.value = "idle";
   }
-  function markLocalSaveFailed(message: string): void {
-    error.value = message; localSaveState.value = "error";
-  }
+  function markLocalSaveFailed(message: string): void { error.value = message; localSaveState.value = "error"; }
   function markLocalSaving(replacePreview = false): void {
     if (replacePreview) activeDraft.value = undefined;
     error.value = undefined;

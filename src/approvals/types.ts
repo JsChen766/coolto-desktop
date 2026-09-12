@@ -26,10 +26,22 @@ export interface ApprovalPreviewProfileField {
   confidence: "high" | "low";
 }
 
+export interface ApprovalPreviewPreference {
+  action: "create" | "update" | "disable" | "enable" | "delete" | "reapply" | "accept_server";
+  key: string;
+  currentValue: string;
+  proposedValue: string;
+  scope: string;
+  priority: number | null;
+  source: string | null;
+  explanation: string;
+}
+
 export interface ApprovalPreview {
   summary: ApprovalPreviewField[];
   items?: ApprovalPreviewItem[];
   profileFields?: ApprovalPreviewProfileField[];
+  preference?: ApprovalPreviewPreference;
   warnings?: string[];
 }
 

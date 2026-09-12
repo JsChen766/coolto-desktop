@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 
 import type { CooltoApiClient } from "../api/coolto-api-client.js";
 import type { UserProfile } from "../api/types.js";
-import { toProfileWritePayload } from "../desktop/main/profile/profile-sync-mapping.js";
+import { toProfileServerPushPayload } from "../desktop/main/profile/profile-sync-mapping.js";
 
 const DEVICE_ID_PATH = join(homedir(), ".coolto-cli", "device-id");
 
@@ -42,25 +42,24 @@ export async function cliDeviceId(): Promise<string> {
  *
  * The CLI has no local sync projection, so the expected entity version is
  * read from the bootstrap feed instead of null (the server requires a real
- * version for profile updates). The deployed profile protocol does not carry
- * contactEmail (the account email serves as the resume header email), so the
- * field is omitted from the payload to avoid invalid_profile.
+ * version for profile updates). New clients send contactEmail explicitly,
+ * including null when the user deliberately clears it; old callers can omit it.
  */
 export async function pushProfileUpdate(
   client: CooltoApiClient,
   profile: UserProfile,
   sessionDeviceId?: string,
+  frozenExpectedVersion?: number,
 ): Promise<void> {
   const currentUser = await client.getCurrentUser();
   const deviceId =
     currentUser.deviceId ?? sessionDeviceId ?? (await cliDeviceId());
-  const page = await client.sync.bootstrap(deviceId);
-  const profileChange = page.changes.find(
-    (change) => change.entityType === "user_profile",
+  const expectedVersion = frozenExpectedVersion ?? (
+    (await client.sync.bootstrap(deviceId)).changes.find(
+      (change) => change.entityType === "user_profile",
+    )?.entityVersion ?? 0
   );
-  const expectedVersion = profileChange?.entityVersion ?? 0;
-  const { contactEmail: _contactEmail, ...payload } =
-    toProfileWritePayload(profile);
+  const payload = toProfileServerPushPayload(profile);
   const result = await client.sync.push(
     deviceId,
     [

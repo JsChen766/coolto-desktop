@@ -1,5 +1,4 @@
 import type { WebContents } from "electron";
-
 import type {
   BrowserFieldWriteRecord,
   BrowserPageOperator,
@@ -7,6 +6,7 @@ import type {
   FormElementSummary,
   WriteAccessCheck,
 } from "../../../browser/types.js";
+import { isRecruitingFormFixtureOrigin } from "../../../browser/recruiting-form-fixture-policy.js";
 import { evaluateClickTarget } from "./browser-click-guards.js";
 import {
   fillPageField,
@@ -17,51 +17,39 @@ import {
   setPageChecked,
   tagPageElements,
 } from "./browser-content-writer.js";
+import { executeInSameOriginFrames } from "./browser-frame-execution.js";
 import { BrowserWriteAccessGate } from "./browser-write-access-gate.js";
-import { uploadPageFile } from "./browser-page-file-upload.js";
+import { uploadFileInput } from "./browser-file-uploader.js";
 import { BrowserFillLog } from "./browser-fill-log.js";
 import { BrowserPageAccessState } from "./browser-page-access-state.js";
-
 export interface ActiveTabContext {
   tabId: string;
   origin: string | null;
   webContents: WebContents;
 }
-
+export interface BrowserFrameSummary {
+  sameOriginFrames: number;
+  crossOriginFrames: number;
+  openShadowRoots: number;
+}
 export interface ActiveTabResolver {
   /** 返回当前活跃标签的执行上下文；无活跃标签或浏览器未打开时抛错。 */
   resolve(): ActiveTabContext;
 }
-
 export interface ReviewStarter {
   /** 由 BrowserWindowManager 提供：给定 fillLog 后注入 Overlay 并开启轮询。 */
   start(records: BrowserFieldWriteRecord[]): Promise<void>;
 }
-
 export interface WriteAccessLifecycle {
   onGranted(): void;
   onRevoked(): void;
 }
-
-/**
- * B5: 弹出系统文件选择框，返回用户选中的本地路径。用户取消返回空数组。
- * 抽成依赖便于测试，且把 Electron dialog 依赖挡在 operator 之外。
- */
 export interface FilePicker {
   pick(options: { accept: string; multiple: boolean }): Promise<string[]>;
 }
-
-/**
- * B3+B4: BrowserPageOperator 的实现。所有写原语调用前先经 gate 校验；
- * 成功执行后 touch() 刷新 5min TTL。tagElements 也纳入闸门。
- * B4 追加：fill/select/setChecked 成功后写入 fillLog；enterReview 通过
- * reviewStarter 触发主进程侧的 Overlay 注入与轮询；exitReview 由 poller
- * onComplete 后调用，清空 fillLog 并解锁闸门 reviewing 位。
- */
 export class BrowserPageOperatorImpl implements BrowserPageOperator {
   readonly #accessState: BrowserPageAccessState;
   readonly #fillLog = new BrowserFillLog();
-
   public constructor(
     private readonly gate: BrowserWriteAccessGate,
     private readonly activeTab: ActiveTabResolver,
@@ -73,17 +61,13 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
       gate, () => this.#fillLog.clear(), lifecycle.onRevoked,
     );
   }
-
   public isWriteAccessGranted(): boolean {
     return this.#accessState.isGranted();
   }
-
   public subscribeState(listener: () => void): () => void {
     return this.#accessState.subscribe(listener);
   }
-
   public contextChanged(): void { this.#accessState.contextChanged(); }
-
   public grantWriteAccess(reason: string): void {
     try {
       const ctx = this.activeTab.resolve();
@@ -96,14 +80,12 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
     this.lifecycle.onGranted();
     this.#accessState.changed();
   }
-
   public revokeWriteAccess(cause: string): void {
     this.gate.revoke(cause);
     this.#fillLog.clear();
     this.lifecycle.onRevoked();
     this.#accessState.changed();
   }
-
   public checkWriteAccess(): WriteAccessCheck {
     try {
       const context = this.activeTab.resolve();
@@ -116,25 +98,29 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
       };
     }
   }
-
   public async tagElements(preferredText?: string): Promise<FormElementSummary[]> {
     const ctx = this.#requireGranted();
     const result = await tagPageElements(ctx.webContents, ctx.origin, preferredText);
     this.gate.touch();
     return result;
   }
-
   public async fillField(fillId: string, value: string): Promise<void> {
     const ctx = this.#requireGranted();
+    const valueBefore = await readExactFieldValue(ctx.webContents, fillId);
     const meta = await fillPageField(ctx.webContents, fillId, value);
-    this.#fillLog.record(fillId, meta);
+    this.#fillLog.record(fillId, {
+      ...meta, valueBefore: valueBefore ?? meta.valueBefore, valueAfter: value,
+    });
     this.gate.touch();
   }
 
   public async selectOption(fillId: string, value: string): Promise<void> {
     const ctx = this.#requireGranted();
+    const valueBefore = await readExactFieldValue(ctx.webContents, fillId);
     const meta = await selectPageOption(ctx.webContents, fillId, value);
-    this.#fillLog.record(fillId, meta);
+    this.#fillLog.record(fillId, {
+      ...meta, valueBefore: valueBefore ?? meta.valueBefore,
+    });
     this.gate.touch();
   }
 
@@ -169,12 +155,61 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
   public async uploadFile(fillId: string, registeredPaths?: readonly string[]):
   Promise<FileUploadOutcome> {
     const ctx = this.#requireGranted();
-    return uploadPageFile(
-      ctx.webContents, fillId, this.filePicker, () => this.gate.touch(),
-      registeredPaths,
+    const outcome = await uploadFileInput(
+      ctx.webContents, fillId, ctx.origin, this.filePicker, registeredPaths,
     );
+    if (!outcome.cancelled && isRecruitingFormFixtureOrigin(ctx.origin)) {
+      this.#fillLog.record(fillId, {
+        elementType: "input", label: "文件附件", valueBefore: "",
+        valueAfter: outcome.filenames.join("、"),
+      });
+    }
+    return outcome;
   }
-
+  /** Host-derived frame topology; page content never supplies this trust signal. */
+  public async readFrameSummary(): Promise<BrowserFrameSummary> {
+    const context = this.activeTab.resolve();
+    const main = context.webContents.mainFrame;
+    const expectedOrigin = context.origin;
+    if (!main || main.isDestroyed() || main.detached || !expectedOrigin ||
+        main.origin !== expectedOrigin) throw new Error("frame_topology_unavailable");
+    const actualMainOrigin = await main.executeJavaScript("location.origin", true);
+    if (actualMainOrigin !== expectedOrigin) throw new Error("frame_topology_unavailable");
+    const children = main.framesInSubtree.filter((frame) => frame !== main);
+    const processId = main.osProcessId;
+    if (!Number.isSafeInteger(processId) || children.some((frame) =>
+      frame.isDestroyed() || frame.detached ||
+      !Number.isSafeInteger(frame.osProcessId) || frame.osProcessId !== processId,
+    )) throw new Error("frame_topology_unavailable");
+    for (const frame of children) {
+      let actualOrigin: unknown;
+      try { actualOrigin = await frame.executeJavaScript("location.origin", true); }
+      catch { throw new Error("frame_topology_unavailable"); }
+      if (actualOrigin !== frame.origin) throw new Error("frame_topology_unavailable");
+    }
+    const sameOrigin = children.filter((frame) => frame.origin === expectedOrigin);
+    return {
+      sameOriginFrames: sameOrigin.length,
+      crossOriginFrames: children.length - sameOrigin.length,
+      openShadowRoots: 0,
+    };
+  }
+  public async readCheckableState(fillId: string): Promise<boolean | null> {
+    const context = this.activeTab.resolve();
+    const executions = await executeInSameOriginFrames<boolean | null>(
+      context.webContents,
+      `(() => { const el = Array.from(document.querySelectorAll('[data-fill-id]')).find((item) => item.getAttribute('data-fill-id') === ${JSON.stringify(fillId)}); return el && (el.type === 'checkbox' || el.type === 'radio') ? !!el.checked : null; })()`,
+    );
+    return executions.find((item) => typeof item.value === "boolean")?.value ?? null;
+  }
+  public async readLiveFieldValues(): Promise<Array<{ fillId: string; currentValue: string; valueHash: string; name: string }>> {
+    const context = this.activeTab.resolve();
+    const executions = await executeInSameOriginFrames<Array<{ fillId: string; name: string; value: string; valueLength: number }>>(
+      context.webContents, `(() => Array.from(document.querySelectorAll('[data-fill-id]')).map((el) => { const value = (el.type === 'checkbox' || el.type === 'radio') ? (el.checked ? '选中' : '未选中') : 'value' in el ? String(el.value || '') : el.isContentEditable ? String(el.innerText || '') : ''; return { fillId: el.getAttribute('data-fill-id') || '', name: el.getAttribute('name') || '', value, valueLength: value.length }; }))()`,
+    );
+    const values = executions.flatMap((execution) => Array.isArray(execution.value) ? execution.value : []);
+    return Promise.all(values.map(async (item) => { const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(item.value)); return { fillId: item.fillId, name: item.name, currentValue: item.value.slice(0, 500), valueHash: `${item.valueLength}:${Buffer.from(digest).toString("hex")}` }; }));
+  }
   public isReviewing(): boolean {
     return this.gate.isReviewing();
   }
@@ -182,7 +217,6 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
   public getFillLog(): BrowserFieldWriteRecord[] {
     return this.#fillLog.list();
   }
-
   public enterReview(): void {
     if (!this.#fillLog.hasEntries) {
       throw new Error("fillLog 为空，无法进入审核阶段");
@@ -210,4 +244,7 @@ export class BrowserPageOperatorImpl implements BrowserPageOperator {
     return ctx;
   }
 
+}
+async function readExactFieldValue(contents: WebContents, fillId: string): Promise<string | null> {
+  try { const executions = await executeInSameOriginFrames<string | null>(contents, `(() => { const el = Array.from(document.querySelectorAll('[data-fill-id]')).find((item) => item.getAttribute('data-fill-id') === ${JSON.stringify(fillId)}); return el && 'value' in el ? String(el.value || '') : el?.isContentEditable ? String(el.innerText || '') : null; })()`); return executions.find((item) => typeof item.value === "string")?.value ?? null; } catch { return null; }
 }

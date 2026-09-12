@@ -109,7 +109,8 @@ export class AgentTaskStore {
         sequence, wakeCause: input.wakeCause,
         wakeEventIds: [...new Set(input.wakeEventIds ?? [])], status: "running",
         modelCalls: 0, toolCalls: 0, startedAt: new Date().toISOString(),
-        endedAt: null, stopReason: null,
+        endedAt: null, stopReason: null, currentStage: "observe",
+        stageTransitionId: null,
       };
       state.runs.push(run);
       task.status = "running";
@@ -133,6 +134,15 @@ export class AgentTaskStore {
       task.latestCheckpointId = checkpoint.id;
       task.updatedAt = checkpoint.createdAt;
       return checkpoint;
+    });
+  }
+
+  public latestCheckpoint(taskId: string): Promise<AgentCheckpointV1 | null> {
+    return this.repository.read((state) => {
+      const checkpoint = state.checkpoints
+        .filter((candidate) => candidate.taskId === taskId && candidate.ownerId === this.ownerId)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+      return checkpoint ?? null;
     });
   }
 

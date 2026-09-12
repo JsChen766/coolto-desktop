@@ -11,7 +11,7 @@ import { desktopErrorMessage } from "../chat/desktop-error-message.js";
 import { latestLinkedConversation } from
   "../chat/resume-conversation-navigation.js";
 
-type AppView = "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
+type AppView = "chat" | "agent_tasks" | "experiences" | "library" | "tracker" | "material";
 
 interface SessionPort {
   authenticatedReady: Ref<boolean>;

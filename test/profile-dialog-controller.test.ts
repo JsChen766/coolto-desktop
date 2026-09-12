@@ -20,13 +20,16 @@ test("Profile dialog uses update for pending and reapply for blocked sync states
 });
 
 function api(status: ProfileContactView["syncStatus"], calls: string[]): DesktopApi {
-  const profile = { fullName: "Alice", phone: "+852 1234 5678", contactEmail: "alice@example.test",
+  const profile = {
+    fullName: "Alice", phone: "+852 1234 5678", contactEmail: "alice@example.test",
     location: null, linkedinUrl: null, githubUrl: null, personalWebsite: null, email: null,
     currentTitle: null, currentCompany: null, yearsOfExperience: null, careerStage: null,
-    targetRoles: [], targetIndustries: [], targetLocations: [], preferredLanguage: "zh-CN",
-    resumeStyle: null, syncStatus: status } satisfies ProfileContactView;
+    targetRoles: [], targetIndustries: [], targetLocations: [], careerTargets: [],
+    preferredLanguage: "zh-CN", resumeStyle: null, entityVersion: 1,
+    updatedAt: "2026-08-03T00:00:00Z", syncStatus: status,
+  } satisfies ProfileContactView;
   const proposal = (kind: ProfileWriteProposal["kind"]): ProfileWriteProposal => ({
-    id: `profile-${kind}`, kind, current: contact(profile), next: contact(profile),
+    id: `profile-${kind}`, kind, current: structuredClone(profile), next: structuredClone(profile),
     syncStatus: status, preparedAt: "2026-08-03T00:00:00Z",
   });
   return { profile: {
@@ -36,10 +39,4 @@ function api(status: ProfileContactView["syncStatus"], calls: string[]): Desktop
     prepareAcceptServer: async () => proposal("accept_server"),
     executeProposal: async () => profile,
   } } as unknown as DesktopApi;
-}
-
-function contact(profile: ProfileContactView) {
-  return { fullName: profile.fullName, phone: profile.phone, contactEmail: profile.contactEmail,
-    location: profile.location, linkedinUrl: profile.linkedinUrl, githubUrl: profile.githubUrl,
-    personalWebsite: profile.personalWebsite };
 }

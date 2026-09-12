@@ -8,7 +8,7 @@ import {
   TriangleAlert,
   X,
 } from "@lucide/vue";
-import { nextTick, ref, watch } from "vue";
+import { nextTick, ref, useId, watch } from "vue";
 
 import type {
   DesktopApprovalDecision,
@@ -25,6 +25,8 @@ const emit = defineEmits<{
 }>();
 
 const customOpen = ref(false);
+const titleId = useId();
+const descriptionId = useId();
 const customText = ref("");
 const customInput = ref<HTMLTextAreaElement>();
 const selectedCandidates = ref<string[]>([]);
@@ -69,6 +71,10 @@ function accept(): void {
   <section
     class="approval-card"
     data-testid="approval-card"
+    role="region"
+    :aria-labelledby="titleId"
+    :aria-describedby="descriptionId"
+    aria-live="polite"
     :data-approval-action-type="request.actionType"
   >
     <header class="approval-heading">
@@ -76,12 +82,12 @@ function accept(): void {
         <ShieldCheck :size="18" :stroke-width="1.8" />
       </div>
       <div>
-        <h3>{{ $t(request.title) }}</h3>
+        <h3 :id="titleId">{{ $t(request.title) }}</h3>
         <p>{{ busy ? $t('正在执行，请稍候…') : $t('Agent 正在等待你的确认') }}</p>
       </div>
     </header>
 
-    <p class="approval-description">{{ $t(request.description) }}</p>
+    <p :id="descriptionId" class="approval-description">{{ $t(request.description) }}</p>
 
     <dl v-if="request.preview.summary.length" class="approval-summary">
       <template v-for="field in request.preview.summary" :key="field.label">
@@ -104,6 +110,17 @@ function accept(): void {
           </span>
         </span>
       </label>
+    </section>
+    <section v-if="request.preview.preference" class="approval-preference-section">
+      <h4>{{ $t('长期偏好变更') }}</h4>
+      <dl class="approval-preference-diff">
+        <div><dt>{{ $t('规则') }}</dt><dd>{{ request.preview.preference.key }}</dd></div>
+        <div><dt>{{ $t('当前值') }}</dt><dd><span>{{ request.preview.preference.currentValue }}</span> → {{ request.preview.preference.proposedValue }}</dd></div>
+        <div><dt>{{ $t('作用域') }}</dt><dd>{{ request.preview.preference.scope }}</dd></div>
+        <div><dt>{{ $t('优先级') }}</dt><dd>{{ request.preview.preference.priority ?? $t('未设置') }}</dd></div>
+        <div><dt>{{ $t('来源') }}</dt><dd>{{ request.preview.preference.source ?? $t('直接用户设置') }}</dd></div>
+      </dl>
+      <p class="approval-preference-explanation">{{ request.preview.preference.explanation }}</p>
     </section>
 
     <div

@@ -1,3 +1,4 @@
+export type JobScoutApiProvider = "greenhouse" | "lever";
 export interface BrowserLeadV1 {
   version: 1;
   id: string;

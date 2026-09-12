@@ -24,6 +24,11 @@ import {
   PROFILE_UPDATE_ACTION_TYPE,
 } from "../profile/approval-draft.js";
 import { createProfileUpdateExecutor } from "./profile-update-executor.js";
+import type { PreferenceProposalService } from "../desktop/main/preference/preference-proposal-service.js";
+import {
+  PREFERENCE_CHANGE_ACTION_TYPE,
+} from "../preference/approval-draft.js";
+import { createPreferenceUpdateExecutor } from "./preference-update-executor.js";
 import {
   RESUME_AUGMENTED_CONFIRM_ACTION_TYPE,
 } from "../resume/confirmation/augmented-approval.js";
@@ -73,6 +78,7 @@ export interface ActionApprovalDependencies {
   experienceWriter: ExperienceWriter;
   importProposalStore: ExperienceImportProposalStore;
   profileProposals?: ProfileProposalExecutor;
+  preferenceProposals?: PreferenceProposalService;
   jdWriter?: JdWriter;
   jdProposalStore?: JdProposalStore;
   resumePublications?: ResumePublicationGateway;
@@ -110,6 +116,12 @@ export function createActionApprovalManager(
     executors.register(
       PROFILE_UPDATE_ACTION_TYPE,
       createProfileUpdateExecutor(deps.profileProposals),
+    );
+  }
+  if (deps.preferenceProposals) {
+    executors.register(
+      PREFERENCE_CHANGE_ACTION_TYPE,
+      createPreferenceUpdateExecutor(deps.preferenceProposals),
     );
   }
   if (deps.jdWriter && deps.jdProposalStore) {

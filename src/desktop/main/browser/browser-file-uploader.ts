@@ -1,210 +1,194 @@
-import type { WebContents } from "electron";
+import type { WebContents, WebFrameMain } from "electron";
 import { BrowserWindow, dialog } from "electron";
+import type { FileUploadOutcome } from "../../../browser/types.js";
 
-/**
- * B5: 通过 Chrome DevTools Protocol 向原生 `<input type=file>` 注入本地文件路径。
- *
- * executeJavaScript 无法设置 file input 的 value（浏览器安全限制），只能靠 CDP
- * 的 DOM.setFileInputFiles。流程：
- *   1. debugger.attach('1.3')（若已被占用则报错，交由上层给出可读提示）
- *   2. Runtime.evaluate 用 data-fill-id 取得 file input 的 objectId，同时校验它
- *      确实是 <input type=file>，并读取 multiple / accept 属性
- *   3. DOM.setFileInputFiles({ objectId, files }) 注入路径
- *   4. 派发 input/change 事件，兼容监听变更的前端组件
- *   5. detach（无论成败）
- *
- * 只做「注入 + 结果规范化」，不做写权限闸门检查（闸门在 BrowserPageOperator 层）。
- */
-
-export interface FileUploadResult {
-  fileCount: number;
+/** Browser file injection is host-only; page scripts never receive a path. */
+export interface FileUploadResult { fileCount: number; }
+export interface FileInputProbe { ok: boolean; reason?: string; accept: string; multiple: boolean; }
+type BrowserDebugger = WebContents["debugger"];
+interface CdpNode {
+  nodeId: number;
+  nodeName?: string;
+  attributes?: string[];
+  children?: CdpNode[];
+  contentDocument?: CdpNode;
+  shadowRoots?: CdpNode[];
 }
+interface DomDocument { root?: CdpNode; }
+interface EvaluateResult { result?: { objectId?: string; value?: unknown }; exceptionDetails?: { text?: string }; }
+interface FilePicker { pick(options: { accept: string; multiple: boolean }): Promise<string[]>; }
 
-export interface FileInputProbe {
-  ok: boolean;
-  reason?: string;
-  accept: string;
-  multiple: boolean;
-}
-
-/**
- * 上传前先读取 file input 的 accept/multiple（executeJavaScript 即可，无需 CDP），
- * 用于配置系统文件选择框的过滤器与多选。非 file input 时返回 ok:false。
- */
 export async function probeFileInput(
   contents: WebContents,
   fillId: string,
+  expectedOrigin?: string | null,
 ): Promise<FileInputProbe> {
-  const raw = (await contents.executeJavaScript(
-    `(() => {
-      const fillId = ${q(fillId)};
-      const el = Array.from(document.querySelectorAll('[data-fill-id]'))
-        .find((item) => item.getAttribute('data-fill-id') === fillId);
-      if (!el) return { ok: false, reason: 'element_not_found', accept: '', multiple: false };
-      if (el.tagName !== 'INPUT' || (el.getAttribute('type') || '').toLowerCase() !== 'file')
-        return { ok: false, reason: 'not_file_input', accept: '', multiple: false };
-      if (el.disabled) return { ok: false, reason: 'element_disabled', accept: '', multiple: false };
-      return { ok: true, accept: (el.getAttribute('accept') || '').slice(0, 200), multiple: !!el.multiple };
-    })()`,
-    true,
-  )) as Partial<FileInputProbe> | null;
+  return withDebugger(contents, async (debuggerHandle) => {
+    const expected = expectedOrigin === undefined
+      ? contents.mainFrame?.origin ?? null : expectedOrigin;
+    if (!await frameTopologySafe(contents.mainFrame, expected)) {
+      return { ok: false, reason: "frame_topology_unavailable", accept: "", multiple: false };
+    }
+    const node = await findFileNode(contents, debuggerHandle, fillId, expected);
+    if (!node) return { ok: false, reason: "element_not_found", accept: "", multiple: false };
+    const attrs = attributes(node);
+    if ((node.nodeName ?? "").toUpperCase() !== "INPUT" || attrs.type?.toLowerCase() !== "file") {
+      return { ok: false, reason: "not_file_input", accept: "", multiple: false };
+    }
+    if (attrs.disabled !== undefined) return { ok: false, reason: "element_disabled", accept: "", multiple: false };
+    return { ok: true, accept: (attrs.accept ?? "").slice(0, 200), multiple: attrs.multiple !== undefined };
+  });
+}
+
+export async function uploadFileInput(
+  contents: WebContents,
+  fillId: string,
+  expectedOrigin: string | null,
+  picker: FilePicker,
+  registeredPaths?: readonly string[],
+): Promise<FileUploadOutcome> {
+  const probe = await probeFileInput(contents, fillId, expectedOrigin);
+  if (!probe.ok) throw new Error(uploadReason(probe.reason));
+  const paths = registeredPaths?.length ? [...registeredPaths] : await picker.pick({
+    accept: probe.accept, multiple: probe.multiple,
+  });
+  if (paths.length === 0) return { cancelled: true };
+  const result = await setFileInputFiles(contents, fillId, paths, expectedOrigin);
   return {
-    ok: Boolean(raw?.ok),
-    ...(raw?.reason ? { reason: raw.reason } : {}),
-    accept: String(raw?.accept ?? ""),
-    multiple: Boolean(raw?.multiple),
+    cancelled: false,
+    filenames: paths.map((path) => path.split(/[\\/]/u).pop() ?? path),
+    fileCount: result.fileCount,
   };
 }
 
-interface EvaluateResult {
-  result?: {
-    objectId?: string;
-    value?: unknown;
-    subtype?: string;
-  };
-  exceptionDetails?: { text?: string };
-}
-
-function q(value: string): string {
-  return JSON.stringify(value);
-}
-
-/**
- * 把 file input 的 accept 属性转成 Electron dialog 的 filters。
- * accept 形如 ".pdf,.doc,image/*"；MIME 通配（image/*）无法映射到扩展名，
- * 忽略之，最后总附一个「所有文件」兜底项，避免过滤过严导致用户选不到文件。
- */
-export function buildFileFilters(
-  accept: string,
-): { name: string; extensions: string[] }[] {
-  const extensions = accept
-    .split(",")
-    .map((token) => token.trim())
-    .filter((token) => token.startsWith("."))
-    .map((token) => token.slice(1).toLowerCase())
-    .filter(Boolean);
+export function buildFileFilters(accept: string): { name: string; extensions: string[] }[] {
+  const extensions = accept.split(",").map((token) => token.trim()).filter((token) => token.startsWith("."))
+    .map((token) => token.slice(1).toLowerCase()).filter(Boolean);
   const filters: { name: string; extensions: string[] }[] = [];
-  if (extensions.length > 0) {
-    filters.push({ name: "允许的文件", extensions: [...new Set(extensions)] });
-  }
-  filters.push({ name: "所有文件", extensions: ["*"] });
-  return filters;
+  if (extensions.length > 0) filters.push({ name: "允许的文件", extensions: [...new Set(extensions)] });
+  filters.push({ name: "所有文件", extensions: ["*"] }); return filters;
 }
-
-/**
- * 弹系统文件选择框，返回用户选中的绝对路径。取消返回空数组。
- * 单选模式即使系统返回多个也只取第一个。
- */
-export async function pickLocalFiles(
-  parent: BrowserWindow | undefined,
-  options: { accept: string; multiple: boolean },
-): Promise<string[]> {
-  const filters = buildFileFilters(options.accept);
+export async function pickLocalFiles(parent: BrowserWindow | undefined, options: { accept: string; multiple: boolean }): Promise<string[]> {
   const properties: Array<"openFile" | "multiSelections"> = ["openFile"];
   if (options.multiple) properties.push("multiSelections");
-  const result = parent
-    ? await dialog.showOpenDialog(parent, { properties, filters })
-    : await dialog.showOpenDialog({ properties, filters });
-  if (result.canceled) return [];
-  return options.multiple ? result.filePaths : result.filePaths.slice(0, 1);
+  const result = parent ? await dialog.showOpenDialog(parent, { properties, filters: buildFileFilters(options.accept) })
+    : await dialog.showOpenDialog({ properties, filters: buildFileFilters(options.accept) });
+  if (result.canceled) return []; return options.multiple ? result.filePaths : result.filePaths.slice(0, 1);
 }
 
-/** 定位 file input 并回传 objectId；非 file input 时抛可读错误。 */
-function buildLocateExpression(fillId: string): string {
-  return `(() => {
-  const fillId = ${q(fillId)};
-  const el = Array.from(document.querySelectorAll('[data-fill-id]'))
-    .find((item) => item.getAttribute('data-fill-id') === fillId);
-  if (!el) return { error: 'element_not_found' };
-  if (el.tagName !== 'INPUT' || (el.getAttribute('type') || '').toLowerCase() !== 'file')
-    return { error: 'not_file_input' };
-  if (el.disabled) return { error: 'element_disabled' };
-  return el;
-})()`;
-}
-
-/** 注入后派发 input/change，让 React/Vue 等监听器感知附件已选。 */
-function buildDispatchExpression(fillId: string): string {
-  return `(() => {
-  const fillId = ${q(fillId)};
-  const el = Array.from(document.querySelectorAll('[data-fill-id]'))
-    .find((item) => item.getAttribute('data-fill-id') === fillId);
-  if (!el) return { error: 'element_not_found' };
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-  el.dispatchEvent(new Event('change', { bubbles: true }));
-  return { ok: true, fileCount: el.files ? el.files.length : 0 };
-})()`;
-}
-
-function reasonFromError(code: unknown): string {
-  switch (code) {
-    case "element_not_found":
-      return "目标元素不存在（element_not_found）";
-    case "not_file_input":
-      return "目标不是原生 <input type=file>，无法上传；请提示用户手动上传附件";
-    case "element_disabled":
-      return "目标文件输入框已禁用（element_disabled）";
-    default:
-      return typeof code === "string" ? code : "文件上传失败";
-  }
-}
-
-/**
- * 对指定 file input（由 data-fill-id 定位）注入本地文件路径。
- * 上层已 probe 过合法性，这里专注 CDP 注入；任何阶段失败均抛错。
- */
 export async function setFileInputFiles(
   contents: WebContents,
   fillId: string,
   filePaths: string[],
+  expectedOrigin?: string | null,
 ): Promise<FileUploadResult> {
-  if (filePaths.length === 0) {
-    throw new Error("未提供任何文件路径");
-  }
-  const dbg = contents.debugger;
-  let attached = false;
-  try {
-    if (!dbg.isAttached()) dbg.attach("1.3");
-    attached = true;
-    await dbg.sendCommand("DOM.enable");
-    await dbg.sendCommand("Runtime.enable");
-
-    const located = (await dbg.sendCommand("Runtime.evaluate", {
-      expression: buildLocateExpression(fillId),
-      returnByValue: false,
-    })) as EvaluateResult;
-    if (located.exceptionDetails) {
-      throw new Error(located.exceptionDetails.text ?? "定位文件输入框失败");
+  if (filePaths.length === 0) throw new Error("未提供任何文件路径");
+  return withDebugger(contents, async (debuggerHandle) => {
+    const expected = expectedOrigin === undefined
+      ? contents.mainFrame?.origin ?? null : expectedOrigin;
+    if (!await frameTopologySafe(contents.mainFrame, expected)) {
+      throw new Error("frame_topology_unavailable");
     }
-    const objectId = located.result?.objectId;
-    if (!objectId) {
-      const err = (located.result?.value as { error?: string } | undefined)
-        ?.error;
-      throw new Error(err ? reasonFromError(err) : "无法获取文件输入框的 objectId");
+    const node = await findFileNode(contents, debuggerHandle, fillId, expected);
+    if (!node) throw new Error("目标元素不存在（element_not_found）");
+    const attrs = attributes(node);
+    if ((node.nodeName ?? "").toUpperCase() !== "INPUT" || attrs.type?.toLowerCase() !== "file") {
+      throw new Error("目标不是原生 <input type=file>");
     }
-
-    await dbg.sendCommand("DOM.setFileInputFiles", { objectId, files: filePaths });
-
-    const dispatched = (await dbg.sendCommand("Runtime.evaluate", {
-      expression: buildDispatchExpression(fillId),
-      returnByValue: true,
-    })) as EvaluateResult;
+    if (attrs.disabled !== undefined) throw new Error("目标文件输入框已禁用（element_disabled）");
+    if (!await frameTopologySafe(contents.mainFrame, expected)) {
+      throw new Error("frame_topology_changed");
+    }
+    await debuggerHandle.sendCommand("DOM.setFileInputFiles", { nodeId: node.nodeId, files: filePaths });
+    const resolved = await debuggerHandle.sendCommand("DOM.resolveNode", { nodeId: node.nodeId }) as { object?: { objectId?: string } };
+    const objectId = resolved.object?.objectId;
+    if (!objectId) throw new Error("无法获取文件输入框的 objectId");
+    const dispatched = await debuggerHandle.sendCommand("Runtime.callFunctionOn", {
+      objectId, returnByValue: true, functionDeclaration: "function () { this.dispatchEvent(new Event('input', { bubbles: true })); this.dispatchEvent(new Event('change', { bubbles: true })); return { ok: true, fileCount: this.files ? this.files.length : 0 }; }",
+    }) as EvaluateResult;
     return { fileCount: readFileCount(dispatched, filePaths.length) };
+  });
+}
+
+async function findFileNode(
+  contents: WebContents,
+  debuggerHandle: BrowserDebugger,
+  fillId: string,
+  expectedOrigin: string | null,
+): Promise<CdpNode | null> {
+  if (!await frameTopologySafe(contents.mainFrame, expectedOrigin)) return null;
+  const document = await debuggerHandle.sendCommand("DOM.getDocument", { depth: -1, pierce: true }) as DomDocument;
+  return document.root ? findNode(document.root, fillId, expectedOrigin) : null;
+}
+function findNode(node: CdpNode, fillId: string, documentOrigin: string | null): CdpNode | null {
+  if (attributes(node)["data-fill-id"] === fillId) return node;
+  for (const child of [...(node.children ?? []), ...(node.shadowRoots ?? [])]) {
+    const found = findNode(child, fillId, documentOrigin); if (found) return found;
+  }
+  if (node.contentDocument && sameOriginFrame(node, documentOrigin)) {
+    return findNode(node.contentDocument, fillId, documentOrigin);
+  }
+  return null;
+}
+function sameOriginFrame(node: CdpNode, origin: string | null): boolean {
+  if (!origin) return false;
+  const src = attributes(node).src;
+  if (!src || src === "about:blank" || src === "about:srcdoc") return true;
+  try { return new URL(src, origin).origin === origin; } catch { return false; }
+}
+async function frameTopologySafe(
+  main: WebFrameMain | null | undefined,
+  expectedOrigin: string | null,
+): Promise<boolean> {
+  try {
+    if (!main || !expectedOrigin || main.isDestroyed() || main.detached ||
+        main.origin !== expectedOrigin) return false;
+    const frames = main.framesInSubtree;
+    const processId = main.osProcessId;
+    if (!Number.isSafeInteger(processId) || !frames.includes(main)) return false;
+    const actualMainOrigin = await main.executeJavaScript("location.origin", true);
+    if (actualMainOrigin !== expectedOrigin) return false;
+    for (const frame of frames) {
+      if (frame.isDestroyed() || frame.detached ||
+          !Number.isSafeInteger(frame.osProcessId) ||
+          frame.osProcessId !== processId) return false;
+      const actualOrigin = await frame.executeJavaScript("location.origin", true);
+      if (actualOrigin !== expectedOrigin || actualOrigin !== frame.origin) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+function attributes(node: CdpNode): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (let index = 0; index + 1 < (node.attributes?.length ?? 0); index += 2) {
+    const name = node.attributes![index]; const value = node.attributes![index + 1];
+    if (name && value !== undefined) result[name] = value;
+  }
+  return result;
+}
+async function withDebugger<T>(contents: WebContents, operation: (debuggerHandle: BrowserDebugger) => Promise<T>): Promise<T> {
+  const debuggerHandle = contents.debugger; const owned = !debuggerHandle.isAttached();
+  if (owned) debuggerHandle.attach("1.3");
+  try {
+    await debuggerHandle.sendCommand("DOM.enable"); await debuggerHandle.sendCommand("Runtime.enable");
+    return await operation(debuggerHandle);
   } finally {
-    if (attached && dbg.isAttached()) {
-      try {
-        dbg.detach();
-      } catch {
-        // detach 失败不影响上传结果，忽略。
-      }
+    if (owned && debuggerHandle.isAttached()) {
+      try { debuggerHandle.detach(); } catch { /* best effort */ }
     }
   }
 }
-
+function uploadReason(reason: string | undefined): string {
+  if (reason === "element_not_found") return "目标元素不存在（element_not_found）";
+  if (reason === "not_file_input") return "目标不是原生 <input type=file>，无法上传；请提示用户手动上传附件";
+  if (reason === "element_disabled") return "目标文件输入框已禁用（element_disabled）";
+  return reason ?? "文件上传失败";
+}
 function readFileCount(result: EvaluateResult, fallback: number): number {
-  const value = result.result?.value as
-    | { ok?: boolean; fileCount?: number; error?: string }
-    | undefined;
-  if (value?.error) throw new Error(reasonFromError(value.error));
-  return typeof value?.fileCount === "number" ? value.fileCount : fallback;
+  const value = result.result?.value;
+  if (value && typeof value === "object" && "error" in value && typeof value.error === "string") throw new Error(value.error);
+  if (value && typeof value === "object" && "fileCount" in value && typeof value.fileCount === "number") return value.fileCount;
+  return fallback;
 }

@@ -54,3 +54,13 @@ test("a different conversation cannot enter or queue behind an active run", asyn
   assert.equal(gate.currentConversationId, "conversation-a");
   gate.finish("conversation-a");
 });
+test("quiesce rejects queued work and blocks new runs", async () => {
+  const gate = new ConversationRunGate();
+  gate.begin("conversation-a");
+  const queued = gate.beginAfterCurrent("conversation-a");
+  gate.quiesce();
+  await assert.rejects(queued, /运行时正在退出/u);
+  assert.throws(() => gate.begin("conversation-a"), /运行时正在退出/u);
+  gate.finish("conversation-a");
+  assert.equal(gate.isRunning, false);
+});

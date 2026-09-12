@@ -7,7 +7,8 @@ export type SyncEntityType =
   | "application_status_event"
   | "interview_round"
   | "application_note"
-  | "reminder";
+  | "reminder"
+  | "user_preference";
 
 export type SyncAction = "create" | "update" | "delete" | "transition";
 

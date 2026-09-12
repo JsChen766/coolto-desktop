@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -7,24 +7,30 @@ import { app, safeStorage } from "electron";
 import type { AgentHarnessStateV1 } from "../../../agent-task/agent-harness-state.js";
 import type { AgentHarnessStatePersistence } from "../../../agent-task/agent-harness-state-repository.js";
 import { normalizeAgentHarnessStateV1 } from "../../../agent-task/normalize-agent-harness-state.js";
+import {
+  localScopeDigest,
+  localScopeKey,
+  requireScopedEnvelope,
+} from "../../../privacy/local-scope.js";
 import { renameAgentFile } from "./atomic-agent-file.js";
 
-export class ElectronAgentHarnessPersistence
-implements AgentHarnessStatePersistence {
+export class ElectronAgentHarnessPersistence implements AgentHarnessStatePersistence {
   readonly #directory: string;
   readonly #path: string;
-
-  public constructor(private readonly ownerId: string) {
-    const ownerHash = createHash("sha256").update(ownerId).digest("hex").slice(0, 20);
-    this.#directory = join(app.getPath("userData"), "agent-harness", ownerHash);
+  public constructor(
+    private readonly apiBaseUrl: string,
+    private readonly ownerId: string,
+  ) {
+    this.#directory = join(app.getPath("userData"), "agent-harness", localScopeKey(apiBaseUrl, ownerId));
     this.#path = join(this.#directory, "state.coolto");
   }
 
   public async load(): Promise<AgentHarnessStateV1 | undefined> {
     try {
       ensureEncryption();
-      const serialized = safeStorage.decryptString(await readFile(this.#path));
-      return normalizeAgentHarnessStateV1(JSON.parse(serialized) as unknown);
+      const parsed = JSON.parse(safeStorage.decryptString(await readFile(this.#path))) as unknown;
+      const state = requireScopedEnvelope<AgentHarnessStateV1>(parsed, this.apiBaseUrl, this.ownerId);
+      return normalizeAgentHarnessStateV1(state);
     } catch (error: unknown) {
       if (isMissing(error)) return undefined;
       throw error;
@@ -36,7 +42,11 @@ implements AgentHarnessStatePersistence {
     ensureEncryption();
     await mkdir(this.#directory, { recursive: true, mode: 0o700 });
     const temporary = `${this.#path}.${randomUUID()}.tmp`;
-    const encrypted = safeStorage.encryptString(JSON.stringify(state));
+    const encrypted = safeStorage.encryptString(JSON.stringify({
+      scopeDigest: localScopeDigest(this.apiBaseUrl, this.ownerId),
+      ownerId: this.ownerId,
+      value: state,
+    }));
     await writeFile(temporary, encrypted, { mode: 0o600 });
     await renameAgentFile(temporary, this.#path);
   }
@@ -53,6 +63,6 @@ function ensureEncryption(): void {
 }
 
 function isMissing(error: unknown): boolean {
-  return Boolean(error && typeof error === "object" &&
-    "code" in error && (error as { code?: string }).code === "ENOENT");
+  return Boolean(error && typeof error === "object" && "code" in error &&
+    (error as { code?: string }).code === "ENOENT");
 }

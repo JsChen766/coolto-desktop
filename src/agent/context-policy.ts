@@ -46,9 +46,8 @@ export async function compactResumeGenerationContext(
         latestError = -1;
       }
     });
-    const continuationPhase = isResumeContinuationAuthority(
-      messages[latestWorkspace],
-    );
+    const continuationPhase = latestWorkspace > latestUser &&
+      isResumeContinuationAuthority(messages[latestWorkspace]);
     const managedResultIds = new Set<string>();
     const retainedResultIds = new Set<string>();
     messages.forEach((message, index) => {
@@ -126,9 +125,14 @@ function isResumeContinuationAuthority(
   if (!nextAction || typeof nextAction !== "object") return false;
   const mode = (nextAction as { mode?: unknown }).mode;
   return mode === "adapt_reused_content" || mode === "increase_usage" ||
-    mode === "assess_evidence" ||
-    mode === "batch_tail_rewrite" ||
-    mode === "reduce_overflow" || mode === "repair_bullet_counts";
+    mode === "assess_evidence" || mode === "batch_tail_rewrite" ||
+    mode === "reduce_overflow" || mode === "repair_bullet_counts" ||
+    mode === "group_work_units" || mode === "write_item_lines" ||
+    mode === "integrate_supplemental_evidence" ||
+    mode === "request_more_material" ||
+    mode === "stop_insufficient_material" ||
+    mode === "await_augmented_confirmation" ||
+    mode === "inspect_blockers" || mode === "stop";
 }
 
 function compactTailRepairArguments(

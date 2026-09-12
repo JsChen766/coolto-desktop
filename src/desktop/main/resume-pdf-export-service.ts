@@ -4,6 +4,8 @@ import { basename, isAbsolute } from "node:path";
 import { sha256, stableStringify } from "../../resume/stable-snapshot.js";
 import { ResumePdfExportError } from "../../resume/export/errors.js";
 import { verifyResumePdfIntegrity } from "../../resume/export/pdf-integrity.js";
+import { assertRevisionDeliveryPayloadCurrent } from
+  "../../resume/workspace/revision-delivery-contract.js";
 import type { ResumePdfPostflightResult } from "../../resume/pdf-postflight.js";
 import type {
   ResumePdfCompiler,
@@ -65,6 +67,16 @@ export class ResumePdfExportService implements ResumePdfExportGateway {
     assertNotAborted(signal);
     const compilation = await this.compiler.compileForPdf(structure);
     assertCompileContract(compilation.result, payload);
+    if (payload.deliveryManifest) {
+      assertRevisionDeliveryPayloadCurrent({
+        manifest: payload.deliveryManifest,
+        candidateId: payload.candidateId,
+        candidateRevision: payload.candidateRevision,
+        structure,
+        observedCompileResult: payload.compileResult,
+        currentCompileResult: compilation.result,
+      });
+    }
     const postflight = await this.verifyIntegrity(
       compilation.pdf,
       structure,

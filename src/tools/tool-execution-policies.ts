@@ -18,14 +18,19 @@ const SEQUENTIAL_TOOL_NAMES = new Set([
   "browser_hover", "browser_drag", "browser_download", "task_checkpoint",
   "task_wait", "task_need_user", "task_complete",
   "fetch_job_source", "record_job_lead_evaluation",
+  "recognize_recruiting_page",
   "prepare_application_submission", "browser_submit",
   "sync_submission_receipt",
+  "confirm_submission_receipt",
   "prepare_answer_vault_entry",
   "fetch_inbox_events", "read_inbox_event", "search_application_candidates",
   "record_inbox_signal",
   "capture_browser_mail_event",
   "prepare_inbox_application_update",
   "prepare_inbox_interview_update",
+  "browser_recruiting_form_observe", "browser_recruiting_form_fill",
+  "browser_recruiting_form_select", "browser_recruiting_form_set_checked",
+  "browser_recruiting_form_upload", "browser_recruiting_form_review",
 ]);
 
 export function applyExecutionPolicies(tools: AgentTool[]): AgentTool[] {

@@ -15,8 +15,11 @@ import {
   type ExperienceFormDraft,
   type ExperienceFormErrors,
 } from "../experiences/experience-form";
+import DialogSelect from "./DialogSelect.vue";
+import type { DialogSelectOption } from "./dialog-select-types";
 import ExperienceDateFields from "./ExperienceDateFields.vue";
 import ExperienceTagEditor from "./ExperienceTagEditor.vue";
+import { translate } from "../i18n/locale";
 
 const props = defineProps<{
   mode: "create" | "edit";
@@ -36,6 +39,11 @@ const formElement = ref<HTMLFormElement>();
 const dirty = computed(() => !sameExperienceDraft(form.value, props.initial));
 const errorList = computed(() => [...new Set(Object.values(errors.value))]);
 const kind = computed(() => experienceKind(form.value));
+const categoryOptions = computed<DialogSelectOption[]>(() =>
+  Object.entries(EXPERIENCE_KIND_LABELS).map(([value, label]) => ({
+    value,
+    label: translate(label),
+  })));
 
 watch(dirty, (value) => emit("dirty", value), { immediate: true });
 
@@ -50,10 +58,8 @@ function updateTags(value: { tags: string[]; tagInput: string }): void {
   patch(value);
 }
 
-function updateKind(event: Event): void {
-  patch(patchForExperienceKind(
-    (event.target as HTMLSelectElement).value as ExperienceKind,
-  ));
+function updateKind(value: string): void {
+  patch(patchForExperienceKind(value as ExperienceKind));
 }
 
 async function submit(): Promise<void> {
@@ -116,20 +122,13 @@ async function submit(): Promise<void> {
       <div class="experience-form-grid">
         <label class="experience-form-field">
           <span>{{ $t('类别') }}</span>
-          <select
+          <DialogSelect
             data-field="category"
-            :value="kind"
+            :model-value="kind"
+            :options="categoryOptions"
             :disabled="busy"
-            @change="updateKind"
-          >
-            <option
-              v-for="(label, value) in EXPERIENCE_KIND_LABELS"
-              :key="value"
-              :value="value"
-            >
-              {{ $t(label) }}
-            </option>
-          </select>
+            @update:model-value="updateKind"
+          />
         </label>
         <label class="experience-form-field">
           <span>{{ $t('标题') }}</span>

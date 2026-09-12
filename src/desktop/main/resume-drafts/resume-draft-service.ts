@@ -41,6 +41,12 @@ export class ResumeDraftService {
   public async save(draft: LocalResumeDraft): Promise<void> {
     await this.repository.save(draft);
   }
+  public withArtifactOperationLock<T>(
+    artifactId: string | undefined,
+    task: () => Promise<T>,
+  ): Promise<T> {
+    return this.repository.withArtifactOperationLock(artifactId, task);
+  }
 
   public async linkConversation(
     artifactId: string,

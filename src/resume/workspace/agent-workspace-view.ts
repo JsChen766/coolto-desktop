@@ -113,7 +113,7 @@ export function buildAgentWorkspaceView(
     ...(operation ? { operation } : {}),
     resume: { items },
     layout: {
-      observedRevision: workspace.compileObservedRevision ?? workspace.revision,
+      observedRevision: workspace.compileObservedRevision,
       pageCount: compile.pageCount,
       usedHeightPx: compile.usedHeightPx,
       availableHeightPx: compile.availableHeightPx,
@@ -172,7 +172,7 @@ export function buildAgentWorkspaceReceipt(
     readiness: object;
     operation?: WorkspaceOperationReceipt;
     layout: {
-      observedRevision: number;
+      observedRevision: number | undefined;
       pageCount: number;
       usageRatio: number;
       overflowPx: number;

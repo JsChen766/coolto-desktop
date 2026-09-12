@@ -3,7 +3,10 @@ import { createRequire } from "node:module";
 
 import { extractLayoutText } from "./pdf-layout.js";
 import { ensurePdfEnvironment } from "./pdfjs-environment.js";
-import type { SelectedFileContent } from "./types.js";
+import type {
+  MaterialSelectedFileContent,
+  SelectedFileContent,
+} from "./types.js";
 
 // 主进程代码在发布构建里由原生保护模块经 vm 执行（protect-main-bundle），
 // vm 上下文不支持 dynamic import()（报 "A dynamic import callback was not
@@ -30,40 +33,69 @@ export interface ParsedMaterialChunk {
 
 export interface ParsedMaterialDocument extends ParsedSelectedFile {
   chunks: ParsedMaterialChunk[];
+  requiresOcr: boolean;
+  ocrPages: number[];
+}
+
+export interface ParseSelectedMaterialOptions {
+  allowOcr?: boolean;
 }
 
 export async function parseSelectedFile(
   selectedFile: SelectedFileContent,
 ): Promise<ParsedSelectedFile> {
   const document = await parseSelectedMaterialDocument(selectedFile);
-  const { chunks: _chunks, ...parsed } = document;
+  if (document.requiresOcr) {
+    throw new Error(
+      `未能从 ${selectedFile.metadata.filename} 提取文本；扫描版 PDF 暂不支持 OCR`,
+    );
+  }
+  const { chunks: _chunks, requiresOcr: _requiresOcr, ocrPages: _ocrPages, ...parsed } = document;
   return parsed;
 }
 
 export async function parseSelectedMaterialDocument(
-  selectedFile: SelectedFileContent,
+  selectedFile: SelectedFileContent | MaterialSelectedFileContent,
+  options: ParseSelectedMaterialOptions = {},
 ): Promise<ParsedMaterialDocument> {
   let parts: Array<{ label: string; text: string }>;
-  switch (selectedFile.metadata.type) {
-    case "pdf":
-      parts = (await parsePdfPages(selectedFile.content)).map((text, index) => ({
-        label: `第 ${index + 1} 页`, text,
-      }));
-      break;
-    case "docx":
-      parts = [{ label: "文档正文", text: await parseDocx(selectedFile.content) }];
-      break;
-    case "text":
-    case "markdown":
-      parts = [{ label: "文档正文", text: decodeText(selectedFile.content) }];
-      break;
+  let ocrPages: number[] = [];
+  const imageInput = selectedFile.metadata.type === "png"
+    || selectedFile.metadata.type === "jpg"
+    || selectedFile.metadata.type === "jpeg";
+  if (imageInput) {
+    parts = [];
+    ocrPages = [1];
+  } else {
+    switch (selectedFile.metadata.type) {
+      case "pdf": {
+        const pages = await parsePdfPages(selectedFile.content);
+        parts = pages.map((text, index) => ({ label: `第 ${index + 1} 页`, text }));
+        ocrPages = pages
+          .map((text, index) => (text.trim() ? -1 : index + 1))
+          .filter((page) => page > 0);
+        break;
+      }
+      case "docx":
+        parts = [{ label: "文档正文", text: await parseDocx(selectedFile.content) }];
+        break;
+      case "text":
+      case "markdown":
+        parts = [{ label: "文档正文", text: decodeText(selectedFile.content) }];
+        break;
+      default:
+        parts = [];
+    }
   }
-
   const normalizedParts = parts
     .map((part) => ({ ...part, text: part.text.trim() }))
     .filter((part) => part.text);
   const normalized = normalizedParts.map((part) => part.text).join("\n\n");
-  if (!normalized) {
+  const requiresOcr = imageInput || ocrPages.length > 0;
+  if (!normalized && !requiresOcr) {
+    throw new Error(`未能从 ${selectedFile.metadata.filename} 提取文本`);
+  }
+  if (requiresOcr && !options.allowOcr) {
     throw new Error(
       `未能从 ${selectedFile.metadata.filename} 提取文本；扫描版 PDF 暂不支持 OCR`,
     );
@@ -83,6 +115,8 @@ export async function parseSelectedMaterialDocument(
       index,
       ...chunk,
     })),
+    requiresOcr,
+    ocrPages,
   };
 }
 
@@ -106,6 +140,7 @@ async function parsePdfPages(content: Buffer): Promise<string[]> {
   const pages: string[] = [];
 
   try {
+    if (document.numPages > 50) throw new Error("PDF 页数超过 50 页上限");
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const textContent = await page.getTextContent();

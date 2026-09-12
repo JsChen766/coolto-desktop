@@ -88,10 +88,10 @@ test("review overlay is accessible, restrained, and keeps review semantics", () 
   assert.doesNotMatch(lightCss, /opacity:\.35|#22c55e/u);
   assert.doesNotMatch(script + lightCss, /ipcRenderer|require\(['"]electron|preload/iu);
 
-  assert.match(script, /isCheckable\(record\) \? restoreValue\(record\) : writeValue\(record, ''\)/u);
+  assert.match(script, /const rejectValue = \(record\) => restoreValue\(record\)/u);
   assert.match(script, /state\.decisions\[entry\.record\.fillId\] !== 'rejected'/u);
   assert.match(script, /restoreValue\(entry\.record\); setDecision\(entry, 'rejected'\)/u);
-  assert.match(script, /element instanceof HTMLSelectElement && value/u);
+  assert.match(script, /const isSelect = target\.tagName === 'SELECT'/u);
   assert.match(script, /record\.elementType === 'contenteditable'/u);
 });
 

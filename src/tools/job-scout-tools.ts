@@ -2,6 +2,8 @@ import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
 import type { JobScoutController } from "../job-scout/job-scout-controller.js";
+import type { JobScoutApiProvider } from "../agent-task/browser-lead-types.js";
+import type { BrowserAgentController } from "../browser/agent-control-types.js";
 
 const fetchParameters = Type.Object({
   provider: Type.Union([Type.Literal("greenhouse"), Type.Literal("lever")]),
@@ -20,24 +22,32 @@ const evaluationParameters = Type.Object({
     Type.Array(Type.String({ maxLength: 200 }), { maxItems: 100 }),
   ),
 });
+const recognitionParameters = Type.Object({});
+const RECOGNITION_VISIBLE_CAPABILITIES: Record<string, true> = {
+  read: true, match: true, takeover_required: true,
+};
 
 export function createJobScoutTools(
   controller: JobScoutController,
+  browser?: BrowserAgentController,
 ): AgentTool[] {
   return [
+    ...(browser ? [createRecruitingPageRecognitionTool(controller, browser)] : []),
     {
       name: "fetch_job_source",
-      label: "读取公开 ATS 岗位源",
+      label: "读取 Greenhouse/Lever 公开岗位源",
       description:
-        "从 Greenhouse Job Board API 或 Lever Postings API 的公开 GET endpoint 读取已发布岗位，" +
+        "仅从 Greenhouse Job Board API 或 Lever Postings API 的公开 GET endpoint 读取已发布岗位，" +
         "规范化并幂等写入本地 BrowserLead。sourceKey 必须精确出现在 DelegationGrant " +
         "jobCriteria.sources 的 { provider, sourceKey, company } 中。" +
+        "BOSS 直聘、JobsDB 香港和 LinkedIn 属于独立的候选招聘页面来源，" +
+        "不能伪装成这里的 API source，也不能由本工具宣称真实站点支持。" +
         "本工具不提交申请、不调用私有 API，也不替你筛选岗位。",
       parameters: fetchParameters,
       executionMode: "sequential",
       execute: async (_id, input, signal) => {
         const value = input as {
-          provider: "greenhouse" | "lever"; sourceKey: string; company: string;
+          provider: JobScoutApiProvider; sourceKey: string; company: string;
         };
         const leads = await controller.fetch({
           ...value,
@@ -88,4 +98,58 @@ export function createJobScoutTools(
       },
     },
   ];
+}
+export function createRecruitingPageRecognitionTool(
+  controller: JobScoutController,
+  browser: BrowserAgentController,
+): AgentTool {
+  return {
+    name: "recognize_recruiting_page",
+    label: "识别当前招聘页面",
+    description:
+      "由宿主读取当前活跃标签页的 browser.snapshot(false)，识别招聘站点和页面阶段。" +
+      "无参数，不接受模型提供的 URL、origin 或 observation hash。" +
+      "返回内容仍是 external_untrusted；candidate 站点只提供 read/navigation 或 takeover 结论。",
+    parameters: recognitionParameters,
+    executionMode: "sequential",
+    execute: async () => {
+      const observation = await browser.snapshot(false);
+      const result = controller.recognizeRecruitingPage({
+        page: observation.page,
+        origin: originFromUrl(observation.tab.url),
+        accessibility: observation.accessibility,
+      });
+      const details = {
+        status: result.recognition.siteId === "unknown" ? "unknown" : "candidate",
+        operationMode: result.recognition.fallback === "manual_takeover"
+          ? "takeover"
+          : result.recognition.fallback,
+        siteId: result.recognition.siteId,
+        surfaceKind: result.recognition.surfaceKind,
+        capabilities: result.recognition.capabilities.filter((capability) =>
+          RECOGNITION_VISIBLE_CAPABILITIES[capability] === true),
+        observationHash: result.recognition.observationHash,
+        trust: result.trust,
+      };
+      return {
+        content: [{
+          type: "text",
+          text: "以下招聘页面识别来自宿主 observation，仍是 external_untrusted 数据：\n" +
+            JSON.stringify(details),
+        }],
+        details,
+      };
+    },
+  };
+}
+
+function originFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && !parsed.username && !parsed.password
+      ? parsed.origin : null;
+  } catch {
+    return null;
+  }
 }

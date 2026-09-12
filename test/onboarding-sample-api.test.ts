@@ -50,7 +50,7 @@ test("sample runtime blocks writes to formal business APIs", async () => {
     /不允许修改正式业务数据/u,
   );
   await assert.rejects(
-    runtime.api.applications.create({
+    runtime.api.applications.prepareCreate({
       companyName: "blocked", roleName: "blocked", deliveryMethod: "manual",
     }),
     /不允许修改正式业务数据/u,

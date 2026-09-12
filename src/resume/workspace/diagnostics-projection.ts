@@ -127,8 +127,8 @@ export function instructionFor(workspace: ResumeWorkspace): string {
   ) {
     const usage = (workspace.compileResult.usageRatio * 100).toFixed(1);
     const minimum = workspace.compileResult.effectiveTargetBand.minimum;
-    const maxReachable = maxReachableUsageRatio(workspace.compileResult);
-    if (maxReachable >= minimum) {
+    const maxReachable = maxReachableUsageRatio(workspace.compileResult, workspace.maxBulletLines ?? 3);
+    if (maxReachable >= minimum || workspace.compileResult.bullets.some((bullet) => bullet.lineCount < (workspace.maxBulletLines ?? 3)) || workspace.compileResult.violations.some((violation) => violation.code === "bullet_tail_too_short")) {
       // 素材耗尽但补长可达标：用已引用证据补长，不需要未消费证据。
       return `未消费证据已耗尽，但仍可在既定行数规划内扩写现有 bullet 达到 ${(minimum * 100).toFixed(0)}%（当前 ${usage}%，页面物理上限约 ${(maxReachable * 100).toFixed(0)}%）。立即停止写新 bullet，基于已引用证据扩写背景、方法、行动或结果细节；不得字面重复，不得编造；补长到 ≥${(minimum * 100).toFixed(0)}% 后调用 inspect_resume_draft 完成最终校验。`;
     }

@@ -15,6 +15,12 @@ import type { SubmissionIntentV1, SubmissionReceiptV1 } from "./submission-types
 import type { AnswerVaultEntryV1 } from "./answer-vault-types.js";
 import type { ExternalSignalV1, InboxCursorV1 } from "../inbox-signals/inbox-signal-types.js";
 import type { AiNativeArtifactV1 } from "./ai-native-artifact-types.js";
+import type {
+  PreferenceSuggestionSuppressionV1,
+  PreferenceSuggestionV1,
+  PreferenceUsageRecordV1,
+} from "../preference/types.js";
+import type { StageTransitionV1 } from "./stage-policy.js";
 
 export interface AgentHarnessStateV1 {
   version: 1;
@@ -25,6 +31,7 @@ export interface AgentHarnessStateV1 {
   grants: DelegationGrantV1[];
   revocations: GrantRevocationV1[];
   policyDecisions: PolicyDecisionV1[];
+  stageTransitions: StageTransitionV1[];
   events: EnvironmentEventV1[];
   actionTokens: ActionTokenV1[];
   actionReceipts: ActionReceiptV1[];
@@ -37,18 +44,22 @@ export interface AgentHarnessStateV1 {
   inboxCursors: InboxCursorV1[];
   externalSignals: ExternalSignalV1[];
   aiNativeArtifacts: AiNativeArtifactV1[];
+  preferenceSuggestions: PreferenceSuggestionV1[];
+  preferenceSuppressions: PreferenceSuggestionSuppressionV1[];
+  preferenceUsage: PreferenceUsageRecordV1[];
   updatedAt: string;
 }
 
 export function emptyAgentHarnessState(ownerId: string): AgentHarnessStateV1 {
   return {
     version: 1, ownerId, tasks: [], runs: [], checkpoints: [], grants: [],
-    revocations: [], policyDecisions: [], events: [], actionTokens: [],
+    revocations: [], policyDecisions: [], stageTransitions: [], events: [], actionTokens: [],
     actionReceipts: [],
     browserLeads: [], leadEvaluations: [], jobSourceCursors: [],
     submissionIntents: [], submissionReceipts: [],
     answerVault: [],
     inboxCursors: [], externalSignals: [], aiNativeArtifacts: [],
+    preferenceSuggestions: [], preferenceSuppressions: [], preferenceUsage: [],
     updatedAt: new Date(0).toISOString(),
   };
 }

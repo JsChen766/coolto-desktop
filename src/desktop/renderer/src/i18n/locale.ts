@@ -14,6 +14,8 @@ import { resumeAgentMessages } from "./catalog-resume-agent.js";
 import { calendarMessages } from "./catalog-calendar.js";
 import { onboardingMessages } from "./catalog-onboarding.js";
 import { deliveryResumeMessages } from "./catalog-delivery-resume.js";
+import { privacyMessages } from "./catalog-privacy.js";
+import { profilePreferenceMessages } from "./catalog-profile-preference.js";
 
 export type AppLocale = "zh-CN" | "en-US";
 
@@ -37,6 +39,8 @@ export const appLocale = ref<AppLocale>(stored === "en-US" ? "en-US" : "zh-CN");
 
 const messages: Record<string, string> = {
   ...commonMessages,
+  ...profilePreferenceMessages,
+  ...privacyMessages,
   ...runTerminalMessages,
   ...detailMessages,
   ...formatMessages,

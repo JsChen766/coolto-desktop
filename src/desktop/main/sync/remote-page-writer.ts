@@ -1,16 +1,15 @@
 import type { DatabaseSync } from "node:sqlite";
 
-import type {
-  LocalSyncState,
-  SyncChange,
-  SyncPage,
-} from "../../../sync/types.js";
+import type { LocalSyncState, SyncChange, SyncPage } from "../../../sync/types.js";
+import type { LocalPayloadMerger } from "./local-sync-types.js";
 import { SyncPayloadCodec } from "./payload-codec.js";
 import { withImmediateTransaction } from "./sqlite-transaction.js";
+import { assertProfileSyncPayload } from "../profile/profile-local-sync-adapter.js";
 
 interface EntityStateRow {
   entity_version: number;
   sync_status: "clean" | "pending" | "conflict" | "failed";
+  payload: Uint8Array;
 }
 
 interface OperationRow {
@@ -22,6 +21,7 @@ export class RemotePageWriter {
   public constructor(
     private readonly database: DatabaseSync,
     private readonly codec: SyncPayloadCodec,
+    private readonly mergeLocalPayload?: LocalPayloadMerger,
   ) {}
 
   public resetForBootstrap(): void {
@@ -48,9 +48,14 @@ export class RemotePageWriter {
   }
 
   #applyChange(change: SyncChange): void {
+    if (change.operation === "upsert") {
+      // This runs inside the page transaction, before entity or cursor writes.
+      // A semantic contract error must roll back the whole page.
+      assertProfileSyncPayload(change.entityType, change.payload);
+    }
     const current = this.database
       .prepare(`
-        SELECT entity_version, sync_status
+        SELECT entity_version, sync_status, payload
         FROM sync_entities
         WHERE entity_type = ? AND entity_id = ?
       `)
@@ -62,7 +67,11 @@ export class RemotePageWriter {
       }
       return;
     }
-
+    const currentPayload = current
+      ? this.codec.decode<Record<string, unknown>>(current.payload) : undefined;
+    const localPayload = this.mergeLocalPayload?.(
+      change.entityType, currentPayload, change.payload,
+    ) ?? change.payload;
     this.database
       .prepare(`
         INSERT INTO sync_entities (
@@ -81,14 +90,9 @@ export class RemotePageWriter {
           last_error_code = NULL
       `)
       .run(
-        change.entityType,
-        change.entityId,
-        change.entityVersion,
-        change.operation,
-        change.changedAt,
-        this.codec.encode(change.payload),
-        change.operation,
-        this.codec.encode(change.payload),
+        change.entityType, change.entityId, change.entityVersion,
+        change.operation, change.changedAt, this.codec.encode(localPayload),
+        change.operation, this.codec.encode(change.payload),
       );
   }
 

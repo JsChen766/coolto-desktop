@@ -14,6 +14,8 @@ import { onboardingPreloadApi } from "./onboarding-api.js";
 import { agentTasksPreloadApi } from "./agent-tasks-api.js";
 import { childApi, subscribeIpc } from "./ipc-helpers.js";
 import { conversationPreloadApi } from "./conversation-api.js";
+import { preferencePreloadApi } from "./preference-api.js";
+import { materialPreloadApi } from "./material-api.js";
 
 const api: DesktopApi = {
   platform: process.platform,
@@ -27,6 +29,19 @@ const api: DesktopApi = {
     logout: () => ipcRenderer.invoke("auth:logout"),
     syncNow: () => ipcRenderer.invoke("auth:sync-now"),
     onSyncCompleted: (listener) => subscribeIpc("sync:completed", listener),
+  },
+  privacy: {
+    getState: () => ipcRenderer.invoke("privacy:get-state"),
+    accept: () => ipcRenderer.invoke("privacy:accept"),
+    decline: () => ipcRenderer.invoke("privacy:decline"),
+    exportData: (options) => ipcRenderer.invoke("privacy:export", options),
+    startDeletion: (input) => ipcRenderer.invoke("privacy:deletion:start", input),
+    retryDeletion: () => ipcRenderer.invoke("privacy:deletion:retry"),
+    acknowledgeDeletion: () => ipcRenderer.invoke("privacy:deletion:ack"),
+    getDeletionState: () => ipcRenderer.invoke("privacy:deletion:state"),
+    onStateChange: (listener) => subscribeIpc("privacy:event", listener),
+    onDeletionStateChange: (listener) =>
+      subscribeIpc("privacy:deletion:event", listener),
   },
   checkout: {
     plans: () => ipcRenderer.invoke("checkout:plans"),
@@ -45,12 +60,15 @@ const api: DesktopApi = {
       ipcRenderer.invoke("attachments:list", conversationId),
     select: (conversationId) =>
       ipcRenderer.invoke("attachments:select", conversationId),
-    selectPath: (conversationId, path) =>
-      ipcRenderer.invoke("attachments:select-path", conversationId, path),
+    selectFile: (conversationId, file) => {
+      const inputPath = webUtils.getPathForFile(file);
+      return inputPath
+        ? ipcRenderer.invoke("attachments:capture-file", conversationId, inputPath)
+        : Promise.resolve(undefined);
+    },
     remove: (input: AttachmentRemoveInput) =>
       ipcRenderer.invoke("attachments:remove", input),
   },
-  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   resumeDrafts: {
     list: () => ipcRenderer.invoke("resume-drafts:list"),
     get: (artifactId) => ipcRenderer.invoke("resume-drafts:get", artifactId),
@@ -121,18 +139,20 @@ const api: DesktopApi = {
     prepareAcceptServer: () => ipcRenderer.invoke("profile:prepare-accept-server"),
     executeProposal: (id) => ipcRenderer.invoke("profile:execute-proposal", id),
   },
+  preferences: preferencePreloadApi,
+  material: materialPreloadApi,
   applications: {
     list: (options) => ipcRenderer.invoke("applications:list", options),
     references: () => ipcRenderer.invoke("applications:references"),
     get: (applicationId) => ipcRenderer.invoke("applications:get", applicationId),
-    create: (input) => ipcRenderer.invoke("applications:create", input),
     prepareCreate: (input) => ipcRenderer.invoke("applications:prepare-create", input),
     prepareUpdate: (input) => ipcRenderer.invoke("applications:prepare-update", input),
+    prepareTransition: (input) =>
+      ipcRenderer.invoke("applications:prepare-transition", input),
+    prepareDelete: (applicationId) =>
+      ipcRenderer.invoke("applications:prepare-delete", applicationId),
     executeProposal: (proposalId) =>
       ipcRenderer.invoke("applications:execute-proposal", proposalId),
-    update: (input) => ipcRenderer.invoke("applications:update", input),
-    transition: (input) => ipcRenderer.invoke("applications:transition", input),
-    delete: (applicationId) => ipcRenderer.invoke("applications:delete", applicationId),
   },
   tracker: {
     detail: (applicationId) => ipcRenderer.invoke("tracker:detail", applicationId),

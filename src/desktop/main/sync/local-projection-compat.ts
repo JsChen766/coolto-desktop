@@ -1,11 +1,10 @@
 import type { SyncEntityType } from "../../../sync/types.js";
 
 const LOCAL_ONLY_KEYS: Partial<Record<SyncEntityType, readonly string[]>> = {
-  user_profile: ["contactEmail"],
   experience: ["resumeSectionKey", "resumeSectionLabel"],
 };
 
-/** Keep fields understood by the desktop app but not yet persisted by the sync API. */
+/** Keep only fields understood by the app but not persisted by the sync API. */
 export function mergeLocalOnlyProjection(
   entityType: SyncEntityType,
   local: Record<string, unknown> | undefined,

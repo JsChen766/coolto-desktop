@@ -1,0 +1,122 @@
+.dialog-select {
+  position: relative;
+  width: 100%;
+}
+
+.dialog-select-trigger {
+  position: relative;
+  width: 100%;
+  height: 42px;
+  padding: 0 34px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition:
+    border-color 100ms ease,
+    box-shadow 100ms ease;
+}
+
+.dialog-select-trigger span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dialog-select-trigger .dialog-select-chevron {
+  position: absolute;
+  right: 11px;
+  color: var(--muted);
+  pointer-events: none;
+  transition: transform 120ms ease;
+}
+
+.dialog-select-trigger[aria-expanded="true"] .dialog-select-chevron {
+  transform: rotate(180deg);
+}
+
+.dialog-select-trigger:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.dialog-select-trigger:focus-visible {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border) 58%, transparent);
+}
+
+.dialog-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.dialog-select-trigger.invalid {
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+
+.dialog-select-menu {
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: var(--shadow-menu);
+}
+
+.dialog-select-option {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px 0 8px;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 13px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dialog-select-option span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dialog-select-option .dialog-select-check {
+  flex: none;
+  color: var(--text);
+  opacity: 0;
+}
+
+.dialog-select-option.selected {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.dialog-select-option.selected .dialog-select-check {
+  opacity: 1;
+}
+
+.dialog-select-option:hover:not(:disabled),
+.dialog-select-option.focused:not(:disabled) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.dialog-select-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dialog-select-placeholder {
+  color: var(--muted);
+}

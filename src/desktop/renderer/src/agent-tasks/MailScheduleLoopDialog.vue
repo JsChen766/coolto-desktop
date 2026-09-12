@@ -2,7 +2,9 @@
 import { CalendarClock, X } from "@lucide/vue";
 
 import type { DesktopApi, MailConnectionView } from "@desktop/types";
+import DialogSelect from "../components/DialogSelect.vue";
 import LoopDelegationReview from "./LoopDelegationReview.vue";
+import { loopExpiry7And30Options, loopMailPollIntervalOptions } from "./loop-select-options";
 import { useMailScheduleLoopDialog } from "./use-mail-schedule-loop-dialog";
 import { useLoopDialogFocus } from "./use-loop-dialog-focus";
 
@@ -16,6 +18,8 @@ const state = useMailScheduleLoopDialog({
   api: props.api, conversationId: props.conversationId,
   connections: props.connections, started: (taskId) => emit("started", taskId),
 });
+const pollIntervalOptions = loopMailPollIntervalOptions();
+const expiryOptions = loopExpiry7And30Options();
 function dismiss(): void { if (!state.busy.value) emit("close"); }
 const focus = useLoopDialogFocus(dismiss);
 function providerLabel(value: MailConnectionView): string {
@@ -53,13 +57,16 @@ function providerLabel(value: MailConnectionView): string {
           <label><input v-model="state.form.sent" type="checkbox" :disabled="!state.form.browserWebmail" />{{ $t('发件') }}</label>
         </div></fieldset>
         <div class="loop-two-column">
-          <label><span>{{ $t('检查间隔') }}</span><select v-model="state.form.pollIntervalMinutes">
-            <option :value="15">{{ $t('每 15 分钟') }}</option><option :value="30">{{ $t('每 30 分钟') }}</option>
-            <option :value="60">{{ $t('每小时') }}</option><option :value="240">{{ $t('每 4 小时') }}</option>
-          </select></label>
-          <label><span>{{ $t('授权有效期') }}</span><select v-model="state.form.expiryDays">
-            <option :value="7">{{ $t('7 天') }}</option><option :value="30">{{ $t('30 天') }}</option>
-          </select></label>
+          <label><span>{{ $t('检查间隔') }}</span><DialogSelect
+            :model-value="String(state.form.pollIntervalMinutes)"
+            :options="pollIntervalOptions"
+            @update:model-value="state.form.pollIntervalMinutes = Number($event)"
+          /></label>
+          <label><span>{{ $t('授权有效期') }}</span><DialogSelect
+            :model-value="String(state.form.expiryDays)"
+            :options="expiryOptions"
+            @update:model-value="state.form.expiryDays = Number($event)"
+          /></label>
         </div>
         <p class="loop-rule">{{ $t('固定规则：不申请发送权限；Application 和面试日程始终逐条确认。') }}</p>
       </form>

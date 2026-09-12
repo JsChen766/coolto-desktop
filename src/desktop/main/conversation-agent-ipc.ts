@@ -1,5 +1,9 @@
 import { dialog, type BrowserWindow, type IpcMain } from "electron";
 
+import {
+  ATTACHMENT_CAPTURE_IPC_CHANNEL,
+  ATTACHMENT_IPC_CHANNELS,
+} from "./attachments/host-file-reference.js";
 import type { ApprovalDecision } from "../../approvals/types.js";
 import type {
   AgentPromptInput,
@@ -10,6 +14,7 @@ import type {
 } from "../shared/types.js";
 import type { UserServices } from "./user-services.js";
 import type { WindowCloseGuard } from "./window-close-guard.js";
+import { sanitizeAgentPromptInput } from "./agent-prompt-input.js";
 
 type CurrentUserServices = () => Promise<UserServices>;
 
@@ -84,15 +89,15 @@ export function registerConversationAgentIpc(
     return current.selectedFiles.replace(conversationId, path);
   });
   ipcMain.handle(
-    "attachments:select-path",
-    async (_event, conversationId: string, path: string) => {
+    ATTACHMENT_CAPTURE_IPC_CHANNEL,
+    async (_event, conversationId: string, inputPath: string) => {
       const current = await servicesForCurrentUser();
       await current.conversations.get(conversationId);
       if (current.agent.isRunning) {
         throw new Error("Agent 回复期间不能更换附件");
       }
-      if (typeof path !== "string" || !path.trim()) return undefined;
-      return current.selectedFiles.replace(conversationId, path);
+      if (typeof inputPath !== "string" || !inputPath.trim()) return undefined;
+      return current.selectedFiles.replace(conversationId, inputPath);
     },
   );
   ipcMain.handle(
@@ -115,7 +120,7 @@ export function registerConversationAgentIpc(
         input.resumeReference.artifactId,
       );
     }
-    return current.agent.prompt(input);
+    return current.agent.prompt(sanitizeAgentPromptInput(input));
   });
   ipcMain.handle("agent:cancel", async () => {
     (await servicesForCurrentUser()).agent.cancel();
@@ -152,10 +157,7 @@ export const CONVERSATION_AGENT_IPC_CHANNELS = [
   "conversations:clear-resume-context",
   "conversations:rename",
   "conversations:delete",
-  "attachments:list",
-  "attachments:select",
-  "attachments:select-path",
-  "attachments:remove",
+  ...ATTACHMENT_IPC_CHANNELS,
   "agent:prompt",
   "agent:cancel",
   "agent:pending-approvals",

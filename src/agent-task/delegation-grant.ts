@@ -2,6 +2,7 @@ import { canonicalHash } from "./canonical-hash.js";
 import type { DelegationGrantV1 } from "./grant-types.js";
 import type { JsonValue } from "./json-types.js";
 import { uuidV7 } from "./uuid-v7.js";
+import { normalizeStagePolicy } from "./stage-policy.js";
 
 export type DelegationGrantDraft = Omit<
   DelegationGrantV1,
@@ -18,10 +19,14 @@ export function createDelegationGrant(
       validFrom >= expiresAt) {
     throw new Error("DelegationGrant expiresAt 必须晚于 validFrom");
   }
+  const stagePolicy = input.stagePolicy
+    ? normalizeStagePolicy(input.stagePolicy, input.allowedActions)
+    : undefined;
   const grant = {
     version: 1 as const,
     id,
     ...structuredClone(input),
+    ...(stagePolicy ? { stagePolicy } : {}),
     validFrom: new Date(validFrom).toISOString(),
     expiresAt: new Date(expiresAt).toISOString(),
     allowedDomains: normalizeDomains(input.allowedDomains),

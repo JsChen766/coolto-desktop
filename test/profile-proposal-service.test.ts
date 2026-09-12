@@ -56,9 +56,26 @@ test("Profile proposal writes no Outbox entry before approval and keeps resume e
   await proposals.execute(proposal.id);
   assert.equal(local.writes.length, 1);
   assert.equal(local.writes[0]?.entityId, "user-a");
-  assert.equal(local.writes[0]?.payload.contactEmail, "contact@example.test");
-  assert.equal("email" in (local.writes[0]?.payload ?? {}), false);
+  assert.equal("contactEmail" in (local.writes[0]?.payload ?? {}), false);
+  assert.equal(local.writes[0]?.localPayload?.contactEmail, "contact@example.test");
+  assert.equal((local.entities.get("user-a")?.payload as Record<string, unknown>).contactEmail,
+    "contact@example.test");
+  assert.equal("email" in (local.entities.get("user-a")?.payload ?? {}), false);
   assert.equal((await service(local).store.getProfileView()).syncStatus, "pending");
+});
+
+test("Profile unrelated edits reject unknown legacy defaults before Outbox", async () => {
+  const local = new FakeLocalSyncStore();
+  const current = local.entities.get("user-a")!;
+  local.entities.set("user-a", {
+    ...current, payload: { ...current.payload, resumeStyle: "legacy-style" },
+  });
+  const { proposals } = service(local);
+  await assert.rejects(
+    () => proposals.prepareUpdate({ currentCompany: "New Company" }),
+    /简历默认风格/u,
+  );
+  assert.equal(local.writes.length, 0);
 });
 
 test("Profile import refuses an overwritten snapshot and stale local proposal", async () => {
@@ -84,11 +101,29 @@ test("Profile conflict reapply uses the server version and isolates account proj
     serverVersion: 9, serverOperation: "upsert", errorCode: "version_conflict",
     localPayload: current.payload, serverPayload: { ...current.payload, fullName: "Server Alice" },
   };
-  local.entities.set("user-a", { ...current, syncStatus: "conflict" });
+  local.entities.set("user-a", { ...current, entityVersion: 9, syncStatus: "conflict" });
   const proposal = await proposals.prepareReapply({ fullName: "Merged Alice" });
   await proposals.execute(proposal.id);
   assert.equal(local.writes[0]?.expectedVersion, 9);
   assert.equal((await other.getUserProfile()).fullName, "Bob");
+});
+
+test("Profile accept-server proposal freezes the fresh server before approval", async () => {
+  const local = new FakeLocalSyncStore();
+  const { proposals, store } = service(local);
+  const current = store.currentEntity();
+  local.issue = {
+    entityType: "user_profile", entityId: "user-a", status: "conflict", action: "update",
+    serverVersion: 9, serverOperation: "upsert", errorCode: "version_conflict",
+    localPayload: current.payload, serverPayload: { ...current.payload, fullName: "Server Alice" },
+  };
+  local.entities.set("user-a", { ...current, entityVersion: 9, syncStatus: "conflict" });
+  const proposal = await proposals.prepareAcceptServer();
+  assert.equal(proposal.current.fullName, "Alice");
+  assert.equal(proposal.next?.fullName, "Server Alice");
+  assert.equal(local.writes.length, 0);
+  await proposals.execute(proposal.id);
+  assert.equal((await store.getUserProfile()).fullName, "Server Alice");
 });
 
 test("Profile view keeps legacy local projections readable before a contact email exists", async () => {

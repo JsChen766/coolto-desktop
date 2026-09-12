@@ -1,6 +1,14 @@
 .conversation-scroll,
 .message-scroller,
 .artifact-canvas,
+.profile-dialog-scroll,
+.profile-form,
+.profile-proposal,
+.profile-view,
+.preference-list-section,
+.preference-suggestions,
+.preference-form,
+.preference-proposal,
 .app-scrollbar {
   scrollbar-color: transparent transparent;
   scrollbar-width: thin;
@@ -9,6 +17,14 @@
 .conversation-scroll::-webkit-scrollbar,
 .message-scroller::-webkit-scrollbar,
 .artifact-canvas::-webkit-scrollbar,
+.profile-dialog-scroll::-webkit-scrollbar,
+.profile-form::-webkit-scrollbar,
+.profile-proposal::-webkit-scrollbar,
+.profile-view::-webkit-scrollbar,
+.preference-list-section::-webkit-scrollbar,
+.preference-suggestions::-webkit-scrollbar,
+.preference-form::-webkit-scrollbar,
+.preference-proposal::-webkit-scrollbar,
 .app-scrollbar::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -17,6 +33,14 @@
 .conversation-scroll::-webkit-scrollbar-thumb,
 .message-scroller::-webkit-scrollbar-thumb,
 .artifact-canvas::-webkit-scrollbar-thumb,
+.profile-dialog-scroll::-webkit-scrollbar-thumb,
+.profile-form::-webkit-scrollbar-thumb,
+.profile-proposal::-webkit-scrollbar-thumb,
+.profile-view::-webkit-scrollbar-thumb,
+.preference-list-section::-webkit-scrollbar-thumb,
+.preference-suggestions::-webkit-scrollbar-thumb,
+.preference-form::-webkit-scrollbar-thumb,
+.preference-proposal::-webkit-scrollbar-thumb,
 .app-scrollbar::-webkit-scrollbar-thumb {
   background: transparent;
   border-radius: 999px;
@@ -25,6 +49,14 @@
 .conversation-scroll:hover,
 .message-scroller:hover,
 .artifact-canvas:hover,
+.profile-dialog-scroll:hover,
+.profile-form:hover,
+.profile-proposal:hover,
+.profile-view:hover,
+.preference-list-section:hover,
+.preference-suggestions:hover,
+.preference-form:hover,
+.preference-proposal:hover,
 .app-scrollbar:hover {
   scrollbar-color: color-mix(in srgb, var(--muted) 32%, transparent) transparent;
 }
@@ -32,6 +64,14 @@
 .conversation-scroll:hover::-webkit-scrollbar-thumb,
 .message-scroller:hover::-webkit-scrollbar-thumb,
 .artifact-canvas:hover::-webkit-scrollbar-thumb,
+.profile-dialog-scroll:hover::-webkit-scrollbar-thumb,
+.profile-form:hover::-webkit-scrollbar-thumb,
+.profile-proposal:hover::-webkit-scrollbar-thumb,
+.profile-view:hover::-webkit-scrollbar-thumb,
+.preference-list-section:hover::-webkit-scrollbar-thumb,
+.preference-suggestions:hover::-webkit-scrollbar-thumb,
+.preference-form:hover::-webkit-scrollbar-thumb,
+.preference-proposal:hover::-webkit-scrollbar-thumb,
 .app-scrollbar:hover::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--muted) 32%, transparent);
 }

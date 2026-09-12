@@ -22,12 +22,10 @@ import type { ResumeEvidenceAssessmentState } from "./evidence-assessment-types.
 import type { ResumeWorkUnitMap } from "./work-unit-types.js";
 import type { ResumeSelectionPolicy, UserDirectedResumeSelection } from "./selection-policy.js";
 import type {
-  ResumeBulletConfirmation,
-  ResumeBulletOrigin,
-  ResumeBulletProvenance,
-  ResumeItemLineBudget,
-  ResumeItemTier,
+  ResumeBulletConfirmation, ResumeBulletOrigin, ResumeBulletProvenance,
+  ResumeItemLineBudget, ResumeItemTier,
 } from "./item-content-types.js";
+import type { ResumeProfilePreferenceBinding } from "./profile-preference-binding.js";
 export type {
   ResumeBulletConfirmation,
   ResumeBulletOrigin,
@@ -72,7 +70,7 @@ export interface ResumeWorkspace {
   patchCount: number;
   contentApplyCount?: number;
   status: ResumeWorkspaceStatus;
-  sourceSnapshot: ResumeSourceSnapshot;
+  sourceSnapshot: ResumeSourceSnapshot; profilePreferenceBinding?: ResumeProfilePreferenceBinding;
   selectionPolicy?: ResumeSelectionPolicy;
   userDirectedSelection?: UserDirectedResumeSelection;
   reuseBase?: ResumeReuseBase;

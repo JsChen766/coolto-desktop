@@ -5,6 +5,7 @@ import type {
   ApplicationRecord,
   ApplicationReferenceOptions,
   ApplicationStatus,
+  ApplicationTombstone,
   ApplicationUpdateInput,
   ApplicationWriteProposal,
 } from "@desktop/types";
@@ -42,7 +43,8 @@ export function useApplicationTracker() {
   }
 
   async function create(input: ApplicationCreateInput): Promise<void> {
-    await mutate(() => desktopApi.applications.create(input));
+    const proposal = await prepareCreate(input);
+    await executeProposal(proposal.id);
   }
 
   async function prepareCreate(
@@ -62,11 +64,16 @@ export function useApplicationTracker() {
   }
 
   async function executeProposal(proposalId: string): Promise<ApplicationRecord> {
-    return mutate(() => desktopApi.applications.executeProposal(proposalId));
+    return mutate(async () => {
+      const result = await desktopApi.applications.executeProposal(proposalId);
+      if (!isApplicationRecord(result)) throw new Error("确认内容不是投递记录");
+      return result;
+    });
   }
 
   async function update(id: string, changes: ApplicationUpdateInput): Promise<void> {
-    await mutate(() => desktopApi.applications.update({ applicationId: id, changes }));
+    const proposal = await prepareUpdate(id, changes);
+    await executeProposal(proposal.id);
   }
 
   async function transition(
@@ -74,25 +81,27 @@ export function useApplicationTracker() {
     toStatus: ApplicationStatus,
     reason: string | null,
   ): Promise<void> {
-    await mutate(() => desktopApi.applications.transition({
-      applicationId: application.id,
-      transition: { toStatus, reason },
-    }));
+    const proposal = await run(
+      () => desktopApi.applications.prepareTransition({
+        applicationId: application.id,
+        transition: { toStatus, reason },
+      }),
+      "检查状态迁移失败",
+    );
+    await executeProposal(proposal.id);
   }
 
   async function remove(application: ApplicationRecord): Promise<void> {
-    busy.value = true;
-    error.value = undefined;
-    try {
-      await desktopApi.applications.delete(application.id);
+    const proposal = await run(
+      () => desktopApi.applications.prepareDelete(application.id),
+      "检查删除投递失败",
+    );
+    await run(async () => {
+      const result = await desktopApi.applications.executeProposal(proposal.id);
+      if (isApplicationRecord(result)) throw new Error("确认内容不是删除结果");
       applications.value = applications.value.filter((item) => item.id !== application.id);
       if (selected.value?.id === application.id) selected.value = undefined;
-    } catch (cause: unknown) {
-      error.value = translate(messageOf(cause, "删除投递记录失败"));
-      throw cause;
-    } finally {
-      busy.value = false;
-    }
+    }, "删除投递记录失败");
   }
 
   async function mutate(action: () => Promise<ApplicationRecord>): Promise<ApplicationRecord> {
@@ -146,4 +155,9 @@ export function useApplicationTracker() {
 
 function messageOf(cause: unknown, fallback: string): string {
   return cause instanceof Error && cause.message ? cause.message : fallback;
+}
+function isApplicationRecord(
+  value: ApplicationRecord | ApplicationTombstone,
+): value is ApplicationRecord {
+  return "companyName" in value;
 }

@@ -16,6 +16,7 @@ test("V1 Harness state adds newer collections without dropping older task state"
   delete legacy.inboxCursors;
   delete legacy.externalSignals;
 
+  delete legacy.stageTransitions;
   const normalized = normalizeAgentHarnessStateV1(legacy);
   assert.ok(normalized);
   assert.equal(normalized.ownerId, "owner-1");
@@ -24,6 +25,7 @@ test("V1 Harness state adds newer collections without dropping older task state"
   assert.deepEqual(normalized.answerVault, []);
   assert.deepEqual(normalized.inboxCursors, []);
   assert.deepEqual(normalized.externalSignals, []);
+  assert.deepEqual(normalized.stageTransitions, []);
 });
 
 test("V1 Harness state adds the submission claim marker to older intents", () => {
@@ -33,6 +35,15 @@ test("V1 Harness state adds the submission claim marker to older intents", () =>
   const normalized = normalizeAgentHarnessStateV1(legacy);
   assert.ok(normalized);
   assert.equal(normalized.submissionIntents[0]?.startedAt, null);
+});
+
+test("V1 Harness state normalizes missing receipt confirmation as unconfirmed", () => {
+  const legacy = structuredClone(emptyAgentHarnessState("owner-1")) as unknown as
+    Record<string, unknown>;
+  legacy.submissionReceipts = [{ id: "receipt-1" }];
+  const normalized = normalizeAgentHarnessStateV1(legacy);
+  assert.ok(normalized);
+  assert.equal(normalized.submissionReceipts[0]?.userConfirmedAt, null);
 });
 
 test("V1 Harness state still rejects corrupt required and extension fields", () => {

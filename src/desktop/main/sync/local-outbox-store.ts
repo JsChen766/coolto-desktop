@@ -2,9 +2,10 @@ import type { DatabaseSync } from "node:sqlite";
 
 import { canonicalJson } from "./canonical-json.js";
 import type {
-  EnqueueMutation,
   OutboxRow,
+  EnqueueMutation,
   PendingOperation,
+  LocalPayloadMerger,
 } from "./local-sync-types.js";
 import { SyncPayloadCodec } from "./payload-codec.js";
 import { OutboxResultWriter } from "./outbox-result-writer.js";
@@ -16,8 +17,9 @@ export class LocalOutboxStore {
   public constructor(
     private readonly database: DatabaseSync,
     private readonly codec: SyncPayloadCodec,
+    mergeLocalPayload?: LocalPayloadMerger,
   ) {
-    this.#results = new OutboxResultWriter(database, codec);
+    this.#results = new OutboxResultWriter(database, codec, mergeLocalPayload);
   }
 
   public enqueue(mutation: EnqueueMutation): string {

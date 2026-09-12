@@ -3,6 +3,7 @@ import {
   mkdir, readdir, rm, stat, writeFile,
 } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { localScopeKey } from "../../../privacy/local-scope.js";
 
 import type { AgentHarnessServices } from
   "../../../agent-task/agent-harness-services.js";
@@ -26,14 +27,14 @@ export class ManagedResumeUploadService {
 
   public constructor(
     root: string,
+    apiBaseUrl: string,
     ownerKey: string,
     private readonly harness: AgentHarnessServices,
     private readonly resumes: ResumePublicationGateway,
     private readonly compiler: ResumePdfCompiler,
     private readonly browser: BrowserPageOperator,
   ) {
-    const ownerHash = createHash("sha256").update(ownerKey).digest("hex").slice(0, 20);
-    this.#ownerDirectory = join(root, ownerHash);
+    this.#ownerDirectory = join(root, localScopeKey(apiBaseUrl, ownerKey));
   }
 
   public async upload(conversationId: string, fillId: string) {

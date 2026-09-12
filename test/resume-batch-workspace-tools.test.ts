@@ -7,7 +7,10 @@ import { resumeContentProgressKey } from "../src/resume/workspace/agent-progress
 import { resumeAgentNextAction } from "../src/resume/workspace/agent-next-action.js";
 import { resumeWriteRejection } from "../src/resume/workspace/agent-write-rejection.js";
 import { itemLineWriteTargets } from "../src/resume/workspace/item-line-plan.js";
-import { buildAgentWorkspaceView } from "../src/resume/workspace/agent-workspace-view.js";
+import {
+  buildAgentWorkspaceReceipt,
+  buildAgentWorkspaceView,
+} from "../src/resume/workspace/agent-workspace-view.js";
 import { buildResumeSkeleton } from "../src/resume/workspace/candidate-skeleton.js";
 import { groundedAdditionTargets } from "../src/resume/workspace/grounded-addition-targets.js";
 import { resumeGenerationReadiness } from "../src/resume/workspace/generation-readiness.js";
@@ -2405,6 +2408,36 @@ test("create and get share one semantic no-progress key", async () => {
       .turnGovernorPhaseKey,
     "resume_generation",
   );
+});
+
+test("workspace view preserves missing compile observation instead of fabricating freshness", async () => {
+  const value = harness();
+  await createWorkspace(value);
+  const workspace = value.store.latest()!;
+  const current = {
+    ...workspace,
+    compileObservedRevision: workspace.revision,
+  };
+  const { compileObservedRevision: omittedObservation, ...missing } = current;
+  void omittedObservation;
+
+  const currentView = buildAgentWorkspaceView(current) as {
+    layout: { observedRevision: number | undefined };
+  };
+  const missingView = buildAgentWorkspaceView(missing) as {
+    layout: { observedRevision: number | undefined };
+  };
+  const currentReceipt = buildAgentWorkspaceReceipt(current) as {
+    layout: { observedRevision: number | undefined };
+  };
+  const missingReceipt = buildAgentWorkspaceReceipt(missing) as {
+    layout: { observedRevision: number | undefined };
+  };
+
+  assert.equal(currentView.layout.observedRevision, current.revision);
+  assert.equal(currentReceipt.layout.observedRevision, current.revision);
+  assert.equal(missingView.layout.observedRevision, undefined);
+  assert.equal(missingReceipt.layout.observedRevision, undefined);
 });
 
 test("add_resume_material appends user facts without mutating the source snapshot", async () => {

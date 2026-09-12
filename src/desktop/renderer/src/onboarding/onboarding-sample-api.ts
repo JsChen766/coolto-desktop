@@ -120,8 +120,11 @@ export function createOnboardingSampleRuntime(
         }
         return structuredClone(application);
       },
-      create: blocked, prepareCreate: blocked, prepareUpdate: blocked,
-      executeProposal: blocked, update: blocked, transition: blocked, delete: blocked,
+      prepareCreate: blocked,
+      prepareUpdate: blocked,
+      prepareTransition: blocked,
+      prepareDelete: blocked,
+      executeProposal: blocked,
     },
     tracker: {
       detail: async () => ({ statusEvents: [], interviews: [], notes: [], reminders: [] }),

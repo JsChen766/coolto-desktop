@@ -1,3 +1,5 @@
+import type { CapabilityStage } from "./capability-stage-types.js";
+import type { GrantStagePolicyV1 } from "./stage-policy.js";
 import type { JsonValue } from "./json-types.js";
 
 export interface DelegationGrantV1 {
@@ -9,6 +11,7 @@ export interface DelegationGrantV1 {
   allowedDomains: string[];
   blockedDomains: string[];
   allowedActions: string[];
+  stagePolicy?: GrantStagePolicyV1;
   jobCriteria: Record<string, JsonValue>;
   assetPolicy: Record<string, JsonValue>;
   answerPolicy: Record<string, JsonValue>;
@@ -41,6 +44,8 @@ export interface PolicyDecisionV1 {
   requestHash: string;
   grantId: string | null;
   grantHash: string | null;
+  currentStage?: CapabilityStage;
+  stageTransitionId?: string | null;
   actionTokenId: string | null;
   decidedAt: string;
 }

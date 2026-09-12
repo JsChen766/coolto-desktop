@@ -6,7 +6,7 @@ export class ResumeDraftCloudLinker {
   public constructor(private readonly drafts: ResumeDraftFileRepository) {}
 
   public async link(candidateId: string, resume: ResumeFull): Promise<void> {
-    const draft = (await this.drafts.list()).find(
+    await this.drafts.withArtifactOperationLock(undefined, async () => { const draft = (await this.drafts.list()).find(
       (item) => item.workspace.candidateId === candidateId,
     );
     if (!draft) return;
@@ -21,6 +21,7 @@ export class ResumeDraftCloudLinker {
         syncedRevision: draft.workspace.revision,
         entityVersion: resume.entityVersion,
       },
+    });
     });
   }
 }

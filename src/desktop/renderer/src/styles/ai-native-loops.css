@@ -39,7 +39,8 @@
 .loop-review > p { margin: 0; color: var(--text-soft); } .loop-dialog-actions { position: sticky; bottom: -22px;
   margin: 20px -22px -22px; padding: 14px 22px; background: var(--bg); border-top: 1px solid var(--border); }
 @keyframes loop-dialog-in { from { transform: translateY(8px) scale(.99); } }
+.loop-source-row .dialog-select { min-width: 0; }
 @media (max-width: 620px) { .loop-source-row { grid-template-columns: 1fr 1fr 32px; }
-  .loop-source-row select { grid-column: 1 / -1; } .loop-two-column { grid-template-columns: 1fr; }
+  .loop-source-row select, .loop-source-row .dialog-select { grid-column: 1 / -1; } .loop-two-column { grid-template-columns: 1fr; }
   .loop-review dl div { grid-template-columns: 1fr; gap: 4px; } }
 @media (prefers-reduced-motion: reduce) { .loop-dialog-backdrop, .loop-dialog { animation: none; } }

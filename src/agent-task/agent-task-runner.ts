@@ -22,6 +22,7 @@ export class AgentTaskRunner {
       .map((task) => ({ taskId: task.id, runId: task.activeRunId! }));
     const tasks = await this.services.tasks.recoverInterruptedRuns();
     for (const value of interrupted) {
+      this.services.stages.clear(value.runId);
       this.services.runtimeProjection.clearTask(value.taskId, value.runId);
       await this.services.ledger.reconcileInvalidatedRun(
         value.taskId, value.runId, "run_interrupted_before_receipt",
@@ -38,7 +39,6 @@ export class AgentTaskRunner {
     }
     return tasks;
   }
-
   public async start(taskId: string): Promise<AgentTaskV1> {
     const task = await this.services.tasks.get(taskId);
     const grantContext = await this.#grantContext(task.id);
@@ -46,7 +46,10 @@ export class AgentTaskRunner {
       taskId,
       wakeCause: "user",
     });
-    await this.changed(await this.services.tasks.get(task.id));
+    this.services.stages.start({
+      ownerId: task.ownerId, taskId: task.id, runId: run.id,
+      grantHash: grantContext.grantHash,
+    });
     return this.#run(task, run.id, wrapInternalPrompt([
       "<coolto_agent_task_start />",
       `用户已确认的任务目标：${task.goal}`,
@@ -63,12 +66,17 @@ export class AgentTaskRunner {
   ): Promise<AgentTaskV1> {
     const task = await this.services.tasks.get(taskId);
     const grantContext = await this.#grantContext(task.id);
+    await this.#assertResumeContext(task, grantContext.grantHash);
     const events = await this.services.events.pending(taskId);
     for (const event of events) await this.services.events.markDelivered(event.id);
     const run = await this.services.tasks.startRun({
       taskId,
       wakeCause,
       wakeEventIds: events.map((event) => event.id),
+    });
+    this.services.stages.start({
+      ownerId: task.ownerId, taskId: task.id, runId: run.id,
+      grantHash: grantContext.grantHash,
     });
     await this.changed(await this.services.tasks.get(task.id));
     const payload = events.map((event) => ({
@@ -106,6 +114,9 @@ export class AgentTaskRunner {
   }
 
   public async resume(taskId: string): Promise<AgentTaskV1> {
+    const task = await this.services.tasks.get(taskId);
+    const grant = await this.#grantContext(taskId);
+    await this.#assertResumeContext(task, grant.grantHash);
     const events = await this.services.events.pending(taskId);
     return events.length > 0
       ? this.resumeFromEvents(taskId, "user")
@@ -132,6 +143,7 @@ export class AgentTaskRunner {
       const current = await this.services.tasks.get(task.id);
       if (current.status === "running") {
         const failed = await this.services.tasks.setHostStatus(task.id, "failed");
+        this.services.stages.clear(runId);
         this.services.runtimeProjection.clearTask(task.id, runId);
         await this.services.ledger.reconcileInvalidatedRun(
           task.id, runId, "task_failed_before_receipt",
@@ -140,6 +152,7 @@ export class AgentTaskRunner {
         await this.changed(failed);
         return failed;
       }
+      this.services.stages.clear(runId);
       this.services.runtimeProjection.clearTask(task.id, runId);
       await this.services.ledger.reconcileInvalidatedRun(
         task.id, runId, `task_${current.status}_before_receipt`,
@@ -148,6 +161,7 @@ export class AgentTaskRunner {
       await this.changed(current);
       return current;
     } catch (error) {
+      this.services.stages.clear(runId);
       this.services.runtimeProjection.clearTask(task.id, runId);
       const current = await this.services.tasks.get(task.id).catch(() => null);
       if (current && (current.status !== "running" || current.activeRunId !== runId)) {
@@ -176,11 +190,11 @@ export class AgentTaskRunner {
       ? this.services.ledger.reconcileInvalidatedRun(task.id, task.activeRunId, errorCode)
       : Promise.resolve();
   }
-
   async #grantContext(taskId: string) {
     const active = await this.services.grants.getActive(taskId);
     if (!active.grant || active.revocation) throw new Error("AgentTask grant 不可用");
     return {
+      grantHash: active.grant.contentHash,
       allowedDomains: active.grant.allowedDomains,
       allowedActions: active.grant.allowedActions,
       jobCriteria: active.grant.jobCriteria,
@@ -188,5 +202,32 @@ export class AgentTaskRunner {
       connectorPolicy: active.grant.connectorPolicy ?? {},
       expiresAt: active.grant.expiresAt,
     };
+  }
+
+  async #assertResumeContext(
+    task: AgentTaskV1,
+    grantHash: string,
+  ): Promise<void> {
+    const checkpoint = await this.services.tasks.latestCheckpoint(task.id);
+    if (!checkpoint) return;
+    if (checkpoint.grantHash !== grantHash) {
+      throw new Error("AgentTask 授权已变化，请重新确认后再恢复");
+    }
+    const current = await this.services.profilePreferenceContext?.();
+    if (current?.profileLocalVersion !== undefined && checkpoint.profileLocalVersion === undefined) {
+      throw new Error("Profile 已变化（本机投影缺少版本），请重新读取并准备 AgentTask");
+    }
+    if (checkpoint.profileVersion !== undefined &&
+        checkpoint.profileVersion !== (current?.profileVersion ?? null)) {
+      throw new Error("Profile 已变化，请重新读取并准备 AgentTask");
+    }
+    if (checkpoint.profileLocalVersion !== undefined &&
+        checkpoint.profileLocalVersion !== (current?.profileLocalVersion ?? null)) {
+      throw new Error("Profile 已变化（本机投影），请重新读取并准备 AgentTask");
+    }
+    if (checkpoint.preferenceResolutionHash !== undefined &&
+        checkpoint.preferenceResolutionHash !== (current?.resolutionHash ?? null)) {
+      throw new Error("Preference 解析已变化，请重新读取并准备 AgentTask");
+    }
   }
 }

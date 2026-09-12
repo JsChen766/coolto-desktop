@@ -13,10 +13,8 @@ import { applyCriticalSkillGate } from "../../resume/workspace/critical-skill-ga
 import { applyBulletCountMaterialGate } from "../../resume/workspace/material-request-gate.js";
 import { overflowSourceReselectionIssue } from "../../resume/workspace/overflow-source-reselection.js";
 import type { ResumePublicationGateway } from "../../resume/save/types.js";
-import type { ResumeReuseDraftSource } from
-  "../../resume/reuse/local-draft-source.js";
-import { samePublishedResumeSeed } from
-  "../../resume/workspace/published-resume-seed.js";
+import type { ResumeReuseDraftSource } from "../../resume/reuse/local-draft-source.js";
+import { samePublishedResumeSeed } from "../../resume/workspace/published-resume-seed.js";
 import {
   createWorkspaceResult,
   rejectedEducationCourseworkResult,
@@ -29,27 +27,22 @@ import {
   sameFixedPresentation,
   sameRecord,
 } from "./create-workspace-structure.js";
-import { generationWorkspaceStatus } from
-  "../../resume/workspace/generation-readiness.js";
-import { createReuseAdaptation } from
-  "../../resume/workspace/reuse-adaptation.js";
-import { createItemLineBudgets } from
-  "../../resume/workspace/item-line-budget.js";
-import { pendingResumeWorkUnitMap } from
-  "../../resume/workspace/work-unit-map.js";
-import { sameResumeGenerationTarget } from
-  "../../resume/source-strategy.js";
+import { generationWorkspaceStatus } from "../../resume/workspace/generation-readiness.js";
+import { createReuseAdaptation } from "../../resume/workspace/reuse-adaptation.js";
+import { createItemLineBudgets } from "../../resume/workspace/item-line-budget.js";
+import { pendingResumeWorkUnitMap } from "../../resume/workspace/work-unit-map.js";
+import { sameResumeGenerationTarget } from "../../resume/source-strategy.js";
+import type { ResumeProfilePreferenceBinding } from "../../resume/workspace/profile-preference-binding.js";
 import { resolveWorkspaceSeed } from "./create-workspace-seed.js";
-import { sameSelectionPolicy } from
-  "../../resume/workspace/selection-policy.js";
-import { prepareWorkspaceSelection } from
-  "./create-workspace-selection.js";
+import { sameSelectionPolicy } from "../../resume/workspace/selection-policy.js";
+import { prepareWorkspaceSelection } from "./create-workspace-selection.js";
 export function createResumeWorkspaceTool(
   snapshotBuilder: ResumeSourceSnapshotBuilder,
   compiler: ResumeCompiler,
   store: ResumeWorkspaceStore,
   resumeReader?: ResumePublicationGateway,
   resumeDraftReader?: ResumeReuseDraftSource,
+  profilePreferenceContext?: () => Promise<ResumeProfilePreferenceBinding>,
 ): AgentTool<typeof createWorkspaceParameters> {
   return {
     name: "create_resume_workspace",
@@ -75,6 +68,8 @@ export function createResumeWorkspaceTool(
           ? { focusExperienceId: params.focusExperienceId } : {}),
         hasBase: Boolean(params.baseResumeId || params.baseDraftArtifactId),
       });
+      const profilePreferenceBinding = await profilePreferenceContext?.();
+      if (profilePreferenceBinding && profilePreferenceBinding.profileLocalVersion === undefined) throw new Error("Profile 本机投影版本不可用，必须重新读取当前 Profile 后再创建工作区");
       const courseworkIssue = applyEducationCoursework(
         freshStructure,
         snapshot,
@@ -103,8 +98,7 @@ export function createResumeWorkspaceTool(
         agentItemTiers,
         history.baseItemTiers,
       );
-      const baseSeed = history.seed;
-      const reuseBase = history.reuseBase;
+      const baseSeed = history.seed; const reuseBase = history.reuseBase;
       const existing = store.latest();
       if (
         existing &&
@@ -116,7 +110,11 @@ export function createResumeWorkspaceTool(
         samePublishedResumeSeed(existing.reuseBase, reuseBase) &&
         existing.lineBudgetVersion === "item-lines-v1" &&
         sameRecord(existing.itemTiers ?? {}, itemTiers) &&
-        sameFixedPresentation(existing.structure, freshStructure)
+        sameFixedPresentation(existing.structure, freshStructure) &&
+        (existing.profilePreferenceBinding?.profileEntityVersion ?? null) === (profilePreferenceBinding?.profileEntityVersion ?? null) &&
+        (existing.profilePreferenceBinding?.preferenceResolutionHash ?? null) === (profilePreferenceBinding?.preferenceResolutionHash ?? null) &&
+        (existing.profilePreferenceBinding?.targetFingerprint ?? null) === (profilePreferenceBinding?.targetFingerprint ?? null) &&
+        (existing.profilePreferenceBinding?.profileLocalVersion ?? null) === (profilePreferenceBinding?.profileLocalVersion ?? null)
       ) {
         return createWorkspaceResult(existing, "unchanged", []);
       }
@@ -178,6 +176,7 @@ export function createResumeWorkspaceTool(
         contentApplyCount: 0,
         status: "writing",
         sourceSnapshot: snapshot,
+        ...(profilePreferenceBinding ? { profilePreferenceBinding } : {}),
         selectionPolicy,
         ...(selectionPolicy === "user_directed" ? {
           userDirectedSelection: {

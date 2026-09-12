@@ -6,10 +6,10 @@ const CORE_ARRAY_FIELDS = [
 ] as const;
 
 const EXTENSION_ARRAY_FIELDS = [
-  "browserLeads", "leadEvaluations", "jobSourceCursors",
+  "stageTransitions", "browserLeads", "leadEvaluations", "jobSourceCursors",
   "submissionIntents", "submissionReceipts", "answerVault",
-  "inboxCursors", "externalSignals",
-  "aiNativeArtifacts",
+  "inboxCursors", "externalSignals", "aiNativeArtifacts",
+  "preferenceSuggestions", "preferenceSuppressions", "preferenceUsage",
 ] as const;
 
 /** Adds later V1 extension collections without discarding an older valid V1 file. */
@@ -38,9 +38,24 @@ export function normalizeAgentHarnessStateV1(
       intent.resumeTitle ??= intent.resumeId;
     }
   }
+  for (const receipt of candidate.submissionReceipts ?? []) {
+    if (receipt && typeof receipt === "object" &&
+        typeof receipt.userConfirmedAt !== "string") {
+      receipt.userConfirmedAt = null;
+    }
+  }
   for (const signal of candidate.externalSignals ?? []) {
     if (signal && typeof signal === "object" && signal.direction === undefined) {
       signal.direction = "received";
+    }
+  }
+  for (const suggestion of candidate.preferenceSuggestions ?? []) {
+    if (suggestion && typeof suggestion === "object" && suggestion.state === undefined) {
+      suggestion.state = "pending";
+    }
+    if (suggestion && typeof suggestion === "object" && suggestion.state !== "accepted") {
+      suggestion.acceptedAt = null;
+      suggestion.acceptedPreferenceId = null;
     }
   }
   if (typeof candidate.updatedAt !== "string") {

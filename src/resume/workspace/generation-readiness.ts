@@ -41,10 +41,7 @@ export function resumeGenerationReadiness(
     workspace.selectionPolicy !== "user_directed") {
     blockers.push(criticalWarning);
   }
-  if (
-    workspace.compileObservedRevision !== undefined &&
-    workspace.compileObservedRevision !== workspace.revision
-  ) {
+  if (workspace.compileObservedRevision !== workspace.revision) {
     blockers.push({
       code: "layout_not_current",
       message: "当前修订尚未完成真实版面测量",
@@ -98,6 +95,7 @@ export function generationWorkspaceStatus(
     workspace.compileResult,
     workspace.structure,
     { sourceSnapshot: workspace.sourceSnapshot, bindings: workspace.bindings },
+    workspace.maxBulletLines ?? 3,
   );
 }
 

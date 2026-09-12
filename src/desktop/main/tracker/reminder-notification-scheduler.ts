@@ -10,7 +10,7 @@ export class ReminderNotificationScheduler {
   readonly #core: ReminderSchedulerCore;
   readonly #timer: ReturnType<typeof setInterval>;
   #disposed = false;
-
+  #scanChain: Promise<void> = Promise.resolve();
   public constructor(
     reminders: ReminderSyncStore,
     ledger: LocalSyncStore,
@@ -31,9 +31,21 @@ export class ReminderNotificationScheduler {
     void this.scan();
   }
 
+
   public async scan(): Promise<void> {
-    if (this.#disposed || !Notification.isSupported()) return;
-    await this.#core.scan();
+    const next = this.#scanChain.then(async () => {
+      if (this.#disposed || !Notification.isSupported()) return;
+      await this.#core.scan();
+    });
+    this.#scanChain = next.then(() => undefined, () => undefined);
+    await next;
+  }
+
+  public async quiesce(): Promise<void> {
+    this.#disposed = true;
+    clearInterval(this.#timer);
+    this.#core.dispose();
+    await this.#scanChain;
   }
 
   public dispose(): void {

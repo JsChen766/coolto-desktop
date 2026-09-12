@@ -1,6 +1,9 @@
 import type { ResumeCompileResult } from "../../../resume/compiler-types.js";
 import type { ResumeDraftSummary } from "../../../resume/draft/types.js";
-import type { ResumePdfExportResult } from "../../../resume/export/types.js";
+import type {
+  ResumePdfExportResult,
+  RevisionDeliveryManifest,
+} from "../../../resume/export/types.js";
 import type { ResumeStructure } from "../../../resume/types.js";
 import type { ResumeWorkspaceStatus } from "../../../resume/workspace/types.js";
 import type {
@@ -46,16 +49,19 @@ export interface ResumeDraftDetail extends ResumeDraftSummary {
     changedBulletIds: string[];
     createdAt: string;
   } | null;
+  deliveryManifest?: RevisionDeliveryManifest;
 }
 
 export interface ResumeDraftExportPdfInput {
   artifactId: string;
   expectedRevision: number;
+  deliveryManifest?: RevisionDeliveryManifest;
 }
 
 export interface ResumeDraftSaveInput {
   artifactId: string;
   expectedRevision: number;
+  deliveryManifest?: RevisionDeliveryManifest;
 }
 
 export type ResumeDraftExportPdfResult = ResumePdfExportResult;

@@ -14,21 +14,14 @@ import { experienceEvidenceEligibility } from "../experience/evidence-eligibilit
 import { normalizeResumeSection } from "./contracts/section-contract.js";
 import { stripMaterialMarkers } from "../experience/material-content.js";
 
-/**
- * The deployed profile sync protocol does not carry contactEmail, so the
- * account email is used as the resume header email fallback when the profile
- * has none.
- */
 export function normalizeSourceProfile(
   userId: string,
-  accountEmail: string | null,
   profile: UserProfile,
 ): ResumeSourceProfileSnapshot {
   return {
     userId,
     fullName: cleanOptional(profile.fullName),
-    contactEmail:
-      cleanOptional(profile.contactEmail) ?? cleanOptional(accountEmail),
+    contactEmail: cleanOptional(profile.contactEmail),
     phone: cleanOptional(profile.phone),
     location: cleanOptional(profile.location),
     linkedinUrl: cleanOptional(profile.linkedinUrl),

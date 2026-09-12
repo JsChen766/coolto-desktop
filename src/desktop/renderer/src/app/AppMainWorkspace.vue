@@ -5,6 +5,7 @@ import {
   ApplicationTrackerView,
   ExperienceLibraryView,
   JobRepositoryView,
+  MaterialLibraryView,
 } from "./app-components";
 import AgentTasksView from "../agent-tasks/AgentTasksView.vue";
 import AppChatWorkspace from "./AppChatWorkspace.vue";
@@ -79,6 +80,11 @@ defineExpose({ confirmExperienceLeave });
       @applications="openRepositoryTracker()"
       @delivery="startDeliveryResumeFile"
       @resume-loop="loopResume = $event"
+    />
+    <MaterialLibraryView
+      v-else-if="activeView === 'material'"
+      @toggle-sidebar="showSidebar"
+      @open-chat="selectChat(current?.id ?? '')"
     />
     <AppChatWorkspace v-else :shell="shell" />
     <ResumeJobLoopDialog v-if="loopResume" :api="desktopApi"

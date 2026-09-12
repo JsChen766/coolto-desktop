@@ -42,6 +42,11 @@
   font-size: 13px;
   line-height: 1.5;
 }
+.privacy-policy-version {
+  margin-top: 5px !important;
+  font-size: 11px !important;
+  color: var(--text-soft) !important;
+}
 
 .privacy-summary {
   display: flex;
@@ -102,6 +107,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.privacy-action-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .privacy-link-button {

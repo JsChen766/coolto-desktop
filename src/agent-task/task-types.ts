@@ -1,3 +1,4 @@
+import type { CapabilityStage } from "./capability-stage-types.js";
 export type AgentTaskStatus =
   | "draft" | "awaiting_consent" | "queued" | "running"
   | "waiting" | "paused" | "completed" | "partially_completed"
@@ -39,6 +40,8 @@ export interface AgentRunV1 {
   startedAt: string;
   endedAt: string | null;
   stopReason: string | null;
+  currentStage?: CapabilityStage;
+  stageTransitionId?: string | null;
 }
 
 export interface AgentCheckpointV1 {
@@ -51,6 +54,11 @@ export interface AgentCheckpointV1 {
   lastMessageTimestamp: number | null;
   conversationUpdatedAt: string;
   grantHash: string;
+  currentStage?: CapabilityStage;
+  stageTransitionId?: string | null;
+  profileVersion?: number | null;
+  profileLocalVersion?: number | null;
+  preferenceResolutionHash?: string | null;
   lastAcknowledgedEventId: string | null;
   receiptCursor: string | null;
   browserRefs: Array<{

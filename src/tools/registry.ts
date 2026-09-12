@@ -1,10 +1,5 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
-import type {
-  CurrentUserReader,
-  ExperienceReader,
-  JdReader,
-  UserProfileReader,
-} from "../api/types.js";
+import type { CurrentUserReader, ExperienceReader, JdReader, UserProfileReader } from "../api/types.js";
 import { SelectedFileRegistry } from "../files/selected-file-registry.js";
 import { ApprovalManager } from "../approvals/approval-manager.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
@@ -19,6 +14,7 @@ import {
   createBrowserControlTools,
   createBrowserWriteTools,
 } from "./browser/index.js";
+import { createRecruitingFormTools } from "./browser/recruiting-form-tools.js";
 import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
@@ -39,6 +35,7 @@ import type { CapabilityAgentTool } from "./tool-capabilities.js";
 import { createExperienceTools } from "./experience-tool-registry.js";
 import type { ExperienceMaterialIngestionStore } from
   "../experience/material-ingestion-store.js";
+import type { MaterialHostPort } from "../material/material-host-contract.js";
 import type { TaskLifecycleController } from "../agent-task/task-lifecycle-controller.js";
 import { createAgentTaskLifecycleTools } from "./agent-task-lifecycle.js";
 import type { AgentTaskProposalService } from "../desktop/main/agent-task/agent-task-proposal-service.js";
@@ -61,14 +58,19 @@ import {
   createLocalFileTools,
   type LocalFileToolDependencies,
 } from "./local-file-tools.js";
+import {
+  createPreferenceTools,
+  type PreferenceToolDependencies,
+} from "./preference-tool-registry.js";
 export interface ToolRegistryDependencies extends
   InboxToolRegistryDependencies, LocalFileToolDependencies,
-  AiNativeToolDependencies {
+  AiNativeToolDependencies, PreferenceToolDependencies {
   currentUserReader?: CurrentUserReader;
   userProfileReader?: UserProfileReader;
   profileProposals?: ProfileProposalExecutor;
   experienceReader?: ExperienceReader;
   experienceMaterialIngestion?: ExperienceMaterialIngestionStore;
+  materialHost?: MaterialHostPort;
   jdReader?: JdReader;
   resumeReader?: ResumePublicationGateway;
   importProposalStore?: ExperienceImportProposalStore;
@@ -86,13 +88,8 @@ export interface ToolRegistryDependencies extends
   applicationSubmission?: ApplicationSubmissionService;
   answerVault?: AnswerVaultStore;
   agentOrchestrated?: AgentOrchestratedDependencies;
-  /** Immediately runs one sync round; resolves with a result summary. */
   syncNow?: () => Promise<SyncNowResult>;
 }
-/**
- * This is the only place where tools are exposed to the model.
- * Business tools will be added here after their API adapters and policies exist.
- */
 export function createToolRegistry(
   dependencies: ToolRegistryDependencies = {},
 ): CapabilityAgentTool[] {
@@ -126,6 +123,7 @@ export function createToolRegistry(
       ),
     );
   }
+  businessTools.push(...createPreferenceTools(dependencies));
   if (dependencies.jdReader) {
     businessTools.push(...createJdTools(dependencies.jdReader));
   }
@@ -172,17 +170,20 @@ export function createToolRegistry(
   if (dependencies.browserPageReader) {
     businessTools.push(createExtractPageTool(dependencies.browserPageReader));
   }
-  if (
-    dependencies.browserAgentController &&
-    dependencies.browserPageOperator &&
-    dependencies.approvalManager
-  ) {
+  if (dependencies.browserAgentController && dependencies.browserPageOperator &&
+      dependencies.approvalManager) {
     businessTools.push(
       ...createBrowserControlTools(dependencies.browserAgentController),
+      ...createRecruitingFormTools({
+        browser: dependencies.browserAgentController, operator: dependencies.browserPageOperator,
+        ...(dependencies.selectedFileRegistry ? { selectedFiles: dependencies.selectedFileRegistry } : {}),
+      }),
     );
   }
   if (dependencies.jobScout) {
-    businessTools.push(...createJobScoutTools(dependencies.jobScout));
+    businessTools.push(...createJobScoutTools(
+      dependencies.jobScout, dependencies.browserAgentController,
+    ));
   }
   if (dependencies.applicationSubmission && dependencies.approvalManager) {
     businessTools.push(...createApplicationSubmissionTools(

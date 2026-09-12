@@ -152,7 +152,7 @@ export class AgentRuntimeEvents {
     conversationId: string,
     context: ConversationAgentContext,
   ): Promise<void> {
-    const workspace = context.workspaceStore.latest();
+    return this.resumeDrafts.withArtifactOperationLock(context.activeEdit?.artifactId, async () => { const workspace = context.workspaceStore.latest();
     if (!workspace) return;
     const editing = context.activeEdit;
     let draft: Awaited<ReturnType<ResumeDraftService["get"]>>;
@@ -171,9 +171,8 @@ export class AgentRuntimeEvents {
       context.artifactIdByCandidate.set(workspace.candidateId, synced.draft.artifactId);
       draft = synced.draft;
     }
-    const draftWithSync = await syncDraftSupplementalMaterial({
-      draft, drafts: this.resumeDrafts, committer: this.materialCommitter,
-    }).catch(() => draft);
+    const draftWithSync = await syncDraftSupplementalMaterial({ draft, drafts: this.resumeDrafts, committer: this.materialCommitter })
+      .catch(() => draft);
     if (!editing) {
       await this.store.addResumeArtifact(
         conversationId, this.resumeDrafts.artifactReference(draftWithSync),
@@ -184,6 +183,7 @@ export class AgentRuntimeEvents {
     if (workspace.status === "ready_for_approval") {
       this.traces.recordQualifiedPreviewDelivered(conversationId);
     }
+    });
   }
   private emitJdProposal(
     conversationId: string,

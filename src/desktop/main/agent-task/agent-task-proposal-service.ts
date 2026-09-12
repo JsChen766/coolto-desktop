@@ -1,6 +1,7 @@
 import { canonicalHash } from "../../../agent-task/canonical-hash.js";
 import type { AgentHarnessServices } from "../../../agent-task/agent-harness-services.js";
 import type { JsonValue } from "../../../agent-task/json-types.js";
+import { createDefaultStagePolicy } from "../../../agent-task/stage-policy.js";
 import { uuidV7 } from "../../../agent-task/uuid-v7.js";
 import type {
   AgentTaskDelegationInput,
@@ -69,6 +70,7 @@ export class AgentTaskProposalService {
         allowedDomains: view.input.allowedDomains,
         blockedDomains: view.input.blockedDomains,
         allowedActions: view.input.allowedActions,
+        stagePolicy: createDefaultStagePolicy(view.input.allowedActions),
         jobCriteria: view.input.jobCriteria,
         assetPolicy: view.input.assetPolicy,
         answerPolicy: view.input.answerPolicy,

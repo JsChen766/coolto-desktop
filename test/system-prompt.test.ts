@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v154");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v155");
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /不得换一种说法继续索取相同信息/u);
@@ -116,6 +116,13 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /优先从当前消息和对话上下文推导/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /用户明确要求假设、模拟或合理补充/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /SubmissionReceipt/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /结果不明确时只保留 status=pending/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /Application 必须保持为 null/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /只有用户明确确认.*confirm_submission_receipt/su);
+  assert.match(COOLTO_SYSTEM_PROMPT, /重新读取当前 SubmissionReceipt.*Tracker\/Application 状态/su);
+  assert.match(COOLTO_SYSTEM_PROMPT, /生成新的确认 Approval/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得复用.*approvalRequestId/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得再次点击站点/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /prepare_follow_up_loop/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /record_interview_brief/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /少于 5 条投递时使用.*task_wait/su);

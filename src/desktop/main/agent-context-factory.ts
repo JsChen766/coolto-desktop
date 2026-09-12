@@ -19,10 +19,11 @@ import { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { ResumeWorkspaceStore } from "../../resume/workspace/workspace-store.js";
 import { TracedResumeCompiler } from "../../resume/performance/traced-compiler.js";
 import { ResumeGenerationTraceStore } from "../../resume/performance/generation-trace-store.js";
-import { createToolRegistry } from "../../tools/registry.js";
+import { createAgentContextTools } from "./agent-context-tools.js";
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
-import type { ConversationAgentContext } from "./agent-runtime-context.js";
 import { AgentRuntimeEvents } from "./agent-runtime-events.js";
+import { createTaskStageAdvancer } from "../../agent-task/task-stage-runtime.js";
+import type { ConversationAgentContext, ProfilePreferenceAuthority } from "./agent-runtime-context.js";
 import type { ProfileProposalExecutor } from "../../profile/types.js";
 import type { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
 import { createResumeGenerationFollowUp, createResumeOutputRepetitionRecovery, createResumeTurnGovernorRecovery } from "./resume-generation-follow-up.js";
@@ -41,7 +42,12 @@ import { InboxSignalApplicationService } from "./agent-task/inbox-signal-applica
 import { InboxSignalInterviewService } from "./agent-task/inbox-signal-interview-service.js";
 import type { InterviewSyncStore } from "./tracker/interview-sync-store.js";
 import type { InterviewProposalService } from "./tracker/interview-proposal-service.js";
-import { toolsForConversationRun } from "./agent-task/conversation-tool-scope.js";
+import {
+  contextForManagedTask,
+  toolsForConversationRun,
+  type ConversationToolContext,
+  type ManagedConversationToolScope,
+} from "./agent-task/conversation-tool-scope.js";
 import type { DeliveryResumeFileStore } from "../../delivery-resume-files/types.js";
 import type { ExperienceProposalService } from "./experience-library/experience-proposal-service.js";
 import { LocalExperienceMaterialCommitter } from "./experience-library/experience-material-committer.js";
@@ -50,34 +56,12 @@ import { bindApprovalTaskWake } from "../../agent-task/approval-task-wake-bridge
 import type { ManagedResumeUploadService } from "./agent-task/managed-resume-upload-service.js";
 import { AiNativeLoopService } from "./agent-task/ai-native-loop-service.js";
 import type { ReminderProposalService } from "./tracker/reminder-proposal-service.js";
-export interface AgentContextFactoryDependencies {
-  apiClient: CooltoApiClient;
-  resumeCompiler: ResumePdfCompiler;
-  selectedFiles: ConversationSelectedFiles;
-  deliveryResumeFiles: DeliveryResumeFileStore;
-  managedResumeUploads: ManagedResumeUploadService;
-  browserAgentController: BrowserAgentController;
-  browserPageOperator: BrowserPageOperator;
-  agentHarness: AgentHarnessServices;
-  agentTaskProposals: AgentTaskProposalService;
-  applications: ApplicationSyncStore;
-  applicationProposals: ApplicationProposalService;
-  mailConnections: MailConnectionRegistry;
-  interviews: InterviewSyncStore;
-  interviewProposals: InterviewProposalService;
-  reminderProposals: ReminderProposalService;
-  resumePublications: ResumePublicationGateway;
-  experiences: ExperienceReader & ExperienceWriter;
-  jds: JdReader & JdWriter;
-  profiles: UserProfileReader;
-  profileProposals: ProfileProposalExecutor;
-  experienceProposals: ExperienceProposalService;
-  resumeDrafts: ResumeDraftService;
-  events: AgentRuntimeEvents;
-  traces: ResumeGenerationTraceStore;
-  /** Immediately runs one sync round (agent sync_now tool). */
-  syncNow: () => Promise<{ ok: boolean; message: string }>;
-}
+import { resolveResumeProfilePreferenceContext } from "./profile-preference-context.js";
+import type { PreferenceReaderV1 } from "../../preference/types.js";
+import type { PreferenceProposalService } from "./preference/preference-proposal-service.js";
+import type { PreferenceSuggestionStore } from "./agent-task/preference-suggestion-store.js";
+import type { AgentContextFactoryDependencies } from "./agent-context-factory-dependencies.js";
+export type { AgentContextFactoryDependencies } from "./agent-context-factory-dependencies.js";
 export class AgentContextFactory {
   public constructor(
     private readonly dependencies: AgentContextFactoryDependencies,
@@ -90,21 +74,19 @@ export class AgentContextFactory {
     const jdProposalStore = new JdProposalStore();
     const matchReportStore = new MatchReportStore();
     const workspaceStore = new ResumeWorkspaceStore();
-    const resumeCompiler = new TracedResumeCompiler(
-      deps.resumeCompiler, deps.traces, conversationId);
-    const inboxApplication = new InboxSignalApplicationService(
-      conversationId, deps.agentHarness, deps.applications);
-    const inboxInterview = new InboxSignalInterviewService(conversationId,
-      deps.agentHarness, deps.applications, deps.interviews, deps.interviewProposals);
-    const applicationSubmission = new ApplicationSubmissionService(conversationId,
-      deps.agentHarness, deps.browserAgentController, deps.jds,
-      deps.resumePublications, deps.applicationProposals, deps.managedResumeUploads);
-    const aiNativeLoops = new AiNativeLoopService(conversationId, deps.agentHarness,
-      deps.applications, deps.interviews, deps.jds, deps.resumePublications, deps.experiences, deps.reminderProposals);
+    const resumeCompiler = new TracedResumeCompiler(deps.resumeCompiler, deps.traces, conversationId);
+    const inboxApplication = new InboxSignalApplicationService(conversationId, deps.agentHarness, deps.applications);
+    const inboxInterview = new InboxSignalInterviewService(conversationId, deps.agentHarness, deps.applications, deps.interviews, deps.interviewProposals);
+    const applicationSubmission = new ApplicationSubmissionService(conversationId, deps.agentHarness,
+      deps.browserAgentController, deps.jds, deps.resumePublications,
+      deps.applicationProposals, deps.managedResumeUploads);
+    const aiNativeLoops = new AiNativeLoopService(conversationId, deps.agentHarness, deps.applications,
+      deps.interviews, deps.jds, deps.resumePublications, deps.experiences, deps.reminderProposals);
     const approvalManager = createActionApprovalManager({
       experienceWriter: deps.experiences,
       importProposalStore: proposalStore,
       profileProposals: deps.profileProposals,
+      preferenceProposals: deps.preferenceProposals,
       jdWriter: deps.jds,
       jdProposalStore,
       browserPageOperator: deps.browserPageOperator,
@@ -120,15 +102,13 @@ export class AgentContextFactory {
       aiNativeLoops,
     });
     bindApprovalTaskWake(approvalManager, conversationId, deps.agentHarness);
-    const sourceBuilder = new ResumeSourceSnapshotBuilder({
-      currentUser: deps.apiClient,
+    const sourceBuilder = new ResumeSourceSnapshotBuilder({ currentUser: deps.apiClient,
       profile: deps.profiles,
       jd: deps.jds,
       experience: deps.experiences,
     });
     const currentUserMessage: { timestamp: number | undefined; text?: string } = { timestamp: undefined };
-    const materialIngestion = new ExperienceMaterialIngestionStore(
-      selectedFiles,
+    const materialIngestion = new ExperienceMaterialIngestionStore(selectedFiles,
       new LocalExperienceMaterialCommitter(deps.experiences, deps.experienceProposals),
       deps.browserAgentController,
       () => currentUserMessage.text,
@@ -152,48 +132,12 @@ export class AgentContextFactory {
     const inboxApplicationCandidates = new InboxApplicationCandidateReader(
       conversationId, deps.agentHarness, deps.applications,
     );
-    const tools = createToolRegistry({
-      currentUserReader: deps.apiClient,
-      userProfileReader: deps.profiles,
-      profileProposals: deps.profileProposals,
-      experienceReader: deps.experiences,
-      experienceMaterialIngestion: materialIngestion,
-      jdReader: deps.jds,
-      resumeReader: deps.resumePublications,
-      importProposalStore: proposalStore,
-      jdProposalStore,
-      matchReportStore,
-      approvalManager,
-      selectedFileRegistry: selectedFiles,
-      deliveryResumeFiles: deps.deliveryResumeFiles,
-      managedResumeUploads: deps.managedResumeUploads,
-      aiNativeLoops,
-      browserPageReader: deps.browserAgentController,
-      browserAgentController: deps.browserAgentController,
-      browserPageOperator: deps.browserPageOperator,
-      agentTaskLifecycle: taskLifecycle,
-      agentTaskProposals: deps.agentTaskProposals,
-      conversationId,
-      jobScout,
-      applicationSubmission,
-      applications: deps.applications,
-      interviews: deps.interviews,
-      answerVault: deps.agentHarness.answers,
-      inboxSignals,
-      inboxApplicationCandidates,
-      inboxApplicationProposals: inboxApplication,
-      inboxInterviewProposals: inboxInterview,
-      agentOrchestrated: {
-        snapshotBuilder: sourceBuilder,
-        compiler: resumeCompiler,
-        store: workspaceStore,
-        resumeReader: deps.resumePublications,
-        resumeDraftReader: deps.resumeDrafts,
-        currentUserMessageTimestamp: () => currentUserMessage.timestamp,
-        approvalManager,
-        experienceSyncProposals: deps.experienceProposals,
-      },
-      syncNow: deps.syncNow,
+    const tools = createAgentContextTools({
+      deps, conversationId, currentUserMessage, selectedFiles,
+      proposalStore, jdProposalStore, matchReportStore, workspaceStore,
+      resumeCompiler, approvalManager, materialIngestion, taskLifecycle,
+      jobScout, inboxSignals, inboxApplicationCandidates, inboxApplication,
+      inboxInterview, applicationSubmission, aiNativeLoops, sourceBuilder,
     });
     const taskPolicy = new ManagedTaskPolicyHooks({
       conversationId,
@@ -226,23 +170,63 @@ export class AgentContextFactory {
       turnGovernorRecovery:
         createResumeTurnGovernorRecovery(workspaceStore),
     }, modelDependencies);
-    const context: ConversationAgentContext = {
+    const loadProfilePreferenceContext = async (): Promise<ProfilePreferenceAuthority> => {
+      const context = await resolveResumeProfilePreferenceContext(
+        deps.ownerId, conversationId, deps.profiles, deps.preferences,
+      );
+      return {
+        profileVersion: context.profileEntityVersion,
+        ...(context.profileLocalVersion === undefined ? {} : {
+          profileLocalVersion: context.profileLocalVersion,
+        }),
+        resolutionHash: context.preferenceResolutionHash,
+        targetFingerprint: context.targetFingerprint,
+        resolution: context.resolution,
+      };
+    };
+    let context: ConversationAgentContext;
+    context = {
       agent,
+      sourceBuilder,
+      resumeReader: deps.resumePublications,
       workspaceStore,
       resumeCompiler,
       jdProposalStore,
       matchReportStore,
-      scopeTools: async () => agent.setTools(toolsForConversationRun(tools, Boolean(
-        await deps.agentHarness.tasks.findRunningByConversation(conversationId),
-      ))),
+      scopeTools: async () => {
+        const task = await deps.agentHarness.tasks.findRunningByConversation(conversationId);
+        const active = task ? await deps.agentHarness.grants.getActive(task.id) : undefined;
+        const managedScope: ManagedConversationToolScope | false = task
+          ? {
+              capabilityProfile: task.capabilityProfile,
+              allowedActions: active?.grant && !active.revocation
+                ? active.grant.allowedActions : [],
+            }
+          : false;
+        // A managed task's capability profile is the authority.  The prompt hint is
+        // renderer input and must not be able to widen a task into another domain.
+        const resolvedContext = task
+          ? contextForManagedTask(task.capabilityProfile)
+          : "discovery" as ConversationToolContext;
+        agent.setTools(toolsForConversationRun(tools, managedScope, resolvedContext));
+      },
       approvalManager,
       experienceSyncProposals: deps.experienceProposals,
+      preferences: deps.preferences,
+      preferenceSuggestions: deps.preferenceSuggestions,
+      advanceTaskStage: createTaskStageAdvancer(
+        deps.agentHarness, deps.ownerId, conversationId,
+        () => context.profilePreferenceAuthority,
+      ),
+      refreshProfilePreferenceContext: async () => {
+        const authority = await loadProfilePreferenceContext();
+        context.profilePreferenceAuthority = authority;
+        return authority;
+      },
       artifactIdByCandidate: new Map(),
       currentUserMessage,
-      compaction: {
-        ...(modelDependencies.models ? { models: modelDependencies.models } : {}),
-        model: modelDependencies.model,
-      },
+      compaction: { ...(modelDependencies.models
+        ? { models: modelDependencies.models } : {}), model: modelDependencies.model },
     };
     deps.events.subscribe(conversationId, context);
     return context;

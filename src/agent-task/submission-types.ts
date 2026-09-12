@@ -40,5 +40,6 @@ export interface SubmissionReceiptV1 {
   siteApplicationId: string | null;
   status: "confirmed" | "pending" | "failed";
   applicationId: string | null;
+  userConfirmedAt: string | null;
   createdAt: string;
 }

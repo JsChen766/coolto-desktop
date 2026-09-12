@@ -71,6 +71,16 @@ export function createDemoChatApis(draft: ResumeDraftDetail, now: Date) {
       attachments.delete(id);
     },
   };
+  const selectDemoAttachment = (id: string): DesktopAttachment => {
+    const attachment: DesktopAttachment = {
+      id: `attachment-${crypto.randomUUID()}`,
+      filename: "产品经理简历.docx",
+      type: "docx",
+      sizeBytes: 84_320,
+    };
+    attachments.set(id, attachment);
+    return structuredClone(attachment);
+  };
   const attachmentApi: DesktopApi["attachments"] = {
     list: async (id) => {
       const attachment = attachments.get(id);
@@ -78,18 +88,11 @@ export function createDemoChatApis(draft: ResumeDraftDetail, now: Date) {
     },
     select: async (id) => {
       find(id);
-      const attachment: DesktopAttachment = {
-        id: `attachment-${crypto.randomUUID()}`,
-        filename: "产品经理简历.docx",
-        type: "docx",
-        sizeBytes: 84_320,
-      };
-      attachments.set(id, attachment);
-      return structuredClone(attachment);
+      return selectDemoAttachment(id);
     },
-    selectPath: async (id) => {
-      const attachment = attachments.get(id);
-      return attachment ? [structuredClone(attachment)][0] : undefined;
+    selectFile: async (id, _file) => {
+      find(id);
+      return selectDemoAttachment(id);
     },
     remove: async ({ conversationId, fileId }) => {
       if (attachments.get(conversationId)?.id !== fileId) throw new Error("附件不存在");

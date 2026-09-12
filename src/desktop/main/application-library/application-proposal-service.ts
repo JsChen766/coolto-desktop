@@ -1,29 +1,36 @@
 import { createUuidV7 } from "../../../sync/uuid-v7.js";
+import { canTransitionApplication } from "../../../tracker/application-status.js";
+import {
+  applicationAsset,
+  applicationContentHash,
+  applicationVersion,
+  assertApplicationAssetSnapshots,
+  assertApplicationVersion,
+  assertCreateProposalAssets,
+  assertUpdateProposalAssets,
+  captureApplicationAssetSnapshots,
+  findExistingApplicationBySubmissionKey,
+  type ApplicationProposalHandle,
+  type StoredApplicationProposal,
+} from "./application-write-proposal-service.js";
 import type {
   ApplicationCreateInput,
   ApplicationDuplicateWarning,
   ApplicationRecord,
   ApplicationReferenceOption,
+  ApplicationTombstone,
+  ApplicationTransitionInput,
   ApplicationUpdateInput,
   ApplicationWriteProposal,
 } from "../../../tracker/types.js";
 import type { LocalSyncStore } from "../sync/local-sync-store.js";
-import type { LocalEntity } from "../sync/local-sync-types.js";
 import type { ApplicationSyncStore } from "./application-sync-store.js";
 
 type ProposalStorage = Pick<LocalSyncStore, "getEntity">;
 
-type StoredProposal =
-  | { view: ApplicationWriteProposal; create: ApplicationCreateInput }
-  | {
-      view: ApplicationWriteProposal;
-      applicationId: string;
-      expectedVersion: number;
-      update: ApplicationUpdateInput;
-    };
-
 export class ApplicationProposalService {
-  readonly #proposals = new Map<string, StoredProposal>();
+  readonly #proposals = new Map<string, StoredApplicationProposal>();
+  readonly #executing = new Set<string>();
 
   public constructor(
     private readonly local: ProposalStorage,
@@ -33,13 +40,18 @@ export class ApplicationProposalService {
   public async prepareCreate(
     input: ApplicationCreateInput,
   ): Promise<ApplicationWriteProposal> {
-    const jd = this.#asset("job_description", input.jdId);
-    const resume = this.#asset("resume", input.resumeId);
-    const hash = this.#contentHash(resume.entity);
+    await this.applications.listReferenceOptions();
+    const jd = applicationAsset(this.local, "job_description", input.jdId);
+    const resume = applicationAsset(this.local, "resume", input.resumeId);
+    const hash = applicationContentHash(resume.entity);
     const duplicate = await this.#duplicate(jd.id, resume.id);
     const view = this.#view("create", input, jd, resume, hash, duplicate);
     this.#proposals.set(view.id, {
       view,
+      assetVersions: {
+        jd: jd.entity.localVersion,
+        resume: resume.entity.localVersion,
+      },
       create: structuredClone({
         ...input,
         jdId: jd.id,
@@ -58,44 +70,130 @@ export class ApplicationProposalService {
     input: ApplicationUpdateInput,
   ): Promise<ApplicationWriteProposal> {
     const current = await this.applications.getApplication(applicationId);
-    if (current.jdId === input.jdId && current.resumeId === input.resumeId) {
-      throw new Error("JD 与 Resume 关联没有变化");
-    }
-    const jd = this.#asset("job_description", input.jdId);
-    const resume = this.#asset("resume", input.resumeId);
-    const hash = this.#contentHash(resume.entity);
+    const currentEntity = applicationVersion(this.local, applicationId);
+    const jd = applicationAsset(this.local, "job_description", input.jdId);
+    const resume = applicationAsset(this.local, "resume", input.resumeId);
+    const hash = applicationContentHash(resume.entity);
     const duplicate = await this.#duplicate(jd.id, resume.id, applicationId);
-    const view = this.#view("relation_correction", input, jd, resume, hash, duplicate, current);
+    const view = this.#view(
+      "relation_correction", input, jd, resume, hash, duplicate, current,
+    );
     this.#proposals.set(view.id, {
       view,
       applicationId,
       expectedVersion: current.entityVersion,
+      expectedLocalVersion: currentEntity.localVersion,
       update: structuredClone({
         ...input,
         resumeContentHashSnapshot: hash,
       }),
+      assetVersions: {
+        jd: jd.entity.localVersion,
+        resume: resume.entity.localVersion,
+      },
     });
     return structuredClone(view);
   }
 
-  public async execute(proposalId: string): Promise<ApplicationRecord> {
+  public async prepareTransition(
+    applicationId: string,
+    input: ApplicationTransitionInput,
+  ): Promise<ApplicationProposalHandle> {
+    const current = await this.applications.getApplication(applicationId);
+    if (!canTransitionApplication(current.status, input.toStatus)) {
+      throw new Error(`非法投递状态迁移：${current.status} → ${input.toStatus}`);
+    }
+    const view = { id: createUuidV7() };
+    this.#proposals.set(view.id, {
+      view,
+      applicationId,
+      expectedVersion: current.entityVersion,
+      expectedLocalVersion: applicationVersion(this.local, applicationId).localVersion,
+      transition: structuredClone(input),
+      assetSnapshots: captureApplicationAssetSnapshots(this.local, current),
+    });
+    return structuredClone(view);
+  }
+
+  public async prepareDelete(applicationId: string): Promise<ApplicationProposalHandle> {
+    const current = await this.applications.getApplication(applicationId);
+    const view = { id: createUuidV7() };
+    this.#proposals.set(view.id, {
+      view,
+      applicationId,
+      expectedVersion: current.entityVersion,
+      expectedLocalVersion: applicationVersion(this.local, applicationId).localVersion,
+      delete: true,
+      assetSnapshots: captureApplicationAssetSnapshots(this.local, current),
+    });
+    return structuredClone(view);
+  }
+
+  /** Receipt recovery uses the frozen intent key and Resume hash after restart. */
+  public findExistingBySubmissionKey(input: {
+    dedupeKey: string;
+    jdId: string;
+    resumeId: string;
+    resumeContentHash: string;
+  }): Promise<ApplicationRecord | undefined> {
+    return findExistingApplicationBySubmissionKey(this.applications, input);
+  }
+  public async execute(
+    proposalId: string,
+  ): Promise<ApplicationRecord | ApplicationTombstone> {
     const proposal = this.#proposals.get(proposalId);
     if (!proposal) throw new Error("确认内容已失效，请重新检查");
-    let result: ApplicationRecord;
-    if ("create" in proposal) {
-      result = await this.applications.createApplication(proposal.create);
-    } else {
-      const current = await this.applications.getApplication(proposal.applicationId);
-      if (current.entityVersion !== proposal.expectedVersion) {
-        throw new Error("投递记录已变化，请重新检查后再确认");
-      }
-      result = await this.applications.updateApplication(
-        proposal.applicationId,
-        proposal.update,
-      );
+    if (this.#executing.has(proposalId)) {
+      throw new Error("这项确认正在执行，请稍候");
     }
-    this.#proposals.delete(proposalId);
-    return result;
+    this.#executing.add(proposalId);
+    try {
+      let result: ApplicationRecord | ApplicationTombstone;
+      if ("create" in proposal) {
+        assertCreateProposalAssets(this.local, proposal);
+        result = await this.applications.createApplication({
+          ...proposal.create,
+          idempotencyKey: proposal.view.id,
+        });
+      } else {
+        const current = await this.applications.getApplication(proposal.applicationId);
+        assertApplicationVersion(
+          this.local,
+          proposal.applicationId,
+          proposal.expectedVersion,
+          proposal.expectedLocalVersion,
+        );
+        if ("transition" in proposal || "delete" in proposal) {
+          assertApplicationAssetSnapshots(this.local, current, proposal.assetSnapshots);
+        }
+        if ("update" in proposal) {
+          assertUpdateProposalAssets(this.local, proposal);
+          result = await this.applications.updateApplication(
+            proposal.applicationId,
+            proposal.update,
+            proposal.view.id,
+          );
+        } else if ("transition" in proposal) {
+          if (!canTransitionApplication(current.status, proposal.transition.toStatus)) {
+            throw new Error(`非法投递状态迁移：${current.status} → ${proposal.transition.toStatus}`);
+          }
+          result = await this.applications.transitionApplication(
+            proposal.applicationId,
+            proposal.transition,
+            proposal.view.id,
+          );
+        } else {
+          result = await this.applications.deleteApplication(
+            proposal.applicationId,
+            proposal.view.id,
+          );
+        }
+      }
+      this.#proposals.delete(proposalId);
+      return result;
+    } finally {
+      this.#executing.delete(proposalId);
+    }
   }
 
   async #duplicate(
@@ -113,26 +211,6 @@ export class ApplicationProposalService {
       : null;
   }
 
-  #asset(
-    type: "job_description" | "resume",
-    id: string | null | undefined,
-  ): ApplicationReferenceOption & { entity: LocalEntity } {
-    if (!id) throw new Error(type === "resume" ? "请选择实际投递的 Resume" : "请选择投递 JD");
-    const entity = this.local.getEntity(type, id);
-    const title = entity?.payload.title;
-    if (!entity || entity.operation === "delete" || typeof title !== "string" || !title.trim()) {
-      throw new Error(`引用资产 ${id} 不存在`);
-    }
-    return { id, title: title.trim(), entity };
-  }
-
-  #contentHash(entity: LocalEntity): string {
-    const value = entity.payload.contentHash;
-    if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) {
-      throw new Error("实际投递 Resume 缺少有效内容指纹");
-    }
-    return value;
-  }
 
   #view(
     kind: ApplicationWriteProposal["kind"],

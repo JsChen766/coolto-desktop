@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { app } from "electron";
+import { localScopeKey } from "../../../privacy/local-scope.js";
 
 import type { BrowserPageOperator, FormElementSummary } from "../../../browser/types.js";
 import type { BrowserWindowManager } from "../browser/browser-window-manager.js";
@@ -14,12 +14,12 @@ export class OnboardingBrowserDemo {
   readonly #resumePath: string;
 
   public constructor(
+    apiBaseUrl: string,
     ownerId: string,
     private readonly browser: BrowserWindowManager,
     private readonly operator: BrowserPageOperator,
   ) {
-    const ownerHash = createHash("sha256").update(ownerId).digest("hex").slice(0, 20);
-    this.#directory = join(app.getPath("userData"), "onboarding-demo", ownerHash);
+    this.#directory = join(app.getPath("userData"), "onboarding-demo", localScopeKey(apiBaseUrl, ownerId));
     this.#resumePath = join(this.#directory, "Coolto-示例岗位简历.pdf");
   }
 

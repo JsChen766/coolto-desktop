@@ -1,21 +1,39 @@
-import type { ProfileContactUpdate } from "../../../profile/types.js";
+import type { ProfileChangeSet } from "../../../profile/types.js";
+import { normalizeCareerProfileChangeSet } from "../../../profile/career-targets.js";
 
-const FIELDS = [
-  "fullName", "contactEmail", "phone", "location", "linkedinUrl", "githubUrl", "personalWebsite",
+const CONTACT_FIELDS = [
+  "fullName", "contactEmail", "phone", "location",
+  "linkedinUrl", "githubUrl", "personalWebsite",
+] as const;
+const CAREER_FIELDS = [
+  "currentTitle", "currentCompany", "yearsOfExperience", "careerStage",
+  "careerTargets", "preferredLanguage", "resumeStyle",
 ] as const;
 
-export function profileChanges(value: unknown): ProfileContactUpdate {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("个人资料修改无效");
-  const record = value as Record<string, unknown>;
-  for (const key of Object.keys(record)) if (!FIELDS.includes(key as typeof FIELDS[number])) {
-    throw new Error(`个人资料包含未知字段：${key}`);
+export function profileChanges(value: unknown): ProfileChangeSet {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("个人资料修改无效");
   }
-  const changes: ProfileContactUpdate = {};
-  for (const key of FIELDS) {
+  const record = value as Record<string, unknown>;
+  const allowed = new Set<string>([...CONTACT_FIELDS, ...CAREER_FIELDS]);
+  for (const key of Object.keys(record)) {
+    if (!allowed.has(key)) throw new Error(`个人资料包含未知字段：${key}`);
+  }
+  const changes: ProfileChangeSet = {};
+  for (const key of CONTACT_FIELDS) {
     const field = record[key];
     if (field === undefined) continue;
-    if (field !== null && typeof field !== "string") throw new Error(`个人资料字段 ${key} 无效`);
+    if (field !== null && typeof field !== "string") {
+      throw new Error(`个人资料字段 ${key} 无效`);
+    }
     changes[key] = field;
+  }
+  const careerInput = Object.fromEntries(
+    CAREER_FIELDS.filter((key) => record[key] !== undefined)
+      .map((key) => [key, record[key]]),
+  );
+  if (Object.keys(careerInput).length) {
+    Object.assign(changes, normalizeCareerProfileChangeSet(careerInput));
   }
   if (!Object.keys(changes).length) throw new Error("至少修改一个个人资料字段");
   return changes;

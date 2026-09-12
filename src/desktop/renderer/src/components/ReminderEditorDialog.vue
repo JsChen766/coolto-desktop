@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { reactive } from "vue";
+import { computed, reactive } from "vue";
 import type { InterviewRound, Reminder, ReminderInput } from "@desktop/types";
+import DialogSelect from "./DialogSelect.vue";
+import { interviewRoundSelectOptions, recordToSelectOptions } from "./dialog-select-options";
 import { isoFromLocal, localDateTime, REMINDER_STATUS_LABELS } from "../tracker/tracker-child-labels";
 
 const props = defineProps<{ reminder?: Reminder | undefined; interviews: InterviewRound[]; busy?: boolean; error?: string | undefined }>();
 const emit = defineEmits<{ close: []; review: [value: ReminderInput] }>();
+const reminderStatusOptions = recordToSelectOptions(REMINDER_STATUS_LABELS);
+const interviewOptions = computed(() => interviewRoundSelectOptions(props.interviews));
 const form = reactive({
   interviewRoundId: props.reminder?.interviewRoundId ?? "", title: props.reminder?.title ?? "",
   remindAt: localDateTime(props.reminder?.remindAt ?? new Date(Date.now() + 3_600_000).toISOString()),
@@ -24,8 +28,8 @@ function review(): void {
       <div class="tracker-child-grid">
         <label class="wide"><span>{{ $t('提醒内容') }}</span><input v-model="form.title" maxlength="240" required /></label>
         <label class="wide"><span>{{ $t('提醒时间（本机时区）') }}</span><input v-model="form.remindAt" type="datetime-local" required /></label>
-        <label><span>{{ $t('关联面试') }}</span><select v-model="form.interviewRoundId"><option value="">{{ $t('不关联') }}</option><option v-for="item in interviews" :key="item.id" :value="item.id">{{ $tf('第 {round} 轮', { round: item.roundNumber }) }}</option></select></label>
-        <label><span>{{ $t('状态') }}</span><select v-model="form.status"><option v-for="(label, value) in REMINDER_STATUS_LABELS" :key="value" :value="value">{{ label }}</option></select></label>
+        <label><span>{{ $t('关联面试') }}</span><DialogSelect v-model="form.interviewRoundId" :options="interviewOptions" /></label>
+        <label><span>{{ $t('状态') }}</span><DialogSelect v-model="form.status" :options="reminderStatusOptions" /></label>
       </div>
       <p class="tracker-child-hint">{{ $t('这是单次提醒；关闭应用期间最多补发 24 小时内错过的提醒。') }}</p>
       <p v-if="error" class="tracker-dialog-error" role="alert">{{ error }}</p>

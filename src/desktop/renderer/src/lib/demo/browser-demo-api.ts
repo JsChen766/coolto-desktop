@@ -4,6 +4,8 @@ import { createDemoApplicationApi } from "./demo-application-api";
 import { createDemoJobAssetsApi } from "./demo-job-assets-api";
 import { createDemoBrowserApi } from "./demo-browser-api";
 import { createDemoChatApis } from "./demo-chat-api";
+import { createDemoPreferenceApi } from "./demo-preference-api.js";
+import { createDemoMaterialApi } from "./demo-material-api.js";
 import {
   createDemoLibraryApi,
   createDemoResumeDraftApi,
@@ -49,6 +51,49 @@ export function createBrowserDemoApi(): DesktopApi {
       syncNow: async () => undefined,
       onSyncCompleted: () => () => undefined,
     },
+    privacy: {
+      getState: async () => ({
+        available: true,
+        policy: {
+          policyVersion: "privacy-2026-09-08-v1",
+          contentHash: "demo-policy-hash",
+          effectiveAt: "2026-09-08T00:00:00Z",
+          changeClass: "major",
+        },
+        consent: {
+          policyVersion: "privacy-2026-09-08-v1",
+          status: "accepted",
+          acceptedAt: now.toISOString(),
+          decisionAt: now.toISOString(),
+        },
+        localAccepted: true,
+        error: null,
+        restrictedRecovery: false,
+      }),
+      accept: async () => {
+        throw new Error("Browser Demo 不执行真实隐私同意");
+      },
+      decline: async () => {
+        throw new Error("Browser Demo 不执行真实隐私同意");
+      },
+      exportData: async () => {
+        throw new Error("Browser Demo 不执行真实数据导出");
+      },
+      startDeletion: async () => {
+        throw new Error("Browser Demo 不执行真实账号删除");
+      },
+      retryDeletion: async () => {
+        throw new Error("Browser Demo 不执行真实账号删除");
+      },
+      acknowledgeDeletion: async () => {
+        throw new Error("Browser Demo 不执行真实账号删除");
+      },
+      getDeletionState: async () => {
+        throw new Error("Browser Demo 不执行真实账号删除");
+      },
+      onStateChange: () => () => undefined,
+      onDeletionStateChange: () => () => undefined,
+    },
     checkout: {
       plans: async () => [
         { planType: "WEEKLY", priceCny: 990, credits: 100, validDays: 7 },
@@ -92,7 +137,6 @@ export function createBrowserDemoApi(): DesktopApi {
     },
     conversations: chat.conversations,
     attachments: chat.attachments,
-    getPathForFile: () => "",
     resumeDrafts: createDemoResumeDraftApi(draft),
     updates: {
       getState: async () => ({
@@ -164,6 +208,8 @@ export function createBrowserDemoApi(): DesktopApi {
       prepareAcceptServer: async () => { throw new Error("Demo 不支持个人资料维护"); },
       executeProposal: async () => { throw new Error("Demo 不支持个人资料维护"); },
     },
+    preferences: createDemoPreferenceApi(),
+    material: createDemoMaterialApi(),
     applications: createDemoApplicationApi(now),
     tracker: {
       detail: async () => ({ statusEvents: [], interviews: [], notes: [], reminders: [] }),
@@ -185,7 +231,9 @@ export function createBrowserDemoApi(): DesktopApi {
       onSaveBeforeClose: () => () => undefined,
     },
     data: {
-      clearLocal: async () => undefined,
+      clearLocal: async () => {
+        throw new Error("Browser Demo 不执行真实本地清除");
+      },
     },
     browser: createDemoBrowserApi(),
   };

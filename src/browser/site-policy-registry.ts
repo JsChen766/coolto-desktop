@@ -1,4 +1,19 @@
 import { isReadOnlyWebmailToolAllowed } from "./webmail-readonly-policy.js";
+import {
+  recruitingSitePolicyForHost, recruitingSitePolicyForOrigin,
+} from "./recruiting-site-policy.js";
+import { isRecruitingFormFixtureOrigin } from "./recruiting-form-fixture-policy.js";
+
+export {
+  BOSS_ZHIPIN_SITE_POLICY,
+  JOBSDB_HK_SITE_POLICY,
+  LINKEDIN_SITE_POLICY,
+  RECRUITING_SITE_POLICIES,
+  isRecruitingSitePolicyAllowed,
+  recruitingSitePolicyForOrigin,
+  recruitingSitePolicyForHost,
+  recruitingSitePolicyForSite,
+} from "./recruiting-site-policy.js";
 
 export interface BrowserSitePolicyV1 {
   version: 1;
@@ -12,6 +27,23 @@ export interface BrowserSitePolicyV1 {
   knownSideEffects: string[];
   verifiedAt: string | null;
 }
+const RECRUITING_READ_NAVIGATION_TOOLS: Record<string, true> = {
+  extract_page: true, browser_snapshot: true, browser_query_elements: true,
+  browser_wait_for: true, browser_new_tab: true, browser_select_tab: true,
+  browser_close_tab: true, browser_navigate: true, browser_go_back: true,
+  browser_go_forward: true, browser_reload: true,
+  recognize_recruiting_page: true,
+};
+const RECRUITING_FORM_OBSERVE_TOOLS: Record<string, true> = {
+  browser_recruiting_form_observe: true,
+};
+const RECRUITING_FORM_WRITE_TOOLS: Record<string, true> = {
+  browser_recruiting_form_fill: true,
+  browser_recruiting_form_select: true,
+  browser_recruiting_form_set_checked: true,
+  browser_recruiting_form_upload: true,
+  browser_recruiting_form_review: true,
+};
 
 const READ_ONLY_DENIED_ACTIONS = [
   "mail.send", "mail.delete", "mail.move", "mail.archive",
@@ -59,12 +91,29 @@ export function isBrowserSitePolicyAllowed(
   if (toolName === "browser_list_tabs" || toolName === "browser_get_active_tab") {
     return true;
   }
+  let host: string | null = null;
+  try { host = origin ? new URL(origin).hostname.toLowerCase() : null; }
+  catch { /* malformed origin falls through to the generic guard */ }
+  const recruitingPolicy = origin
+    ? recruitingSitePolicyForOrigin(origin) : undefined;
+  const candidatePolicy = recruitingSitePolicyForHost(host);
+  if (candidatePolicy && !recruitingPolicy) return false;
   if (toolName === "browser_submit") {
+    if (recruitingPolicy) return false;
     if (origin && browserSitePolicyForOrigin(origin)) return false;
     return Boolean(origin && configuredOrigins(
       "COOLTO_BROWSER_SUBMIT_TEST_ORIGINS",
     ).includes(origin));
   }
+  if (recruitingPolicy) {
+    if (RECRUITING_FORM_OBSERVE_TOOLS[toolName] === true) return true;
+    if (isRecruitingFormFixtureOrigin(origin) &&
+        (RECRUITING_FORM_WRITE_TOOLS[toolName] === true ||
+          toolName === "request_write_access")) return true;
+    return RECRUITING_READ_NAVIGATION_TOOLS[toolName] === true;
+  }
+  if (RECRUITING_FORM_OBSERVE_TOOLS[toolName] === true ||
+      RECRUITING_FORM_WRITE_TOOLS[toolName] === true) return false;
   if (toolName === "capture_browser_mail_event") {
     if (!origin) return false;
     const policy = browserSitePolicyForOrigin(origin);

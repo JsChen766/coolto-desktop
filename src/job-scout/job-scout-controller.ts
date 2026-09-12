@@ -1,5 +1,11 @@
 import type { AgentHarnessServices } from "../agent-task/agent-harness-services.js";
 import type { BrowserLeadV1 } from "../agent-task/browser-lead-types.js";
+import type { JobScoutApiProvider } from "../agent-task/browser-lead-types.js";
+import type {
+  RecruitingPageSourceInput,
+  RecruitingPageSourceResult,
+} from "./recruiting-page-source.js";
+import { observeRecruitingPage } from "./recruiting-page-source.js";
 import { fetchGreenhouseJobs } from "./greenhouse-job-source.js";
 import { fetchLeverJobs } from "./lever-job-source.js";
 
@@ -24,9 +30,14 @@ export class JobScoutController {
     private readonly conversationId: string,
     private readonly services: AgentHarnessServices,
   ) {}
+  public recognizeRecruitingPage(
+    input: RecruitingPageSourceInput,
+  ): RecruitingPageSourceResult {
+    return observeRecruitingPage(input);
+  }
 
   public async fetch(input: {
-    provider: "greenhouse" | "lever";
+    provider: JobScoutApiProvider;
     sourceKey: string;
     company: string;
     signal?: AbortSignal;
@@ -102,7 +113,7 @@ export class JobScoutController {
 
 function requireGrantedSource(
   value: unknown,
-  provider: "greenhouse" | "lever",
+  provider: JobScoutApiProvider,
   sourceKey: string,
 ): { company: string } {
   if (!Array.isArray(value)) throw new Error("DelegationGrant 未配置 jobCriteria.sources");

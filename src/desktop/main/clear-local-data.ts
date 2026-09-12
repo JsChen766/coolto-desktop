@@ -1,27 +1,28 @@
 import type { IpcMain } from "electron";
 
-import type { LocalSyncStore } from "./sync/local-sync-store.js";
-import type { ConversationSelectedFiles } from "./conversation-selected-files.js";
-import type { ConversationStore } from "./conversation-store.js";
-import type { ResumeDraftService } from "./resume-drafts/resume-draft-service.js";
-import type { AgentHarnessServices } from "../../agent-task/agent-harness-services.js";
-import type { DeliveryResumeFileRepository } from
-  "../../delivery-resume-files/file-repository.js";
+import {
+  executeLocalClear,
+  type LocalClearOperations,
+  type LocalClearResult,
+  type LocalClearScope,
+} from "./privacy/local-clear-service.js";
 
 export interface ClearLocalDataTargets {
-  conversations: ConversationStore;
-  resumeDrafts: ResumeDraftService;
-  selectedFiles: ConversationSelectedFiles;
-  deliveryResumeFiles: DeliveryResumeFileRepository;
-  syncStore: LocalSyncStore;
-  agentHarness: AgentHarnessServices;
+  conversations: { clearAll(): Promise<void> };
+  resumeDrafts: { clearAll(): Promise<void> };
+  selectedFiles: { clear(): void };
+  deliveryResumeFiles: { clearAll(): Promise<void> };
+  syncStore: { purgeLocal(): void };
+  agentHarness: { clearAll(): Promise<void> };
   mailConnections: { clearAll(): Promise<void> };
   calendar: { clearAll(): Promise<void> };
   managedResumeUploads: { clearAll(): Promise<void> };
+  onboarding?: { clearLocal(): Promise<void> };
 }
 
 export async function clearLocalData(targets: ClearLocalDataTargets): Promise<void> {
   await targets.conversations.clearAll();
+  await targets.onboarding?.clearLocal();
   await targets.resumeDrafts.clearAll();
   await targets.agentHarness.clearAll();
   await targets.mailConnections.clearAll();
@@ -32,30 +33,74 @@ export async function clearLocalData(targets: ClearLocalDataTargets): Promise<vo
   targets.syncStore.purgeLocal();
 }
 
+export interface ClearLocalBusinessServices extends Omit<ClearLocalDataTargets, "syncStore"> {
+  agent: { isRunning: boolean };
+}
+
+export interface ClearLocalIpcInput {
+  services: () => ClearLocalBusinessServices | undefined;
+  getCurrentOwner?: () => { ownerId: string; accountEmail?: string } | undefined;
+  scopeForOwner?: (ownerId: string) => LocalClearScope;
+  quiesce(): Promise<void>;
+  clearSync(): Promise<void>;
+  clearBrowser(scope?: LocalClearScope): Promise<void>;
+  clearRendererStorage(): Promise<void>;
+  clearSession(): Promise<void>;
+  clearDeviceIdentity(accountEmail?: string): Promise<void>;
+  clearAccountDirectories?(ownerId: string): Promise<void>;
+  clearPrivacyState?(ownerId: string): Promise<void>;
+}
+export function createLocalClearOperations(
+  input: ClearLocalIpcInput,
+  ownerId?: string,
+  accountEmail?: string,
+  allowMissingOwner = false,
+): LocalClearOperations {
+  const services = input.services();
+  const ensureOwner = (): void => {
+    if (!ownerId || !input.getCurrentOwner) return;
+    const current = input.getCurrentOwner();
+    if (!current && allowMissingOwner) return;
+    if (current?.ownerId !== ownerId) {
+      throw new Error("账号切换期间拒绝清除");
+    }
+  };
+  return {
+    agentRunning: services?.agent.isRunning ?? false,
+    ...(accountEmail ? { accountEmail } : {}),
+    ...(ownerId && input.scopeForOwner ? { scope: input.scopeForOwner(ownerId) } : {}),
+    quiesce: async () => {
+      ensureOwner();
+      await input.quiesce();
+      ensureOwner();
+    },
+    clearSync: async () => { ensureOwner(); await input.clearSync(); ensureOwner(); },
+    clearBusiness: async () => {
+      ensureOwner();
+      if (services) {
+        await clearLocalData({ ...services, syncStore: { purgeLocal: () => undefined } });
+      }
+      ensureOwner();
+      if (ownerId && input.clearAccountDirectories) await input.clearAccountDirectories(ownerId);
+      if (ownerId && input.clearPrivacyState) await input.clearPrivacyState(ownerId);
+    },
+    clearBrowser: async (scope) => { ensureOwner(); await input.clearBrowser(scope); ensureOwner(); },
+    clearRendererStorage: async () => { ensureOwner(); await input.clearRendererStorage(); ensureOwner(); },
+    clearDeviceIdentity: async (email) => { ensureOwner(); await input.clearDeviceIdentity(email); ensureOwner(); },
+    clearSession: async () => { ensureOwner(); await input.clearSession(); },
+  };
+}
+
 export function registerClearLocalDataIpc(
   ipcMain: IpcMain,
-  input: {
-    services: () => Promise<Omit<ClearLocalDataTargets, "syncStore"> & { agent: { isRunning: boolean } }>;
-    syncStore: () => LocalSyncStore;
-    triggerSync: () => void;
-  },
+  input: ClearLocalIpcInput,
 ): void {
-  ipcMain.handle("data:clear-local", async () => {
-    const current = await input.services();
-    if (current.agent.isRunning) {
-      throw new Error("Agent 生成期间不能清除本地数据");
-    }
-    await clearLocalData({
-      conversations: current.conversations,
-      resumeDrafts: current.resumeDrafts,
-      selectedFiles: current.selectedFiles,
-      deliveryResumeFiles: current.deliveryResumeFiles,
-      agentHarness: current.agentHarness,
-      mailConnections: current.mailConnections,
-      calendar: current.calendar,
-      managedResumeUploads: current.managedResumeUploads,
-      syncStore: input.syncStore(),
-    });
-    input.triggerSync();
+  ipcMain.handle("data:clear-local", async (): Promise<LocalClearResult> => {
+    const owner = input.getCurrentOwner?.();
+    return executeLocalClear(createLocalClearOperations(
+      input,
+      owner?.ownerId,
+      owner?.accountEmail,
+    ));
   });
 }

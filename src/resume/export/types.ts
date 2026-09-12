@@ -13,6 +13,15 @@ export type ResumePdfExportSourceInput =
       resumeId: string;
       title?: string;
     };
+export interface RevisionDeliveryManifest {
+  readonly consumer: "preview" | "save" | "pdf";
+  readonly candidateId: string;
+  readonly revision: number;
+  readonly observedRevision: number;
+  readonly sourceFingerprint: string;
+  readonly structureHash: string;
+  readonly compileHash: string;
+}
 
 export interface ResolvedResumePdfSource {
   source: ResumePdfExportSourceInput["source"];
@@ -31,6 +40,8 @@ export interface ResumePdfExportApprovalPayload
   structureHash: string;
   structure: ResumeStructure;
   compileResult: ResumeCompileResult;
+  /** Frozen identity shared by the production preview/save/PDF boundary. */
+  deliveryManifest?: RevisionDeliveryManifest;
 }
 
 export interface ResumePdfCompilation {

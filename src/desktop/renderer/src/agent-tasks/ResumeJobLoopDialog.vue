@@ -2,7 +2,9 @@
 import { Plus, Search, Trash2, X } from "@lucide/vue";
 
 import type { DesktopApi, JobRepositoryResume } from "@desktop/types";
+import DialogSelect from "../components/DialogSelect.vue";
 import LoopDelegationReview from "./LoopDelegationReview.vue";
+import { jobProviderOptions, loopExpiry1_7_30Options } from "./loop-select-options";
 import { useResumeJobLoopDialog } from "./use-resume-job-loop-dialog";
 import { useLoopDialogFocus } from "./use-loop-dialog-focus";
 
@@ -16,6 +18,7 @@ const state = useResumeJobLoopDialog({
   api: props.api, conversationId: props.conversationId, resume: props.resume,
   started: (taskId) => emit("started", taskId),
 });
+const expiryOptions = loopExpiry1_7_30Options();
 function dismiss(): void { if (!state.busy.value) emit("close"); }
 const focus = useLoopDialogFocus(dismiss);
 </script>
@@ -37,7 +40,7 @@ const focus = useLoopDialogFocus(dismiss);
         <label><span>{{ $t('任务目标') }}</span><input v-model="state.form.goal" data-loop-initial-focus maxlength="4000" required /></label>
         <fieldset><legend>{{ $t('公开岗位源') }}</legend>
           <div v-for="(source, index) in state.form.sources" :key="index" class="loop-source-row">
-            <select v-model="source.provider" :aria-label="$t('岗位源类型')"><option value="greenhouse">Greenhouse</option><option value="lever">Lever</option></select>
+            <DialogSelect v-model="source.provider" :options="jobProviderOptions" :aria-label="$t('岗位源类型')" />
             <input v-model="source.company" :placeholder="$t('公司名称')" maxlength="300" required />
             <input v-model="source.sourceKey" placeholder="Source Key" maxlength="100" required />
             <button class="icon-button" type="button" :disabled="state.form.sources.length === 1"
@@ -48,9 +51,11 @@ const focus = useLoopDialogFocus(dismiss);
         </fieldset>
         <label><span>{{ $t('额外申请域名（可选）') }}</span>
           <input v-model="state.form.applicationDomains" :placeholder="$t('例如 careers.company.com，多个用逗号分隔')" /></label>
-        <label><span>{{ $t('授权有效期') }}</span><select v-model="state.form.expiryDays">
-          <option :value="1">{{ $t('1 天') }}</option><option :value="7">{{ $t('7 天') }}</option><option :value="30">{{ $t('30 天') }}</option>
-        </select></label>
+        <label><span>{{ $t('授权有效期') }}</span><DialogSelect
+          :model-value="String(state.form.expiryDays)"
+          :options="expiryOptions"
+          @update:model-value="state.form.expiryDays = Number($event)"
+        /></label>
         <p class="loop-rule">{{ $t('固定规则：匹配分低于 80 不入选；每个岗位提交前单独确认。') }}</p>
       </form>
       <LoopDelegationReview v-else-if="state.proposal.value" :proposal="state.proposal.value" />

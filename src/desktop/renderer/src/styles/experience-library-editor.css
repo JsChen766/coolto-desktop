@@ -99,8 +99,13 @@
   gap: 7px;
 }
 
-.experience-date-control select:only-child {
+.experience-date-control select:only-child,
+.experience-date-control > .dialog-select:only-child {
   grid-column: 1 / -1;
+}
+
+.experience-date-control > .dialog-select {
+  min-width: 0;
 }
 
 .experience-tag-editor {

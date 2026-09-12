@@ -14,7 +14,7 @@
     "check:resume-template": "node scripts/sync-resume-template-assets.mjs --check",
     "check:source-lines": "node scripts/check-source-lines.mjs",
     "desktop:dev": "electron-vite dev",
-    "desktop:build": "electron-vite build && node scripts/check-sandbox-preload-bundles.mjs",
+    "desktop:build": "electron-vite build && node scripts/build-material-ocr-worker.mjs && node scripts/check-sandbox-preload-bundles.mjs",
     "desktop:build:protected": "npm run desktop:build && node scripts/protect-main-bundle.mjs",
     "native:build:win": "node scripts/build-native-core.mjs win-x64",
     "native:build:mac": "node scripts/build-native-core.mjs mac-universal",
@@ -30,6 +30,10 @@
     "qa:browser-webmail-live": "npm run desktop:build && esbuild src/cli/browser-webmail-live-qa-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/browser-webmail-live-qa-entry.cjs && node scripts/run-browser-webmail-live-qa.mjs",
     "qa:agent-harness": "esbuild src/cli/agent-harness-qa-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/agent-harness-qa-entry.cjs && node scripts/run-agent-harness-qa.mjs",
     "qa:agent-tasks-ui": "node scripts/run-agent-tasks-ui-qa.mjs",
+    "qa:phase-2": "node scripts/run-phase-2-qa.mjs",
+    "qa:phase-4-c2": "node scripts/run-phase-4-c2-gates.mjs",
+    "qa:phase-4-c3": "node scripts/run-phase-4-c3-gates.mjs",
+    "qa:phase-2:ui": "node scripts/run-profile-pref-ui-qa.mjs",
     "qa:job-scout": "node --import tsx scripts/run-job-scout-qa.ts",
     "smoke:resume-source": "node --import tsx scripts/run-resume-source-smoke.ts",
     "smoke:desktop-chat": "node scripts/run-desktop-chat-smoke.mjs",
@@ -61,6 +65,8 @@
     "markdown-it": "^14.3.0",
     "marked": "^18.0.7",
     "pdfjs-dist": "6.2.108",
+    "tesseract.js": "7.0.0",
+    "tesseract.js-core": "7.0.0",
     "vue": "^3.5.40"
   },
   "devDependencies": {

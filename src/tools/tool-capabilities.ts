@@ -1,6 +1,7 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 
 import type { ToolCapabilityMetadataV1 } from "../agent-task/tool-capability-types.js";
+import { profilePreferenceCapability } from "./profile-preference-capabilities.js";
 
 export type CapabilityAgentTool = AgentTool & {
   capability: ToolCapabilityMetadataV1;
@@ -23,6 +24,18 @@ const BROWSER_WRITE = new Set([
   "browser_upload_delivery_resume",
   "browser_upload_frozen_resume",
 ]);
+const RECRUITING_FORM_READ: Record<string, true> = {
+  browser_recruiting_form_observe: true,
+};
+const RECRUITING_FORM_WRITE: Record<string, true> = {
+  browser_recruiting_form_fill: true,
+  browser_recruiting_form_select: true,
+  browser_recruiting_form_set_checked: true,
+  browser_recruiting_form_upload: true,
+};
+const RECRUITING_FORM_REVIEW: Record<string, true> = {
+  browser_recruiting_form_review: true,
+};
 const TASK_LIFECYCLE = new Set([
   "task_checkpoint", "task_wait", "task_need_user", "task_complete",
 ]);
@@ -49,6 +62,17 @@ export function requireToolCapability(tool: AgentTool): ToolCapabilityMetadataV1
 }
 
 function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
+  const profilePreference = profilePreferenceCapability(tool.name);
+  if (profilePreference) return profilePreference;
+  if (RECRUITING_FORM_READ[tool.name] === true) {
+    return metadata({ scope: "browser.read", read: true, fresh: false, sequential: true });
+  }
+  if (RECRUITING_FORM_WRITE[tool.name] === true) {
+    return metadata({ scope: "browser.write", fresh: true });
+  }
+  if (RECRUITING_FORM_REVIEW[tool.name] === true) {
+    return metadata({ scope: "browser.review", fresh: true });
+  }
   if (BROWSER_LIGHT_READ.has(tool.name)) return metadata({
     scope: "browser.read", read: true, fresh: false,
   });
@@ -86,6 +110,12 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
     scope: tool.name === "fetch_job_source" ? "jobs.search" : "jobs.evaluate",
     fresh: false, unattendedAllowed: true,
   });
+  if (tool.name === "recognize_recruiting_page") return {
+    sideEffect: "read", risk: "R0",
+    requiredScopes: ["browser.read", "jobs.evaluate"],
+    concurrency: "sequential", idempotency: "none", evidence: "none",
+    requiresFreshObservation: false, unattendedAllowed: true,
+  };
   if (tool.name === "prepare_application_submission") return {
     sideEffect: "reversible", risk: "R1",
     requiredScopes: ["browser.submit", "tracker.application.create"],
@@ -102,6 +132,12 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
   if (tool.name === "sync_submission_receipt") return metadata({
     scope: "tracker.application.create", fresh: false, reconcile: true,
   });
+  if (tool.name === "confirm_submission_receipt") return {
+    sideEffect: "reversible", risk: "R1",
+    requiredScopes: ["tracker.application.create"],
+    concurrency: "sequential", idempotency: "receipt_reconcile", evidence: "none",
+    requiresFreshObservation: false, unattendedAllowed: true,
+  };
   if (tool.name === "get_answer_vault") return metadata({
     scope: "answers.read", read: true, fresh: false,
   });

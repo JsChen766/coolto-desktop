@@ -6,6 +6,7 @@ import { ElectronCalendarLinkStore } from "./electron-calendar-link-store.js";
 import { NativeEventKitAdapter } from "./native-eventkit-adapter.js";
 
 export function createCalendarService(
+  apiBaseUrl: string,
   ownerId: string,
   applications: ApplicationSyncStore,
   interviews: InterviewSyncStore,
@@ -13,7 +14,7 @@ export function createCalendarService(
 ): CalendarSyncService {
   return new CalendarSyncService(
     new NativeEventKitAdapter(),
-    new ElectronCalendarLinkStore(ownerId),
+    new ElectronCalendarLinkStore(apiBaseUrl, ownerId),
     applications,
     interviews,
     reminders,

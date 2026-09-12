@@ -15,12 +15,22 @@ import {
   requiredString,
   stringArray,
 } from "./contract-values.js";
+import {
+  careerTargetFingerprint,
+  legacyToCareerTargets,
+  normalizeCareerTarget,
+  normalizeCareerTargets,
+  targetsToLegacy,
+  type CareerTargetV1,
+} from "../profile/career-targets.js";
 
 export { ApiContractError } from "./contract-values.js";
-
 export function normalizeUserProfile(value: unknown): UserProfile {
   const record = objectValue(value, "user profile");
-  return {
+  const careerTargets = normalizeCareerTargetsRecord(record);
+  const legacy = targetsToLegacy(careerTargets);
+  const careerStage = nullableString(record.careerStage, "profile.careerStage");
+  const profile: UserProfile = {
     fullName: nullableString(record.fullName, "profile.fullName"),
     contactEmail: nullableString(record.contactEmail, "profile.contactEmail"),
     email: nullableString(record.email, "profile.email"),
@@ -28,36 +38,24 @@ export function normalizeUserProfile(value: unknown): UserProfile {
     location: nullableString(record.location, "profile.location"),
     linkedinUrl: nullableString(record.linkedinUrl, "profile.linkedinUrl"),
     githubUrl: nullableString(record.githubUrl, "profile.githubUrl"),
-    personalWebsite: nullableString(
-      record.personalWebsite,
-      "profile.personalWebsite",
-    ),
+    personalWebsite: nullableString(record.personalWebsite, "profile.personalWebsite"),
     currentTitle: nullableString(record.currentTitle, "profile.currentTitle"),
-    currentCompany: nullableString(
-      record.currentCompany,
-      "profile.currentCompany",
-    ),
-    yearsOfExperience: nullableNumber(
-      record.yearsOfExperience,
-      "profile.yearsOfExperience",
-    ),
-    careerStage: nullableString(record.careerStage, "profile.careerStage"),
-    targetRoles: stringArray(record.targetRoles, "profile.targetRoles"),
-    targetIndustries: stringArray(
-      record.targetIndustries,
-      "profile.targetIndustries",
-    ),
-    targetLocations: stringArray(
-      record.targetLocations,
-      "profile.targetLocations",
-    ),
-    preferredLanguage: nullableString(
-      record.preferredLanguage,
-      "profile.preferredLanguage",
-    ),
+    currentCompany: nullableString(record.currentCompany, "profile.currentCompany"),
+    yearsOfExperience: nullableNumber(record.yearsOfExperience, "profile.yearsOfExperience"),
+    careerStage: careerStage === "career_switcher" ? "career_change" : careerStage,
+    ...legacy, careerTargets,
+    preferredLanguage: nullableString(record.preferredLanguage, "profile.preferredLanguage"),
     resumeStyle: nullableString(record.resumeStyle, "profile.resumeStyle"),
   };
+  if (record.entityVersion !== undefined) {
+    profile.entityVersion = requiredPositiveInteger(record.entityVersion, "profile.entityVersion");
+  }
+  if (record.updatedAt !== undefined) {
+    profile.updatedAt = requiredString(record.updatedAt, "profile.updatedAt");
+  }
+  return profile;
 }
+
 
 export function normalizeJdRecord(value: unknown): JdRecord {
   const record = objectValue(value, "JD");
@@ -141,4 +139,78 @@ function normalizeJdRequirement(value: unknown): JdRequirement {
     v2Importance: v2Importance as JdRequirement["v2Importance"],
     v2Category: nullableString(record.v2Category, "requirement.v2Category"),
   };
+}
+function normalizeCareerTargetsRecord(
+  record: Record<string, unknown>,
+): CareerTargetV1[] {
+  const raw = record.careerTargets === undefined
+    ? legacyToCareerTargets({
+        targetRoles: record.targetRoles === undefined
+          ? [] : stringArray(record.targetRoles, "profile.targetRoles"),
+        targetIndustries: record.targetIndustries === undefined
+          ? [] : stringArray(record.targetIndustries, "profile.targetIndustries"),
+        targetLocations: record.targetLocations === undefined
+          ? [] : stringArray(record.targetLocations, "profile.targetLocations"),
+      })
+    : arrayValue(record.careerTargets, "profile.careerTargets").map(
+        (value, index) => normalizeApiCareerTarget(value, index),
+      );
+  const normalized = normalizeCareerTargets(raw);
+  if (hasTargetFields(record)) {
+    const legacy = targetsToLegacy(normalized);
+    const supplied = {
+      targetRoles: stringArray(
+        record.targetRoles === undefined ? [] : record.targetRoles,
+        "profile.targetRoles",
+      ),
+      targetIndustries: stringArray(
+        record.targetIndustries === undefined ? [] : record.targetIndustries,
+        "profile.targetIndustries",
+      ),
+      targetLocations: stringArray(
+        record.targetLocations === undefined ? [] : record.targetLocations,
+        "profile.targetLocations",
+      ),
+    };
+    if (JSON.stringify(legacy) !== JSON.stringify(supplied)) {
+      throw new ApiContractError("profile careerTargets 与 legacy targets 不一致");
+    }
+  }
+  return normalized;
+}
+
+function normalizeApiCareerTarget(
+  value: unknown,
+  index: number,
+): CareerTargetV1 {
+  const record = objectValue(value, `profile.careerTargets[${index}]`);
+  const role = record.role === undefined ? null : record.role;
+  const industries = record.industries === undefined ? [] : record.industries;
+  const locations = record.locations === undefined ? [] : record.locations;
+  if (
+    (role !== null && typeof role !== "string") ||
+    !Array.isArray(industries) ||
+    industries.some((item) => typeof item !== "string") ||
+    !Array.isArray(locations) ||
+    locations.some((item) => typeof item !== "string")
+  ) {
+    throw new ApiContractError(`profile.careerTargets[${index}] 无效`);
+  }
+  const identity = {
+    role: role as string | null,
+    industries: industries as string[],
+    locations: locations as string[],
+  };
+  const hasId = typeof record.id === "string";
+  return normalizeCareerTarget({
+    ...identity,
+    id: hasId ? record.id : `legacy:${careerTargetFingerprint(identity)}`,
+    idKind: record.idKind ?? (hasId ? "opaque" : "legacy_compatibility"),
+    isPrimary: record.isPrimary,
+  }, `profile.careerTargets[${index}]`);
+}
+
+function hasTargetFields(record: Record<string, unknown>): boolean {
+  return ["targetRoles", "targetIndustries", "targetLocations"]
+    .some((key) => Object.prototype.hasOwnProperty.call(record, key));
 }

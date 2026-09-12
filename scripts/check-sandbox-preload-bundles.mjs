@@ -7,6 +7,7 @@ const entries = new Set([
   "browser-download-popover.cjs",
   "browser-shell.cjs",
   "index.cjs",
+  "material-feature.cjs",
   "resume.cjs",
 ]);
 const files = (await readdir(directory)).filter((file) => file.endsWith(".cjs"));

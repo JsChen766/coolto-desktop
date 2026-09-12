@@ -21,6 +21,8 @@ export class TaskLifecycleController {
     if (!active.grant || active.revocation) {
       throw new Error("当前 AgentTask grant 不可用");
     }
+    const stage = this.services.stages.current(task.id, task.activeRunId!);
+    const authority = await this.services.profilePreferenceContext?.();
     const events = await this.services.events.pending(task.id);
     const delivered = events.filter((event) => event.status === "delivered");
     const receipts = await this.services.ledger.listReceipts(task.id);
@@ -30,6 +32,14 @@ export class TaskLifecycleController {
       runId: task.activeRunId!, conversationId: this.conversationId,
       lastMessageTimestamp: null, conversationUpdatedAt: now,
       grantHash: active.grant.contentHash,
+      ...(stage ? { currentStage: stage.stage, stageTransitionId: stage.transitionId } : {}),
+      ...(authority ? {
+        profileVersion: authority.profileVersion,
+        ...(authority.profileLocalVersion === undefined ? {} : {
+          profileLocalVersion: authority.profileLocalVersion,
+        }),
+        preferenceResolutionHash: authority.resolutionHash,
+      } : {}),
       lastAcknowledgedEventId: delivered.at(-1)?.id ?? null,
       receiptCursor: receipts.at(-1)?.id ?? null,
       browserRefs: [], createdAt: now,
@@ -51,6 +61,18 @@ export class TaskLifecycleController {
     await this.services.leads.assertAllOpenLeadsEvaluated(task.id);
     await this.services.signals.assertAllMailEventsClassified(task.id);
     await this.checkpoint({ summary: input.summary });
+    const stage = this.services.stages.current(task.id, runId);
+    const active = await this.services.grants.getActive(task.id);
+    if (active.grant?.stagePolicy && stage && stage.stage !== "wait") {
+      const context = await this.services.profilePreferenceContext?.();
+      await this.services.transitionStage({
+        ownerId: task.ownerId, taskId: task.id, runId,
+        grantHash: active.grant.contentHash, to: "wait",
+        profileVersion: context?.profileVersion ?? null,
+        preferenceResolutionHash: context?.resolutionHash ?? null,
+        reason: "host_task_wait",
+      });
+    }
     const waiting = await this.services.tasks.finishRun({
       taskId: task.id, runId, taskStatus: "waiting",
       waiting: {
@@ -60,6 +82,7 @@ export class TaskLifecycleController {
       },
       stopReason: input.summary,
     });
+    this.services.stages.clear(runId);
     this.services.runtimeProjection.clearTask(task.id, runId);
     this.revokeBrowserAccess("task_waiting");
     await this.services.ledger.reconcileInvalidatedRun(
@@ -82,6 +105,7 @@ export class TaskLifecycleController {
       taskStatus: input.partial ? "partially_completed" : "completed",
       stopReason: input.summary,
     });
+    this.services.stages.clear(runId);
     this.services.runtimeProjection.clearTask(task.id, runId);
     this.revokeBrowserAccess(`task_${completed.status}`);
     await this.services.ledger.reconcileInvalidatedRun(

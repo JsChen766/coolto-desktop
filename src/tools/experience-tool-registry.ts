@@ -5,6 +5,7 @@ import { createSearchExperiencesTool } from "./search-experiences.js";
 import { createExperienceMaterialTools } from "./experience-material-tools.js";
 import { createPrepareExperienceMaintenanceTool } from
   "./prepare-experience-maintenance.js";
+import { appendMaterialProductTools } from "./material-product-tools.js";
 import type { ToolRegistryDependencies } from "./registry.js";
 
 export function createExperienceTools(
@@ -27,5 +28,6 @@ export function createExperienceTools(
       maintenance, dependencies.agentOrchestrated.approvalManager,
     ));
   }
+  appendMaterialProductTools(tools, dependencies.materialHost);
   return tools;
 }

@@ -25,6 +25,7 @@ const ENTITY_TYPES = new Set<SyncEntityType>([
   "interview_round",
   "application_note",
   "reminder",
+  "user_preference",
 ]);
 
 const RESULT_STATUSES = new Set<SyncOperationStatus>([

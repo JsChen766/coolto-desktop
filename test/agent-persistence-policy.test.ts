@@ -122,6 +122,20 @@ test("browser observations and actions expire before transcript persistence", ()
   assert.doesNotMatch(serialized, /private page|private field|private-screenshot/u);
   assert.match(serialized, /browser_snapshot again/u);
 });
+test("pending receipt approval results expire across App restart", () => {
+  const message = {
+    role: "toolResult" as const,
+    toolCallId: "receipt-confirm",
+    toolName: "confirm_submission_receipt",
+    content: [{ type: "text" as const, text: "approval-request-secret" }],
+    details: { approvalRequestId: "approval-old", receiptId: "receipt-1" },
+    isError: false,
+    timestamp: 1,
+  } satisfies AgentMessage;
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence([message]));
+  assert.doesNotMatch(serialized, /approval-request-secret|approval-old/u);
+  assert.match(serialized, /SubmissionReceipt\/Tracker state/u);
+});
 
 test("Delegation Proposal expires across App restart", () => {
   const message = {
@@ -136,4 +150,23 @@ test("Delegation Proposal expires across App restart", () => {
   const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence([message]));
   assert.doesNotMatch(serialized, /proposal-secret|proposal-old/u);
   assert.match(serialized, /prepare_agent_task again/u);
+});
+
+test("Profile and Preference assistant calls persist only rebuild markers", () => {
+  const messages = [{
+    role: "assistant" as const,
+    content: [{
+      type: "toolCall" as const,
+      id: "call-profile", name: "get_user_profile",
+      arguments: { contactEmail: "private@example.com", target: "香港产品经理" },
+    }, {
+      type: "toolCall" as const,
+      id: "call-preference", name: "get_preferences",
+      arguments: { value: "private-preference" },
+    }],
+    timestamp: 1,
+  }] as never;
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence(messages));
+  assert.doesNotMatch(serialized, /private@example\.com|香港产品经理|private-preference/u);
+  assert.match(serialized, /Profile\/Preference result expired/u);
 });

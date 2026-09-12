@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { AgentHarnessServices } from "../src/agent-task/agent-harness-services.js";
+import { ManagedTaskPolicyHooks } from "../src/agent-task/managed-task-policy-hooks.js";
 import {
   AgentHarnessStateRepository,
   MemoryAgentHarnessStatePersistence,
 } from "../src/agent-task/agent-harness-state-repository.js";
+import { createSubmissionApprovalExecutor } from
+  "../src/agent-task/submission-approval-executor.js";
 import type { BrowserAgentController } from "../src/browser/agent-control-types.js";
 import { ApplicationSubmissionService } from "../src/desktop/main/agent-task/application-submission-service.js";
 import type { ApplicationProposalService } from "../src/desktop/main/application-library/application-proposal-service.js";
@@ -14,6 +17,8 @@ import { createActionApprovalManager } from "../src/actions/create-action-approv
 import { ExperienceImportProposalStore } from "../src/import/proposal-store.js";
 import { createApplicationSubmissionTools } from
   "../src/tools/application-submission-tools.js";
+import { applyToolCapabilities } from "../src/tools/tool-capabilities.js";
+import { applyExecutionPolicies } from "../src/tools/tool-execution-policies.js";
 
 test("confirmed browser submit creates one receipt and one Tracker Application", async () => {
   const value = await setup(false);
@@ -29,15 +34,41 @@ test("confirmed browser submit creates one receipt and one Tracker Application",
   assert.equal(receipt.status, "confirmed");
   assert.equal(receipt.applicationId, "application-1");
   assert.equal(value.submitCalls.length, 1);
+  assert.equal(value.applicationCreateCalls, 1);
   assert.equal(value.applicationInputs[0]?.pendingConfirmation, false);
   assert.equal((await value.submissions.submit({
     intentId: intent.id, confirmationKind: "text",
     confirmationValue: "Application received",
   })).id, receipt.id);
   assert.equal(value.submitCalls.length, 1);
+  assert.equal(value.applicationCreateCalls, 1);
+});
+test("Tracker retry replays only business sync for a confirmed receipt", async () => {
+  const value = await setup(false, false, "passed", 1);
+  const intent = await value.submissions.prepare({
+    jdId: "jd-1", resumeId: "resume-1",
+    targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
+  });
+  await value.submissions.confirm(intent.id);
+  const receipt = await value.submissions.submit({
+    intentId: intent.id, confirmationKind: "text",
+    confirmationValue: "Application received",
+  });
+  assert.equal(receipt.status, "confirmed");
+  assert.equal(receipt.applicationId, null);
+  assert.equal(value.applicationCreateCalls, 0);
+  assert.equal(value.submitCalls.length, 1);
+
+  const synced = await value.submissions.syncReceipt(receipt.id);
+  assert.equal(synced.applicationId, "application-1");
+  assert.equal(value.applicationCreateCalls, 1);
+  assert.equal(value.submitCalls.length, 1);
+  assert.equal((await value.submissions.syncReceipt(receipt.id)).id, receipt.id);
+  assert.equal(value.applicationCreateCalls, 1);
+  assert.equal(value.submitCalls.length, 1);
 });
 
-test("uncertain submit creates pending-confirmation Application without resubmitting", async () => {
+test("uncertain submit keeps a pending receipt local without an Application", async () => {
   const value = await setup(true);
   const intent = await value.submissions.prepare({
     jdId: "jd-1", resumeId: "resume-1",
@@ -48,8 +79,200 @@ test("uncertain submit creates pending-confirmation Application without resubmit
     intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
   });
   assert.equal(receipt.status, "pending");
-  assert.equal(receipt.applicationId, "application-1");
-  assert.equal(value.applicationInputs.at(-1)?.pendingConfirmation, true);
+  assert.equal(receipt.applicationId, null);
+  assert.equal(value.applicationCreateCalls, 0);
+  assert.equal((await value.harness.submissions.list(intent.taskId)).length, 1);
+
+  const replayed = await value.submissions.syncReceipt(receipt.id);
+  assert.equal(replayed.id, receipt.id);
+  assert.equal(replayed.applicationId, null);
+  assert.equal(value.applicationCreateCalls, 0);
+  assert.equal(value.submitCalls.length, 1);
+});
+
+test("receipt replay links an exact existing Application without creating or resubmitting", async () => {
+  const value = await setup(true, false, "passed", 0, "durable-application");
+  const intent = await value.submissions.prepare({
+    jdId: "jd-1", resumeId: "resume-1",
+    targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
+  });
+  await value.submissions.confirm(intent.id);
+  const receipt = await value.submissions.submit({
+    intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
+  });
+  await value.harness.submissions.confirmReceipt(
+    receipt.id, new Date().toISOString(),
+  );
+  const replayed = await value.submissions.syncReceipt(receipt.id);
+  assert.equal(replayed.applicationId, "durable-application");
+  assert.equal(value.applicationCreateCalls, 0);
+  assert.equal(value.submitCalls.length, 1);
+});
+
+test("receipt authority rejects the same owner from another conversation", async () => {
+  const value = await setup(true);
+  const intent = await value.submissions.prepare({
+    jdId: "jd-1", resumeId: "resume-1",
+    targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
+  });
+  await value.submissions.confirm(intent.id);
+  const receipt = await value.submissions.submit({
+    intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
+  });
+  const other = value.createService("other-conversation");
+  await assert.rejects(
+    () => other.syncReceipt(receipt.id),
+    /当前 AgentTask\/Conversation 不一致/u,
+  );
+  await assert.rejects(
+    () => other.confirmReceipt(receipt.id, "other-task"),
+    /当前 AgentTask\/Conversation 不一致/u,
+  );
+  const approvals = createActionApprovalManager({
+    experienceWriter: {} as never,
+    importProposalStore: new ExperienceImportProposalStore(),
+    applicationSubmissions: other,
+  });
+  const confirmTool = createApplicationSubmissionTools(other, approvals)
+    .find((tool) => tool.name === "confirm_submission_receipt")!;
+  await assert.rejects(
+    () => confirmTool.execute("other-conversation", { receiptId: receipt.id }),
+    /当前 AgentTask\/Conversation 不一致/u,
+  );
+  assert.equal(approvals.listPending().length, 0);
+  assert.equal(value.applicationCreateCalls, 0);
+  const executor = createSubmissionApprovalExecutor(value.submissions);
+  await assert.rejects(
+    () => executor.execute({
+      payload: { receiptId: receipt.id, taskId: "other-task" },
+    } as never),
+    /Approval task 不一致/u,
+  );
+});
+
+test("receipt authority rejects a stale task when another same-conversation task runs", async () => {
+  const value = await setup(true);
+  const intent = await value.submissions.prepare({
+    jdId: "jd-1", resumeId: "resume-1",
+    targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
+  });
+  await value.submissions.confirm(intent.id);
+  const receipt = await value.submissions.submit({
+    intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
+  });
+  const firstTask = (await value.harness.tasks.list())[0]!;
+  await value.harness.tasks.setHostStatus(firstTask.id, "paused");
+  const secondTask = await value.harness.tasks.create("conversation", "Second task");
+  const now = Date.now();
+  await value.harness.grants.create({
+    ownerId: "owner", taskId: secondTask.id, taskGoalHash: secondTask.goalHash,
+    allowedDomains: [], blockedDomains: [], allowedActions: ["task.lifecycle"],
+    jobCriteria: {}, assetPolicy: {}, answerPolicy: {}, submissionBudget: {},
+    unattended: true, validFrom: new Date(now - 1_000).toISOString(),
+    expiresAt: new Date(now + 60_000).toISOString(), policyVersion: "test",
+    confirmedByUserAt: new Date(now).toISOString(),
+  });
+  await value.harness.tasks.startRun({ taskId: secondTask.id, wakeCause: "user" });
+  await assert.rejects(
+    () => value.submissions.syncReceipt(receipt.id),
+    /当前 AgentTask\/Conversation 不一致/u,
+  );
+  const approvals = createActionApprovalManager({
+    experienceWriter: {} as never,
+    importProposalStore: new ExperienceImportProposalStore(),
+    applicationSubmissions: value.submissions,
+  });
+  const confirmTool = createApplicationSubmissionTools(value.submissions, approvals)
+    .find((tool) => tool.name === "confirm_submission_receipt")!;
+  await assert.rejects(
+    () => confirmTool.execute("stale-task", { receiptId: receipt.id }),
+    /当前 AgentTask\/Conversation 不一致/u,
+  );
+  assert.equal(approvals.listPending().length, 0);
+});
+
+test("user confirmation of a pending receipt creates one Application idempotently", async () => {
+  const value = await setup(true, false, "passed", 1);
+  const intent = await value.submissions.prepare({
+    jdId: "jd-1", resumeId: "resume-1",
+    targetUrl: "https://jobs.example/apply", submitFillId: "submit-1",
+  });
+  await value.submissions.confirm(intent.id);
+  const receipt = await value.submissions.submit({
+    intentId: intent.id, confirmationKind: "text", confirmationValue: "received",
+  });
+  const approvals = createActionApprovalManager({
+    experienceWriter: {} as never,
+    importProposalStore: new ExperienceImportProposalStore(),
+    applicationSubmissions: value.submissions,
+  });
+  const confirmTool = createApplicationSubmissionTools(value.submissions, approvals)
+    .find((tool) => tool.name === "confirm_submission_receipt")!;
+  const capability = applyToolCapabilities([confirmTool])[0]!.capability;
+  assert.deepEqual(capability.requiredScopes, ["tracker.application.create"]);
+  assert.equal(capability.idempotency, "receipt_reconcile");
+  assert.equal(capability.requiresFreshObservation, false);
+  assert.equal(capability.unattendedAllowed, true);
+  const executionPolicyTool = { ...confirmTool, executionMode: "parallel" as const };
+  assert.equal(
+    applyExecutionPolicies([executionPolicyTool])[0]!.executionMode,
+    "sequential",
+  );
+  const hooks = new ManagedTaskPolicyHooks({
+    conversationId: "conversation", services: value.harness, browser: value.browser,
+    tools: applyToolCapabilities([confirmTool]), sitePolicyAllows: () => true,
+  });
+  const toolCall = {
+    type: "toolCall" as const, name: confirmTool.name,
+    id: "confirm-request", arguments: { receiptId: receipt.id },
+  };
+  assert.equal(await hooks.beforeToolCall({
+    toolCall, args: { receiptId: receipt.id },
+    assistantMessage: { content: [toolCall] } as never, context: {} as never,
+  }), undefined);
+  const request = await confirmTool.execute("confirm", { receiptId: receipt.id });
+  const details = request.details as { approvalRequestId: string; taskId: string };
+  assert.equal(details.taskId, intent.taskId);
+  assert.equal(value.applicationCreateCalls, 0);
+  assert.equal(value.submitCalls.length, 1);
+  assert.equal(approvals.listPending().length, 1);
+
+  const waitingTask = await value.harness.tasks.findRunningByConversation("conversation");
+  await value.harness.tasks.finishRun({
+    taskId: waitingTask!.id, runId: waitingTask!.activeRunId!,
+    taskStatus: "waiting",
+    waiting: { reason: "approval", wakeAfter: null, eventTypes: ["approval.accepted"] },
+    stopReason: "waiting for receipt confirmation",
+  });
+  assert.equal((await value.harness.tasks.get(waitingTask!.id)).activeRunId, null);
+
+  await approvals.resolve(details.approvalRequestId, { type: "accept" });
+  const afterAccept = (await value.harness.submissions.list(intent.taskId))[0]!;
+  assert.ok(afterAccept.userConfirmedAt);
+  assert.equal(afterAccept.applicationId, null);
+  assert.equal(value.applicationCreateCalls, 0);
+  assert.equal(value.submitCalls.length, 1);
+
+  const synced = await value.submissions.syncReceipt(receipt.id);
+  assert.equal(synced.applicationId, "application-1");
+  assert.equal(value.applicationCreateCalls, 1);
+  assert.equal(value.submitCalls.length, 1);
+  await value.harness.tasks.startRun({
+    taskId: waitingTask!.id, wakeCause: "user",
+  });
+
+  const repeatedRequest = await confirmTool.execute("confirm-again", {
+    receiptId: receipt.id,
+  });
+  await approvals.resolve(
+    (repeatedRequest.details as { approvalRequestId: string }).approvalRequestId,
+    { type: "accept" },
+  );
+  const repeated = (await value.harness.submissions.list(intent.taskId))[0]!;
+  assert.equal(repeated.id, receipt.id);
+  assert.equal(repeated.applicationId, "application-1");
+  assert.equal(value.applicationCreateCalls, 1);
+  assert.equal(value.submitCalls.length, 1);
 });
 
 test("submission preparation rejects duplicate Application and unqualified Resume", async () => {
@@ -142,7 +365,8 @@ test("started SubmissionIntent reconciles to pending without a second site click
   });
   assert.equal(receipt.status, "pending");
   assert.equal(value.submitCalls.length, 0);
-  assert.equal(receipt.applicationId, "application-1");
+  assert.equal(receipt.applicationId, null);
+  assert.equal(value.applicationCreateCalls, 0);
 });
 
 test("deleting an Application removes its retained submission intent and receipt", async () => {
@@ -169,6 +393,8 @@ async function setup(
   waitFails: boolean,
   duplicate = false,
   qualityStatus: "passed" | "needs_revision" = "passed",
+  trackerWriteFailures = 0,
+  existingApplicationId?: string,
 ) {
   const ownerId = "owner";
   const harness = new AgentHarnessServices(
@@ -206,6 +432,7 @@ async function setup(
     },
   } as unknown as BrowserAgentController;
   const applicationInputs: ApplicationCreateInput[] = [];
+  let applicationCreateCalls = 0;
   let proposalSequence = 0;
   const proposals = {
     prepareCreate: async (input: ApplicationCreateInput) => {
@@ -222,30 +449,49 @@ async function setup(
         preparedAt: new Date().toISOString(),
       } as const;
     },
-    execute: async (): Promise<ApplicationRecord> => ({
-      id: "application-1", jdId: "jd-1", resumeId: "resume-1",
-      companyName: "Acme", roleName: "Backend Engineer",
-      jdTitleSnapshot: "Backend Engineer", resumeTitleSnapshot: "Resume",
-      resumeContentHashSnapshot: "a".repeat(64), deliveryMethod: "form_fill",
-      targetUrl: "https://jobs.example/apply", appliedAt: new Date().toISOString(),
-      status: "applied", pendingConfirmation: waitFails, source: "browser",
-      dedupeKey: "dedupe", companyBusiness: null, roleSummary: null,
-      companyCulture: null, rejectionReason: null, entityVersion: 1,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      deletedAt: null, syncStatus: "pending",
-    }),
+    findExistingBySubmissionKey: async () => existingApplicationId
+      ? ({ id: existingApplicationId } as ApplicationRecord)
+      : undefined,
+    execute: async (): Promise<ApplicationRecord> => {
+      if (trackerWriteFailures > 0) {
+        trackerWriteFailures -= 1;
+        throw new Error("Tracker 写入失败");
+      }
+      applicationCreateCalls += 1;
+      return {
+        id: "application-1", jdId: "jd-1", resumeId: "resume-1",
+        companyName: "Acme", roleName: "Backend Engineer",
+        jdTitleSnapshot: "Backend Engineer", resumeTitleSnapshot: "Resume",
+        resumeContentHashSnapshot: "a".repeat(64), deliveryMethod: "form_fill",
+        targetUrl: "https://jobs.example/apply", appliedAt: new Date().toISOString(),
+        status: "applied", pendingConfirmation: false, source: "browser",
+        dedupeKey: "dedupe", companyBusiness: null, roleSummary: null,
+        companyCulture: null, rejectionReason: null, entityVersion: 1,
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        deletedAt: null, syncStatus: "pending",
+      };
+    },
   } as unknown as ApplicationProposalService;
-  const submissions = new ApplicationSubmissionService(
-    "conversation", harness, browser,
-    { getJd: async () => ({
+  const jds = {
+    getJd: async () => ({
       id: "jd-1", title: "Backend Engineer", company: "Acme",
       targetRole: "Backend Engineer",
-    }) } as never,
-    { getResume: async () => ({
+    }),
+  } as never;
+  const resumes = {
+    getResume: async () => ({
       id: "resume-1", title: "Resume", contentHash: "a".repeat(64),
       qualityStatus, status: "active",
-    }) } as never,
-    proposals, { cleanupTask: async () => undefined } as never,
-  );
-  return { harness, submissions, submitCalls, applicationInputs };
+    }),
+  } as never;
+  const uploads = { cleanupTask: async () => undefined } as never;
+  const createService = (conversationId = "conversation") =>
+    new ApplicationSubmissionService(
+      conversationId, harness, browser, jds, resumes, proposals, uploads,
+    );
+  const submissions = createService();
+  return {
+    harness, submissions, createService, browser, submitCalls, applicationInputs,
+    get applicationCreateCalls() { return applicationCreateCalls; },
+  };
 }

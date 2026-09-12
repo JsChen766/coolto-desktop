@@ -17,6 +17,7 @@ import {
 } from "../../../tools/ai-native-loop-templates.js";
 import { EXTENDED_LOOP_IPC_CHANNELS, registerExtendedLoopIpc } from
   "./extended-loop-ipc.js";
+import { assertMailConnectionsBelongToAccount } from "./validate-mail-schedule-connections.js";
 export const AGENT_TASK_IPC_CHANNELS = [
   "agent-tasks:list", "agent-tasks:get", "agent-tasks:prepare",
   "agent-tasks:execute-proposal", "agent-tasks:start", "agent-tasks:resume",
@@ -54,9 +55,7 @@ export function registerAgentTaskIpc(
     const current = await services();
     const input = parseMailScheduleLoopInput(value);
     const available = new Set((await current.mailConnections.list()).map((item) => item.id));
-    if (input.mailConnectionIds.some((id) => !available.has(id))) {
-      throw new Error("邮件 Loop 包含不存在或不属于当前账号的邮箱连接");
-    }
+    assertMailConnectionsBelongToAccount(input.mailConnectionIds, available);
     return current.agentTaskProposals.prepare(mailScheduleLoopTemplate(input));
   });
   ipcMain.handle("agent-tasks:execute-proposal", async (_event, value: unknown) => {

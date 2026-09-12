@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
   mkdir, readFile, readdir, rm, unlink, writeFile,
 } from "node:fs/promises";
@@ -8,46 +8,31 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { app } from "electron";
 
 import { sanitizeAgentMessagesForPersistence } from "../../agent/persistence-policy.js";
-import type {
-  ConversationDetail,
-  ConversationRunTerminal,
-  ConversationSummary,
-  MessageAttachment,
-} from "../shared/types.js";
+import type { ConversationDetail, ConversationRunTerminal, ConversationSummary, MessageAttachment } from "../shared/types.js";
 import type { ResumeDraftArtifactReference } from "../../resume/draft/types.js";
-import {
-  mergeExperienceImportResult,
-  type ExperienceImportResultDetails,
-} from "../../import/result-artifact.js";
+import { mergeExperienceImportResult, type ExperienceImportResultDetails } from "../../import/result-artifact.js";
 import { projectConversationMessages } from "./conversation-presentation.js";
 import { mergeMessageAttachments } from "./conversation-attachments.js";
 import { renameWithRetry } from "./atomic-rename.js";
 import {
-  UNTITLED_CONVERSATION,
-  assertConversationId,
-  conversationDetail,
-  conversationSummary,
-  decryptConversation,
-  deriveConversationTitle,
-  encryptConversation,
-  isMissingConversationFile,
-  isStoredConversation,
-  type StoredConversation,
-  withArtifactAnchor,
+  UNTITLED_CONVERSATION, assertConversationId, conversationDetail, conversationSummary,
+  decryptConversation, deriveConversationTitle, encryptConversation, isMissingConversationFile,
+  isStoredConversation, type StoredConversation, withArtifactAnchor,
 } from "./conversation-record.js";
+import { assertNoAmbiguousLegacyDirectory, localScopeDigest, requireScopedEnvelope, scopedDirectories } from "../../privacy/local-scope.js";
 
 export class ConversationStore {
   readonly #ownerId: string;
+  readonly #apiBaseUrl: string;
   readonly #directory: string;
+  readonly #legacyDirectory: string;
 
-  public constructor(ownerId: string) {
+  public constructor(apiBaseUrl: string, ownerId: string) {
+    this.#apiBaseUrl = apiBaseUrl;
     this.#ownerId = ownerId;
-    const ownerHash = createHash("sha256").update(ownerId).digest("hex").slice(0, 20);
-    this.#directory = join(
-      app.getPath("userData"),
-      "conversations",
-      ownerHash,
-    );
+    const paths = scopedDirectories(app.getPath("userData"), "conversations", apiBaseUrl, ownerId);
+    this.#directory = paths.directory;
+    this.#legacyDirectory = paths.legacyDirectory;
   }
 
   public async list(): Promise<ConversationSummary[]> {
@@ -215,9 +200,6 @@ export class ConversationStore {
     await rm(this.#directory, { recursive: true, force: true });
   }
 
-  async #ensureDirectory(): Promise<void> {
-    await mkdir(this.#directory, { recursive: true, mode: 0o700 });
-  }
 
   #pathFor(conversationId: string): string {
     return join(this.#directory, `${conversationId}.coolto`);
@@ -228,7 +210,13 @@ export class ConversationStore {
       const encrypted = await readFile(path);
       const serialized = decryptConversation(encrypted);
       const parsed = JSON.parse(serialized) as unknown;
-      return isStoredConversation(parsed) ? parsed : undefined;
+      const record = requireScopedEnvelope<StoredConversation>(
+        parsed,
+        this.#apiBaseUrl,
+        this.#ownerId,
+      );
+      if (!isStoredConversation(record)) throw new Error("本地对话格式无效");
+      return record;
     } catch (error: unknown) {
       if (isMissingConversationFile(error)) {
         return undefined;
@@ -241,8 +229,17 @@ export class ConversationStore {
     await this.#ensureDirectory();
     const destination = this.#pathFor(record.id);
     const temporary = `${destination}.${randomUUID()}.tmp`;
-    const encrypted = encryptConversation(JSON.stringify(record));
+    const encrypted = encryptConversation(JSON.stringify({
+      scopeDigest: localScopeDigest(this.#apiBaseUrl, this.#ownerId),
+      ownerId: this.#ownerId,
+      value: record,
+    }));
     await writeFile(temporary, encrypted, { mode: 0o600 });
     await renameWithRetry(temporary, destination);
+  }
+
+  async #ensureDirectory(): Promise<void> {
+    await assertNoAmbiguousLegacyDirectory(this.#legacyDirectory, this.#directory);
+    await mkdir(this.#directory, { recursive: true, mode: 0o700 });
   }
 }

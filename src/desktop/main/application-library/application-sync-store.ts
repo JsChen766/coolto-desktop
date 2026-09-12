@@ -93,6 +93,7 @@ export class ApplicationSyncStore {
   public async updateApplication(
     id: string,
     input: ApplicationUpdateInput,
+    operationId = createUuidV7(),
   ): Promise<ApplicationRecord> {
     await this.initialSync();
     const entity = this.#active(id);
@@ -100,7 +101,7 @@ export class ApplicationSyncStore {
     const snapshots = this.#updateSnapshots(current, input);
     const now = new Date().toISOString();
     this.store.enqueue({
-      operationId: createUuidV7(),
+      operationId,
       entityType: "application",
       entityId: entity.entityId,
       action: "update",
@@ -115,6 +116,7 @@ export class ApplicationSyncStore {
   public async transitionApplication(
     id: string,
     input: ApplicationTransitionInput,
+    operationId = createUuidV7(),
   ): Promise<ApplicationRecord> {
     await this.initialSync();
     const entity = this.#active(id);
@@ -124,7 +126,7 @@ export class ApplicationSyncStore {
     }
     const now = new Date().toISOString();
     this.store.enqueue({
-      operationId: createUuidV7(),
+      operationId,
       entityType: "application",
       entityId: entity.entityId,
       action: "transition",
@@ -136,12 +138,15 @@ export class ApplicationSyncStore {
     return this.#finish(entity.entityId);
   }
 
-  public async deleteApplication(id: string): Promise<ApplicationTombstone> {
+  public async deleteApplication(
+    id: string,
+    operationId = createUuidV7(),
+  ): Promise<ApplicationTombstone> {
     await this.initialSync();
     const entity = this.#active(id);
     const now = new Date().toISOString();
     this.store.enqueue({
-      operationId: createUuidV7(),
+      operationId,
       entityType: "application",
       entityId: entity.entityId,
       action: "delete",

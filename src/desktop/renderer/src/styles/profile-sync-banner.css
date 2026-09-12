@@ -1,0 +1,77 @@
+.profile-sync-banner {
+  flex: 0 0 auto;
+  margin: 8px 22px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 5px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.35;
+  background: color-mix(in srgb, var(--muted) 10%, var(--surface));
+}
+
+.profile-sync-banner.pending {
+  background: color-mix(in srgb, #9a7a2a 12%, var(--surface));
+}
+
+.profile-sync-banner.conflict,
+.profile-sync-banner.failed {
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface));
+}
+
+.profile-sync-banner-icon {
+  flex-shrink: 0;
+  display: block;
+  color: var(--text-soft);
+}
+
+.profile-sync-banner.pending .profile-sync-banner-icon {
+  color: #9a7a2a;
+}
+
+.profile-sync-banner.conflict .profile-sync-banner-icon,
+.profile-sync-banner.failed .profile-sync-banner-icon {
+  color: var(--danger);
+}
+
+.profile-sync-banner-title {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.profile-sync-banner-sep,
+.profile-sync-banner-detail {
+  color: var(--muted);
+}
+
+.profile-sync-banner-link {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.profile-sync-banner-link:hover:not(:disabled) {
+  color: var(--text-soft);
+}
+
+.profile-sync-banner-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 820px) {
+  .profile-sync-banner {
+    margin-left: 18px;
+    margin-right: 18px;
+  }
+}

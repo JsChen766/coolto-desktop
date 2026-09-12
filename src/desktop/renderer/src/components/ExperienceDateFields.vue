@@ -5,6 +5,9 @@ import type {
   ExperienceFormErrors,
   StartDateMode,
 } from "../experiences/experience-form";
+import DialogSelect from "./DialogSelect.vue";
+import type { DialogSelectOption } from "./dialog-select-types";
+import { translate } from "../i18n/locale";
 
 const props = defineProps<{
   draft: ExperienceFormDraft;
@@ -15,18 +18,25 @@ const emit = defineEmits<{
   update: [changes: Partial<ExperienceFormDraft>];
 }>();
 
-function startMode(event: Event): void {
-  emit("update", {
-    startMode: (event.target as HTMLSelectElement).value as StartDateMode,
-    startValue: "",
-  });
+const startModeOptions: DialogSelectOption[] = [
+  { value: "none", label: translate("未填写") },
+  { value: "month", label: translate("按月") },
+  { value: "day", label: translate("精确到日") },
+];
+
+const endModeOptions: DialogSelectOption[] = [
+  { value: "none", label: translate("未填写") },
+  { value: "present", label: translate("至今") },
+  { value: "month", label: translate("按月") },
+  { value: "day", label: translate("精确到日") },
+];
+
+function setStartMode(value: string): void {
+  emit("update", { startMode: value as StartDateMode, startValue: "" });
 }
 
-function endMode(event: Event): void {
-  emit("update", {
-    endMode: (event.target as HTMLSelectElement).value as EndDateMode,
-    endValue: "",
-  });
+function setEndMode(value: string): void {
+  emit("update", { endMode: value as EndDateMode, endValue: "" });
 }
 </script>
 
@@ -35,17 +45,14 @@ function endMode(event: Event): void {
     <label class="experience-form-field">
       <span>{{ $t('开始时间') }}</span>
       <div class="experience-date-control">
-        <select
+        <DialogSelect
           data-field="startDate"
-          :value="draft.startMode"
+          :model-value="draft.startMode"
+          :options="startModeOptions"
           :disabled="disabled"
           :aria-label="$t('开始时间精度')"
-          @change="startMode"
-        >
-          <option value="none">{{ $t('未填写') }}</option>
-          <option value="month">{{ $t('按月') }}</option>
-          <option value="day">{{ $t('精确到日') }}</option>
-        </select>
+          @update:model-value="setStartMode"
+        />
         <input
           v-if="draft.startMode === 'month'"
           type="month"
@@ -71,18 +78,14 @@ function endMode(event: Event): void {
     <label class="experience-form-field">
       <span>{{ $t('结束时间') }}</span>
       <div class="experience-date-control">
-        <select
+        <DialogSelect
           data-field="endDate"
-          :value="draft.endMode"
+          :model-value="draft.endMode"
+          :options="endModeOptions"
           :disabled="disabled"
           :aria-label="$t('结束时间类型')"
-          @change="endMode"
-        >
-          <option value="none">{{ $t('未填写') }}</option>
-          <option value="present">{{ $t('至今') }}</option>
-          <option value="month">{{ $t('按月') }}</option>
-          <option value="day">{{ $t('精确到日') }}</option>
-        </select>
+          @update:model-value="setEndMode"
+        />
         <input
           v-if="draft.endMode === 'month'"
           type="month"

@@ -41,7 +41,7 @@ test("ApplicationSyncStore creates from local asset snapshots through Outbox", a
   assert.equal(triggers, 1);
 });
 
-test("Application proposal freezes Resume hash before Outbox execution", async () => {
+test("Application proposal rejects Resume hash drift before Outbox execution", async () => {
   const storage = new FakeStorage();
   storage.seed("job_description", "jd-1", { title: "JD snapshot" });
   storage.seed("resume", "resume-1", {
@@ -63,10 +63,11 @@ test("Application proposal freezes Resume hash before Outbox execution", async (
     title: "Resume renamed",
     contentHash: "c".repeat(64),
   });
-  const created = await proposals.execute(proposal.id);
-  assert.equal(proposal.resumeContentHashSnapshot, "b".repeat(64));
-  assert.equal(created.resumeContentHashSnapshot, "b".repeat(64));
-  assert.equal(storage.operations.at(-1)?.action, "create");
+  await assert.rejects(
+    () => proposals.execute(proposal.id),
+    /投递 JD 或 Resume 已变化/u,
+  );
+  assert.equal(storage.operations.length, 0);
 });
 
 test("Application duplicate warning uses latest applied fact", async () => {

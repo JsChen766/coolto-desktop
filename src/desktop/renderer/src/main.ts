@@ -33,6 +33,7 @@ import "./styles/experience-import.css";
 import "./styles/experience-history.css";
 import "./styles/experience-library-responsive.css";
 import "./styles/profile-dialog.css";
+import "./styles/profile-sync-banner.css";
 
 initializeLocale();
 const app = createApp(App);

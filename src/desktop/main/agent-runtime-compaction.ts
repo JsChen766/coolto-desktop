@@ -9,5 +9,8 @@ export async function compactBeforeAgentPrompt(
   await maybeCompactAgentContext(context.agent, {
     ...context.compaction,
     ...(thresholdTokens === undefined ? {} : { thresholdTokens }),
+    ...(context.profilePreferenceAuthority
+      ? { profilePreferenceAuthority: context.profilePreferenceAuthority }
+      : {}),
   }).catch(() => false);
 }

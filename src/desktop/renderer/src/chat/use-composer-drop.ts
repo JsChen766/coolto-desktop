@@ -1,10 +1,9 @@
 import { shallowRef } from "vue";
 
-import type { ResumeChatReference } from "@desktop/types";
-import { desktopApi } from "../lib/desktop-api";
+import type { ResumeChatReference } from "../../../shared/types.js";
 
 interface ComposerDropOptions {
-  selectAttachmentPath(path: string): void;
+  selectAttachmentFile(file: File): void;
   selectResumeReference(reference: ResumeChatReference): void;
 }
 
@@ -55,12 +54,7 @@ export function useComposerDrop(options: ComposerDropOptions) {
   }
 
   function selectFile(file: File): void {
-    try {
-      const path = desktopApi.getPathForFile(file);
-      if (path) options.selectAttachmentPath(path);
-    } catch {
-      return;
-    }
+    options.selectAttachmentFile(file);
   }
 
   return {

@@ -20,4 +20,16 @@ export function pruneAgentHarnessState(
   state.policyDecisions = state.policyDecisions.filter((decision) =>
     Date.parse(decision.decidedAt) >= receiptCutoff,
   );
+  state.stageTransitions = (state.stageTransitions ?? []).filter((transition) =>
+    Date.parse(transition.createdAt) >= receiptCutoff,
+  );
+  state.preferenceSuppressions = state.preferenceSuppressions.filter((entry) =>
+    Date.parse(entry.expiresAt) >= now,
+  );
+  state.preferenceSuggestions = state.preferenceSuggestions.filter((suggestion) =>
+    Date.parse(suggestion.expiresAt) >= now,
+  );
+  state.preferenceUsage = state.preferenceUsage.filter((usage) =>
+    usage.lastUsedAt === null || Date.parse(usage.lastUsedAt) >= receiptCutoff,
+  );
 }

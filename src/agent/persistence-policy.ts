@@ -16,6 +16,7 @@ const TRANSIENT_TOOL_NAMES = new Set([
   "prepare_application_submission",
   "browser_submit",
   "sync_submission_receipt",
+  "confirm_submission_receipt",
   "get_answer_vault",
   "prepare_answer_vault_entry",
   "fetch_inbox_events",
@@ -29,6 +30,12 @@ const TRANSIENT_TOOL_NAMES = new Set([
   "select_delivery_resume_file",
   "browser_upload_delivery_resume",
   "save_selected_file_as_delivery_resume",
+  "get_user_profile",
+  "prepare_profile_update",
+  "get_preferences",
+  "resolve_preferences",
+  "prepare_preference_change",
+  "get_preference_suggestions",
 ]);
 
 interface ToolResultLike {
@@ -51,24 +58,39 @@ export function sanitizeAgentMessagesForPersistence(
   messages: readonly AgentMessage[],
 ): AgentMessage[] {
   return messages.map((message) => {
-    if (!isTransientToolResult(message)) {
-      return structuredClone(message);
-    }
-    const { details: _details, ...safe } = structuredClone(message);
-    return {
-      ...safe,
-      content: [
-        {
+    if (isTransientToolResult(message)) {
+      const { details: _details, ...safe } = structuredClone(message);
+      return {
+        ...safe,
+        content: [{
           type: "text",
           text: JSON.stringify({
             transient: true,
             toolName: message.toolName,
             instruction: expirationInstruction(message.toolName),
           }),
-        },
-      ],
-    } as AgentMessage;
+        }],
+      } as AgentMessage;
+    }
+    if (message.role === "assistant") return sanitizeAssistantMessage(message);
+    return structuredClone(message);
   });
+}
+
+function sanitizeAssistantMessage(message: Extract<AgentMessage, { role: "assistant" }>): AgentMessage {
+  return {
+    ...structuredClone(message),
+    content: message.content.map((part) => part.type === "toolCall" &&
+        TRANSIENT_TOOL_NAMES.has(part.name)
+      ? {
+          ...part,
+          arguments: {
+            transient: true, toolName: part.name,
+            instruction: expirationInstruction(part.name),
+          },
+        }
+      : structuredClone(part)),
+  } as AgentMessage;
 }
 
 function expirationInstruction(toolName: string): string {
@@ -78,8 +100,8 @@ function expirationInstruction(toolName: string): string {
   if (toolName === "fetch_job_source" || toolName === "list_job_leads") {
     return "This job source payload expired when the transcript was persisted. Call list_job_leads or fetch_job_source again; BrowserLead facts remain in the encrypted local task store.";
   }
-  if (["prepare_application_submission", "browser_submit", "sync_submission_receipt"]
-    .includes(toolName)) {
+  if (["prepare_application_submission", "browser_submit", "sync_submission_receipt",
+    "confirm_submission_receipt"].includes(toolName)) {
     return "This submission tool payload expired when the transcript was persisted. Re-read the SubmissionReceipt/Tracker state and re-observe the site; never click submit from stale transcript data.";
   }
   if (toolName === "get_answer_vault" || toolName === "prepare_answer_vault_entry") {
@@ -92,6 +114,10 @@ function expirationInstruction(toolName: string): string {
   }
   if (isBrowserTool(toolName)) {
     return "This browser observation/action result expired when the transcript was persisted. Re-open the App browser and call browser_get_active_tab/browser_snapshot again before acting; never reuse old page state or element IDs.";
+  }
+  if (["get_user_profile", "prepare_profile_update", "get_preferences",
+    "resolve_preferences", "prepare_preference_change"].includes(toolName)) {
+    return "This Profile/Preference result expired when the transcript was persisted. Re-read the current local projection and prepare a fresh approval; never reuse contact, target, rule or approval payload values.";
   }
   if (toolName === "get_resume") {
     return "This Resume content expired when the task was persisted. Call get_resume again with the exact resumeId or artifactId before using it.";

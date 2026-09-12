@@ -273,3 +273,53 @@ test("managed hooks allow a supervised user run but gate background wake", async
     /unattended_not_granted/u,
   );
 });
+
+test("managed hooks classify observe by tool side effect, not broad scopes", async () => {
+  const value = harness();
+  const granted = await createGrantedTask(value, ["browser.read", "browser.write"]);
+  const run = await value.tasks.startRun({ taskId: granted.task.id, wakeCause: "user" });
+  const services = new AgentHarnessServices(ownerId, value.repository);
+  services.stages.start({
+    ownerId, taskId: granted.task.id, runId: run.id,
+    grantHash: granted.grant.contentHash,
+  });
+  const tools = applyToolCapabilities([{
+    name: "browser_fill_field", label: "fill", description: "", parameters: {} as never,
+    execute: async () => ({ content: [], details: {} }),
+  }]);
+  const hooks = new ManagedTaskPolicyHooks({
+    conversationId: granted.task.conversationId, services,
+    browser: { getActiveTab: () => null } as unknown as BrowserAgentController,
+    tools, sitePolicyAllows: () => true,
+  });
+  const call = { type: "toolCall" as const, name: "browser_fill_field", id: "legacy-write", arguments: {} };
+  const result = await hooks.beforeToolCall({
+    toolCall: call, args: {}, assistantMessage: { content: [call] } as never,
+    context: {} as never,
+  });
+  assert.match(result?.reason ?? "", /stage_scope_not_granted/u);
+
+  const mailValue = harness();
+  const mailGrant = await createGrantedTask(mailValue, ["mail.classify"]);
+  const mailRun = await mailValue.tasks.startRun({ taskId: mailGrant.task.id, wakeCause: "user" });
+  const mailServices = new AgentHarnessServices(ownerId, mailValue.repository);
+  mailServices.stages.start({
+    ownerId, taskId: mailGrant.task.id, runId: mailRun.id,
+    grantHash: mailGrant.grant.contentHash,
+  });
+  const mailTools = applyToolCapabilities([{
+    name: "record_inbox_signal", label: "classify", description: "", parameters: {} as never,
+    execute: async () => ({ content: [], details: {} }),
+  }]);
+  const mailHooks = new ManagedTaskPolicyHooks({
+    conversationId: mailGrant.task.conversationId, services: mailServices,
+    browser: { getActiveTab: () => null } as unknown as BrowserAgentController,
+    tools: mailTools, sitePolicyAllows: () => true,
+  });
+  const mailCall = { type: "toolCall" as const, name: "record_inbox_signal", id: "legacy-classify", arguments: {} };
+  const mailResult = await mailHooks.beforeToolCall({
+    toolCall: mailCall, args: {}, assistantMessage: { content: [mailCall] } as never,
+    context: {} as never,
+  });
+  assert.match(mailResult?.reason ?? "", /stage_scope_not_granted/u);
+});

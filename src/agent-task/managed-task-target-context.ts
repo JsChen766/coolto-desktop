@@ -7,8 +7,8 @@ export function managedTaskTargetContext(
   args: unknown,
 ): { tabId: string | null; url: string | null; origin: string | null } {
   const usesBrowser = toolName.startsWith("browser_") || [
-    "extract_page", "request_write_access", "prepare_application_submission",
-    "capture_browser_mail_event",
+    "extract_page", "recognize_recruiting_page", "request_write_access",
+    "prepare_application_submission", "capture_browser_mail_event",
   ].includes(toolName);
   if (!usesBrowser) return { tabId: null, url: null, origin: null };
   const active = browser.getActiveTab();

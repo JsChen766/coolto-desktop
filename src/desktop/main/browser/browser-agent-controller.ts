@@ -44,7 +44,7 @@ export class BrowserAgentControllerImpl implements BrowserAgentController {
 
   public constructor(private readonly deps: BrowserAgentControllerDeps) {
     this.#downloads = new BrowserDownloadTracker(
-      getBrowserSession(),
+      () => getBrowserSession(),
       process.env.COOLTO_BROWSER_QA_DOWNLOAD_ROOT ?? app.getPath("downloads"),
       deps.onDownloadsChanged,
     );

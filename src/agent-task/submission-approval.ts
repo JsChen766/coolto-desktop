@@ -25,6 +25,25 @@ export function createSubmissionApprovalDraft(intent: SubmissionIntentV1): Appro
     },
   };
 }
+export function createSubmissionReceiptConfirmationDraft(
+  receiptId: string,
+): ApprovalDraft {
+  return {
+    actionType: SUBMISSION_CONFIRM_ACTION,
+    scopeKey: `submission-receipt:${receiptId}`,
+    risk: "write",
+    title: "确认待核验投递已发生",
+    description:
+      "用户明确确认站点结果后，接受此卡才会创建唯一 Tracker Application；不会再次点击站点提交。",
+    preview: {
+      summary: [{ label: "SubmissionReceipt", value: receiptId }],
+      warnings: [
+        "这只确认既有本地投递回执，不会重新访问或提交招聘网站。",
+        "拒绝不会创建 Application。",
+      ],
+    },
+  };
+}
 
 function safeOrigin(value: string): string {
   try { return new URL(value).origin; } catch { return "无效地址"; }

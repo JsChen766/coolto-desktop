@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { chmod, mkdir } from "node:fs/promises";
+import { chmod, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -11,10 +10,12 @@ import type {
   SyncOperationResult,
   SyncPage,
 } from "../../../sync/types.js";
+import { syncScopeKey } from "../../../privacy/local-scope.js";
 import { initializeLocalSyncSchema } from "./local-sync-schema.js";
 import type {
   EnqueueMutation,
   LocalEntity,
+  LocalPayloadMerger,
   PendingOperation,
   SyncIssue,
 } from "./local-sync-types.js";
@@ -30,6 +31,9 @@ import { withImmediateTransaction } from "./sqlite-transaction.js";
 import { SyncKeyStore } from "./sync-key-store.js";
 import { SyncRecoveryStore } from "./sync-recovery-store.js";
 import { ReminderDeliveryStore } from "./reminder-delivery-store.js";
+import {
+  assertOwnedSyncDirectoryTarget,
+} from "./sync-directory.js";
 
 interface StateRow {
   mode: LocalSyncState["mode"];
@@ -47,18 +51,24 @@ export class LocalSyncStore {
   private constructor(
     private readonly database: DatabaseSync,
     codec: SyncPayloadCodec,
+    private readonly directory: string,
+    private readonly mergeLocalPayload?: LocalPayloadMerger,
   ) {
-    this.#outbox = new LocalOutboxStore(database, codec);
-    this.#remote = new RemotePageWriter(database, codec);
+    this.#outbox = new LocalOutboxStore(database, codec, mergeLocalPayload);
+    this.#remote = new RemotePageWriter(database, codec, mergeLocalPayload);
     this.#createIdentities = new LocalCreateIdentityStore(database);
     this.#entities = new LocalEntityStore(database, codec);
-    this.#recovery = new SyncRecoveryStore(database, codec);
+    this.#recovery = new SyncRecoveryStore(database, codec, mergeLocalPayload);
     this.#reminderDeliveries = new ReminderDeliveryStore(database);
   }
 
   public static async open(
     apiBaseUrl: string,
     userId: string,
+    mergeLocalPayloadFactory?: (
+      database: DatabaseSync,
+      ownerId: string,
+    ) => LocalPayloadMerger,
   ): Promise<LocalSyncStore> {
     const directory = syncDirectory(apiBaseUrl, userId);
     await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -68,15 +78,21 @@ export class LocalSyncStore {
     try {
       await chmod(databasePath, 0o600);
       initializeLocalSyncSchema(database);
-      return new LocalSyncStore(database, new SyncPayloadCodec(key));
+      const merger = mergeLocalPayloadFactory?.(database, userId);
+      return new LocalSyncStore(database, new SyncPayloadCodec(key), directory, merger);
     } catch (error: unknown) {
       database.close();
       throw error;
     }
-  }
 
+  }
   public close(): void {
     this.database.close();
+  }
+  public async removeLocalDirectory(): Promise<void> {
+    const root = join(app.getPath("userData"), "sync");
+    await assertOwnedSyncDirectoryTarget(root, this.directory);
+    await rm(this.directory, { recursive: true, force: true });
   }
 
   public getState(): LocalSyncState | undefined {
@@ -150,6 +166,19 @@ export class LocalSyncStore {
   ): LocalEntity | undefined {
     return this.#entities.get(entityType, entityId);
   }
+  public hasPendingLocalChanges(
+    entityTypes: readonly SyncEntityType[],
+  ): boolean {
+    if (entityTypes.length === 0) return false;
+    const placeholders = entityTypes.map(() => "?").join(", ");
+    const row = this.database.prepare(`
+      SELECT EXISTS(
+        SELECT 1 FROM sync_entities
+        WHERE entity_type IN (${placeholders}) AND sync_status <> 'clean'
+      ) AS pending
+    `).get(...entityTypes) as { pending: number };
+    return row.pending === 1;
+  }
 
   public listEntities(entityType: SyncEntityType): LocalEntity[] {
     return this.#entities.list(entityType);
@@ -202,16 +231,11 @@ export class LocalSyncStore {
         DELETE FROM reminder_delivery_receipts;
         DELETE FROM sync_state;
       `);
+      this.mergeLocalPayload?.clear?.();
     });
   }
 }
 
 function syncDirectory(apiBaseUrl: string, userId: string): string {
-  const ownerHash = createHash("sha256")
-    .update(apiBaseUrl.replace(/\/+$/, ""))
-    .update("\0")
-    .update(userId)
-    .digest("hex")
-    .slice(0, 24);
-  return join(app.getPath("userData"), "sync", ownerHash);
+  return join(app.getPath("userData"), "sync", syncScopeKey(apiBaseUrl, userId));
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  Archive,
   BriefcaseBusiness,
   Bot,
   FolderOpen,
@@ -8,7 +9,7 @@ import {
 } from "@lucide/vue";
 
 defineProps<{
-  activeView: "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
+  activeView: "chat" | "agent_tasks" | "experiences" | "library" | "tracker" | "material";
   generating: boolean;
 }>();
 defineEmits<{
@@ -16,6 +17,7 @@ defineEmits<{
   openAgentTasks: [];
   openExperiences: [];
   openLibrary: [];
+  openMaterial: [];
   openTracker: [];
 }>();
 </script>
@@ -65,6 +67,17 @@ defineEmits<{
     >
       <FolderOpen :size="16" :stroke-width="1.8" aria-hidden="true" />
       <span>{{ $t('求职仓库') }}</span>
+    </button>
+    <button
+      class="new-chat-button icon-label"
+      :class="{ active: activeView === 'material' }"
+      type="button"
+      :disabled="generating"
+      :title="generating ? $t('正在生成中，完成或停止后再切换') : undefined"
+      @click="$emit('openMaterial')"
+    >
+      <Archive :size="16" :stroke-width="1.8" aria-hidden="true" />
+      <span>{{ $t('材料库') }}</span>
     </button>
     <button
       class="new-chat-button icon-label"

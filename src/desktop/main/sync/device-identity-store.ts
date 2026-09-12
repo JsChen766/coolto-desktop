@@ -1,11 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { app, safeStorage } from "electron";
 
-import { createUuidV7 } from "../../../sync/uuid-v7.js";
+import { canonicalApiOrigin } from "../../../privacy/export-canonical.js";
 
+import { createUuidV7 } from "../../../sync/uuid-v7.js";
 interface StoredIdentities {
   version: 1;
   entries: Record<string, string>;
@@ -28,6 +29,17 @@ export class DeviceIdentityStore {
     identities.entries[key] = deviceId;
     await this.#save(identities);
     return deviceId;
+  }
+  public async clear(apiBaseUrl: string, email: string): Promise<void> {
+    const identities = await this.#load();
+    delete identities.entries[accountKey(apiBaseUrl, email)];
+    if (Object.keys(identities.entries).length === 0) {
+      await unlink(this.#path).catch((error: unknown) => {
+        if (!isMissingFileError(error)) throw error;
+      });
+      return;
+    }
+    await this.#save(identities);
   }
 
   async #load(): Promise<StoredIdentities> {
@@ -56,7 +68,7 @@ export class DeviceIdentityStore {
 
 function accountKey(apiBaseUrl: string, email: string): string {
   return createHash("sha256")
-    .update(apiBaseUrl.replace(/\/+$/, ""))
+    .update(canonicalApiOrigin(apiBaseUrl))
     .update("\0")
     .update(email.trim().toLowerCase())
     .digest("hex");

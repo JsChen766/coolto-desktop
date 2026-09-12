@@ -39,7 +39,7 @@ test("managed Resume PDF stays host-only and is removed with its task", async ()
     await harness.tasks.startRun({ taskId: task.id, wakeCause: "user" });
     let uploadedPath = "";
     const service = new ManagedResumeUploadService(
-      root, "owner", harness,
+      root, "https://qa.example", "owner", harness,
       { getResume: async () => ({
         id: "resume-1", title: "Backend Resume", status: "active",
         qualityStatus: "passed", contentHash: "a".repeat(64),

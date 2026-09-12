@@ -5,10 +5,12 @@ import type { JsonValue } from "../../../agent-task/json-types.js";
 import type { SubmissionIntentV1, SubmissionReceiptV1 } from "../../../agent-task/submission-types.js";
 import type { BrowserAgentController } from "../../../browser/agent-control-types.js";
 import type { ResumePublicationGateway } from "../../../resume/save/types.js";
-import type { ApplicationCreateInput } from "../../../tracker/types.js";
 import type { ApplicationProposalService } from "../application-library/application-proposal-service.js";
 import type { ManagedResumeUploadService } from "./managed-resume-upload-service.js";
+import { createApplicationInput } from "./submission-application-input.js";
+import { SubmissionReceiptRecovery } from "./submission-receipt-recovery.js";
 export class ApplicationSubmissionService {
+  readonly #recovery: SubmissionReceiptRecovery;
   public constructor(
     private readonly conversationId: string,
     private readonly harness: AgentHarnessServices,
@@ -17,7 +19,11 @@ export class ApplicationSubmissionService {
     private readonly resumes: ResumePublicationGateway,
     private readonly applications: ApplicationProposalService,
     private readonly uploads: ManagedResumeUploadService,
-  ) {}
+  ) {
+    this.#recovery = new SubmissionReceiptRecovery(
+      conversationId, harness, applications,
+    );
+  }
   public async prepare(input: {
     jdId: string;
     resumeId: string;
@@ -49,8 +55,9 @@ export class ApplicationSubmissionService {
         !/^[0-9a-f]{64}$/u.test(resume.contentHash)) {
       throw new Error("实际投递 Resume 未通过质量门槛、已归档或缺少有效 hash");
     }
+    const targetUrl = new URL(input.targetUrl).toString();
     const tab = this.browser.getActiveTab();
-    if (!tab?.url || new URL(tab.url).origin !== new URL(input.targetUrl).origin) {
+    if (!tab?.url || new URL(tab.url).origin !== new URL(targetUrl).origin) {
       throw new Error("当前标签页与目标投递 URL origin 不一致");
     }
     const applicationInput = createApplicationInput({
@@ -58,8 +65,7 @@ export class ApplicationSubmissionService {
       resumeId: resume.id,
       company: jd.company ?? "未填写公司",
       role: jd.targetRole ?? jd.title,
-      targetUrl: input.targetUrl,
-      pendingConfirmation: false,
+      targetUrl,
     });
     const proposal = await this.applications.prepareCreate(applicationInput);
     if (proposal.duplicate) throw new Error("同一 JD/Resume 已有投递记录，托管模式拒绝重复投递");
@@ -68,7 +74,7 @@ export class ApplicationSubmissionService {
       applicationProposalId: proposal.id, jdId: jd.id, resumeId: resume.id,
       resumeTitle: resume.title, resumeContentHash: resume.contentHash,
       company: applicationInput.companyName, role: applicationInput.roleName,
-      targetUrl: new URL(input.targetUrl).toString(), tabId: tab.id,
+      targetUrl, tabId: tab.id,
       submitFillId: input.submitFillId, preparedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
     });
@@ -84,7 +90,7 @@ export class ApplicationSubmissionService {
       throw new Error("本次岗位投递尚未获得用户最终确认");
     }
     await this.#assertRunningIntent(intent);
-    const existing = await this.#existingReceipt(intent);
+    const existing = await this.#recovery.existingReceipt(intent);
     if (existing) return existing;
     if (intent.startedAt) return this.#finalize(intent, false);
     const tab = this.browser.getActiveTab();
@@ -98,7 +104,7 @@ export class ApplicationSubmissionService {
     );
     intent = claim.intent;
     if (!claim.claimed) {
-      return (await this.#existingReceipt(intent)) ?? this.#finalize(intent, false);
+      return (await this.#recovery.existingReceipt(intent)) ?? this.#finalize(intent, false);
     }
     let confirmed = true;
     try {
@@ -132,23 +138,14 @@ export class ApplicationSubmissionService {
       resumeContentHash: intent.resumeContentHash, company: intent.company,
       role: intent.role, targetUrl: intent.targetUrl, siteApplicationId: null,
       status: confirmed ? "confirmed" : "pending", applicationId: null,
-      createdAt: new Date().toISOString(),
+      userConfirmedAt: null, createdAt: new Date().toISOString(),
     });
-    await this.syncToTracker(intent, receipt).catch(() => undefined);
+    await this.#recovery.syncToTracker(intent, receipt).catch(() => undefined);
     const result = (await this.harness.submissions.list(intent.taskId))
       .find((value) => value.id === receipt.id)!;
     await this.uploads.cleanupTask(intent.taskId).catch(() => undefined);
     return result;
   }
-
-  async #existingReceipt(
-    intent: SubmissionIntentV1,
-  ): Promise<SubmissionReceiptV1 | undefined> {
-    if (!intent.submissionReceiptId) return undefined;
-    return (await this.harness.submissions.list(intent.taskId))
-      .find((value) => value.id === intent.submissionReceiptId);
-  }
-
   async #authorize(intent: SubmissionIntentV1): Promise<SubmissionIntentV1> {
     const task = await this.#runningTask();
     const active = await this.harness.grants.getActive(task.id);
@@ -177,7 +174,6 @@ export class ApplicationSubmissionService {
       actionTokenId: token.id, expiresAt: token.expiresAt,
     });
   }
-
   async #assertRunningIntent(intent: SubmissionIntentV1): Promise<void> {
     const task = await this.#runningTask();
     const active = await this.harness.grants.getActive(task.id);
@@ -185,38 +181,31 @@ export class ApplicationSubmissionService {
       throw new Error("SubmissionIntent 与当前 running AgentTask 不一致");
     }
   }
-
-  public async syncToTracker(
+  public syncToTracker(
     intent: SubmissionIntentV1,
     receipt: SubmissionReceiptV1,
   ): Promise<SubmissionReceiptV1> {
-    if (receipt.applicationId) return receipt;
-    const proposalId = receipt.status === "confirmed"
-      ? intent.applicationProposalId
-      : (await this.applications.prepareCreate(createApplicationInput({
-          jdId: intent.jdId, resumeId: intent.resumeId,
-          company: intent.company, role: intent.role, targetUrl: intent.targetUrl,
-          pendingConfirmation: true,
-        }))).id;
-    const application = await this.applications.execute(proposalId);
-    return this.harness.submissions.linkApplication(receipt.id, application.id);
+    return this.#recovery.syncToTracker(intent, receipt);
   }
-
-  public async syncReceipt(receiptId: string): Promise<SubmissionReceiptV1> {
-    const task = await this.#runningTask();
-    const receipt = (await this.harness.submissions.list(task.id))
-      .find((value) => value.id === receiptId);
-    if (!receipt) throw new Error("SubmissionReceipt 不存在");
-    const intent = await this.harness.submissions.getIntent(receipt.intentId);
-    return this.syncToTracker(intent, receipt);
+  public syncReceipt(receiptId: string): Promise<SubmissionReceiptV1> {
+    return this.#recovery.syncReceipt(receiptId);
   }
-
+  public confirmReceipt(
+    receiptId: string,
+    taskId: string,
+  ): Promise<SubmissionReceiptV1> {
+    return this.#recovery.confirmReceipt(receiptId, taskId);
+  }
+  public assertReceiptAuthority(
+    receiptId: string,
+  ): Promise<{ taskId: string }> {
+    return this.#recovery.assertReceiptAuthority(receiptId);
+  }
   public async confirm(intentId: string): Promise<SubmissionIntentV1> {
     return this.harness.submissions.confirmIntent(
       intentId, new Date().toISOString(),
     );
   }
-
   public async reject(intentId: string): Promise<SubmissionIntentV1> {
     const intent = await this.harness.submissions.rejectIntent(
       intentId, new Date().toISOString(),
@@ -224,27 +213,9 @@ export class ApplicationSubmissionService {
     await this.uploads.cleanupTask(intent.taskId).catch(() => undefined);
     return intent;
   }
-
   async #runningTask() {
     const task = await this.harness.tasks.findRunningByConversation(this.conversationId);
     if (!task?.activeRunId) throw new Error("Managed Apply 需要 running AgentTask");
     return task;
   }
-}
-
-function createApplicationInput(value: {
-  jdId: string; resumeId: string; company: string; role: string;
-  targetUrl: string; pendingConfirmation: boolean;
-}): ApplicationCreateInput {
-  return {
-    jdId: value.jdId, resumeId: value.resumeId,
-    companyName: value.company, roleName: value.role,
-    deliveryMethod: "form_fill", targetUrl: value.targetUrl,
-    appliedAt: new Date().toISOString(),
-    pendingConfirmation: value.pendingConfirmation,
-    source: "browser",
-    dedupeKey: canonicalHash({
-      jdId: value.jdId, resumeId: value.resumeId, targetUrl: value.targetUrl,
-    }),
-  };
 }

@@ -27,6 +27,10 @@ import { createResumeWorkspaceTool } from
   "../src/tools/agent-orchestrated/create-workspace.js";
 import { FixtureResumeCompiler } from
   "./support/resume-workspace-fixture.js";
+import { restoreLatestInProgressResume } from
+  "../src/desktop/main/resume-drafts/resume-conversation-restorer.js";
+import type { ResumeDraftArtifactReference, LocalResumeDraft } from
+  "../src/resume/draft/types.js";
 
 const CONTENT =
   "使用 Python 清洗运营数据，并为 3 个团队建立周度报表。随后设计异常检查规则。";
@@ -54,6 +58,47 @@ test("source snapshot locks current revision content with a deterministic finger
   assert.doesNotMatch(serializedProjection, /sourceStart/);
   assert.doesNotMatch(serializedProjection, /valueScore/);
   assert.doesNotMatch(serializedProjection, /revisionHistory/);
+});
+
+test("workspace binding survives local persistence and an unchanged restart reread", async () => {
+  const binding = {
+    profileEntityVersion: 7, profileLocalVersion: 1, preferenceResolutionHash: "a".repeat(64),
+    targetFingerprint: null,
+    explainability: { appliedKeys: ["resume.tone"], overriddenCount: 0, conflictCount: 0 },
+  };
+  const store = new ResumeWorkspaceStore();
+  const tool = createResumeWorkspaceTool(
+    createBuilderFromExperiences([
+      createExperience(),
+      educationExperience("edu-binding", "rev-edu-binding", {
+        title: "香港中文大学", startDate: "2020-09", endDate: "2024-06",
+      }),
+    ]), new FixtureResumeCompiler(), store,
+    undefined, undefined, async () => binding,
+  );
+  await tool.execute("binding-create", {
+    jdId: "jd-1", language: "zh-CN",
+    experiences: [{ experienceId: "exp-1", tier: "main" }],
+  });
+  const persisted = store.latest();
+  assert.ok(persisted?.profilePreferenceBinding);
+  const restoredStore = new ResumeWorkspaceStore();
+  const restored = await restoreLatestInProgressResume(
+    [{
+      artifactId: "draft-1", checkpointId: null, title: "绑定测试",
+      createdAt: "2026-01-01T00:00:00.000Z", workspaceStatus: persisted!.status,
+    }] satisfies ResumeDraftArtifactReference[],
+    { get: async (artifactId) => ({
+      artifactId, workspace: persisted!,
+    } as unknown as LocalResumeDraft) },
+    {
+      workspaceStore: restoredStore, artifactIdByCandidate: new Map(),
+      sourceBuilder: { build: async () => persisted!.sourceSnapshot } as never,
+      profilePreferenceContext: async () => binding,
+    },
+  );
+  assert.equal(restored, true);
+  assert.equal(restoredStore.latest()?.profilePreferenceBinding?.preferenceResolutionHash, binding.preferenceResolutionHash);
 });
 
 test("source fingerprint is independent from selected experience order", async () => {
@@ -273,20 +318,23 @@ test("resume generation names every missing required confirmed Profile field", a
   const profile = createProfile();
   profile.fullName = null;
   profile.contactEmail = null;
-  const builder = createBuilderWithProfile(profile);
   await assert.rejects(
-    builder.build(input),
+    createBuilderWithProfile(profile).build(input),
     (error: unknown) => error instanceof ResumeSourceSnapshotError &&
       error.code === "missing_required_profile_fields" &&
-      error.message === "Resume generation requires: fullName.",
+      error.message === "Resume generation requires: fullName, contactEmail.",
   );
 });
 
-test("missing profile contactEmail falls back to the account email", async () => {
+test("missing profile contactEmail never falls back to the login account", async () => {
   const profile = createProfile();
   profile.contactEmail = null;
-  const snapshot = await createBuilderWithProfile(profile).build(input);
-  assert.equal(snapshot.profile.contactEmail, "login@example.com");
+  await assert.rejects(
+    createBuilderWithProfile(profile).build(input),
+    (error: unknown) => error instanceof ResumeSourceSnapshotError &&
+      error.code === "missing_required_profile_fields" &&
+      error.message === "Resume generation requires: contactEmail.",
+  );
 });
 
 test("source evidence allows pending but rejects conflict and failed experiences", async () => {

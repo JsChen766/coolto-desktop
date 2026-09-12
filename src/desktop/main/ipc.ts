@@ -43,6 +43,10 @@ import {
   TRACKER_CHILD_IPC_CHANNELS,
 } from "./tracker/tracker-ipc.js";
 import { PROFILE_IPC_CHANNELS, registerProfileIpc } from "./profile/profile-ipc.js";
+import {
+  PREFERENCE_IPC_CHANNELS,
+  registerPreferenceIpc,
+} from "./preference/preference-ipc.js";
 import { ElectronUpdateService } from "./update/electron-update-service.js";
 import { electronUpdaterDriver } from "./update/electron-updater-driver.js";
 import {
@@ -72,6 +76,12 @@ import {
   ONBOARDING_IPC_CHANNELS,
   registerOnboardingIpc,
 } from "./onboarding/onboarding-ipc.js";
+import { createPrivacyHostWiring } from "./privacy/privacy-host.js";
+import { registerQuitFlush, setPendingQuitFlush } from "./quit-flush.js";
+import {
+  MATERIAL_IPC_CHANNELS,
+} from "./material/material-ipc.js";
+import { registerAppMaterialIpc } from "./material/register-app-material-ipc.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -95,6 +105,7 @@ export function registerDesktopIpc(
     ...EXPERIENCE_IPC_CHANNELS,
     ...TRACKER_CHILD_IPC_CHANNELS,
     ...PROFILE_IPC_CHANNELS,
+    ...PREFERENCE_IPC_CHANNELS,
     ...UPDATE_IPC_CHANNELS,
     ...WINDOW_CLOSE_IPC_CHANNELS,
     ...AGENT_TASK_IPC_CHANNELS,
@@ -102,6 +113,7 @@ export function registerDesktopIpc(
     ...CALENDAR_IPC_CHANNELS,
     ...DELIVERY_RESUME_FILE_IPC_CHANNELS,
     ...ONBOARDING_IPC_CHANNELS,
+    ...MATERIAL_IPC_CHANNELS,
   ]) {
     ipcMain.removeHandler(channel);
   }
@@ -127,9 +139,21 @@ export function registerDesktopIpc(
   // closed handler clears services (cancelling the agent) right after, and
   // before-quit waits for this snapshot to land before the process exits.
   window.on("close", () => {
-    pendingQuitFlush = services.flushPending().catch(() => {});
+    setPendingQuitFlush(services.flushPending().catch(() => {}));
   });
-  registerAuthIpc(ipcMain, window, auth, () => services.clear("account_changed"));
+  const privacyWiring = createPrivacyHostWiring(
+    auth,
+    window,
+    services,
+    browserWindow,
+  );
+  registerAuthIpc(
+    ipcMain,
+    window,
+    auth,
+    () => services.clear("account_changed"),
+    privacyWiring.ipc,
+  );
   registerCheckoutIpc(ipcMain, auth);
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
   registerMailConnectionIpc(ipcMain, servicesForCurrentUser);
@@ -164,18 +188,14 @@ export function registerDesktopIpc(
     servicesForCurrentUser,
     closeGuard,
   );
-  registerClearLocalDataIpc(ipcMain, {
-    services: servicesForCurrentUser,
-    syncStore: () => auth.requireSyncStore(),
-    triggerSync: () => void auth.syncNow(),
-  });
+  registerClearLocalDataIpc(ipcMain, privacyWiring.clearLocal);
   registerShellIpc(ipcMain);
   const resumeLibraryForCurrentUser = async () => {
     const user = auth.requireCurrentUser();
     const currentServices = await servicesForCurrentUser();
     return new ResumeLibraryService(
       currentServices.resumes,
-      createElectronResumeDraftRepository(user.id),
+      createElectronResumeDraftRepository(auth.apiBaseUrl, user.id),
     );
   };
   registerResumeLibraryIpc(ipcMain, resumeLibraryForCurrentUser);
@@ -206,44 +226,18 @@ export function registerDesktopIpc(
     async () => (await servicesForCurrentUser()).profiles,
     async () => (await servicesForCurrentUser()).profileProposals,
   );
+  registerPreferenceIpc(
+    ipcMain,
+    async () => (await servicesForCurrentUser()).preferences,
+    async () => (await servicesForCurrentUser()).preferenceProposals,
+    async () => (await servicesForCurrentUser()).agentHarness.preferenceSuggestions,
+  );
   registerTrackerChildIpc(ipcMain, servicesForCurrentUser);
   registerAgentTaskIpc(ipcMain, servicesForCurrentUser, () => browserWindow.open());
   registerOnboardingIpc(ipcMain, servicesForCurrentUser);
+  registerAppMaterialIpc(ipcMain, window, servicesForCurrentUser);
 }
 
-/** In-flight transcript snapshot started on window close; before-quit waits
- * for it (bounded) so the write lands before the process exits. */
-let pendingQuitFlush: Promise<void> | undefined;
-
-/**
- * Persists the in-flight agent transcript when the app quits mid-generation
- * (window close / app quit), so an interrupted run keeps its history instead
- * of being lost with the pending prompt IPC. Registered once per process;
- * the wait is bounded so quitting is never blocked.
- */
-let quitFlushRegistered = false;
-function registerQuitFlush(services: UserServicesResolver): void {
-  if (quitFlushRegistered) return;
-  quitFlushRegistered = true;
-  let flushed = false;
-  app.on("before-quit", (event) => {
-    if (flushed) return;
-    flushed = true;
-    event.preventDefault();
-    void (async () => {
-      try {
-        await Promise.race([
-          pendingQuitFlush ?? services.flushPending().catch(() => {}),
-          new Promise((resolve) => setTimeout(resolve, 2000)),
-        ]);
-      } catch {
-        // Never block quitting on a failed snapshot.
-      } finally {
-        app.quit();
-      }
-    })();
-  });
-}
 
 const IPC_CHANNELS = [
   "data:clear-local",

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import {
   mkdir,
@@ -14,12 +15,26 @@ import type {
   LocalResumeDraft,
   ResumeDraftCodec,
 } from "../../../resume/draft/types.js";
+import {
+  assertNoAmbiguousLegacyDirectory,
+  requireScopedEnvelopeDigest,
+} from "../../../privacy/local-scope.js";
 
+interface ArtifactOperationContext {
+  repositoryKey: string;
+  directoryKey: string;
+  artifactId: string | undefined;
+  active: boolean;
+}
+const operationContext = new AsyncLocalStorage<ArtifactOperationContext>();
+const pendingWrites = new Map<string, Promise<void>>();
 export class ResumeDraftFileRepository {
   public constructor(
     private readonly ownerId: string,
     private readonly directory: string,
     private readonly codec: ResumeDraftCodec,
+    private readonly scopeDigest?: string,
+    private readonly legacyDirectory?: string,
   ) {}
 
   public async list(): Promise<LocalResumeDraft[]> {
@@ -60,18 +75,70 @@ export class ResumeDraftFileRepository {
     if (draft.ownerId !== this.ownerId) {
       throw new Error("拒绝保存其他用户的本地简历草稿");
     }
-    await this.ensureDirectory();
     const destination = this.pathFor(draft.artifactId);
-    const temporary = `${destination}.${randomUUID()}.tmp`;
-    const encoded = this.codec.encode(JSON.stringify(draft));
-    await writeFile(temporary, encoded, { mode: 0o600 });
-    // On Windows the target may be transiently locked (antivirus scan,
-    // indexer, a racing save); retry with backoff instead of failing the
-    // whole save with EPERM/EBUSY.
-    await retryRename(temporary, destination);
+    await this.ensureDirectory();
+    await withWriteLock(`${this.directory}\0${draft.artifactId}`, async () => {
+      const current = await this.read(destination);
+      if (
+        current &&
+        current.workspace.revision > draft.workspace.revision &&
+        !isPendingChangeRollback(current, draft)
+      ) {
+        throw new Error("拒绝覆盖较新的本地简历草稿");
+      }
+      const temporary = `${destination}.${randomUUID()}.tmp`;
+      const value = this.scopeDigest
+        ? { scopeDigest: this.scopeDigest, ownerId: this.ownerId, value: draft }
+        : draft;
+      const encoded = this.codec.encode(JSON.stringify(value));
+      await writeFile(temporary, encoded, { mode: 0o600 });
+      await retryRename(temporary, destination);
+    });
+  }
+  public async withArtifactOperationLock<T>(
+    artifactId: string | undefined,
+    task: () => Promise<T>,
+  ): Promise<T> {
+    if (artifactId) assertArtifactId(artifactId);
+    const directoryKey = `${this.directory}\0operation`;
+    const repositoryKey = `${this.ownerId}\0${this.directory}`;
+    const current = operationContext.getStore();
+    if (
+      current?.active &&
+      current.repositoryKey === repositoryKey &&
+      current.directoryKey === directoryKey &&
+      (current.artifactId === artifactId ||
+        current.artifactId === undefined ||
+        artifactId === undefined)
+    ) {
+      return task();
+    }
+    await this.ensureDirectory();
+    const marker: ArtifactOperationContext = {
+      repositoryKey,
+      directoryKey,
+      artifactId,
+      active: true,
+    };
+    return withWriteLock(
+      directoryKey,
+      () => withWriteLock(
+        `${this.directory}\0${artifactId ?? "*"}\0operation`,
+        () => operationContext.run(marker, async () => {
+          try {
+            return await task();
+          } finally {
+            marker.active = false;
+          }
+        }),
+      ),
+    );
   }
 
   private async ensureDirectory(): Promise<void> {
+    if (this.legacyDirectory) {
+      await assertNoAmbiguousLegacyDirectory(this.legacyDirectory, this.directory);
+    }
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
   }
 
@@ -83,10 +150,14 @@ export class ResumeDraftFileRepository {
     try {
       const decoded = this.codec.decode(await readFile(path));
       const parsed = JSON.parse(decoded) as unknown;
-      if (!isLocalResumeDraft(parsed) || parsed.ownerId !== this.ownerId) {
+      const value = this.scopeDigest
+        ? requireScopedEnvelopeDigest<LocalResumeDraft>(parsed, this.scopeDigest, this.ownerId)
+        : parsed;
+      if (!isLocalResumeDraft(value) || value.ownerId !== this.ownerId) {
+        if (this.scopeDigest) throw new Error("本地简历草稿来源与当前 API 账号不匹配");
         return undefined;
       }
-      return structuredClone(parsed);
+      return structuredClone(value);
     } catch (error: unknown) {
       if (isMissingFileError(error)) return undefined;
       throw error;
@@ -94,6 +165,30 @@ export class ResumeDraftFileRepository {
   }
 }
 
+async function withWriteLock<T>(
+  key: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  const previous = pendingWrites.get(key) ?? Promise.resolve();
+  const next = previous.then(task, task);
+  const marker = next.then(() => undefined, () => undefined);
+  pendingWrites.set(key, marker);
+  return next.finally(() => {
+    if (pendingWrites.get(key) === marker) pendingWrites.delete(key);
+  });
+}
+function isPendingChangeRollback(
+  current: LocalResumeDraft,
+  incoming: LocalResumeDraft,
+): boolean {
+  const pending = current.pendingChange;
+  if (!pending || incoming.pendingChange !== null) return false;
+  return pending.base.revision === incoming.workspace.revision &&
+    JSON.stringify(pending.base.structure) ===
+      JSON.stringify(incoming.workspace.structure) &&
+    JSON.stringify(pending.base.bindings) ===
+      JSON.stringify(incoming.workspace.bindings);
+}
 function assertArtifactId(value: string): void {
   if (!/^[0-9a-f-]{36}$/iu.test(value)) {
     throw new Error("无效的本地简历 ID");

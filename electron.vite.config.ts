@@ -48,6 +48,7 @@ export default defineConfig({
       lib: {
         entry: {
           index: resolve("src/desktop/preload/index.ts"),
+          "material-feature": resolve("src/desktop/preload/material-feature-index.ts"),
           resume: resolve("src/desktop/resume-preload/index.ts"),
           "browser-shell": resolve(
             "src/desktop/browser-shell-preload/index.ts",
@@ -77,6 +78,7 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve("src/desktop/renderer/index.html"),
+          "material-feature": resolve("src/desktop/renderer/material-feature.html"),
           resume: resolve("src/desktop/renderer/resume.html"),
           "browser-shell": resolve(
             "src/desktop/renderer/browser-shell.html",
@@ -91,6 +93,13 @@ export default defineConfig({
             ? {
                 "agent-tasks-qa": resolve(
                   "src/desktop/renderer/agent-tasks-qa.html",
+                ),
+              }
+            : {}),
+          ...(process.env.COOLTO_PROFILE_PREF_UI_QA === "1"
+            ? {
+                "profile-pref-qa": resolve(
+                  "src/desktop/renderer/profile-pref-qa.html",
                 ),
               }
             : {}),

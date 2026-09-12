@@ -14,6 +14,14 @@ export interface EnqueueMutation {
   localPayload?: Record<string, unknown>;
   createdAt?: string;
 }
+export interface LocalPayloadMerger {
+  (
+    entityType: SyncEntityType,
+    currentPayload: Record<string, unknown> | undefined,
+    serverPayload: Record<string, unknown>,
+  ): Record<string, unknown>;
+  clear?(): void;
+}
 
 export interface LocalEntity {
   entityType: SyncEntityType;

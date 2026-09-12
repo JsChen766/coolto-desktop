@@ -71,3 +71,5 @@ export type * from "./types/onboarding.js";
 export type * from "./types/tracker-child-api.js";
 export type * from "./types/delivery-resume-files.js";
 export type * from "./types/calendar.js";
+export type * from "./types/privacy.js";
+export type * from "./types/preferences.js";

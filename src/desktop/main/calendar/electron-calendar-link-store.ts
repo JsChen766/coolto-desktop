@@ -1,9 +1,13 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { app, safeStorage } from "electron";
-
+import {
+  localScopeDigest,
+  localScopeKey,
+  requireScopedEnvelope,
+} from "../../../privacy/local-scope.js";
 import type {
   CalendarLink,
   CalendarLinkRepository,
@@ -20,10 +24,11 @@ export class ElectronCalendarLinkStore implements CalendarLinkRepository {
   readonly #links = new Map<string, CalendarLink>();
   #loaded = false;
   #writeChain: Promise<void> = Promise.resolve();
-
-  public constructor(ownerId: string) {
-    const ownerHash = createHash("sha256").update(ownerId).digest("hex").slice(0, 32);
-    this.#directory = join(app.getPath("userData"), "calendar-links", ownerHash);
+  public constructor(
+    private readonly apiBaseUrl: string,
+    private readonly ownerId: string,
+  ) {
+    this.#directory = join(app.getPath("userData"), "calendar-links", localScopeKey(apiBaseUrl, ownerId));
     this.#path = join(this.#directory, "links.coolto");
   }
 
@@ -63,10 +68,12 @@ export class ElectronCalendarLinkStore implements CalendarLinkRepository {
   async #load(): Promise<void> {
     if (this.#loaded) return;
     requireEncryption();
-    this.#loaded = true;
     let encrypted: Buffer;
     try { encrypted = await readFile(this.#path); } catch (error: unknown) {
-      if (isMissing(error)) return;
+      if (isMissing(error)) {
+        this.#loaded = true;
+        return;
+      }
       throw error;
     }
     let parsed: unknown;
@@ -75,8 +82,11 @@ export class ElectronCalendarLinkStore implements CalendarLinkRepository {
     } catch {
       throw new Error("本地 Calendar 映射已损坏");
     }
-    const stored = normalizeStored(parsed);
+    const stored = normalizeStored(requireScopedEnvelope<StoredLinks>(
+      parsed, this.apiBaseUrl, this.ownerId,
+    ));
     for (const link of stored.links) this.#links.set(link.interviewId, link);
+    this.#loaded = true;
   }
 
   async #save(): Promise<void> {
@@ -89,9 +99,11 @@ export class ElectronCalendarLinkStore implements CalendarLinkRepository {
     };
     const temporary = `${this.#path}.${randomUUID()}.tmp`;
     try {
-      await writeFile(temporary, safeStorage.encryptString(JSON.stringify(payload)), {
-        mode: 0o600,
-      });
+      await writeFile(temporary, safeStorage.encryptString(JSON.stringify({
+        scopeDigest: localScopeDigest(this.apiBaseUrl, this.ownerId),
+        ownerId: this.ownerId,
+        value: payload,
+      })), { mode: 0o600 });
       await rename(temporary, this.#path);
     } finally {
       await rm(temporary, { force: true });

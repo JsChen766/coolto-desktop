@@ -1,3 +1,4 @@
+import type { CareerTargetV1 } from "../profile/career-target-types.js";
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -66,8 +67,11 @@ export interface UserProfile {
   targetRoles: string[];
   targetIndustries: string[];
   targetLocations: string[];
+  careerTargets?: CareerTargetV1[];
   preferredLanguage: string | null;
   resumeStyle: string | null;
+  entityVersion?: number;
+  updatedAt?: string;
 }
 
 export interface UserProfileReader {

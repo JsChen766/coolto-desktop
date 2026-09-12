@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
 import type { SyncOperationResult } from "../../../sync/types.js";
-import type { OutboxRow } from "./local-sync-types.js";
+import type { LocalPayloadMerger, OutboxRow } from "./local-sync-types.js";
 import { SyncPayloadCodec } from "./payload-codec.js";
 import { withImmediateTransaction } from "./sqlite-transaction.js";
 
@@ -9,6 +9,7 @@ export class OutboxResultWriter {
   public constructor(
     private readonly database: DatabaseSync,
     private readonly codec: SyncPayloadCodec,
+    private readonly mergeLocalPayload?: LocalPayloadMerger,
   ) {}
 
   public apply(result: SyncOperationResult, retryAt: string): void {
@@ -24,7 +25,6 @@ export class OutboxResultWriter {
       }
     });
   }
-
   #applied(row: OutboxRow, result: SyncOperationResult): void {
     if (result.appliedVersion === null) throw new Error("同步成功结果缺少 entityVersion");
     this.database.prepare("DELETE FROM local_outbox WHERE operation_id = ?")
@@ -34,9 +34,15 @@ export class OutboxResultWriter {
       WHERE entity_type = ? AND entity_id = ? AND status = 'pending'
     `).run(result.appliedVersion, row.entity_type, row.entity_id);
     const pending = this.#pendingCount(row);
-    const serverPayload = result.serverEntity
-      ? this.codec.encode(result.serverEntity)
+    const remote = result.serverEntity;
+    const serverPayload = remote
+      ? this.codec.encode(remote)
       : row.action === "delete" ? this.codec.encode({}) : null;
+    const localPayload = remote
+      ? this.codec.encode(this.mergeLocalPayload?.(
+          row.entity_type, this.#currentPayload(row), remote,
+        ) ?? remote)
+      : serverPayload;
     const serverOperation = row.action === "delete" ? "delete" : "upsert";
     this.database.prepare(`
       UPDATE sync_entities SET
@@ -50,10 +56,16 @@ export class OutboxResultWriter {
         END
       WHERE entity_type = ? AND entity_id = ?
     `).run(
-      result.appliedVersion, pending > 0 ? "pending" : "clean", pending, serverPayload,
+      result.appliedVersion, pending > 0 ? "pending" : "clean", pending, localPayload,
       serverOperation, serverPayload, serverPayload, pending,
       row.entity_type, row.entity_id,
     );
+  }
+  #currentPayload(row: OutboxRow): Record<string, unknown> | undefined {
+    const entity = this.database.prepare(`
+      SELECT payload FROM sync_entities WHERE entity_type = ? AND entity_id = ?
+    `).get(row.entity_type, row.entity_id) as { payload?: Uint8Array } | undefined;
+    return entity?.payload ? this.codec.decode<Record<string, unknown>>(entity.payload) : undefined;
   }
 
   #retry(result: SyncOperationResult, retryAt: string): void {

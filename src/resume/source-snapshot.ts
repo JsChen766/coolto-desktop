@@ -93,7 +93,6 @@ export class ResumeSourceSnapshotBuilder {
       schemaVersion: RESUME_SOURCE_SNAPSHOT_SCHEMA_VERSION,
       profile: normalizeSourceProfile(
         currentUser.id,
-        currentUser.email,
         profile,
       ),
       jd: normalizeSourceJd(jd, jdId),
@@ -148,7 +147,6 @@ export class ResumeSourceSnapshotBuilder {
       generationStrategy: "general" as const,
       profile: normalizeSourceProfile(
         currentUser.id,
-        currentUser.email,
         profile,
       ),
       jd: null,

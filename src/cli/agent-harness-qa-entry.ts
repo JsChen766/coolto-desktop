@@ -13,6 +13,7 @@ import {
   type MailConnectionOAuthDependencies,
 } from "../desktop/main/mail-connections/electron-mail-connection-service.js";
 import { runOAuthLoopback } from "../desktop/main/mail-connections/oauth-loopback.js";
+import { localScopeKey } from "../privacy/local-scope.js";
 
 interface QaResult { name: string; passed: boolean }
 const results: QaResult[] = [];
@@ -24,8 +25,9 @@ const expect = (name: string, passed: boolean): void => {
 
 app.whenReady().then(async () => {
   const ownerId = "qa-owner-a";
-  const persistence = new ElectronAgentHarnessPersistence(ownerId);
-  const evidenceStore = new ElectronAgentEvidenceStore(ownerId);
+  const apiBaseUrl = "https://qa.example";
+  const persistence = new ElectronAgentHarnessPersistence(apiBaseUrl, ownerId);
+  const evidenceStore = new ElectronAgentEvidenceStore(apiBaseUrl, ownerId);
   const repository = new AgentHarnessStateRepository(ownerId, persistence);
   const services = new AgentHarnessServices(ownerId, repository, evidenceStore);
   try {
@@ -40,11 +42,11 @@ app.whenReady().then(async () => {
     await services.events.markDelivered(event.id);
     expect("02 delivered event remains replayable", (await services.events.pending(first.id))[0]?.status === "delivered");
 
-    const encrypted = await readStateFile(ownerId);
+    const encrypted = await readStateFile(apiBaseUrl, ownerId);
     expect("03 safeStorage file hides task goal", !encrypted.includes("Monitor roles"));
     const restored = new AgentHarnessServices(
       ownerId,
-      new AgentHarnessStateRepository(ownerId, new ElectronAgentHarnessPersistence(ownerId)),
+      new AgentHarnessStateRepository(ownerId, new ElectronAgentHarnessPersistence(apiBaseUrl, ownerId)),
     );
     expect("04 restart restores task", (await restored.tasks.get(first.id)).goal === "Monitor roles");
     expect("05 restart restores unacked event", (await restored.events.pending(first.id)).length === 1);
@@ -61,7 +63,7 @@ app.whenReady().then(async () => {
       "qa-owner-b",
       new AgentHarnessStateRepository(
         "qa-owner-b",
-        new ElectronAgentHarnessPersistence("qa-owner-b"),
+        new ElectronAgentHarnessPersistence(apiBaseUrl, "qa-owner-b"),
       ),
     );
     expect("08 owner isolation hides tasks", (await foreign.tasks.list()).length === 0);
@@ -72,7 +74,7 @@ app.whenReady().then(async () => {
       expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
     });
     expect("09 encrypted evidence round-trips", (await evidenceStore.read(evidence.id))?.payloadHash === "payload-hash");
-    expect("10 evidence file hides screenshot", !(await readEvidenceFile(ownerId, evidence.id)).includes("private-image"));
+    expect("10 evidence file hides screenshot", !(await readEvidenceFile(apiBaseUrl, ownerId, evidence.id)).includes("private-image"));
     let refreshCalls = 0;
     const oauth: MailConnectionOAuthDependencies = {
       provider: (provider) => provider === "gmail" ? {
@@ -90,13 +92,13 @@ app.whenReady().then(async () => {
           expiresIn: 3600, scope: "gmail.readonly" };
       },
     };
-    const mail = new ElectronMailConnectionService(ownerId, oauth);
+    const mail = new ElectronMailConnectionService("https://qa.example", ownerId, oauth);
     const connected = await mail.connect("gmail");
     expect("11 mail connection view never exposes tokens",
       !JSON.stringify(connected).includes("token") && connected.accountEmail === "qa-mail@example.com");
     expect("12 safeStorage mail file hides refresh token",
-      !(await readMailConnectionFile(ownerId)).includes("private-refresh-token"));
-    const restoredMail = new ElectronMailConnectionService(ownerId, oauth);
+      !(await readMailConnectionFile(apiBaseUrl, ownerId)).includes("private-refresh-token"));
+    const restoredMail = new ElectronMailConnectionService("https://qa.example", ownerId, oauth);
     expect("13 encrypted mail connection restores by owner",
       (await restoredMail.list())[0]?.accountEmail === "qa-mail@example.com");
     expect("14 restored connection refreshes without renderer token access",
@@ -148,22 +150,22 @@ async function provision(
   })).task;
 }
 
-async function readStateFile(ownerId: string): Promise<string> {
-  const ownerHash = createHash("sha256").update(ownerId).digest("hex").slice(0, 20);
+async function readStateFile(apiBaseUrl: string, ownerId: string): Promise<string> {
+  const ownerHash = localScopeKey(apiBaseUrl, ownerId);
   return (await readFile(join(
     app.getPath("userData"), "agent-harness", ownerHash, "state.coolto",
   ))).toString("utf8");
 }
 
-async function readEvidenceFile(ownerId: string, evidenceId: string): Promise<string> {
-  const ownerHash = createHash("sha256").update(ownerId).digest("hex").slice(0, 20);
+async function readEvidenceFile(apiBaseUrl: string, ownerId: string, evidenceId: string): Promise<string> {
+  const ownerHash = localScopeKey(apiBaseUrl, ownerId);
   return (await readFile(join(
     app.getPath("userData"), "agent-evidence", ownerHash, `${evidenceId}.coolto`,
   ))).toString("utf8");
 }
 
-async function readMailConnectionFile(ownerId: string): Promise<string> {
-  const ownerHash = createHash("sha256").update(ownerId).digest("hex").slice(0, 20);
+async function readMailConnectionFile(apiBaseUrl: string, ownerId: string): Promise<string> {
+  const ownerHash = localScopeKey(apiBaseUrl, ownerId);
   return (await readFile(join(
     app.getPath("userData"), "mail-connections", ownerHash, "connections.coolto",
   ))).toString("utf8");

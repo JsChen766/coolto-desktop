@@ -2,6 +2,7 @@
 @import "./app-scrollbar.css";
 @import "./forced-update.css";
 @import "./base-login.css";
+@import "./dialog-select.css";
 @import "./base-privacy-dialog.css";
 @import "./base-sidebar-conversations.css";
 @import "./base-sidebar-account.css";
@@ -23,6 +24,8 @@
 @import "./base-resume-library-row.css";
 @import "./base-resume-library-dialogs.css";
 @import "./base-settings-dialog.css";
+@import "./preference-dialog.css";
+@import "./base-privacy-data.css";
 @import "./ai-native-loops.css";
 @import "./base-credit-dialog.css";
 @import "./base-credit-balance-summary.css";

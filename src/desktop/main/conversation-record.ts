@@ -167,7 +167,7 @@ function isConversationRunTerminal(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const terminal = value as Partial<ConversationRunTerminal>;
   return (
-    ["completed", "failed", "cancelled", "needs_user_decision"].includes(
+    ["completed", "ready_for_approval", "failed", "cancelled", "stopped", "needs_user_decision"].includes(
       terminal.status ?? "",
     ) &&
     (terminal.message === null || typeof terminal.message === "string") &&

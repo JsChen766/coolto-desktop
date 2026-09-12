@@ -26,7 +26,7 @@ const emit = defineEmits<{
   send: [text: string, reference?: ResumeChatReference];
   cancel: [];
   selectAttachment: [];
-  selectAttachmentPath: [path: string];
+  selectAttachmentFile: [file: File];
   removeAttachment: [];
   clearResumeContext: [];
   requestLocalCopy: [];
@@ -48,7 +48,7 @@ const {
   handleDrop,
   handleFileInput,
 } = useComposerDrop({
-  selectAttachmentPath: (path) => emit("selectAttachmentPath", path),
+  selectAttachmentFile: (file) => emit("selectAttachmentFile", file),
   selectResumeReference: selectReference,
 });
 

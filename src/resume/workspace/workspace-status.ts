@@ -17,22 +17,36 @@ type EvidenceState = Pick<ResumeWorkspace, "sourceSnapshot" | "bindings">;
  */
 export function maxReachableUsageRatio(
   result: ResumeCompileResult,
+  maxBulletLines: 2 | 3 = 3,
 ): number {
-  const lineHeight = result.bodyLineHeightPx > 0 ? result.bodyLineHeightPx : 20;
-  const usedHeightPx =
-    result.usedHeightPx > 0
-      ? result.usedHeightPx
-      : result.usageRatio * Math.max(1, result.availableHeightPx);
-  const lengthenablePx = Math.max(0, result.availableHeightPx - usedHeightPx);
-  return (
-    (usedHeightPx + lengthenablePx) / Math.max(1, result.availableHeightPx)
+  const availableHeightPx = Math.max(1, result.availableHeightPx);
+  const usedHeightPx = Math.min(
+    availableHeightPx,
+    Math.max(
+      0,
+      result.usedHeightPx > 0
+        ? result.usedHeightPx
+        : result.usageRatio * availableHeightPx,
+    ),
   );
+  const lineHeightPx = result.bodyLineHeightPx > 0
+    ? result.bodyLineHeightPx
+    : 20;
+  const expandableLines = result.bullets.reduce(
+    (total, bullet) => total + Math.max(0, maxBulletLines - bullet.lineCount),
+    0,
+  );
+  return Math.min(
+    availableHeightPx,
+    usedHeightPx + expandableLines * lineHeightPx,
+  ) / availableHeightPx;
 }
 
 export function deriveWorkspaceStatus(
   result: ResumeCompileResult,
   structure: ResumeStructure,
   evidenceState?: EvidenceState,
+  maxBulletLines: 2 | 3 = 3,
 ): ResumeWorkspaceStatus {
   if (result.qualified && hasMinimumGeneratedContent(structure)) {
     return "layout_qualified";
@@ -51,11 +65,20 @@ export function deriveWorkspaceStatus(
   // 不需要新素材）时：只有"把所有 bullet 补长到单条最大行数也达不到最低占用率"
   // 才是无路可走，立即交还用户；补长可达标则继续写作循环（补长只用已引用
   // 证据，不需要未消费证据）。
+  const allBulletsAtMaxHeight =
+    result.bullets.length === 0 ||
+    result.bullets.every((bullet) => bullet.lineCount >= maxBulletLines);
+  const hasTailRepair = result.violations.some(
+    (violation) => violation.code === "bullet_tail_too_short",
+  );
   if (
     exhausted &&
     !result.qualified &&
+    result.violations.some((violation) => violation.code === "page_underfilled") &&
     !result.violations.some((violation) => violation.code === "page_overflow") &&
-    maxReachableUsageRatio(result) <
+    allBulletsAtMaxHeight &&
+    !hasTailRepair &&
+    maxReachableUsageRatio(result, maxBulletLines) <
       result.effectiveTargetBand.minimum
   ) {
     return "needs_user_decision";

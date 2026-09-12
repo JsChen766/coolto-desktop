@@ -1,11 +1,10 @@
 import { ConversationSelectedFiles } from "./conversation-selected-files.js";
-import { createElectronDeliveryResumeFiles } from
-  "./delivery-resume-files/electron-delivery-resume-files.js";
+import { createElectronDeliveryResumeFiles } from "./delivery-resume-files/electron-delivery-resume-files.js";
 
-export function createUserFileServices(ownerId: string) {
+export function createUserFileServices(apiBaseUrl: string, ownerId: string) {
   return {
     selectedFiles: new ConversationSelectedFiles(),
-    deliveryResumeFiles: createElectronDeliveryResumeFiles(ownerId),
+    deliveryResumeFiles: createElectronDeliveryResumeFiles(apiBaseUrl, ownerId),
   };
 }
 

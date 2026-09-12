@@ -15,7 +15,7 @@ import { useResumeConversationContext } from
 import { useResumeInstructionActions } from "./use-resume-instruction-actions";
 import { useWindowCloseSave } from "./use-window-close-save";
 import { useWorkspaceFlows } from "./use-workspace-flows";
-export type AppView = "chat" | "agent_tasks" | "experiences" | "library" | "tracker";
+export type AppView = "chat" | "agent_tasks" | "experiences" | "library" | "tracker" | "material";
 export function useAppShell() {
   const sidebarOpen = ref(true);
   const artifactOpen = ref(false);
@@ -102,7 +102,7 @@ export function useAppShell() {
     await resumeConversations.restoreCurrentResumeContext();
     await conversationAttachment.remove().catch(() => undefined);
   }
-  function openPrimaryView(view: "agent_tasks" | "experiences" | "library"): void {
+  function openPrimaryView(view: "agent_tasks" | "experiences" | "library" | "material"): void {
     resumePreview.resetResumePreview();
     closeNarrowSidebar();
     activeView.value = view;

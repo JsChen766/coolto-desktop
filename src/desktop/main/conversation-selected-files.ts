@@ -1,6 +1,6 @@
 import type { SelectedFileMetadata } from "../../files/types.js";
+import { captureHostFileReference } from "./attachments/host-file-reference.js";
 import { SelectedFileRegistry } from "../../files/selected-file-registry.js";
-
 export class ConversationSelectedFiles {
   readonly #registries = new Map<string, SelectedFileRegistry>();
 
@@ -18,13 +18,12 @@ export class ConversationSelectedFiles {
 
   public async replace(
     conversationId: string,
-    path: string,
+    inputPath: string,
   ): Promise<SelectedFileMetadata> {
-    const [selected] = await this.forConversation(
-      conversationId,
-    ).replacePaths([path]);
-    if (!selected) throw new Error("文件选择器没有返回附件");
-    return selected;
+    return captureHostFileReference(
+      this.forConversation(conversationId),
+      inputPath,
+    );
   }
 
   public remove(conversationId: string, fileId: string): void {

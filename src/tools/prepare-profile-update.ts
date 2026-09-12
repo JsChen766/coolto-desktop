@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Type } from "@earendil-works/pi-ai";
 
@@ -7,9 +8,12 @@ import {
   createProfileUpdateApprovalDraft,
   createProfileUpdateApprovalPayload,
 } from "../profile/approval-draft.js";
+import {
+  normalizeCareerProfileChangeSet,
+  type CareerTargetInputV1,
+} from "../profile/career-targets.js";
 import type {
-  ProfileContactUpdate,
-  ProfileImportField,
+  ProfileChangeSet,
   ProfileProposalExecutor,
 } from "../profile/types.js";
 import {
@@ -18,30 +22,35 @@ import {
 } from "../resume/contracts/profile-contact.js";
 
 const CONTACT_FIELDS: readonly ResumeContactField[] = [
-  "fullName",
-  "phone",
-  "contactEmail",
-  "location",
-  "linkedinUrl",
-  "githubUrl",
-  "personalWebsite",
+  "fullName", "phone", "contactEmail", "location", "linkedinUrl", "githubUrl", "personalWebsite",
 ];
-
-const fieldSchema = Type.String({
-  minLength: 1,
-  maxLength: 320,
-  description: "用户明确提供的资料值（含用户附件的解析原文中明确出现的值）；不要猜测或补全。",
+const CAREER_FIELDS = [
+  "currentTitle", "currentCompany", "yearsOfExperience", "careerStage",
+  "careerTargets", "preferredLanguage", "resumeStyle",
+] as const;
+const fieldSchema = Type.String({ minLength: 1, maxLength: 320 });
+const nullableFieldSchema = Type.Optional(Type.Union([fieldSchema, Type.Null()]));
+const targetSchema = Type.Object({
+  id: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+  idKind: Type.Optional(Type.String({ minLength: 1, maxLength: 32 })),
+  role: nullableFieldSchema,
+  industries: Type.Optional(Type.Array(fieldSchema, { maxItems: 20 })),
+  locations: Type.Optional(Type.Array(fieldSchema, { maxItems: 20 })),
+  isPrimary: Type.Optional(Type.Boolean()),
 });
-
 const parameters = Type.Object({
-  fullName: Type.Optional(fieldSchema),
-  phone: Type.Optional(fieldSchema),
-  contactEmail: Type.Optional(fieldSchema),
-  location: Type.Optional(fieldSchema),
-  linkedinUrl: Type.Optional(fieldSchema),
-  githubUrl: Type.Optional(fieldSchema),
-  personalWebsite: Type.Optional(fieldSchema),
+  fullName: nullableFieldSchema, phone: nullableFieldSchema,
+  contactEmail: nullableFieldSchema, location: nullableFieldSchema,
+  linkedinUrl: nullableFieldSchema, githubUrl: nullableFieldSchema,
+  personalWebsite: nullableFieldSchema,
+  currentTitle: nullableFieldSchema, currentCompany: nullableFieldSchema,
+  yearsOfExperience: Type.Optional(Type.Union([Type.Integer({ minimum: 0, maximum: 80 }), Type.Null()])),
+  careerStage: nullableFieldSchema,
+  careerTargets: Type.Optional(Type.Array(targetSchema, { maxItems: 20 })),
+  preferredLanguage: Type.Optional(fieldSchema), resumeStyle: Type.Optional(fieldSchema),
 });
+
+type ProfileToolParams = Record<string, unknown>;
 
 export function createPrepareProfileUpdateTool(
   profileReader: UserProfileReader,
@@ -52,88 +61,66 @@ export function createPrepareProfileUpdateTool(
     name: "prepare_profile_update",
     label: "准备更新个人资料",
     description:
-      "用户明确要求填写或更新个人资料时调用；或简历生成因 profile 缺少必填 header 字段（姓名/电话/简历联系邮箱）而失败、" +
-      "且用户明确提供的附件原文中包含这些值时，可先解析附件再调用。同一条用户消息或同一次附件解析中明确给出的全部资料字段，" +
-      "必须一次性完整传入；只传入用户已提供或附件原文明确出现的值，禁止猜测或从经历正文推断。" +
-      "本工具会创建包含当前值和新值的审批，绝不会直接写入；等待用户在宿主中接受后才会同步。",
+      "仅在用户明确要求更新 Profile 时调用。Profile 是长期职业背景与简历默认值，不是 Experience 事实，也不是 Preference 习惯。一次传入用户明确提供的全部字段或目标；禁止猜测、从经历推断或直接写入。工具只创建审批，用户接受后才进入本地同步链路。",
     parameters,
     execute: async (_toolCallId, params) => {
       const profile = await profileReader.getUserProfile();
-      const changes = readChanges(params, profile);
-      const expected = expectedFields(changes, profile);
-      const proposal = await profileProposals.prepareImport(changes, expected);
+      const changes = readChanges(params as ProfileToolParams, profile);
+      const proposal = await profileProposals.prepareUpdate(changes, "manual");
       const approval = await approvalManager.request(
         createProfileUpdateApprovalDraft(proposal),
         createProfileUpdateApprovalPayload(proposal),
       );
       const summary = {
         proposalId: proposal.id,
-        updatedFields: expected.map(({ field }) => field),
+        updatedFields: Object.keys(changes),
         approvalRequestId: approval.id,
-        instruction:
-          "宿主已显示包含当前值与新值的待决策项。请等待用户接受或拒绝；不要声称资料已经更新。",
+        instruction: "宿主已显示包含当前值与新值的 Profile 待决策项。请等待用户接受或拒绝，不要声称资料已经更新。",
       };
-      return {
-        content: [{ type: "text", text: JSON.stringify(summary) }],
-        details: summary,
-      };
+      return { content: [{ type: "text", text: JSON.stringify(summary) }], details: summary };
     },
   };
 }
 
-function readChanges(
-  params: Record<string, string | undefined>,
-  profile: Awaited<ReturnType<UserProfileReader["getUserProfile"]>>,
-): ProfileContactUpdate {
-  const normalized = normalizeResumeContact({
-    fullName: profile.fullName,
-    phone: profile.phone,
-    contactEmail: profile.contactEmail,
-    location: profile.location,
-    linkedinUrl: profile.linkedinUrl,
-    githubUrl: profile.githubUrl,
-    personalWebsite: profile.personalWebsite,
-    ...params,
+function readChanges(params: ProfileToolParams, profile: Awaited<ReturnType<UserProfileReader["getUserProfile"]>>): ProfileChangeSet {
+  const normalizedContact = normalizeResumeContact({
+    fullName: profile.fullName, phone: profile.phone, contactEmail: profile.contactEmail,
+    location: profile.location, linkedinUrl: profile.linkedinUrl,
+    githubUrl: profile.githubUrl, personalWebsite: profile.personalWebsite,
+    ...Object.fromEntries(CONTACT_FIELDS.map((field) => [field, params[field]])),
   });
-  const changes: ProfileContactUpdate = {};
+  const changes: ProfileChangeSet = {};
   for (const field of CONTACT_FIELDS) {
     if (params[field] === undefined) continue;
-    const value = normalized[field];
+    const value = normalizedContact[field];
+    if (value === null) {
+      if (profile[field] !== null) changes[field] = null;
+      continue;
+    }
     if (!value) throw new Error(`${profileFieldLabel(field)}不能为空`);
     if (value !== profile[field]) changes[field] = value;
   }
-  if (!Object.keys(changes).length) {
-    throw new Error("提供的信息与当前个人资料一致，无需更新");
-  }
+  const careerInput = Object.fromEntries(
+    CAREER_FIELDS.filter((field) => params[field] !== undefined)
+      .map((field) => [field, field === "careerTargets" ? addTargetIds(params[field]) : params[field]]),
+  );
+  if (Object.keys(careerInput).length) Object.assign(changes, normalizeCareerProfileChangeSet(careerInput));
+  if (!Object.keys(changes).length) throw new Error("提供的信息与当前 Profile 一致，无需更新");
   return changes;
 }
 
-function expectedFields(
-  changes: ProfileContactUpdate,
-  profile: Awaited<ReturnType<UserProfileReader["getUserProfile"]>>,
-): ProfileImportField[] {
-  return CONTACT_FIELDS.flatMap((field) => {
-    const proposedValue = changes[field];
-    return proposedValue === undefined || proposedValue === null
-      ? []
-      : [{
-        field,
-        currentValue: profile[field],
-        proposedValue,
-        selectedByDefault: true,
-        confidence: "high" as const,
-      }];
+function addTargetIds(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((target) => {
+    if (!target || typeof target !== "object" || Array.isArray(target)) return target;
+    const item = target as CareerTargetInputV1;
+    return item.id ? item : { ...item, id: randomUUID(), idKind: "opaque" };
   });
 }
 
 function profileFieldLabel(field: ResumeContactField): string {
   return {
-    fullName: "姓名",
-    phone: "电话",
-    contactEmail: "简历联系邮箱",
-    location: "所在地",
-    linkedinUrl: "LinkedIn",
-    githubUrl: "GitHub",
-    personalWebsite: "个人网站",
+    fullName: "姓名", phone: "电话", contactEmail: "简历联系邮箱", location: "所在地",
+    linkedinUrl: "LinkedIn", githubUrl: "GitHub", personalWebsite: "个人网站",
   }[field];
 }

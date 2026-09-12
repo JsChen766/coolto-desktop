@@ -76,6 +76,12 @@ const messagesWithLiveStatus = computed<ChatMessage[]>(() => {
     },
   );
 });
+const showRunTerminal = computed(() => {
+  const terminal = current.value?.lastRun;
+  if (!terminal || terminal.status === "completed" || running.value || runError.value) return false;
+  return terminal.status !== "ready_for_approval" ||
+    resumeWorkspace.activeDraft.value?.generationReady === true;
+});
 const { elapsed: streamingElapsed } = useStreamingElapsed(props.shell.running);
 const GENERAL_RESUME_PROMPT = "请基于我的全部经历生成一份不关联任何 JD 的高质量一页通用简历。";
 function continueLastRun(): void { void send("请继续完成刚才未完成的任务；从已保留的有效进度继续，如果缺少信息只问一个具体问题。"); }
@@ -135,7 +141,7 @@ function restartLastRun(): void { void send("请重新开始刚才的任务，�
                   @generate-general="send(GENERAL_RESUME_PROMPT)"
                 />
               </template>
-              <ChatRunTerminal v-if="current.lastRun && current.lastRun.status !== 'completed' && !running && !runError" :terminal="current.lastRun" @continue="continueLastRun" @restart="restartLastRun" @open-draft="openResumeDraft" />
+              <ChatRunTerminal v-if="showRunTerminal" :terminal="current.lastRun!" @continue="continueLastRun" @restart="restartLastRun" @open-draft="openResumeDraft" />
               <article
                 v-if="toolRuns.length || streamingText"
                 class="chat-message role-assistant live-response"

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
 import type { SyncEntityType } from "../../../sync/types.js";
-import type { EnqueueMutation, SyncIssue } from "./local-sync-types.js";
+import type { EnqueueMutation, LocalPayloadMerger, SyncIssue } from "./local-sync-types.js";
 import { SyncPayloadCodec } from "./payload-codec.js";
 import { withImmediateTransaction } from "./sqlite-transaction.js";
 
@@ -20,6 +20,7 @@ export class SyncRecoveryStore {
   public constructor(
     private readonly database: DatabaseSync,
     private readonly codec: SyncPayloadCodec,
+    private readonly mergeLocalPayload?: LocalPayloadMerger,
   ) {}
 
   public get(entityType: SyncEntityType, entityId: string): SyncIssue | undefined {
@@ -66,7 +67,6 @@ export class SyncRecoveryStore {
       this.#enqueue(mutation);
     });
   }
-
   #resolve(entityType: SyncEntityType, entityId: string, row: IssueRow): void {
     this.#clear(entityType, entityId);
     if (row.last_server_operation === null) {
@@ -76,12 +76,20 @@ export class SyncRecoveryStore {
       `).run(entityType, entityId);
       return;
     }
+    const serverPayload = row.last_server_payload
+      ? this.codec.decode<Record<string, unknown>>(row.last_server_payload)
+      : this.codec.decode<Record<string, unknown>>(row.payload);
+    const payload = this.mergeLocalPayload?.(
+      entityType,
+      this.codec.decode<Record<string, unknown>>(row.payload),
+      serverPayload,
+    ) ?? serverPayload;
     this.database.prepare(`
       UPDATE sync_entities SET local_version = local_version + 1,
         sync_status = 'clean', operation = last_server_operation,
-        payload = last_server_payload, last_error_code = NULL
+        payload = ?, last_error_code = NULL
       WHERE entity_type = ? AND entity_id = ?
-    `).run(entityType, entityId);
+    `).run(this.codec.encode(payload), entityType, entityId);
   }
 
   #enqueue(mutation: EnqueueMutation): void {

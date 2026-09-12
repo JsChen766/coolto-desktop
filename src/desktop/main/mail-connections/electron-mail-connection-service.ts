@@ -1,9 +1,11 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import {
+  mkdir, readFile, rm, writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 
 import { app, safeStorage } from "electron";
-
+import { localScopeDigest, localScopeKey, requireScopedEnvelope } from "../../../privacy/local-scope.js";
 import { uuidV7 } from "../../../agent-task/uuid-v7.js";
 import type {
   ConnectedInboxProvider,
@@ -37,13 +39,12 @@ export class ElectronMailConnectionService implements MailConnectionRegistry {
   #connections: StoredConnection[] | undefined;
   readonly #tokens = new Map<string, CachedToken>();
   readonly #refreshes = new Map<string, Promise<string>>();
-
   public constructor(
+    private readonly apiBaseUrl: string,
     private readonly ownerId: string,
     private readonly oauth: MailConnectionOAuthDependencies = DEFAULT_OAUTH,
   ) {
-    const ownerHash = createHash("sha256").update(ownerId).digest("hex").slice(0, 20);
-    this.#directory = join(app.getPath("userData"), "mail-connections", ownerHash);
+    this.#directory = join(app.getPath("userData"), "mail-connections", localScopeKey(apiBaseUrl, ownerId));
     this.#path = join(this.#directory, "connections.coolto");
   }
 
@@ -149,7 +150,10 @@ export class ElectronMailConnectionService implements MailConnectionRegistry {
     try {
       ensureEncryption();
       const parsed = JSON.parse(safeStorage.decryptString(await readFile(this.#path))) as unknown;
-      this.#connections = Array.isArray(parsed) && parsed.every(isConnection) ? parsed : [];
+      const values = requireScopedEnvelope<StoredConnection[]>(
+        parsed, this.apiBaseUrl, this.ownerId,
+      );
+      this.#connections = Array.isArray(values) && values.every(isConnection) ? values : [];
     } catch (error) {
       if (!isMissing(error)) throw error;
       this.#connections = [];
@@ -161,7 +165,11 @@ export class ElectronMailConnectionService implements MailConnectionRegistry {
     ensureEncryption();
     await mkdir(this.#directory, { recursive: true, mode: 0o700 });
     const temporary = `${this.#path}.${randomUUID()}.tmp`;
-    await writeFile(temporary, safeStorage.encryptString(JSON.stringify(values)), { mode: 0o600 });
+    await writeFile(temporary, safeStorage.encryptString(JSON.stringify({
+      scopeDigest: localScopeDigest(this.apiBaseUrl, this.ownerId),
+      ownerId: this.ownerId,
+      value: values,
+    })), { mode: 0o600 });
     await renameAgentFile(temporary, this.#path);
     this.#connections = structuredClone(values);
   }

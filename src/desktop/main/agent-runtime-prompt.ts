@@ -23,6 +23,12 @@ import { requestResumeStrategyChoice } from
   "../../resume/strategy/choice-approval.js";
 import { replaceFailedResumeRunWithStrategyMessage } from
   "./resume-strategy-messages.js";
+import {
+  prepareResumeWorkspaceRecovery,
+  resumeContinuationDecision,
+} from "./resume-continuation.js";
+import { assertResumeWorkspaceCurrent } from
+  "./resume-drafts/resume-conversation-restorer.js";
 
 const STRATEGY_FALLBACK_MESSAGE =
   "现有经历与这个岗位的匹配度太低，无法在不编造事实的前提下生成可信的针对性简历。你可以直接使用通用简历继续投递，或者不继续投递这个岗位。";
@@ -83,9 +89,39 @@ export async function executeAgentPrompt(
   // or re-prompts a half-finished resume workspace.
   context.currentUserMessage.timestamp = Date.now();
   context.currentUserMessage.text = prompt.text;
+  await context.refreshProfilePreferenceContext?.();
   await context.agent.prompt(promptText + attachmentNotice);
   const runStopError = context.agent.runStopError;
   const proposed = context.workspaceStore.latest();
+  const continuationDecision = proposed
+    ? resumeContinuationDecision({ workspace: proposed })
+    : undefined;
+  if (runStopError && context.agent.runGuardStopReason && proposed &&
+    continuationDecision?.action === "stop") {
+    const terminalMessages = canonicalizeResumeBoundaryResponse(
+      context.agent.getMessages(),
+      proposed,
+      messageStartIndex,
+    );
+    const messagesWithFeedback = appendResumeRunFeedback({
+      messages: terminalMessages,
+      userText: prompt.text,
+      state: resumeRunFeedbackState(proposed),
+    });
+    if (editBase && proposed && proposed.revision !== editBase.workspace.revision) {
+      await input.resumeDrafts.proposeChange({
+        artifactId: editBase.artifactId,
+        base: editBase.workspace,
+        proposed,
+        summary: context.activeEdit?.summary ?? "AI 修改简历内容",
+      });
+    }
+    context.agent.replaceMessages(messagesWithFeedback);
+    return {
+      messages: messagesWithFeedback,
+      attachTimestamp: lastUserMessageTimestamp(messagesWithFeedback),
+    };
+  }
   const strategyFallback = tailoredResumeFallbackDecision(
     proposed,
     context.agent.runGuardStopReason,
@@ -136,7 +172,6 @@ export async function executeAgentPrompt(
     attachTimestamp,
   };
 }
-
 function discardFailedRunMessages(
   context: ConversationAgentContext,
 ): void {
@@ -144,6 +179,7 @@ function discardFailedRunMessages(
   const lastUserIndex = messages.findLastIndex((message) => message.role === "user");
   if (lastUserIndex >= 0) context.agent.replaceMessages(messages.slice(0, lastUserIndex + 1));
 }
+
 
 /** 返回 transcript 里最后一条 user 消息的 timestamp（无则 undefined）。 */
 function lastUserMessageTimestamp(
@@ -160,14 +196,40 @@ async function activateReferencedDraft(
   artifactId: string,
 ) {
   const draft = await resumeDrafts.get(artifactId);
-  context.workspaceStore.restore(draft.workspace);
+  await assertResumeWorkspaceCurrent(
+    draft.workspace,
+    resumeDrafts,
+    {
+      sourceBuilder: context.sourceBuilder,
+      resumeReader: context.resumeReader,
+      profilePreferenceContext: async () => {
+        const refresh = context.refreshProfilePreferenceContext;
+        if (!refresh) throw new Error("Profile/Preference context unavailable");
+        const authority = await refresh();
+        return {
+          targetFingerprint: authority.targetFingerprint,
+          profileEntityVersion: authority.profileVersion,
+          preferenceResolutionHash: authority.resolutionHash,
+          explainability: {
+            appliedKeys: authority.resolution.applied.map((item) => item.key),
+            overriddenCount: authority.resolution.overridden.length,
+            conflictCount: authority.resolution.conflicts.length,
+          },
+        };
+      },
+    },
+  );
+  const workspace = prepareResumeWorkspaceRecovery(
+    context.workspaceStore.latest(),
+    draft.workspace,
+  );
+  context.workspaceStore.restore(workspace);
   context.artifactIdByCandidate.set(
-    draft.workspace.candidateId,
+    workspace.candidateId,
     draft.artifactId,
   );
-  return draft;
+  return { ...draft, workspace };
 }
-
 
 /**
  * Runs a follow-up prompt produced by an approval decision. The agent core

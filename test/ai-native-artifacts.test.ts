@@ -14,25 +14,41 @@ import { readAgentTaskDetail } from
 import type { JsonValue } from "../src/agent-task/json-types.js";
 
 test("follow-up and briefing artifacts are task-scoped, grounded and immutable", async () => {
+  const scheduleNow = Date.now();
+  const firstFollowUpAt = new Date(
+    scheduleNow + 24 * 3_600_000,
+  ).toISOString();
+  const secondFollowUpAt = new Date(
+    scheduleNow + 72 * 3_600_000,
+  ).toISOString();
+  const expiredFollowUpAt = new Date(
+    scheduleNow - 6 * 60_000,
+  ).toISOString();
   const follow = await setup("application_follow_up", { applicationId: "app-1" });
   const draft = await follow.service.createFollowUp({
     applicationId: "app-1", subject: "Following up",
     body: "I am following up on the Backend Engineer application.",
-    scheduledFor: "2026-09-05T09:00:00Z", timezone: "Asia/Hong_Kong",
+    scheduledFor: firstFollowUpAt, timezone: "Asia/Hong_Kong",
   });
   assert.equal(draft.kind, "follow_up_draft");
+  assert.equal(draft.scheduledFor, firstFollowUpAt);
   await assert.rejects(follow.service.createFollowUp({
     applicationId: "app-1", subject: "Following up", body: "Changed silently",
-    scheduledFor: "2026-09-05T09:00:00Z", timezone: "Asia/Hong_Kong",
+    scheduledFor: firstFollowUpAt, timezone: "Asia/Hong_Kong",
   }), /尚未达到授权检查间隔/u);
   const nextDraft = await follow.service.createFollowUp({
     applicationId: "app-1", subject: "Second follow-up", body: "Checking in again.",
-    scheduledFor: "2026-09-07T09:00:00Z", timezone: "Asia/Hong_Kong",
+    scheduledFor: secondFollowUpAt, timezone: "Asia/Hong_Kong",
   });
   assert.equal(nextDraft.kind, "follow_up_draft");
   await assert.rejects(follow.service.createFollowUp({
+    applicationId: "app-1", subject: "Expired follow-up", body: "Checking in.",
+    scheduledFor: expiredFollowUpAt, timezone: "Asia/Hong_Kong",
+  }), /跟进计划时间无效或已经过期/u);
+  await assert.rejects(follow.service.createFollowUp({
     applicationId: "app-1", subject: "Bad timezone", body: "Checking in.",
-    scheduledFor: "2026-09-09T09:00:00Z", timezone: "Mars/Olympus",
+    scheduledFor: new Date(scheduleNow + 96 * 3_600_000).toISOString(),
+    timezone: "Mars/Olympus",
   }), /IANA timezone/u);
 
   const brief = await setup("interview_briefing", {

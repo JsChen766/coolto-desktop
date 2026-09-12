@@ -51,7 +51,7 @@ function send(text: string, reference?: ResumeChatReference): void {
     @send="send"
     @cancel="desktopApi.agent.cancel"
     @select-attachment="conversationAttachment.select"
-    @select-attachment-path="conversationAttachment.selectPath"
+    @select-attachment-file="conversationAttachment.selectFile"
     @remove-attachment="conversationAttachment.remove"
     @clear-resume-context="clearResumeOperationContext"
     @request-local-copy="requestCloudResumeCopy"

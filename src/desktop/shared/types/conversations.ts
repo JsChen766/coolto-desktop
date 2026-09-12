@@ -89,8 +89,10 @@ export interface MessageAttachment {
 
 export type ConversationRunStatus =
   | "completed"
+  | "ready_for_approval"
   | "failed"
   | "cancelled"
+  | "stopped"
   | "needs_user_decision";
 
 export interface ConversationRunTerminal {
@@ -150,7 +152,6 @@ export interface ConversationsDesktopApi {
   rename(input: ConversationRenameInput): Promise<ConversationSummary>;
   delete(conversationId: string): Promise<void>;
 }
-
 export interface AgentPromptInput {
   conversationId: string;
   text: string;

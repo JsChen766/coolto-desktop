@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import { FileText, ShieldCheck } from "@lucide/vue";
-import { nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 
+import type { PrivacyGateState } from "@desktop/types";
+import { PRIVACY_POLICY_CONTENT } from "../../../../privacy/policy.js";
+
+const props = defineProps<{
+  state: PrivacyGateState | undefined;
+  busy: boolean;
+  error: string | undefined;
+  authenticated: boolean;
+}>();
 const emit = defineEmits<{
   agree: [];
+  decline: [];
+  logout: [];
+  exportLocal: [];
 }>();
 const fullOpen = ref(false);
 const dialog = ref<HTMLElement>();
 const fullText = ref<HTMLElement>();
+const policyVersion = computed(() => props.state?.policy?.policyVersion ?? "privacy-2026-09-08-v1");
 
 onMounted(() => {
   dialog.value?.querySelector<HTMLElement>("[data-privacy-initial-focus]")?.focus();
@@ -49,6 +62,7 @@ function keydown(event: KeyboardEvent): void {
       role="dialog"
       aria-modal="true"
       aria-labelledby="privacy-dialog-title"
+      aria-describedby="privacy-dialog-description"
       @keydown="keydown"
     >
       <header class="privacy-heading">
@@ -57,9 +71,17 @@ function keydown(event: KeyboardEvent): void {
         </div>
         <div>
           <h1 id="privacy-dialog-title">{{ $t('隐私知情同意') }}</h1>
-          <p>{{ $t('在使用 Coolto 之前，请先了解我们如何处理你的数据。') }}</p>
+          <p id="privacy-dialog-description">{{ $t('在使用 Coolto 之前，请先了解我们如何处理你的数据。') }}</p>
+          <p class="privacy-policy-version">{{ $t('政策版本') }}：{{ policyVersion }}</p>
         </div>
       </header>
+
+      <p v-if="state?.error || error" class="form-error" role="alert">
+        {{ error ?? state?.error }}
+      </p>
+      <p v-if="state?.restrictedRecovery" class="form-error" role="alert">
+        {{ $t('账号当前处于删除恢复状态，请完成恢复或退出登录。') }}
+      </p>
 
       <div class="privacy-summary">
         <section>
@@ -79,11 +101,7 @@ function keydown(event: KeyboardEvent): void {
       <details v-if="fullOpen" class="privacy-full" open>
         <summary>{{ $t('隐私政策全文') }}</summary>
         <div ref="fullText" tabindex="-1" class="privacy-full-text">
-          <p>{{ $t('1. Coolto 仅在用户主动发起任务时，将任务相关的经历、JD、简历内容发送给大语言模型处理。') }}</p>
-          <p>{{ $t('2. 业务数据（经历、JD、简历、投递记录）加密存储在用户本地及 Coolto 云端服务；对话与临时分析仅保存在本机，不写入云端。') }}</p>
-          <p>{{ $t('3. 登录凭证保存在系统凭据库，验证码与密码不会以明文保存在本机。') }}</p>
-          <p>{{ $t('4. 用户有权查看数据使用说明、导出自己的内容，并在「设置 → 隐私与数据」中清除本地数据。') }}</p>
-          <p>{{ $t('5. 不同意本协议将无法使用 Coolto；已同意后可在设置页随时查看。') }}</p>
+          <p v-for="paragraph in PRIVACY_POLICY_CONTENT" :key="paragraph">{{ $t(paragraph) }}</p>
         </div>
       </details>
 
@@ -97,14 +115,42 @@ function keydown(event: KeyboardEvent): void {
           <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
           <span>{{ $t('查看隐私政策全文') }}</span>
         </button>
-        <button
-          class="primary-button privacy-agree"
-          type="button"
-          data-privacy-initial-focus
-          @click="$emit('agree')"
-        >
-          {{ $t('同意并继续') }}
-        </button>
+        <div class="privacy-action-group">
+          <button
+            v-if="authenticated && state?.localAccepted && !(state.available && state.consent?.status === 'accepted')"
+            class="secondary-button"
+            type="button"
+            @click="emit('exportLocal')"
+          >
+            {{ $t('导出本机数据') }}
+          </button>
+          <button
+            v-if="authenticated"
+            class="privacy-link-button"
+            type="button"
+            :disabled="busy"
+            @click="emit('logout')"
+          >
+            {{ $t('退出登录') }}
+          </button>
+          <button
+            class="privacy-link-button danger-text"
+            type="button"
+            :disabled="busy || state?.available === false || state?.restrictedRecovery"
+            @click="emit('decline')"
+          >
+            {{ $t('不同意') }}
+          </button>
+          <button
+            class="primary-button privacy-agree"
+            type="button"
+            data-privacy-initial-focus
+            :disabled="busy || state?.available === false || state?.restrictedRecovery"
+            @click="emit('agree')"
+          >
+            {{ busy ? $t('请稍候…') : $t('同意并继续') }}
+          </button>
+        </div>
       </div>
     </section>
   </div>

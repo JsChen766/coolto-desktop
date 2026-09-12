@@ -1,22 +1,25 @@
-import { createHash } from "node:crypto";
 import { join } from "node:path";
 
 import { app, safeStorage } from "electron";
 
 import type { ResumeDraftCodec } from "../../../resume/draft/types.js";
+import {
+  localScopeDigest,
+  scopedDirectories,
+} from "../../../privacy/local-scope.js";
 import { ResumeDraftFileRepository } from "./draft-file-repository.js";
 
 export function createElectronResumeDraftRepository(
+  apiBaseUrl: string,
   ownerId: string,
 ): ResumeDraftFileRepository {
-  const ownerHash = createHash("sha256")
-    .update(ownerId)
-    .digest("hex")
-    .slice(0, 20);
+  const paths = scopedDirectories(app.getPath("userData"), "resume-drafts", apiBaseUrl, ownerId);
   return new ResumeDraftFileRepository(
     ownerId,
-    join(app.getPath("userData"), "resume-drafts", ownerHash),
+    paths.directory,
     electronCodec,
+    localScopeDigest(apiBaseUrl, ownerId),
+    paths.legacyDirectory,
   );
 }
 

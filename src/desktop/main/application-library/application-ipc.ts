@@ -15,13 +15,11 @@ export const APPLICATION_IPC_CHANNELS = [
   "applications:list",
   "applications:references",
   "applications:get",
-  "applications:create",
   "applications:prepare-create",
   "applications:prepare-update",
+  "applications:prepare-transition",
+  "applications:prepare-delete",
   "applications:execute-proposal",
-  "applications:update",
-  "applications:transition",
-  "applications:delete",
 ] as const;
 
 export function registerApplicationIpc(
@@ -42,11 +40,6 @@ export function registerApplicationIpc(
     (await getStore()).getApplication(parseApplicationId(raw)),
   );
   ipcMain.handle(
-    "applications:create",
-    async (_event, raw: unknown) =>
-      (await getStore()).createApplication(parseApplicationCreate(raw)),
-  );
-  ipcMain.handle(
     "applications:prepare-create",
     async (_event, raw: unknown) =>
       (await getProposals()).prepareCreate(parseApplicationCreate(raw)),
@@ -59,31 +52,26 @@ export function registerApplicationIpc(
     },
   );
   ipcMain.handle(
-    "applications:execute-proposal",
-    async (_event, raw: unknown) =>
-      (await getProposals()).execute(parseProposalId(raw)),
-  );
-  ipcMain.handle(
-    "applications:update",
-    async (_event, raw: unknown) => {
-      const input = parseApplicationUpdate(raw);
-      return (await getStore()).updateApplication(input.applicationId, input.changes);
-    },
-  );
-  ipcMain.handle(
-    "applications:transition",
+    "applications:prepare-transition",
     async (_event, raw: unknown) => {
       const input = parseApplicationTransition(raw);
-      return (await getStore()).transitionApplication(
+      return (await getProposals()).prepareTransition(
         input.applicationId,
         input.transition,
       );
     },
   );
-  ipcMain.handle("applications:delete", async (_event, raw: unknown) => {
-    const applicationId = parseApplicationId(raw);
-    const result = await (await getStore()).deleteApplication(applicationId);
-    await onDeleted?.(applicationId);
-    return result;
-  });
+  ipcMain.handle(
+    "applications:prepare-delete",
+    async (_event, raw: unknown) =>
+      (await getProposals()).prepareDelete(parseApplicationId(raw)),
+  );
+  ipcMain.handle(
+    "applications:execute-proposal",
+    async (_event, raw: unknown) => {
+      const result = await (await getProposals()).execute(parseProposalId(raw));
+      if (!("companyName" in result)) await onDeleted?.(result.id);
+      return result;
+    },
+  );
 }
