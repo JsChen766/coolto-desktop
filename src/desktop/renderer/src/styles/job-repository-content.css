@@ -115,11 +115,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition:
+    background var(--motion-instant) var(--ease-out-quart),
+    color var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .repository-more-trigger:hover {
   background: var(--surface);
   color: var(--text);
+}
+
+.repository-more-trigger:active {
+  transform: scale(var(--press-scale));
 }
 
 .repository-more-actions > summary::-webkit-details-marker {
@@ -134,10 +142,10 @@
   width: max-content;
   min-width: 138px;
   padding: 5px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: 10px;
   box-shadow: var(--shadow-menu);
-  background: var(--bg);
+  background: var(--surface-float);
+  animation: panel-enter var(--motion-standard) var(--ease-out-quart);
 }
 
 .repository-action-menu button {
@@ -154,6 +162,10 @@
 .repository-action-menu button:hover {
   background: var(--surface);
   color: var(--text);
+}
+
+.repository-action-menu button:active {
+  transform: scale(var(--press-scale));
 }
 
 .repository-collapsible {

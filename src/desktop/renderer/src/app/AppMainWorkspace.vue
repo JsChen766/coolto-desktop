@@ -81,6 +81,7 @@ defineExpose({ confirmExperienceLeave });
       @applications="openRepositoryTracker()"
       @delivery="startDeliveryResumeFile"
       @resume-loop="loopResume = $event"
+      @open-chat="selectChat(current?.id ?? '')"
     />
     <MaterialLibraryView
       v-else-if="activeView === 'material'"

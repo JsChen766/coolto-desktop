@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { BriefcaseBusiness } from "@lucide/vue";
 import { computed, nextTick, ref, watch } from "vue";
 
 import type {
   ApplicationCreateInput,
   DeliveryResumeFile,
-  JobRepositoryJd,
   JobRepositoryResume,
   ResumeLibraryEntry,
 } from "@desktop/types";
@@ -19,11 +17,9 @@ import {
 import { useJobRepository } from "../job-assets/use-job-repository";
 import type { JobRepositoryNavigationState } from "../job-assets/job-repository-navigation";
 import type { TrackerAssetTarget } from "../tracker/tracker-navigation";
-import JobRepositoryAssetList from "./JobRepositoryAssetList.vue";
+import JobRepositoryEmptyState from "./JobRepositoryEmptyState.vue";
 import JobRepositoryHeader from "./JobRepositoryHeader.vue";
-import JobRepositoryJdDetail from "./JobRepositoryJdDetail.vue";
-import JobRepositoryResumeDetail from "./JobRepositoryResumeDetail.vue";
-import DeliveryResumeFileDetail from "./DeliveryResumeFileDetail.vue";
+import JobRepositoryMasterDetail from "./JobRepositoryMasterDetail.vue";
 import { deliveryResumeFileEntryId, useDeliveryResumeFiles } from
   "../job-assets/use-delivery-resume-files";
 
@@ -38,6 +34,7 @@ const emit = defineEmits<{
   applications: [];
   delivery: [file: DeliveryResumeFile];
   resumeLoop: [resume: JobRepositoryResume];
+  openChat: [];
 }>();
 
 const repository = useJobRepository();
@@ -72,96 +69,59 @@ const selectedResume = computed(() => deliveryFiles.selected.value
     (resume) => resume.entry.entryId === selectedResumeId.value,
   ) ?? filteredResumes.value[0],
 );
+const selectedListId = computed(() =>
+  view.value === "jobs"
+    ? selectedJd.value?.id
+    : deliveryFiles.selected.value
+      ? deliveryResumeFileEntryId(deliveryFiles.selected.value.id)
+      : selectedResume.value?.entry.entryId,
+);
 const allEmpty = computed(() =>
   !repository.snapshot.value.jds.length && !repository.snapshot.value.resumes.length &&
   !repository.snapshot.value.deliveryResumeFiles.length,
 );
-const filterActive = computed(() =>
-  Boolean(query.value.trim() || (view.value === "jobs" ? jobFilter.value : resumeFilter.value)),
+const viewHasCatalog = computed(() =>
+  view.value === "jobs"
+    ? repository.snapshot.value.jds.length > 0
+    : repository.snapshot.value.resumes.length > 0 ||
+      repository.snapshot.value.deliveryResumeFiles.length > 0,
 );
-
-watch(view, () => {
-  query.value = "";
-  detailOpen.value = false;
-});
+const listHasItems = computed(() =>
+  view.value === "jobs"
+    ? filteredJds.value.length > 0
+    : filteredResumes.value.length > 0 || deliveryFiles.filtered.value.length > 0,
+);
+watch(view, () => { query.value = ""; detailOpen.value = false; });
 watch(
   [view, query, jobFilter, resumeFilter, selectedJdId, selectedResumeId, detailOpen],
   () => emit("navigate", {
-    view: view.value,
-    query: query.value,
-    jobFilter: jobFilter.value,
-    resumeFilter: resumeFilter.value,
-    selectedJdId: selectedJdId.value,
-    selectedResumeId: selectedResumeId.value,
-    detailOpen: detailOpen.value,
+    view: view.value, query: query.value, jobFilter: jobFilter.value,
+    resumeFilter: resumeFilter.value, selectedJdId: selectedJdId.value,
+    selectedResumeId: selectedResumeId.value, detailOpen: detailOpen.value,
   }),
 );
 
-function selectJd(id: string): void {
-  selectedJdId.value = id;
-  detailOpen.value = true;
+function clearFilters(): void {
+  query.value = "";
+  if (view.value === "jobs") jobFilter.value = "";
+  else resumeFilter.value = "";
 }
 
-function selectResume(id: string): void {
-  selectedResumeId.value = id;
-  detailOpen.value = true;
-}
-
-function selectDeliveryFile(id: string): void {
-  deliveryFiles.select(id);
-  detailOpen.value = true;
-}
+function selectJd(id: string): void { selectedJdId.value = id; detailOpen.value = true; }
+function selectResume(id: string): void { selectedResumeId.value = id; detailOpen.value = true; }
+function selectDeliveryFile(id: string): void { deliveryFiles.select(id); detailOpen.value = true; }
 
 function showResumeFromJd(entryId: string): void {
-  view.value = "resumes";
-  query.value = "";
-  resumeFilter.value = "";
+  view.value = "resumes"; query.value = ""; resumeFilter.value = "";
   selectedResumeId.value = entryId;
-  void nextTick(() => {
-    detailOpen.value = true;
-  });
-}
-
-function showJdFromResume(jdId: string): void {
-  view.value = "jobs";
-  query.value = "";
-  jobFilter.value = "";
-  selectedJdId.value = jdId;
   void nextTick(() => { detailOpen.value = true; });
 }
 
-function jdAsset(jd: JobRepositoryJd): TrackerAssetTarget {
-  return { kind: "jd", id: jd.id, title: jd.title };
+function showJdFromResume(jdId: string): void {
+  view.value = "jobs"; query.value = ""; jobFilter.value = "";
+  selectedJdId.value = jdId;
+  void nextTick(() => { detailOpen.value = true; });
 }
-
-function resumeAsset(resume: JobRepositoryResume): TrackerAssetTarget | undefined {
-  return resume.resumeId
-    ? { kind: "resume", id: resume.resumeId, title: resume.entry.displayTitle }
-    : undefined;
-}
-
-function recordJd(jd: JobRepositoryJd): void {
-  emit("record", {
-    jdId: jd.id,
-    companyName: jd.company ?? "",
-    roleName: jd.targetRole ?? "",
-  }, jdAsset(jd));
-}
-
-function recordResume(resume: JobRepositoryResume): void {
-  const asset = resumeAsset(resume);
-  if (!asset) return;
-  emit("record", {
-    resumeId: asset.id,
-    jdId: resume.primaryJd.state === "linked" ? resume.primaryJd.id : null,
-  }, asset);
-}
-
-function trackResume(resume: JobRepositoryResume): void {
-  const asset = resumeAsset(resume);
-  if (asset) emit("tracker", asset);
-}
-
 </script>
 
 <template>
@@ -172,75 +132,59 @@ function trackResume(resume: JobRepositoryResume): void {
       v-model:job-filter="jobFilter"
       v-model:resume-filter="resumeFilter"
       :loading="repository.loading.value"
-      :delivery-file-count="repository.snapshot.value.deliveryResumeFiles.filter((file) => file.slot !== null).length"
+      :delivery-file-count="repository.snapshot.value.deliveryResumeFiles.filter((f) => f.slot !== null).length"
       @refresh="repository.load()"
       @toggle-sidebar="$emit('toggleSidebar')"
       @applications="$emit('applications')"
       @import-delivery="deliveryFiles.importFile"
+      @clear-filters="clearFilters"
     />
-
     <div v-if="repository.error.value" class="tracker-error-banner" role="alert">
       <span>{{ repository.error.value }}</span>
       <button type="button" @click="repository.load()">{{ $t('重试') }}</button>
     </div>
-
     <div v-if="repository.loading.value && allEmpty" class="repository-page-state">
       {{ $t('正在读取求职资产…') }}
     </div>
-    <div v-else-if="allEmpty" class="repository-page-state">
-      <BriefcaseBusiness :size="23" aria-hidden="true" />
-      <strong>{{ $t('尚无 JD 和 Resume') }}</strong>
-      <p>{{ $t('可回到对话创建或同步求职资产。') }}</p>
-    </div>
-    <div v-else class="repository-layout">
-      <aside class="repository-list-pane">
-        <JobRepositoryAssetList
-          :view="view"
-          :jds="filteredJds"
-          :resumes="filteredResumes"
-          :delivery-resume-files="deliveryFiles.filtered.value"
-          :selected-id="view === 'jobs' ? selectedJd?.id : deliveryFiles.selected.value ? deliveryResumeFileEntryId(deliveryFiles.selected.value.id) : selectedResume?.entry.entryId"
-          :empty-label="filterActive ? $t('没有符合当前搜索或筛选条件的结果') : view === 'jobs' ? $t('尚无 JD') : $t('尚无 Resume')"
-          @select-jd="selectJd"
-          @select-resume="selectResume"
-          @select-delivery-file="selectDeliveryFile"
-        />
-      </aside>
-      <section class="repository-detail-pane">
-        <JobRepositoryJdDetail
-          v-if="view === 'jobs' && selectedJd"
-          :jd="selectedJd"
-          :resumes="repository.snapshot.value.resumes"
-          @back="detailOpen = false"
-          @generate="$emit('agent', 'generate', selectedJd.id, selectedJd.title)"
-          @match="$emit('agent', 'match', selectedJd.id, selectedJd.title)"
-          @record="recordJd(selectedJd)"
-          @tracker="$emit('tracker', jdAsset(selectedJd))"
-          @resume="showResumeFromJd"
-        />
-        <JobRepositoryResumeDetail
-          v-else-if="view === 'resumes' && selectedResume"
-          :resume="selectedResume"
-          @back="detailOpen = false"
-          @open="$emit('open', $event)"
-          @record="recordResume(selectedResume)"
-          @tracker="trackResume(selectedResume)"
-          @automate="$emit('resumeLoop', selectedResume)"
-          @jd="showJdFromResume"
-        />
-        <DeliveryResumeFileDetail
-          v-else-if="view === 'resumes' && deliveryFiles.selected.value"
-          :file="deliveryFiles.selected.value"
-          :busy="deliveryFiles.busy.value"
-          @back="detailOpen = false"
-          @use="$emit('delivery', deliveryFiles.selected.value)"
-          @rename="deliveryFiles.rename"
-          @delete="deliveryFiles.remove"
-        />
-        <div v-else class="repository-page-state repository-detail-empty">
-          {{ filterActive ? $t('调整搜索或筛选条件后重试') : $t('选择一项查看详情') }}
-        </div>
-      </section>
-    </div>
+    <JobRepositoryEmptyState v-else-if="allEmpty" variant="global" @open-chat="$emit('openChat')" />
+    <JobRepositoryEmptyState
+      v-else-if="!viewHasCatalog"
+      :variant="view"
+      @open-chat="$emit('openChat')"
+      @import-delivery="deliveryFiles.importFile"
+    />
+    <JobRepositoryEmptyState
+      v-else-if="!listHasItems"
+      variant="filter"
+      :view="view"
+      @clear-filters="clearFilters"
+    />
+    <JobRepositoryMasterDetail
+      v-else
+      :view="view"
+      :jds="filteredJds"
+      :resumes="filteredResumes"
+      :all-resumes="repository.snapshot.value.resumes"
+      :delivery-files="deliveryFiles.filtered.value"
+      :selected-jd="selectedJd"
+      :selected-resume="selectedResume"
+      :selected-delivery="deliveryFiles.selected.value"
+      :selected-list-id="selectedListId"
+      :delivery-busy="deliveryFiles.busy.value"
+      @select-jd="selectJd"
+      @select-resume="selectResume"
+      @select-delivery-file="selectDeliveryFile"
+      @back="detailOpen = false"
+      @agent="(action, id, title) => $emit('agent', action, id, title)"
+      @record="(initial, asset) => $emit('record', initial, asset)"
+      @tracker="(asset) => $emit('tracker', asset)"
+      @open="(entry) => $emit('open', entry)"
+      @resume-loop="(resume) => $emit('resumeLoop', resume)"
+      @delivery="(file) => $emit('delivery', file)"
+      @rename-delivery="deliveryFiles.rename"
+      @remove-delivery="deliveryFiles.remove"
+      @resume-from-jd="showResumeFromJd"
+      @jd-from-resume="showJdFromResume"
+    />
   </div>
 </template>

@@ -1,19 +1,35 @@
 .job-repository-view {
+  flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
 .repository-header {
-  min-height: 68px;
-  padding: 12px 20px;
+  position: relative;
+  padding: 12px calc(20px + var(--window-controls-width, 0px)) 10px 20px;
   border-bottom: 1px solid var(--border);
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .platform-darwin .repository-header {
   padding-top: 24px;
+}
+
+.repository-header-primary,
+.repository-header-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.repository-header-primary {
+  position: relative;
 }
 
 .repository-sidebar-toggle {
@@ -26,22 +42,30 @@
 
 .repository-heading h1 {
   margin: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 18px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
-.repository-tools {
-  min-width: 0;
+.repository-view-switcher {
+  flex-shrink: 0;
+}
+
+.repository-primary-action {
   margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.repository-header-toolbar {
+  padding-left: 0;
 }
 
 .repository-search {
-  width: min(250px, 25vw);
+  width: min(290px, 32vw);
   height: 34px;
   padding: 0 10px;
   border-radius: 8px;
@@ -50,6 +74,9 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
 }
 
 .repository-search input {
@@ -62,17 +89,14 @@
   font-size: 12.5px;
 }
 
-.repository-tools select {
-  height: 34px;
-  max-width: 116px;
-  padding: 0 28px 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  outline: none;
-  background: var(--bg);
-  color: var(--text-soft);
-  font: inherit;
-  font-size: 12px;
+.repository-refresh {
+  flex-shrink: 0;
+}
+
+.repository-applications {
+  margin-left: auto;
+  min-height: 34px;
+  flex-shrink: 0;
 }
 
 .repository-layout {
@@ -104,13 +128,13 @@
 .repository-page-state {
   min-height: 0;
   flex: 1;
-  padding: 32px;
+  padding: 32px 24px;
   color: var(--muted);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   text-align: center;
 }
 
@@ -121,13 +145,19 @@
 
 .repository-page-state p {
   margin: 0;
+  max-width: 360px;
   font-size: 12px;
+  line-height: 1.5;
 }
 
-.repository-detail-empty {
-  height: 100%;
+.repository-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 
 .sidebar-scrim {
   display: none;
 }
+

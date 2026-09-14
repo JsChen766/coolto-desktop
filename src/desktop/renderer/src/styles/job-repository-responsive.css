@@ -26,18 +26,13 @@
     display: inline-flex;
   }
 
-  .repository-header {
-    flex-wrap: wrap;
+  .repository-applications-label {
+    display: none;
   }
 
-  .repository-tools {
-    width: 100%;
-    order: 3;
-  }
-
-  .repository-search {
-    width: auto;
-    flex: 1;
+  .repository-applications {
+    min-width: 34px;
+    padding: 0 9px;
   }
 }
 
@@ -65,12 +60,13 @@
 
   .repository-header {
     padding-left: 14px;
-    padding-right: 14px;
+    padding-right: calc(14px + var(--window-controls-width, 0px));
   }
 }
 
 @media (max-width: 700px) {
-  .repository-header {
+  .repository-header-primary {
+    flex-wrap: wrap;
     align-items: flex-start;
     gap: 10px;
   }
@@ -79,29 +75,36 @@
     flex: 1;
   }
 
-  .repository-header .tracker-view-switcher {
+  .repository-header-primary .repository-view-switcher {
     width: 100%;
-    order: 2;
+    order: 3;
   }
 
-  .repository-header .tracker-view-switcher button {
+  .repository-header-primary .repository-view-switcher button {
     flex: 1;
     justify-content: center;
   }
 
-  .repository-tools {
-    align-items: stretch;
+  .repository-primary-action {
+    margin-left: 0;
+  }
+
+  .repository-primary-action-label {
+    display: none;
+  }
+
+  .repository-header-toolbar {
     flex-wrap: wrap;
   }
 
   .repository-search {
     width: 100%;
+    max-width: none;
     flex-basis: 100%;
   }
 
-  .repository-tools select {
-    max-width: none;
-    flex: 1;
+  .repository-applications {
+    margin-left: 0;
   }
 
   .repository-detail-header,
@@ -120,3 +123,4 @@
     display: none;
   }
 }
+

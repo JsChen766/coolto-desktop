@@ -1,0 +1,80 @@
+.repository-filter {
+  position: relative;
+}
+
+.repository-filter-trigger {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.repository-filter-trigger:hover {
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.repository-filter-trigger > span {
+  min-width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+}
+
+.repository-filter-popover {
+  top: calc(100% + 6px);
+  right: 0;
+  width: 248px;
+  padding: 12px;
+}
+
+.repository-filter-heading {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.repository-filter-heading strong {
+  font-size: 12px;
+}
+
+.repository-filter-heading button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 4px;
+}
+
+.repository-filter-popover label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.repository-filter-popover select {
+  height: 34px;
+  padding: 0 28px 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.repository-filter-clear {
+  width: 100%;
+  margin-top: 12px;
+}

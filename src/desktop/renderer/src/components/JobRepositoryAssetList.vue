@@ -21,7 +21,6 @@ defineProps<{
   resumes: readonly JobRepositoryResume[];
   deliveryResumeFiles: readonly DeliveryResumeFile[];
   selectedId: string | undefined;
-  emptyLabel: string;
 }>();
 
 defineEmits<{
@@ -119,8 +118,5 @@ defineEmits<{
       </button>
     </template>
 
-    <p v-if="view === 'jobs' ? !jds.length : !resumes.length && !deliveryResumeFiles.length" class="repository-list-empty">
-      {{ emptyLabel }}
-    </p>
   </div>
 </template>

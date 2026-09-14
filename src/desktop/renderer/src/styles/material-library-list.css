@@ -1,0 +1,61 @@
+.material-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+}
+
+.material-row:hover,
+.material-row.active {
+  background: var(--surface);
+}
+
+.material-row-main,
+.material-row-side {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.material-row-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+
+.material-row small,
+.material-row-side {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.material-row-side {
+  flex: none;
+  justify-items: end;
+}
+
+.material-status {
+  color: var(--text-soft);
+}
+
+.material-status-filter {
+  position: relative;
+}
+
+.material-status-filter select {
+  height: 34px;
+  padding: 0 28px 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 12px;
+}
