@@ -19,3 +19,4 @@ coverage/
 /native/coolto-core/target/
 local-builds/
 /local-qa-data/
+.idea
