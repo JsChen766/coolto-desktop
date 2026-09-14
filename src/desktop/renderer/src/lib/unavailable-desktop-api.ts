@@ -198,6 +198,11 @@ export function createUnavailableDesktopApi(): DesktopApi {
       reportDraftSaveState: unavailable,
       completeSaveBeforeClose: unavailable,
       onSaveBeforeClose: () => () => undefined,
+      desktopPrefs: async () => ({ alwaysOnTop: false }),
+      setAlwaysOnTop: async () => ({ alwaysOnTop: false }),
+      assetUsage: async () => ({
+        experiences: 0, experienceMax: 200, resumes: 0, resumeMax: 100,
+      }),
     },
     data: {
       clearLocal: unavailable,

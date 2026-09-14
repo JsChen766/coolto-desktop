@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BriefcaseBusiness, Clock3, ExternalLink, FileText, NotebookText, Pencil, Trash2, X } from "@lucide/vue";
+import { BriefcaseBusiness, Clock3, ExternalLink, FileText, MessageSquareText, NotebookText, Pencil, Trash2, X } from "@lucide/vue";
 import { ref, watch } from "vue";
 
 import type {
@@ -59,6 +59,7 @@ const emit = defineEmits<{
   removeChild: [kind: "interview" | "note" | "reminder", id: string];
   syncInterview: [value: InterviewRound];
   startLoop: [kind: "follow_up" | "briefing"];
+  prepareInterview: [];
 }>();
 
 const editing = ref(false);
@@ -187,9 +188,15 @@ function save(): void {
           class="secondary-button icon-label" type="button" @click="$emit('startLoop', 'follow_up')">
           <Clock3 :size="14" aria-hidden="true" />{{ $t('安排跟进') }}
         </button>
+        <button
+          v-if="application.jdId || application.roleName"
+          class="secondary-button icon-label" type="button"
+          @click="$emit('prepareInterview')">
+          <MessageSquareText :size="14" aria-hidden="true" />{{ $t('准备面试问题') }}
+        </button>
         <button v-if="loopsEnabled && detail.interviews.some(item => item.status === 'scheduled')"
           class="secondary-button icon-label" type="button" @click="$emit('startLoop', 'briefing')">
-          <NotebookText :size="14" aria-hidden="true" />{{ $t('准备面试') }}
+          <NotebookText :size="14" aria-hidden="true" />{{ $t('准备面试简报') }}
         </button>
       </div>
     </div>

@@ -14,6 +14,10 @@ import {
   toExperienceWritePayload,
 } from "./experience-sync-mapping.js";
 import { filterExperiences } from "./experience-search.js";
+import {
+  assertAssetCapacity,
+  countLiveAssets,
+} from "../asset-capacity.js";
 
 /**
  * Local-first store for experiences. Reads come from the local projection;
@@ -64,6 +68,10 @@ export class ExperienceSyncStore implements ExperienceReader, ExperienceWriter {
       : { entityId: createUuidV7(), operationId: createUuidV7() };
     const existing = this.store.getEntity("experience", identity.entityId);
     if (existing) return toExperienceDetail(existing);
+    assertAssetCapacity(
+      "experience",
+      countLiveAssets(this.store.listEntities("experience")),
+    );
     const id = identity.entityId;
     const revisionId = createUuidV7();
     const payload = toExperienceWritePayload(input, revisionId);

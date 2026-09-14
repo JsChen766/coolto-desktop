@@ -98,12 +98,34 @@ export function useAppLifecycle(
   });
 
   let unsubscribeCalendar: () => void = () => undefined;
+  function onShortcut(event: KeyboardEvent): void {
+    const modifier = shell.desktopApi.platform === "darwin" ? event.metaKey : event.ctrlKey;
+    if (!modifier || event.altKey || event.shiftKey) return;
+    const key = event.key.toLowerCase();
+    if (key === "n") {
+      event.preventDefault();
+      guardNavigation(() => shell.createChat());
+      return;
+    }
+    if (key === ",") {
+      event.preventDefault();
+      settingsDialogOpen.value = true;
+      return;
+    }
+    if (key !== "l") return;
+    event.preventDefault();
+    document.querySelector<HTMLElement>("[data-testid='chat-composer-input']")?.focus();
+  }
   onMounted(() => {
+    window.addEventListener("keydown", onShortcut);
     unsubscribeCalendar = shell.desktopApi.calendar.onOpenInterview((target) => {
       guardNavigation(() => shell.openTrackerApplication(target.applicationId, target.interviewId));
     });
   });
-  onBeforeUnmount(() => unsubscribeCalendar());
+  onBeforeUnmount(() => {
+    window.removeEventListener("keydown", onShortcut);
+    unsubscribeCalendar();
+  });
 
   return {
     closeProfile,

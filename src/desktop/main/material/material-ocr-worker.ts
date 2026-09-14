@@ -26,7 +26,12 @@ export class ElectronMaterialOcrWorker {
   }
 
   public process(request: MaterialOcrRequest): Promise<MaterialOcrResult> {
-    if (this.#closed || !this.#process) return Promise.reject(new Error("OCR worker 已关闭"));
+    if (this.#closed) return Promise.reject(new Error("OCR worker 已关闭"));
+    if (!this.#process) {
+      this.#restartCount = 0;
+      this.#spawn();
+    }
+    if (!this.#process) return Promise.reject(new Error("OCR worker 已关闭"));
     if (this.#pending.has(request.jobId)) return Promise.reject(new Error("OCR job 已经在处理中"));
     const { promise, resolve, reject } = Promise.withResolvers<MaterialOcrResult>();
     const timeoutMs = Math.max(1, Math.min(600_000, Date.parse(request.deadlineAt) - Date.now()));

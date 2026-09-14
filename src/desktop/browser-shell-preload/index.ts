@@ -35,6 +35,7 @@ const api: BrowserShellApi = {
   toggleDownloadPopover: () =>
     ipcRenderer.send(BROWSER_SHELL_CHANNELS.toggleDownloadPopover),
   openPageInApp: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.openPageInApp),
+  analyzeJdInApp: () => ipcRenderer.send(BROWSER_SHELL_CHANNELS.analyzeJdInApp),
   dismissPermissionNotice: () =>
     ipcRenderer.send(BROWSER_SHELL_CHANNELS.dismissPermissionNotice),
   toggleAgentInspector: () =>

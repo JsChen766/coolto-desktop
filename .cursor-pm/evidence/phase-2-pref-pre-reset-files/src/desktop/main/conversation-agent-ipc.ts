@@ -1,0 +1,168 @@
+import { dialog, type BrowserWindow, type IpcMain } from "electron";
+
+import {
+  ATTACHMENT_CAPTURE_IPC_CHANNEL,
+  ATTACHMENT_IPC_CHANNELS,
+} from "./attachments/host-file-reference.js";
+import type { ApprovalDecision } from "../../approvals/types.js";
+import type {
+  AgentPromptInput,
+  AttachmentRemoveInput,
+  ApprovalResolveInput,
+  ConversationRenameInput,
+  ConversationResumeContextInput,
+} from "../shared/types.js";
+import type { UserServices } from "./user-services.js";
+import type { WindowCloseGuard } from "./window-close-guard.js";
+import { sanitizeAgentPromptInput } from "./agent-prompt-input.js";
+
+type CurrentUserServices = () => Promise<UserServices>;
+
+export function registerConversationAgentIpc(
+  ipcMain: IpcMain,
+  window: BrowserWindow,
+  servicesForCurrentUser: CurrentUserServices,
+  closeGuard: WindowCloseGuard,
+): void {
+  ipcMain.handle("conversations:list", async () =>
+    (await servicesForCurrentUser()).conversations.list(),
+  );
+  ipcMain.handle("conversations:create", async () =>
+    (await servicesForCurrentUser()).conversations.create(),
+  );
+  ipcMain.handle("conversations:create-for-resume", async (_event, artifactId: string) =>
+    (await servicesForCurrentUser()).resumeConversationLinks.create(artifactId),
+  );
+  ipcMain.handle("conversations:get", async (_event, conversationId: string) =>
+    (await servicesForCurrentUser()).conversations.get(conversationId),
+  );
+  ipcMain.handle(
+    "conversations:bind-resume",
+    async (_event, input: ConversationResumeContextInput) =>
+      (await servicesForCurrentUser()).resumeConversationLinks.link(
+        input.conversationId,
+        input.artifactId,
+      ),
+  );
+  ipcMain.handle(
+    "conversations:clear-resume-context",
+    async (_event, conversationId: string) =>
+      (await servicesForCurrentUser()).resumeConversationLinks.clear(
+        conversationId,
+      ),
+  );
+  ipcMain.handle(
+    "conversations:rename",
+    async (_event, input: ConversationRenameInput) =>
+      (await servicesForCurrentUser()).conversations.rename(
+        input.conversationId,
+        input.title,
+      ),
+  );
+  ipcMain.handle("conversations:delete", async (_event, conversationId: string) => {
+    const current = await servicesForCurrentUser();
+    await current.conversations.delete(conversationId);
+    current.selectedFiles.release(conversationId);
+  });
+
+  ipcMain.handle("attachments:list", async (_event, conversationId: string) => {
+    const current = await servicesForCurrentUser();
+    await current.conversations.get(conversationId);
+    return current.selectedFiles.list(conversationId);
+  });
+  ipcMain.handle("attachments:select", async (_event, conversationId: string) => {
+    const current = await servicesForCurrentUser();
+    await current.conversations.get(conversationId);
+    if (current.agent.isRunning) {
+      throw new Error("Agent 回复期间不能更换附件");
+    }
+    const selection = await dialog.showOpenDialog(window, {
+      title: "选择经历材料",
+      properties: ["openFile"],
+      filters: [{
+        name: "文档材料",
+        extensions: ["pdf", "docx", "txt", "md", "markdown"],
+      }],
+    });
+    const path = selection.filePaths[0];
+    if (selection.canceled || !path) return undefined;
+    return current.selectedFiles.replace(conversationId, path);
+  });
+  ipcMain.handle(
+    ATTACHMENT_CAPTURE_IPC_CHANNEL,
+    async (_event, conversationId: string, inputPath: string) => {
+      const current = await servicesForCurrentUser();
+      await current.conversations.get(conversationId);
+      if (current.agent.isRunning) {
+        throw new Error("Agent 回复期间不能更换附件");
+      }
+      if (typeof inputPath !== "string" || !inputPath.trim()) return undefined;
+      return current.selectedFiles.replace(conversationId, inputPath);
+    },
+  );
+  ipcMain.handle(
+    "attachments:remove",
+    async (_event, input: AttachmentRemoveInput) => {
+      const current = await servicesForCurrentUser();
+      await current.conversations.get(input.conversationId);
+      if (current.agent.isRunning) {
+        throw new Error("Agent 回复期间不能移除附件");
+      }
+      current.selectedFiles.remove(input.conversationId, input.fileId);
+    },
+  );
+
+  ipcMain.handle("agent:prompt", async (_event, input: AgentPromptInput) => {
+    const current = await servicesForCurrentUser();
+    if (input.resumeReference?.source !== "cloud" && input.resumeReference) {
+      await current.resumeConversationLinks.link(
+        input.conversationId,
+        input.resumeReference.artifactId,
+      );
+    }
+    return current.agent.prompt(sanitizeAgentPromptInput(input));
+  });
+  ipcMain.handle("agent:cancel", async () => {
+    (await servicesForCurrentUser()).agent.cancel();
+  });
+  ipcMain.handle("agent:pending-approvals", async (_event, conversationId: string) => {
+    const current = await servicesForCurrentUser();
+    await current.conversations.get(conversationId);
+    return current.agent.pendingApprovals(conversationId);
+  });
+  ipcMain.handle(
+    "agent:resolve-approval",
+    async (_event, input: ApprovalResolveInput) =>
+      (await servicesForCurrentUser()).agent.resolveApproval(
+        input.conversationId,
+        input.requestId,
+        input.decision as ApprovalDecision,
+      ),
+  );
+
+  ipcMain.handle("window:minimize", () => window.minimize());
+  ipcMain.handle("window:toggle-maximize", () => {
+    if (window.isMaximized()) window.unmaximize();
+    else window.maximize();
+  });
+  ipcMain.handle("window:close", () => closeGuard.requestClose());
+}
+
+export const CONVERSATION_AGENT_IPC_CHANNELS = [
+  "conversations:list",
+  "conversations:create",
+  "conversations:create-for-resume",
+  "conversations:get",
+  "conversations:bind-resume",
+  "conversations:clear-resume-context",
+  "conversations:rename",
+  "conversations:delete",
+  ...ATTACHMENT_IPC_CHANNELS,
+  "agent:prompt",
+  "agent:cancel",
+  "agent:pending-approvals",
+  "agent:resolve-approval",
+  "window:minimize",
+  "window:toggle-maximize",
+  "window:close",
+] as const;

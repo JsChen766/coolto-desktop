@@ -28,6 +28,7 @@ const emit = defineEmits<{
   openAsset: [kind: "jd" | "resume", id: string];
   applicationOpened: [applicationId: string];
   openAgentTask: [taskId: string];
+  prepareInterview: [title: string];
 }>();
 const loopKind = ref<"follow_up" | "briefing">();
 const loopInterviews = ref<InterviewRound[]>([]);
@@ -62,6 +63,11 @@ function openApplication(application: (typeof filtered.value)[number]): void {
 function startLoop(kind: "follow_up" | "briefing", interviews: InterviewRound[]): void {
   loopKind.value = kind;
   loopInterviews.value = interviews;
+}
+function prepareInterview(): void {
+  const selected = tracker.selected.value;
+  if (!selected) return;
+  emit("prepareInterview", selected.jdTitleSnapshot ?? selected.roleName);
 }
 </script>
 
@@ -160,6 +166,7 @@ function startLoop(kind: "follow_up" | "briefing", interviews: InterviewRound[])
       @open-asset="openAsset"
       @children-changed="childrenChanged"
       @start-loop="startLoop"
+      @prepare-interview="prepareInterview"
     />
 
     <ApplicationCreateDialog

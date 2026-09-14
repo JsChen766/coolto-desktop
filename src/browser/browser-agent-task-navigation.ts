@@ -29,8 +29,9 @@ export function nextBrowserPageHandoffNavigation(
   if (typeof value.title !== "string" || typeof value.url !== "string" ||
       value.title.length === 0 || value.title.length > 160 || value.url.length > 2_048 ||
       !/^https?:\/\//u.test(value.url)) return null;
+  const intent = value.intent === "analyze_jd" ? "analyze_jd" as const : undefined;
   return {
-    page: { title: value.title, url: value.url },
+    page: { title: value.title, url: value.url, ...(intent ? { intent } : {}) },
     sequence: (previous?.sequence ?? 0) + 1,
   };
 }

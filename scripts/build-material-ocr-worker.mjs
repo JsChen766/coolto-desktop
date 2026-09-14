@@ -16,7 +16,7 @@ for (const [entry, outfile] of entries) {
     platform: "node",
     format: "cjs",
     target: "node22",
-    minify: true,
+    minify: false,
     packages: "external",
     external: ["electron"],
   });

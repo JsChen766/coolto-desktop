@@ -6,7 +6,7 @@ import {
   defaultJobRepositoryNavigation,
   type JobRepositoryNavigationState,
 } from "../job-assets/job-repository-navigation";
-import { buildJdActionInstruction } from "../../../../job-assets/job-action-instruction.js";
+import { buildInterviewQuestionsInstruction, buildJdActionInstruction } from "../../../../job-assets/job-action-instruction.js";
 import type {
   TrackerAssetTarget,
   TrackerNavigationContext,
@@ -94,6 +94,11 @@ export function useJobFlowNavigation(deps: JobFlowDependencies) {
     );
   }
 
+  async function startInterviewPrep(title: string): Promise<void> {
+    await deps.createChat();
+    await deps.send(buildInterviewQuestionsInstruction(title));
+  }
+
   return {
     closeTracker,
     jobRepositoryNavigation,
@@ -101,6 +106,7 @@ export function useJobFlowNavigation(deps: JobFlowDependencies) {
     openDeliveryResumeFile,
     openTrackerAsset,
     startJdAction,
+    startInterviewPrep,
     startGeneralResume,
     trackerContext,
     updateRepositoryNavigation,

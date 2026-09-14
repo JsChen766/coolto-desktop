@@ -6,9 +6,17 @@ const MATERIAL_IMPORT_FILTERS = [{
   extensions: ["pdf", "docx", "txt", "md", "markdown", "png", "jpg", "jpeg", "webp"],
 }];
 
+function qaMaterialImportPaths(): string[] | undefined {
+  const raw = process.env.COOLTO_QA_MATERIAL_PATHS?.trim();
+  if (!raw || app.isPackaged) return undefined;
+  return raw.split(/[;,]/u).map((entry) => entry.trim()).filter(Boolean);
+}
+
 export function createMaterialFileDialogSelectors(window: BrowserWindow) {
   return {
     selectPaths: async (): Promise<string[]> => {
+      const qaPaths = qaMaterialImportPaths();
+      if (qaPaths?.length) return qaPaths;
       const selection = await dialog.showOpenDialog(window, {
         title: "选择材料文件",
         properties: ["openFile", "multiSelections"],

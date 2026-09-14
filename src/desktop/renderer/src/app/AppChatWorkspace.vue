@@ -23,6 +23,7 @@ import ChatPendingAction from "./ChatPendingAction.vue";
 import ChatComposerHost from "./ChatComposerHost.vue";
 import ChatHeaderHost from "./ChatHeaderHost.vue";
 import { publishComposerDraft } from "../chat/composer-draft-channel";
+import { buildMatchReportResumeInstruction } from "../../../../job-assets/match-report-resume-instruction";
 const props = defineProps<{
   shell: AppShell;
   composerDisabled?: boolean;
@@ -230,6 +231,11 @@ function restartLastRun(): void { void send("请重新开始刚才的任务，�
         <MatchReportPanel
           v-else-if="artifactOpen && activeArtifactType === 'match' && activeMatchReport"
           :data="activeMatchReport"
+          @generate="send(
+            buildMatchReportResumeInstruction(activeMatchReport.jdTitle),
+            undefined,
+            { action: 'generate', jdId: activeMatchReport.jdId, title: activeMatchReport.jdTitle },
+          )"
         />
       </div>
 </template>

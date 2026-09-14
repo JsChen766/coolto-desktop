@@ -96,6 +96,10 @@ class ResumeStoreFake {
     return this.entity;
   }
 
+  public listEntities(): LocalEntity[] {
+    return this.entity ? [this.entity] : [];
+  }
+
   public enqueue(input: EnqueueMutation): string {
     this.enqueued.push(structuredClone(input));
     this.entity = {

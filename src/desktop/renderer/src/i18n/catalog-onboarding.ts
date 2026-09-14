@@ -25,6 +25,8 @@ export const onboardingMessages: Record<string, string> = {
   "添加你的目标岗位": "Add your target role",
   "粘贴目标岗位 JD，或先浏览求职网站，我会继续帮你准备针对性材料。":
     "Paste a target JD or browse job sites, and I’ll help prepare tailored materials.",
+  "粘贴目标岗位 JD 或公开岗位链接，也可以先浏览求职网站。":
+    "Paste a target JD or a public job link, or browse job sites first.",
   "准备针对性简历并开始投递": "Prepare a tailored resume and apply",
   "基于目标岗位和经历仓库生成针对性简历，并在确认后记录真实投递。":
     "Create a tailored resume from your target role and experience library, then record the real application after confirmation.",

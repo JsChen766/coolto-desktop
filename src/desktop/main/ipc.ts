@@ -78,10 +78,13 @@ import {
 } from "./onboarding/onboarding-ipc.js";
 import { createPrivacyHostWiring } from "./privacy/privacy-host.js";
 import { registerQuitFlush, setPendingQuitFlush } from "./quit-flush.js";
-import {
-  MATERIAL_IPC_CHANNELS,
-} from "./material/material-ipc.js";
+import { MATERIAL_IPC_CHANNELS } from "./material/material-ipc.js";
 import { registerAppMaterialIpc } from "./material/register-app-material-ipc.js";
+import {
+  DESKTOP_SHELL_IPC_CHANNELS,
+  registerDesktopShellIpc,
+} from "./desktop-shell-ipc.js";
+import { attachDesktopWindowShell } from "./desktop-window-shell.js";
 
 export function registerDesktopIpc(
   ipcMain: IpcMain,
@@ -97,7 +100,6 @@ export function registerDesktopIpc(
     ...CHECKOUT_IPC_CHANNELS,
     ...SHELL_IPC_CHANNELS,
     ...CONVERSATION_AGENT_IPC_CHANNELS,
-    ...IPC_CHANNELS,
     ...RESUME_DRAFT_IPC_CHANNELS,
     ...LIBRARY_IPC_CHANNELS,
     ...APPLICATION_IPC_CHANNELS,
@@ -114,11 +116,14 @@ export function registerDesktopIpc(
     ...DELIVERY_RESUME_FILE_IPC_CHANNELS,
     ...ONBOARDING_IPC_CHANNELS,
     ...MATERIAL_IPC_CHANNELS,
+    ...DESKTOP_SHELL_IPC_CHANNELS,
+    "data:clear-local",
   ]) {
     ipcMain.removeHandler(channel);
   }
   const auth = new DesktopAuthService();
-  const closeGuard = new WindowCloseGuard(window);
+  const windowShell = attachDesktopWindowShell(window);
+  const closeGuard = new WindowCloseGuard(window, () => !windowShell.isQuitting());
   const services = new UserServicesResolver(
     auth,
     window,
@@ -139,6 +144,7 @@ export function registerDesktopIpc(
   // closed handler clears services (cancelling the agent) right after, and
   // before-quit waits for this snapshot to land before the process exits.
   window.on("close", () => {
+    if (!windowShell.isQuitting()) return;
     setPendingQuitFlush(services.flushPending().catch(() => {}));
   });
   const privacyWiring = createPrivacyHostWiring(
@@ -190,6 +196,7 @@ export function registerDesktopIpc(
   );
   registerClearLocalDataIpc(ipcMain, privacyWiring.clearLocal);
   registerShellIpc(ipcMain);
+  registerDesktopShellIpc(ipcMain, windowShell, servicesForCurrentUser);
   const resumeLibraryForCurrentUser = async () => {
     const user = auth.requireCurrentUser();
     const currentServices = await servicesForCurrentUser();
@@ -237,8 +244,3 @@ export function registerDesktopIpc(
   registerOnboardingIpc(ipcMain, servicesForCurrentUser);
   registerAppMaterialIpc(ipcMain, window, servicesForCurrentUser);
 }
-
-
-const IPC_CHANNELS = [
-  "data:clear-local",
-] as const;

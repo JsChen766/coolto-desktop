@@ -148,6 +148,34 @@ test("material ingestion resolves a short target Experience reference", async ()
   assert.equal(received, canonicalId);
 });
 
+test("prepare_match_analysis resolves short references in usedExperiences", async () => {
+  const canonicalId = "01a00a4f-f312-7132-8036-984b133ae3ea";
+  const registry = new ExperienceReferenceRegistry();
+  const reference = registry.referenceFor(canonicalId);
+  let received = "";
+  const wrapped = registry.wrap({
+    name: "prepare_match_analysis",
+    label: "test",
+    description: "test",
+    parameters: {} as never,
+    execute: async (_callId, params) => {
+      received = (params as { usedExperiences: Array<{ experienceId: string }> })
+        .usedExperiences[0]!.experienceId;
+      return { content: [{ type: "text" as const, text: "{}" }], details: {} };
+    },
+  });
+  await wrapped.execute("match", {
+    jdId: "jd-1",
+    usedExperiences: [{ experienceId: reference, revisionId: "r1", contentHash: "h1" }],
+    dimensions: [],
+    highlights: [],
+    gaps: [],
+    coverageRatio: 1,
+    evidenceCompleteness: 1,
+  });
+  assert.equal(received, canonicalId);
+});
+
 test("Experience maintenance resolves short references inside batch operations", async () => {
   const canonicalId = "01a00a4f-f312-7132-8036-984b133ae3ea";
   const registry = new ExperienceReferenceRegistry();

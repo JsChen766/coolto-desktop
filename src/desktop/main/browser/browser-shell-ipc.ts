@@ -49,6 +49,8 @@ export function registerBrowserShellIpc(
   onShell(ipcMain, manager, S.toggleDownloadPopover, () =>
     manager.toggleDownloadPopover());
   onShell(ipcMain, manager, S.openPageInApp, () => manager.openPageInApp());
+  onShell(ipcMain, manager, S.analyzeJdInApp, () =>
+    manager.openPageInApp("analyze_jd"));
   onShell(ipcMain, manager, S.toggleAgentInspector, () =>
     manager.shellCommands.toggleAgentInspector());
   onShell(ipcMain, manager, S.searchFind, (_event, query) => {

@@ -15,6 +15,7 @@ import {
   createBrowserWriteTools,
 } from "./browser/index.js";
 import { createRecruitingFormTools } from "./browser/recruiting-form-tools.js";
+import { createFetchPublicHttpsTextTool } from "./fetch-public-https-text.js";
 import { createPrepareJdImportTool } from "./prepare-jd-import.js";
 import { createRuntimeInfoTool } from "./runtime-info.js";
 import { createJdTools } from "./jd-tools.js";
@@ -151,6 +152,7 @@ export function createToolRegistry(
         dependencies.jdProposalStore,
         dependencies.approvalManager,
       ),
+      createFetchPublicHttpsTextTool(),
     );
   }
   businessTools.push(...createLocalFileTools(dependencies));

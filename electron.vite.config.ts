@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -15,12 +16,29 @@ const nativeCoreSha256 = existsSync(nativeCorePath)
   ? createHash("sha256").update(readFileSync(nativeCorePath)).digest("hex")
   : "";
 
+function materialOcrWorkerBundlePlugin() {
+  return {
+    name: "material-ocr-worker-bundle",
+    closeBundle: {
+      order: "post" as const,
+      handler(): void {
+        const result = spawnSync(process.execPath, ["scripts/build-material-ocr-worker.mjs"], {
+          cwd: resolve("."),
+          stdio: "inherit",
+        });
+        if (result.status !== 0) throw new Error("material OCR worker bundle failed");
+      },
+    },
+  };
+}
+
 export default defineConfig({
   main: {
     plugins: [
       externalizeDepsPlugin({
         exclude: ["@earendil-works/pi-ai", "@earendil-works/pi-agent-core"],
       }),
+      materialOcrWorkerBundlePlugin(),
     ],
     define: {
       __COOLTO_NATIVE_CORE_SHA256__: JSON.stringify(nativeCoreSha256),

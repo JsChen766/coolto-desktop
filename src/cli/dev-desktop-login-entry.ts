@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 
 import { app, safeStorage } from "electron";
+
+import { createUuidV7 } from "../sync/uuid-v7.js";
 
 const DEFAULT_EMAIL = "dev@example.com";
 const DEFAULT_PASSWORD = "devpassword";
@@ -13,7 +15,7 @@ async function run(): Promise<void> {
   const apiBaseUrl = (process.env.COOLTO_API_BASE_URL ?? "http://127.0.0.1:8080").replace(/\/+$/, "");
   const email = (process.env.COOLTO_DEV_LOGIN_EMAIL ?? DEFAULT_EMAIL).trim();
   const password = process.env.COOLTO_DEV_LOGIN_PASSWORD ?? DEFAULT_PASSWORD;
-  const device = await loadOrCreateDevice(apiBaseUrl, email);
+  const device = { id: createUuidV7() };
   const loginRes = await fetch(`${apiBaseUrl}/v1/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -48,23 +50,6 @@ async function run(): Promise<void> {
   app.quit();
 }
 
-async function loadOrCreateDevice(apiBaseUrl: string, email: string): Promise<{ id: string }> {
-  const path = join(app.getPath("userData"), "sync", "device-identities.coolto");
-  let map: Record<string, string> = {};
-  try {
-    map = JSON.parse(await readFile(path, "utf8")) as Record<string, string>;
-  } catch {
-    map = {};
-  }
-  const key = `${apiBaseUrl}\0${email.toLowerCase()}`;
-  if (!map[key]) map[key] = randomUUID();
-  await mkdir(dirname(path), { recursive: true });
-  const tmp = `${path}.${randomUUID()}.tmp`;
-  await writeFile(tmp, JSON.stringify(map), { mode: 0o600 });
-  await rename(tmp, path);
-  return { id: map[key] };
-}
-
 async function recordDevPrivacyConsent(
   apiBaseUrl: string,
   cookie: string,
@@ -85,7 +70,15 @@ async function recordDevPrivacyConsent(
       appVersion: process.env.npm_package_version ?? "0.1.26",
     }),
   });
-  if (!res.ok) throw new Error(`privacy consent failed: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    if (res.status === 404) {
+      console.warn(
+        `privacy consent skipped (${res.status}) — ${apiBaseUrl}/v1/users/me/privacy/consent not on server`,
+      );
+      return;
+    }
+    throw new Error(`privacy consent failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 function extractAccessToken(headers: Headers): string | undefined {

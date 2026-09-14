@@ -20,7 +20,7 @@ const PREFERENCE_TOOLS = new Set([
 ]);
 const DISCOVERY_BLOCKED_PREFIXES = ["browser_", "fetch_inbox", "read_inbox", "list_inbox", "capture_browser_mail"];
 const DISCOVERY_BLOCKED = new Set([
-  "extract_page", "request_write_access", "browser_submit", "prepare_application_submission",
+  "request_write_access", "browser_submit", "prepare_application_submission",
   "sync_submission_receipt", "confirm_submission_receipt", "record_inbox_signal",
   "prepare_inbox_application_update", "prepare_inbox_interview_update", "prepare_agent_task",
   "sync_now", "list_mail_connections", "search_application_candidates", "fetch_job_source",

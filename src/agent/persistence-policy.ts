@@ -11,6 +11,7 @@ const TRANSIENT_TOOL_NAMES = new Set([
   "pause_resume_for_material",
   "decline_resume_material",
   "prepare_agent_task",
+  "fetch_public_https_text",
   "fetch_job_source",
   "list_job_leads",
   "prepare_application_submission",
@@ -96,6 +97,9 @@ function sanitizeAssistantMessage(message: Extract<AgentMessage, { role: "assist
 function expirationInstruction(toolName: string): string {
   if (toolName === "prepare_agent_task") {
     return "This Delegation Proposal expired when the App process ended. Re-read the user goal and call prepare_agent_task again; never execute the old proposal or approval id.";
+  }
+  if (toolName === "fetch_public_https_text") {
+    return "This public page payload expired when the transcript was persisted. Call fetch_public_https_text again with the user-provided HTTPS URL; never reuse stale page text.";
   }
   if (toolName === "fetch_job_source" || toolName === "list_job_leads") {
     return "This job source payload expired when the transcript was persisted. Call list_job_leads or fetch_job_source again; BrowserLead facts remain in the encrypted local task store.";

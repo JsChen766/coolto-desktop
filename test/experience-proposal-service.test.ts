@@ -78,6 +78,10 @@ class FakeLocalSyncStore {
     return this.issue;
   }
 
+  listEntities(): LocalEntity[] {
+    return [this.entity];
+  }
+
   private apply(mutation: EnqueueMutation): void {
     this.entity = {
       ...this.entity,

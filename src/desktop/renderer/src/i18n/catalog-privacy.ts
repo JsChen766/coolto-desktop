@@ -50,6 +50,7 @@ export const privacyMessages: Record<string, string> = {
   "Agent 或浏览器操作正在运行，请完成或停止后再清除。": "An Agent or Browser operation is running. Finish or stop it before clearing.",
   "清除当前设备": "Clear this device",
   "你可以导出自己的数据、只清除当前设备，或删除 Coolto 拥有的账号与云端数据。": "Export your data, clear this device only, or delete the Coolto account and cloud data.",
+  "发送给模型前，会使用当前对话、你明确引用或上传的材料，以及完成该任务所需的岗位、经历或简历摘录；不会上传本机绝对路径或登录凭据。": "Before a model call, Coolto uses the current chat, materials you cited or uploaded, and the job, experience or resume excerpts needed for that task. Local absolute paths and login credentials are never uploaded.",
   "清除当前设备会删除本机对话、草稿、任务、连接、浏览器状态和同步数据库；云端资产保留，系统 Downloads 文件不受影响。": "Clearing this device deletes local conversations, drafts, tasks, connections, browser state and the sync database; cloud assets remain and OS Downloads files are unaffected.",
   "确认清除当前设备？本机数据与登录状态将被删除，云端资产不会删除。": "Clear this device? Device data and login state will be deleted; cloud assets will not be deleted.",
   "云端业务数据": "Cloud business data",

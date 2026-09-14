@@ -204,8 +204,17 @@
   color: var(--muted);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: auto;
+}
+
+.match-panel-generate {
+  margin-left: auto;
+}
+
+.match-panel-generate:disabled {
+  opacity: 0.45;
 }
 
 .match-expired-badge {

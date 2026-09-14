@@ -211,6 +211,9 @@ const api: DesktopApi = {
       ipcRenderer.invoke("window:save-before-close-complete", success),
     onSaveBeforeClose: (listener) =>
       subscribeIpc("window:save-before-close", listener),
+    desktopPrefs: () => ipcRenderer.invoke("window:desktop-prefs"),
+    setAlwaysOnTop: (value) => ipcRenderer.invoke("window:set-always-on-top", value),
+    assetUsage: () => ipcRenderer.invoke("window:asset-usage"),
   },
   data: {
     clearLocal: () => ipcRenderer.invoke("data:clear-local"),

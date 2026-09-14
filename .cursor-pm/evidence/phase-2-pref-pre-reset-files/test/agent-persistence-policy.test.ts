@@ -1,0 +1,172 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import type { AgentMessage } from "@earendil-works/pi-agent-core";
+
+import { sanitizeAgentMessagesForPersistence } from "../src/agent/persistence-policy.js";
+
+test("resume workspace sources are redacted before transcripts are persisted", () => {
+  const messages = [
+    {
+      role: "toolResult",
+      toolCallId: "snapshot-call",
+      toolName: "create_resume_workspace",
+      content: [{ type: "text", text: "private current revision content" }],
+      details: { experiences: [{ content: "private current revision content" }] },
+      isError: false,
+      timestamp: 1,
+    },
+  ] satisfies AgentMessage[];
+
+  const persisted = sanitizeAgentMessagesForPersistence(messages);
+  const serialized = JSON.stringify(persisted);
+
+  assert.doesNotMatch(serialized, /private current revision content/);
+  assert.match(serialized, /workspace expired/);
+  assert.equal("details" in persisted[0]!, false);
+  assert.match(JSON.stringify(messages), /private current revision content/);
+});
+
+test("ordinary Agent messages are cloned without redaction", () => {
+  const messages = [
+    {
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      timestamp: 1,
+    },
+  ] satisfies AgentMessage[];
+
+  const persisted = sanitizeAgentMessagesForPersistence(messages);
+
+  assert.deepEqual(persisted, messages);
+  assert.notStrictEqual(persisted[0], messages[0]);
+});
+
+test("in-memory resume revisions are redacted with a rebuild instruction", () => {
+  const messages = [
+    {
+      role: "toolResult",
+      toolCallId: "candidate-call",
+      toolName: "apply_resume_content",
+      content: [{ type: "text", text: "private candidate and evidence" }],
+      details: { candidateId: "candidate-old", visibleText: "private candidate" },
+      isError: false,
+      timestamp: 1,
+    },
+  ] satisfies AgentMessage[];
+
+  const persisted = sanitizeAgentMessagesForPersistence(messages);
+  const serialized = JSON.stringify(persisted);
+
+  assert.doesNotMatch(serialized, /private candidate/);
+  assert.doesNotMatch(serialized, /candidate-old/);
+  assert.match(serialized, /create_resume_workspace again/);
+  assert.match(serialized, /do not reuse the old candidateId/);
+});
+
+test("cloud Resume content is transient and must be read again", () => {
+  const messages = [
+    {
+      role: "toolResult",
+      toolCallId: "resume-call",
+      toolName: "get_resume",
+      content: [{ type: "text", text: "private cloud Resume content" }],
+      details: { structured: { private: "cloud Resume content" } },
+      isError: false,
+      timestamp: 1,
+    },
+  ] satisfies AgentMessage[];
+
+  const persisted = sanitizeAgentMessagesForPersistence(messages);
+  const serialized = JSON.stringify(persisted);
+
+  assert.doesNotMatch(serialized, /private cloud Resume content/);
+  assert.match(serialized, /Call get_resume again/);
+});
+
+test("material boundary results expire with the in-memory resume workspace", () => {
+  const messages = ["pause_resume_for_material", "decline_resume_material"]
+    .map((toolName, index) => ({
+      role: "toolResult" as const,
+      toolCallId: `material-call-${index}`,
+      toolName,
+      content: [{ type: "text" as const, text: "candidate-old material request" }],
+      details: { candidateId: "candidate-old", requestId: "request-old" },
+      isError: false,
+      timestamp: index + 1,
+    })) satisfies AgentMessage[];
+
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence(messages));
+
+  assert.doesNotMatch(serialized, /candidate-old|request-old/u);
+  assert.match(serialized, /create_resume_workspace again/u);
+});
+
+test("browser observations and actions expire before transcript persistence", () => {
+  const messages = ["extract_page", "browser_snapshot", "browser_fill_field"]
+    .map((toolName, index) => ({
+      role: "toolResult" as const,
+      toolCallId: `browser-${index}`,
+      toolName,
+      content: [
+        { type: "text" as const, text: "private page and field value" },
+        { type: "image" as const, data: "private-screenshot", mimeType: "image/png" },
+      ],
+      details: { dom: "private page", value: "private field value" },
+      isError: false,
+      timestamp: index + 1,
+    })) satisfies AgentMessage[];
+
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence(messages));
+
+  assert.doesNotMatch(serialized, /private page|private field|private-screenshot/u);
+  assert.match(serialized, /browser_snapshot again/u);
+});
+test("pending receipt approval results expire across App restart", () => {
+  const message = {
+    role: "toolResult" as const,
+    toolCallId: "receipt-confirm",
+    toolName: "confirm_submission_receipt",
+    content: [{ type: "text" as const, text: "approval-request-secret" }],
+    details: { approvalRequestId: "approval-old", receiptId: "receipt-1" },
+    isError: false,
+    timestamp: 1,
+  } satisfies AgentMessage;
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence([message]));
+  assert.doesNotMatch(serialized, /approval-request-secret|approval-old/u);
+  assert.match(serialized, /SubmissionReceipt\/Tracker state/u);
+});
+
+test("Delegation Proposal expires across App restart", () => {
+  const message = {
+    role: "toolResult" as const,
+    toolCallId: "task-proposal",
+    toolName: "prepare_agent_task",
+    content: [{ type: "text" as const, text: "proposal-secret" }],
+    details: { proposalId: "proposal-old", allowedDomains: ["jobs.example"] },
+    isError: false,
+    timestamp: 1,
+  } satisfies AgentMessage;
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence([message]));
+  assert.doesNotMatch(serialized, /proposal-secret|proposal-old/u);
+  assert.match(serialized, /prepare_agent_task again/u);
+});
+
+test("Profile and Preference assistant calls persist only rebuild markers", () => {
+  const messages = [{
+    role: "assistant" as const,
+    content: [{
+      type: "toolCall" as const,
+      id: "call-profile", name: "get_user_profile",
+      arguments: { contactEmail: "private@example.com", target: "香港产品经理" },
+    }, {
+      type: "toolCall" as const,
+      id: "call-preference", name: "get_preferences",
+      arguments: { value: "private-preference" },
+    }],
+    timestamp: 1,
+  }] as never;
+  const serialized = JSON.stringify(sanitizeAgentMessagesForPersistence(messages));
+  assert.doesNotMatch(serialized, /private@example\.com|香港产品经理|private-preference/u);
+  assert.match(serialized, /Profile\/Preference result expired/u);
+});

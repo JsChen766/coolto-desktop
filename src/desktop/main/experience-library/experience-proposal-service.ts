@@ -33,6 +33,10 @@ import {
   updateMutation,
 } from "./experience-proposal-mapping.js";
 import { ExperienceProposalRegistry } from "./experience-proposal-registry.js";
+import {
+  assertAssetCapacity,
+  countLiveAssets,
+} from "../asset-capacity.js";
 
 export class ExperienceProposalService {
   readonly #registry: ExperienceProposalRegistry;
@@ -49,6 +53,10 @@ export class ExperienceProposalService {
     input: ExperienceCreateInput,
   ): Promise<ExperienceWriteProposal> {
     await this.initialSync();
+    assertAssetCapacity(
+      "experience",
+      countLiveAssets(this.local.listEntities("experience")),
+    );
     const draft = buildExperienceCreateProposal(input);
     return this.#registry.addCreate(
       draft.experienceId,

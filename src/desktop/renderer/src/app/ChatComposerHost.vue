@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ResumeChatReference } from "@desktop/types";
 import Composer from "../components/Composer.vue";
+import { publishComposerDraft } from "../chat/composer-draft-channel";
+import { useComposerPageHandoff } from "../chat/use-composer-page-handoff";
 import type { AppShell } from "./use-app-shell";
 
 const props = defineProps<{
@@ -25,6 +27,12 @@ const {
   resumeOperationContext,
   running,
 } = props.shell;
+
+useComposerPageHandoff({
+  draft: publishComposerDraft,
+  analyze: (text) => { void props.shell.send(text); },
+  blocked: () => Boolean(props.disabled || props.guided || running.value),
+});
 
 function send(text: string, reference?: ResumeChatReference): void {
   if (props.guided) {

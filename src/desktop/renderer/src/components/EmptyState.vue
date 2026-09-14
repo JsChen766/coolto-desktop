@@ -93,6 +93,11 @@ const stageSuggestions: Record<EmptyStateStage, Suggestion[]> = {
       prompt: "请帮我保存一个新的岗位目标：",
     },
     {
+      icon: Link2,
+      title: "粘贴岗位网页链接",
+      draft: "请抓取这个公开岗位链接并保存为 JD：",
+    },
+    {
       icon: Globe,
       title: "浏览求职网站",
       action: "browser",
@@ -126,6 +131,11 @@ const stageSuggestions: Record<EmptyStateStage, Suggestion[]> = {
       title: "查看投递进度",
       action: "tracker",
     },
+    {
+      icon: MessageSquareText,
+      title: "准备面试问题",
+      prompt: "请根据我的经历和目标岗位，帮我准备面试问题。",
+    },
   ],
 };
 
@@ -144,7 +154,7 @@ const stageCopy: Record<EmptyStateStage, { title: string; description: string }>
   },
   job_target: {
     title: "添加你的目标岗位",
-    description: "粘贴目标岗位 JD，或先浏览求职网站，我会继续帮你准备针对性材料。",
+    description: "粘贴目标岗位 JD 或公开岗位链接，也可以先浏览求职网站。",
   },
   application: {
     title: "选择投递材料并开始投递",

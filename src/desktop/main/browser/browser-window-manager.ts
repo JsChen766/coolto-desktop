@@ -101,10 +101,10 @@ export class BrowserWindowManager {
     const taskId = this.#agentStatus.taskId();
     if (taskId) this.#emitters.openAgentTask(taskId);
   }
-  public openPageInApp(): void {
+  public openPageInApp(intent: "context" | "analyze_jd" = "context"): void {
     const tab = this.#host.tabs?.activeTab()?.getState();
     const page = tab ? browserPageHandoff(tab) : null;
-    if (page) this.#emitters.openPageInApp(page);
+    if (page) this.#emitters.openPageInApp({ ...page, intent });
   }
   public open(input?: BrowserOpenInput, hostInternal = false): BrowserState {
     const presentationChanged = this.#presentation.apply(input);
@@ -242,7 +242,6 @@ export class BrowserWindowManager {
     }
     this.pushState();
   }
-
   #agentProjectionChanged(): void {
     this.#host.tabs?.refreshHomeTask();
     this.pushState();

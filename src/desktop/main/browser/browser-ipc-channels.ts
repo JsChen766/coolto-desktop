@@ -41,6 +41,7 @@ export const BROWSER_SHELL_CHANNELS = {
   dismissDownload: "browser-shell:dismiss-download",
   toggleDownloadPopover: "browser-shell:toggle-download-popover",
   openPageInApp: "browser-shell:open-page-in-app",
+  analyzeJdInApp: "browser-shell:analyze-jd-in-app",
   toggleAgentInspector: "browser-shell:toggle-agent-inspector",
   searchFind: "browser-shell:search-find",
   findNext: "browser-shell:find-next",

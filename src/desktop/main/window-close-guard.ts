@@ -1,6 +1,7 @@
 import { dialog, type BrowserWindow, type IpcMain } from "electron";
 
 import type { WindowDraftSaveState } from "../shared/types.js";
+import { resolveWindowCloseAction } from "./window-close-policy.js";
 
 export const WINDOW_CLOSE_IPC_CHANNELS = [
   "window:draft-save-state",
@@ -11,12 +12,25 @@ export class WindowCloseGuard {
   private state: WindowDraftSaveState = "saved";
   private forceClose = false;
   private prompting = false;
+  private pending: "hide" | "quit" | undefined;
 
-  public constructor(private readonly window: BrowserWindow) {
+  public constructor(
+    private readonly window: BrowserWindow,
+    private readonly shouldHide: () => boolean = () => true,
+  ) {
     window.on("close", (event) => {
-      if (this.forceClose || this.state === "saved" || this.state === "idle") return;
+      const action = resolveWindowCloseAction({
+        forceClose: this.forceClose,
+        quitting: !this.shouldHide(),
+        draftState: this.state,
+      });
+      if (action === "allow") return;
       event.preventDefault();
-      void this.prompt();
+      if (action === "hide") {
+        this.window.hide();
+        return;
+      }
+      void this.prompt(action === "prompt-hide" ? "hide" : "quit");
     });
   }
 
@@ -34,29 +48,38 @@ export class WindowCloseGuard {
       return;
     }
     this.state = "saved";
+    if (this.pending === "hide") {
+      this.pending = undefined;
+      this.window.hide();
+      return;
+    }
     this.forceClose = true;
     this.window.close();
   }
 
-  private async prompt(): Promise<void> {
+  private async prompt(mode: "hide" | "quit"): Promise<void> {
     if (this.prompting || this.window.isDestroyed()) return;
     this.prompting = true;
+    this.pending = mode;
     try {
       const failed = this.state === "error";
+      const hiding = mode === "hide";
       const result = await dialog.showMessageBox(this.window, {
         type: failed ? "error" : "warning",
         title: failed ? "本地自动保存失败" : "还有修改尚未保存",
         message: failed
-          ? "最近的简历修改没有成功保存到本机，直接退出可能丢失内容"
-          : "是否先把当前简历修改保存到本机再退出？",
+          ? hiding
+            ? "最近的简历修改没有成功保存到本机，直接关闭窗口可能丢失内容"
+            : "最近的简历修改没有成功保存到本机，直接退出可能丢失内容"
+          : hiding
+            ? "是否先把当前简历修改保存到本机再关闭窗口？"
+            : "是否先把当前简历修改保存到本机再退出？",
         detail: failed
-          ? "建议返回应用重试；也可以仅保留最后一次成功保存的本地草稿并退出"
+          ? "建议返回应用重试；也可以仅保留最后一次成功保存的本地草稿"
           : "简历库保存和 PDF 导出不影响本地自动草稿",
-        buttons: [
-          "保存本地草稿并退出",
-          "保留上次本地草稿并退出",
-          "取消",
-        ],
+        buttons: hiding
+          ? ["保存本地草稿并关闭到托盘", "保留上次本地草稿并关闭到托盘", "取消"]
+          : ["保存本地草稿并退出", "保留上次本地草稿并退出", "取消"],
         defaultId: 0,
         cancelId: 2,
         noLink: true,
@@ -64,8 +87,14 @@ export class WindowCloseGuard {
       if (result.response === 0 && !this.window.webContents.isDestroyed()) {
         this.window.webContents.send("window:save-before-close");
       } else if (result.response === 1) {
-        this.forceClose = true;
-        this.window.close();
+        this.state = "saved";
+        if (hiding) this.window.hide();
+        else {
+          this.forceClose = true;
+          this.window.close();
+        }
+      } else {
+        this.pending = undefined;
       }
     } finally {
       this.prompting = false;

@@ -15,10 +15,18 @@ const emit = defineEmits<{
   openProfile: [];
   openPreferences: [];
   openAgentTask: [taskId: string];
+  openCredits: [];
 }>();
 const dialog = ref<HTMLElement>();
 const activeNav = ref<SettingsNavId>("profile");
 const feedbackError = ref<string>();
+const alwaysOnTop = ref(false);
+const usage = ref<{
+  experiences: number;
+  experienceMax: number;
+  resumes: number;
+  resumeMax: number;
+}>();
 
 const FEEDBACK_FORM_URL =
   "https://gjp785oqywpv.jp.larksuite.com/share/base/form/shrjpRBazL52SDCRqU2gJI8489c";
@@ -26,6 +34,12 @@ const FEEDBACK_FORM_URL =
 onMounted(() => {
   dialog.value?.focus();
   dialog.value?.querySelector<HTMLElement>("[data-settings-initial-focus]")?.focus();
+  void props.api.window.desktopPrefs().then((prefs) => {
+    alwaysOnTop.value = prefs.alwaysOnTop;
+  });
+  void props.api.window.assetUsage().then((counts) => {
+    usage.value = counts;
+  }).catch(() => undefined);
 });
 
 function dismiss(event?: Event): void {
@@ -35,6 +49,11 @@ function dismiss(event?: Event): void {
 
 function selectNav(id: SettingsNavId): void {
   activeNav.value = id;
+}
+
+async function toggleAlwaysOnTop(event: Event): Promise<void> {
+  const checked = event.target instanceof HTMLInputElement && event.target.checked;
+  alwaysOnTop.value = (await props.api.window.setAlwaysOnTop(checked)).alwaysOnTop;
 }
 
 async function openFeedback(): Promise<void> {
@@ -129,6 +148,32 @@ function keydown(event: KeyboardEvent): void {
             >
               {{ $t('编辑个人信息') }}
             </button>
+            <button
+              class="secondary-button settings-section-action"
+              type="button"
+              @click="emit('openCredits')"
+            >
+              {{ $t('查看用量') }}
+            </button>
+            <p v-if="usage" class="settings-pane-lead">
+              {{ $tf('经历 {used}/{max} · 云端简历 {resumeUsed}/{resumeMax}', {
+                used: usage.experiences,
+                max: usage.experienceMax,
+                resumeUsed: usage.resumes,
+                resumeMax: usage.resumeMax,
+              }) }}
+            </p>
+            <label class="settings-toggle">
+              <input
+                type="checkbox"
+                :checked="alwaysOnTop"
+                @change="toggleAlwaysOnTop"
+              >
+              <span>
+                <strong>{{ $t('窗口置顶') }}</strong>
+                <small>{{ $t('填表时让主窗口保持在最前，方便对照简历和经历。') }}</small>
+              </span>
+            </label>
           </template>
 
           <template v-else-if="activeNav === 'connections'">

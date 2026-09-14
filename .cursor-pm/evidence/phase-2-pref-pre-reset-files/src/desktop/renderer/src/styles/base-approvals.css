@@ -1,0 +1,200 @@
+/* Approval */
+.approval-card {
+  width: 100%;
+  padding: 17px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 2%);
+}
+
+.approval-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.approval-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--surface-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.approval-heading h3 {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.approval-heading p,
+.approval-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.approval-description {
+  margin-top: 13px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.approval-summary {
+  margin: 13px 0 0;
+  display: grid;
+  grid-template-columns: minmax(90px, auto) 1fr;
+  gap: 7px 14px;
+  font-size: 12.5px;
+}
+
+.approval-summary dt {
+  color: var(--muted);
+}
+
+.approval-summary dd {
+  margin: 0;
+  color: var(--text);
+}
+
+.approval-item {
+  margin-top: 11px;
+  padding: 10px 11px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  font-size: 12.5px;
+}
+
+.approval-import-section {
+  margin-top: 11px;
+  padding: 10px 11px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+.approval-import-section h4 { margin: 0 0 8px; font-size: 12.5px; }
+
+.approval-profile-field,
+.approval-item-title { display: flex; align-items: flex-start; gap: 8px; }
+
+.approval-profile-field { margin-top: 8px; color: var(--text-soft); font-size: 12px; }
+.approval-profile-field:first-of-type { margin-top: 0; }
+.approval-profile-field > span { display: grid; gap: 4px; flex: 1; }
+.approval-profile-field small { color: var(--muted); }
+.approval-profile-field input[type='text'],
+.approval-profile-field input:not([type]) { width: 100%; }
+.approval-value-diff { color: var(--muted); }
+.approval-item-title { margin-bottom: 4px; }
+
+.approval-item > p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.approval-item-fields {
+  margin-top: 8px;
+  display: grid;
+  gap: 5px;
+}
+
+.approval-item-fields span {
+  display: flex;
+  gap: 8px;
+}
+
+.approval-item-fields small {
+  min-width: 75px;
+  color: var(--muted);
+}
+
+.approval-warning {
+  color: var(--danger) !important;
+}
+
+.approval-actions {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr 1fr;
+  gap: 7px;
+}
+
+.approval-button {
+  min-height: 38px;
+  min-width: 0;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-soft);
+  justify-content: flex-start;
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.approval-button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.approval-button.primary {
+  border: 0;
+  background: var(--text);
+  color: var(--bg);
+}
+
+.approval-button .action-arrow {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+.approval-custom {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.approval-custom textarea {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.approval-custom-footer {
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted-light);
+  font-size: 10.5px;
+}
+
+.small-primary-button {
+  min-height: 29px;
+  padding: 0 11px;
+  font-size: 11.5px;
+}
+.approval-preference-section {
+  margin-top: 11px;
+  padding: 10px 11px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.approval-preference-section h4 { margin: 0 0 8px; font-size: 12.5px; }
+.approval-preference-diff { margin: 0; display: grid; gap: 6px; font-size: 12px; }
+.approval-preference-diff div { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 8px; }
+.approval-preference-diff dt { color: var(--muted); }
+.approval-preference-diff dd { margin: 0; overflow-wrap: anywhere; }
+.approval-preference-explanation { margin: 9px 0 0; color: var(--text-soft); font-size: 11.5px; line-height: 1.45; }

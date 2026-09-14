@@ -187,6 +187,7 @@ function capabilityFor(tool: AgentTool): ToolCapabilityMetadataV1 {
   if (["search_experiences", "get_experience"].includes(tool.name)) return metadata({
     scope: "experience.read", read: true, fresh: false,
   });
+  if (tool.name === "fetch_public_https_text") return metadata({ scope: "net.public_https.read", read: true, fresh: true, sequential: true, unattendedAllowed: false });
   if (tool.name === "prepare_jd_import") return metadata({
     scope: "jd.write", fresh: false, unattendedAllowed: true,
   });

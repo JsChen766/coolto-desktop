@@ -1,0 +1,234 @@
+import type {
+  ApplicationNote,
+  ApplicationTrackerDetail,
+  InterviewInput,
+  InterviewRound,
+  NoteInput,
+  Reminder,
+  ReminderInput,
+  TrackerRecoveryProposal,
+  TrackerSyncIssueSummary,
+} from "../../../tracker/child-types.js";
+import type {
+  LocalResumeDraft,
+  ResumeDraftCheckpoint,
+  ResumeDraftSummary,
+} from "../../../resume/draft/types.js";
+import type { ResumeLibraryEntry } from "../../../resume/library/types.js";
+import type { ResumeFull } from "../../../resume/types.js";
+import type { JobRepositorySnapshot } from "../../../job-assets/repository-types.js";
+import type {
+  ApplicationCreateInput,
+  ApplicationListOptions,
+  ApplicationListResult,
+  ApplicationRecord,
+  ApplicationReferenceOptions,
+  ApplicationTombstone,
+  ApplicationWriteProposal,
+} from "../../../tracker/types.js";
+import type {
+  ExperienceCreateInput,
+  ExperienceDetail,
+  ExperienceSearchOptions,
+  ExperienceSearchResult,
+  UserProfile,
+} from "../../../api/types.js";
+import type {
+  ProfileChangeSet,
+  ProfileContactView,
+  ProfileWriteProposal,
+} from "../../../profile/types.js";
+import type {
+  ExperienceExecutionResult,
+  ExperienceHistoryPage,
+  ExperienceHistoryRequest,
+  ExperiencePrepareRevisionRestoreRequest,
+  ExperiencePrepareUpdateRequest,
+  ExperienceSyncIssueView,
+  ExperienceWriteProposal,
+} from "../../../experience/maintenance-types.js";
+import type { DesktopAgentEvent, DesktopApprovalRequest } from "./approvals.js";
+import type { DesktopPlatform } from "./browser.js";
+import type { BrowserDesktopApi } from "./browser-api.js";
+import type {
+  AgentPromptInput,
+  ApprovalResolveInput,
+  AttachmentRemoveInput,
+  CheckoutPlan,
+  CheckoutResult,
+  CheckoutVerifyResult,
+  ConversationDetail,
+  ConversationsDesktopApi,
+  DesktopAttachment,
+  DesktopCreditSummary,
+  DesktopUser,
+  EmailChallengeView,
+} from "./conversations.js";
+import type {
+  ApplicationTransitionRequest,
+  ApplicationPrepareUpdateRequest,
+  ApplicationUpdateRequest,
+  LibraryArchiveInput,
+  LibraryDeleteDraftInput,
+  LibraryRenameInput,
+  LibraryRestoreCheckpointInput,
+  CloudResumePreview,
+  ResumeDraftDetail,
+  ResumeDraftEditInput, ResumeDraftLineSpacingInput,
+  ResumeDraftExportPdfInput,
+  ResumeDraftExportPdfResult,
+  ResumeDraftRestoreInput,
+  ResumeDraftSaveInput,
+} from "./resume-library.js";
+import type { AppUpdateState, UpdateTrigger } from "./updates.js";
+import type { AgentTaskDesktopApi } from "./agent-tasks.js";
+import type { MailConnectionsDesktopApi } from "./mail-connections.js";
+import type { TrackerChildDesktopApi } from "./tracker-child-api.js";
+import type { DeliveryResumeFilesDesktopApi } from "./delivery-resume-files.js";
+import type { OnboardingDesktopApi } from "./onboarding.js";
+import type { CalendarDesktopApi } from "./calendar.js";
+import type { LocalClearResultView, PrivacyDesktopApi } from "./privacy.js";
+import type { PreferenceDesktopApi } from "./preferences.js";
+export interface DesktopApi {
+  platform: DesktopPlatform;
+  auth: {
+    getCurrentUser(): Promise<DesktopUser | undefined>;
+    getCredits(): Promise<DesktopCreditSummary>;
+    requestEmailCode(email: string): Promise<EmailChallengeView>;
+    verifyEmailCode(email: string, challengeId: string, code: string): Promise<DesktopUser>;
+    logout(): Promise<void>;
+    syncNow(): Promise<void>;
+    onSyncCompleted(listener: () => void): () => void;
+  };
+  checkout: {
+    plans(): Promise<CheckoutPlan[]>;
+    create(planType: string): Promise<CheckoutResult>;
+    verify(checkoutId: string): Promise<CheckoutVerifyResult>;
+  };
+  shell: {
+    openExternal(url: string): Promise<void>;
+  };
+  mailConnections: MailConnectionsDesktopApi;
+  calendar: CalendarDesktopApi;
+  onboarding: OnboardingDesktopApi;
+  privacy: PrivacyDesktopApi;
+  conversations: ConversationsDesktopApi;
+  attachments: {
+    list(conversationId: string): Promise<DesktopAttachment[]>;
+    select(conversationId: string): Promise<DesktopAttachment | undefined>;
+    selectFile(
+      conversationId: string,
+      file: File,
+    ): Promise<DesktopAttachment | undefined>;
+    remove(input: AttachmentRemoveInput): Promise<void>;
+  };
+  resumeDrafts: {
+    list(): Promise<ResumeDraftSummary[]>;
+    get(artifactId: string): Promise<ResumeDraftDetail>;
+    edit(input: ResumeDraftEditInput): Promise<ResumeDraftDetail>;
+    setLineSpacing(input: ResumeDraftLineSpacingInput): Promise<ResumeDraftDetail>;
+    restore(input: ResumeDraftRestoreInput): Promise<ResumeDraftDetail>;
+    accept(artifactId: string): Promise<ResumeDraftDetail>;
+    reject(artifactId: string): Promise<ResumeDraftDetail>;
+    exportPdf(input: ResumeDraftExportPdfInput): Promise<ResumeDraftExportPdfResult>;
+    save(input: ResumeDraftSaveInput): Promise<ResumeDraftDetail>;
+  };
+  updates: {
+    getState(): Promise<AppUpdateState>;
+    check(trigger: UpdateTrigger): Promise<void>;
+    install(): Promise<void>;
+    onStateChange(listener: (state: AppUpdateState) => void): () => void;
+  };
+  agent: {
+    prompt(input: AgentPromptInput): Promise<ConversationDetail>;
+    cancel(): Promise<void>;
+    pendingApprovals(conversationId: string): Promise<DesktopApprovalRequest[]>;
+    resolveApproval(input: ApprovalResolveInput): Promise<ConversationDetail>;
+    onEvent(listener: (conversationId: string, event: DesktopAgentEvent) => void): () => void;
+  };
+  agentTasks: AgentTaskDesktopApi;
+  library: {
+    list(): Promise<ResumeLibraryEntry[]>;
+    preview(resumeId: string): Promise<CloudResumePreview>;
+    rename(input: LibraryRenameInput): Promise<ResumeFull>;
+    archive(input: LibraryArchiveInput): Promise<ResumeFull>;
+    deleteDraft(input: LibraryDeleteDraftInput): Promise<void>;
+    getCheckpoints(artifactId: string): Promise<ResumeDraftCheckpoint[]>;
+    restoreCheckpoint(input: LibraryRestoreCheckpointInput): Promise<LocalResumeDraft>;
+  };
+  deliveryResumeFiles: DeliveryResumeFilesDesktopApi;
+  jobAssets: {
+    get(): Promise<JobRepositorySnapshot>;
+  };
+  experiences: {
+    search(options?: ExperienceSearchOptions): Promise<ExperienceSearchResult>;
+    get(experienceId: string): Promise<ExperienceDetail>;
+    history(input: ExperienceHistoryRequest): Promise<ExperienceHistoryPage>;
+    prepareCreate(input: ExperienceCreateInput): Promise<ExperienceWriteProposal>;
+    prepareUpdate(input: ExperiencePrepareUpdateRequest): Promise<ExperienceWriteProposal>;
+    prepareArchive(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareRestore(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareDelete(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareRestoreRevision(
+      input: ExperiencePrepareRevisionRestoreRequest,
+    ): Promise<ExperienceWriteProposal>;
+    syncIssue(experienceId: string): Promise<ExperienceSyncIssueView>;
+    prepareAcceptServer(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareReapply(experienceId: string): Promise<ExperienceWriteProposal>;
+    prepareSaveAsNew(experienceId: string): Promise<ExperienceWriteProposal>;
+    executeProposal(proposalId: string): Promise<ExperienceExecutionResult>;
+  };
+  profile: {
+    get(): Promise<ProfileContactView>;
+    prepareUpdate(changes: ProfileChangeSet): Promise<ProfileWriteProposal>;
+    prepareReapply(changes: ProfileChangeSet): Promise<ProfileWriteProposal>;
+    prepareAcceptServer(): Promise<ProfileWriteProposal>;
+    executeProposal(proposalId: string): Promise<UserProfile>;
+  };
+  preferences: PreferenceDesktopApi;
+  applications: {
+    list(options?: ApplicationListOptions): Promise<ApplicationListResult>;
+    references(): Promise<ApplicationReferenceOptions>;
+    get(applicationId: string): Promise<ApplicationRecord>;
+    prepareCreate(input: ApplicationCreateInput): Promise<ApplicationWriteProposal>;
+    prepareUpdate(input: ApplicationPrepareUpdateRequest): Promise<ApplicationWriteProposal>;
+    prepareTransition(input: ApplicationTransitionRequest): Promise<{ id: string }>;
+    prepareDelete(applicationId: string): Promise<{ id: string }>;
+    executeProposal(
+      proposalId: string,
+    ): Promise<ApplicationRecord | ApplicationTombstone>;
+  };
+  tracker: {
+    detail(applicationId: string): Promise<ApplicationTrackerDetail>;
+    overview(): Promise<ApplicationTrackerDetail>;
+    syncIssues(): Promise<TrackerSyncIssueSummary[]>;
+    prepareRecovery(input: {
+      entityType: TrackerSyncIssueSummary["entityType"];
+      entityId: string;
+      action: TrackerRecoveryProposal["action"];
+    }): Promise<TrackerRecoveryProposal>;
+    executeRecovery(proposalId: string): Promise<void>;
+    retryPending(): Promise<void>;
+  };
+  interviews: TrackerChildDesktopApi<InterviewRound, InterviewInput>;
+  notes: TrackerChildDesktopApi<ApplicationNote, NoteInput>;
+  reminders: TrackerChildDesktopApi<Reminder, ReminderInput>;
+  window: {
+    minimize(): Promise<void>;
+    toggleMaximize(): Promise<void>;
+    close(): Promise<void>;
+    reportDraftSaveState(state: WindowDraftSaveState): Promise<void>;
+    completeSaveBeforeClose(success: boolean): Promise<void>;
+    onSaveBeforeClose(listener: () => void): () => void;
+  };
+  data: {
+    clearLocal(): Promise<LocalClearResultView>;
+  };
+  browser: BrowserDesktopApi;
+}
+export type WindowDraftSaveState =
+  | "idle"
+  | "dirty"
+  | "saving"
+  | "saved"
+  | "error";

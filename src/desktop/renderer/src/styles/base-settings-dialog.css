@@ -159,6 +159,30 @@
   gap: 10px;
 }
 
+.settings-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.settings-toggle input {
+  margin-top: 3px;
+}
+
+.settings-toggle span {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-toggle small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .settings-clear-warning {
   margin: 0;
   padding: 8px 10px;

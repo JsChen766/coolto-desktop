@@ -16,6 +16,10 @@ import {
   toWritePayload,
   usageRatio,
 } from "./resume-sync-mapping.js";
+import {
+  assertAssetCapacity,
+  countLiveAssets,
+} from "../asset-capacity.js";
 
 /** Local-first store for the published Resume aggregate. */
 export class ResumeSyncStore implements ResumePublicationGateway {
@@ -61,6 +65,12 @@ export class ResumeSyncStore implements ResumePublicationGateway {
     const existing = this.store.getEntity("resume", identity.entityId);
     if (existing?.operation === "delete") {
       throw new Error("此前保存的简历已删除，请编辑后重新保存");
+    }
+    if (!existing) {
+      assertAssetCapacity(
+        "resume",
+        countLiveAssets(this.store.listEntities("resume")),
+      );
     }
     const full = existing
       ? toResume(existing)

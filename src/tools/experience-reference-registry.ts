@@ -5,6 +5,7 @@ import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 const REFERENCE_TOOLS = new Set([
   "search_experiences",
   "get_experience",
+  "prepare_match_analysis",
   "find_resume_reuse_candidates",
   "create_resume_workspace",
   "get_resume_workspace",

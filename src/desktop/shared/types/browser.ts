@@ -106,6 +106,7 @@ export interface BrowserNavigateInput {
 export interface BrowserPageHandoffView {
   title: string;
   url: string;
+  intent?: "context" | "analyze_jd";
 }
 
 export interface BrowserTabState {
@@ -159,6 +160,7 @@ export interface BrowserShellApi {
   dismissDownload(downloadId: string): void;
   toggleDownloadPopover(): void;
   openPageInApp(): void;
+  analyzeJdInApp(): void;
   dismissPermissionNotice(): void;
   toggleAgentInspector(): void;
   searchFind(query: string): void;

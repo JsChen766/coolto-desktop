@@ -81,6 +81,7 @@ const {
   user,
   verifyEmailCode,
   openTracker,
+  openPrimaryView,
 } = shell;
 const onboarding = useOnboarding(shell);
 const creditsHost = ref<InstanceType<typeof CreditsHost>>();
@@ -150,6 +151,7 @@ function closeSettings(): void {
         @open-experiences="requestPrimaryView('experiences')"
         @open-agent-tasks="requestPrimaryView('agent_tasks')"
         @open-library="requestPrimaryView('library')"
+        @open-material="guardNavigation(() => openPrimaryView('material'))"
         @open-tracker="guardNavigation(openTracker)"
         @rename="openDialog('rename', $event)"
         @delete="openDialog('delete', $event)"
@@ -204,6 +206,7 @@ function closeSettings(): void {
         @open-profile="openProfileFromSettings"
         @open-preferences="openPreferencesFromSettings"
         @open-agent-task="openTaskFromSettings"
+        @open-credits="creditsHost?.open()"
       />
       <CreditsHost ref="creditsHost" :api="desktopApi" :user="user" />
     </div>

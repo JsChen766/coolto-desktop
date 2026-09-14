@@ -83,6 +83,7 @@ export const browserShellMessages: Record<string, string> = {
   "正在下载 1 个文件": "Downloading 1 file",
   "查看下载（{count}）": "View downloads ({count})",
   "在 App 中使用此页面": "Use this page in the App",
+  "分析当前 JD": "Analyze this JD",
   "请使用这个页面作为上下文：{title}\n{url}":
     "Use this page as context: {title}\n{url}",
   "提交外部内容": "Submit external content",

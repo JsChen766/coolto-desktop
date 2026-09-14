@@ -109,6 +109,7 @@ export function createPrepareJdImportTool(
       "本工具创建预览卡片供用户确认，不会直接写入云端。" +
       "所有 requirements 必须来自原文，禁止编造。company 和 targetRole 不确定时省略。" +
       "粘贴内容用 sourceKind=pasted；从当前浏览器页面提取时用 browser 并逐字传入页面 HTTP(S) URL；" +
+      "只给公开 HTTPS 链接、经 fetch_public_https_text 抓取时用 imported 并原样传入 sourceUrl；" +
       "文件导入用 imported。没有可靠 URL 时省略 sourceUrl。" +
       "用户要求修改时，用修正后的完整参数再调用一次本工具。",
     parameters,

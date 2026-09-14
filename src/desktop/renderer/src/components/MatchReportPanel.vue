@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { CheckCircle, AlertCircle, BookOpen } from "@lucide/vue";
+import { AlertCircle, BookOpen, CheckCircle, Sparkles } from "@lucide/vue";
 
 import type { MatchReportArtifactData, MatchDimensionScore } from "../../../../desktop/shared/types";
 import { translate } from "../i18n/locale";
 
 defineProps<{
   data: MatchReportArtifactData;
+}>();
+
+defineEmits<{
+  generate: [];
 }>();
 
 function tierLabel(tier: MatchReportArtifactData["tier"]): string {
@@ -124,6 +128,16 @@ function formatDate(iso: string): string {
     <footer class="match-panel-footer">
       <span>{{ $t('生成于') }} {{ formatDate(data.generatedAt) }}</span>
       <span v-if="data.expired" class="match-expired-badge">{{ $t('已失效') }}</span>
+      <button
+        class="primary-button icon-label match-panel-generate"
+        type="button"
+        :disabled="data.expired"
+        :title="data.expired ? $t('报告已失效，请先重新匹配') : undefined"
+        @click="$emit('generate')"
+      >
+        <Sparkles :size="14" aria-hidden="true" />
+        {{ $t('基于此报告生成简历') }}
+      </button>
     </footer>
   </aside>
 </template>

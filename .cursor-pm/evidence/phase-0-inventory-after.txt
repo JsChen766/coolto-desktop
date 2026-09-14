@@ -1,0 +1,34 @@
+﻿cv-agent-app worktrees
+
+role                                      branch                               dirty  path
+--------------------------------------------------------------------------------------------------------------
+historical / evidence                     codex/prd-integration                   75  E:\vsProjects\coolto\.codex-worktrees\prd-integration
+STEP 1 MAT 鈥?active writer                codex/prd-material-product-takeover    308  E:\vsProjects\coolto\.codex-worktrees\prd-material-product-takeover
+STEP 2 PRO/PREF 鈥?blocked until MAT in trunkcodex/prd-profile-pref-app-takeover    338  E:\vsProjects\coolto\.codex-worktrees\prd-profile-pref-app-takeover
+historical / evidence                     codex/release-0.1.27                     0  E:\vsProjects\coolto\.codex-worktrees\release-0.1.27
+USER primary (do not use for PRD line)    codex/browser-enhance-be0-be5           21  E:\vsProjects\coolto\cv-agent-app
+Backend D1 鈥?active writer                codex/prd-admin-analytics-handback-be   242  E:\vsProjects\coolto\.codex-worktrees\prd-admin-analytics-handback-be
+historical / evidence                     codex/prd-analytics                     87  E:\vsProjects\coolto\.codex-worktrees\prd-analytics
+historical / evidence                     codex/prd-analytics-be                 124  E:\vsProjects\coolto\.codex-worktrees\prd-analytics-be
+historical / evidence                     codex/prd-analytics                    n/a  E:\vsProjects\coolto\.codex-worktrees\prd-analytics\.git
+Backend ACCEPT reference (read-only)      codex/prd-backend-shared-integration   196  E:\vsProjects\coolto\.codex-worktrees\prd-backend-shared-integration
+historical / evidence                     codex/prd-del-form                      87  E:\vsProjects\coolto\.codex-worktrees\prd-del-form
+historical / evidence                     codex/prd-del-form                     n/a  E:\vsProjects\coolto\.codex-worktrees\prd-del-form\.git
+historical / evidence                     codex/prd-mat-core                      83  E:\vsProjects\coolto\.codex-worktrees\prd-mat-core
+historical / evidence                     codex/prd-mat-core                     n/a  E:\vsProjects\coolto\.codex-worktrees\prd-mat-core\.git
+retire 鈥?use *-takeover                   codex/prd-material-product             295  E:\vsProjects\coolto\.codex-worktrees\prd-material-product
+historical / evidence                     codex/prd-material-product             n/a  E:\vsProjects\coolto\.codex-worktrees\prd-material-product\.git
+TRUNK 鈥?App A accepted (merge target)     codex/prd-privacy                      218  E:\vsProjects\coolto\.codex-worktrees\prd-privacy
+historical / evidence                     codex/prd-privacy                       89  E:\vsProjects\coolto\.codex-worktrees\prd-privacy-be
+historical / evidence                     codex/prd-privacy                      n/a  E:\vsProjects\coolto\.codex-worktrees\prd-privacy\.git
+historical / evidence                     codex/prd-profile-pref                  89  E:\vsProjects\coolto\.codex-worktrees\prd-profile-pref
+retire 鈥?reconcile 7 paths first          codex/prd-profile-pref-app             332  E:\vsProjects\coolto\.codex-worktrees\prd-profile-pref-app
+historical / evidence                     codex/prd-profile-pref-app             n/a  E:\vsProjects\coolto\.codex-worktrees\prd-profile-pref-app\.git
+historical / evidence                     codex/prd-profile-pref-be              130  E:\vsProjects\coolto\.codex-worktrees\prd-profile-pref-be
+historical / evidence                     codex/prd-profile-pref                 n/a  E:\vsProjects\coolto\.codex-worktrees\prd-profile-pref\.git
+historical / evidence                     codex/prd-resume-runtime                96  E:\vsProjects\coolto\.codex-worktrees\prd-resume-runtime
+historical / evidence                     codex/prd-resume-runtime               n/a  E:\vsProjects\coolto\.codex-worktrees\prd-resume-runtime\.git
+historical / evidence                     codex/prd-score-calibration            101  E:\vsProjects\coolto\.codex-worktrees\prd-score-calibration
+historical / evidence                     codex/prd-score-calibration            n/a  E:\vsProjects\coolto\.codex-worktrees\prd-score-calibration\.git
+
+See .cursor-pm/WORKTREES.md for serial merge order.

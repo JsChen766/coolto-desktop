@@ -229,6 +229,11 @@ export function createBrowserDemoApi(): DesktopApi {
       reportDraftSaveState: async () => undefined,
       completeSaveBeforeClose: async () => undefined,
       onSaveBeforeClose: () => () => undefined,
+      desktopPrefs: async () => ({ alwaysOnTop: false }),
+      setAlwaysOnTop: async (alwaysOnTop) => ({ alwaysOnTop }),
+      assetUsage: async () => ({
+        experiences: 2, experienceMax: 200, resumes: 1, resumeMax: 100,
+      }),
     },
     data: {
       clearLocal: async () => {

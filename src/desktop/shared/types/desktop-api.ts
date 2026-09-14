@@ -222,6 +222,9 @@ export interface DesktopApi {
     reportDraftSaveState(state: WindowDraftSaveState): Promise<void>;
     completeSaveBeforeClose(success: boolean): Promise<void>;
     onSaveBeforeClose(listener: () => void): () => void;
+    desktopPrefs(): Promise<DesktopShellPrefs>;
+    setAlwaysOnTop(value: boolean): Promise<DesktopShellPrefs>;
+    assetUsage(): Promise<DesktopAssetUsage>;
   };
   data: {
     clearLocal(): Promise<LocalClearResultView>;
@@ -234,3 +237,12 @@ export type WindowDraftSaveState =
   | "saving"
   | "saved"
   | "error";
+export interface DesktopShellPrefs {
+  alwaysOnTop: boolean;
+}
+export interface DesktopAssetUsage {
+  experiences: number;
+  experienceMax: number;
+  resumes: number;
+  resumeMax: number;
+}

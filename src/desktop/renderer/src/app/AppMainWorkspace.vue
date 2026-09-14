@@ -20,7 +20,7 @@ const {
   activeView, agentTaskFocusRequest, clearExperienceImportFocus, closeTracker, current, desktopApi,
   experienceImportFocus, jobRepositoryNavigation, openRepositoryTracker,
   openTrackerAsset, requestResumePreview, returnToImportConversation,
-  openAgentTask, selectChat, showSidebar, startDeliveryResumeFile, startJdAction, trackerContext,
+  openAgentTask, selectChat, showSidebar, startDeliveryResumeFile, startInterviewPrep, startJdAction, trackerContext,
   updateRepositoryNavigation,
 } = props.shell;
 
@@ -59,6 +59,7 @@ defineExpose({ confirmExperienceLeave });
       @close="closeTracker"
       @open-asset="openTrackerAsset"
       @open-agent-task="openAgentTask"
+      @prepare-interview="startInterviewPrep"
     />
     <ExperienceLibraryView
       v-else-if="activeView === 'experiences'"

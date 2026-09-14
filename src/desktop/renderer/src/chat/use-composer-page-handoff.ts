@@ -1,24 +1,34 @@
-import { nextTick, onBeforeUnmount, onMounted, type Ref } from "vue";
+import { onBeforeUnmount, onMounted } from "vue";
 
+import { buildAnalyzeJdPageInstruction } from
+  "../../../../job-assets/job-action-instruction.js";
 import { subscribeBrowserPageHandoff } from
   "../browser/browser-page-handoff-channel";
 import { translateFormat } from "../i18n/locale";
 
-export function useComposerPageHandoff(
-  text: Ref<string>,
-  textarea: Readonly<Ref<HTMLTextAreaElement | null>>,
-  resize: () => void,
-): void {
+export function useComposerPageHandoff(input: {
+  draft(text: string): void;
+  analyze(text: string): void;
+  blocked(): boolean;
+}): void {
+  let lastSequence = 0;
   let unsubscribe: (() => void) | undefined;
   onMounted(() => {
     unsubscribe = subscribeBrowserPageHandoff((request) => {
-      if (text.value.includes(request.page.url)) return;
-      const context = translateFormat("请使用这个页面作为上下文：{title}\n{url}", {
+      if (request.sequence === lastSequence) return;
+      lastSequence = request.sequence;
+      if (input.blocked()) return;
+      if (request.page.intent === "analyze_jd") {
+        input.analyze(buildAnalyzeJdPageInstruction(
+          request.page.title,
+          request.page.url,
+        ));
+        return;
+      }
+      input.draft(translateFormat("请使用这个页面作为上下文：{title}\n{url}", {
         title: request.page.title,
         url: request.page.url,
-      });
-      text.value = text.value.trim() ? `${text.value.trim()}\n\n${context}` : context;
-      void nextTick(() => { resize(); textarea.value?.focus(); });
+      }));
     });
   });
   onBeforeUnmount(() => unsubscribe?.());

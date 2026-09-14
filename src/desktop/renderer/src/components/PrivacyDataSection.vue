@@ -134,6 +134,9 @@ function policyKeydown(event: KeyboardEvent): void {
     <p class="settings-section-desc">
       {{ $t('你可以导出自己的数据、只清除当前设备，或删除 Coolto 拥有的账号与云端数据。') }}
     </p>
+    <p class="settings-section-desc">
+      {{ $t('发送给模型前，会使用当前对话、你明确引用或上传的材料，以及完成该任务所需的岗位、经历或简历摘录；不会上传本机绝对路径或登录凭据。') }}
+    </p>
     <div class="privacy-data-actions privacy-data-section-actions">
       <button ref="policyTrigger" class="secondary-button" type="button" :disabled="policyLoading" @click="openPolicy">
         <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />

@@ -33,6 +33,7 @@ if (!app.requestSingleInstanceLock()) {
     calendarDeepLinks.acceptArguments(argv);
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
     mainWindow.focus();
   });
   app.whenReady().then(bootstrap);
@@ -237,14 +238,11 @@ async function bootstrap(): Promise<void> {
 
   createWindow();
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    else mainWindow?.show();
   });
 }
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });

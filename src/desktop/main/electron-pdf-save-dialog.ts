@@ -9,6 +9,8 @@ export class ElectronResumePdfSaveDialog implements ResumePdfSaveDialog {
   public async choosePath(
     suggestedFilename: string,
   ): Promise<string | undefined> {
+    const qaPath = process.env.COOLTO_QA_PDF_SAVE_PATH?.trim();
+    if (!app.isPackaged && qaPath) return qaPath;
     const result = await dialog.showSaveDialog(this.parent, {
       title: "导出简历 PDF",
       defaultPath: join(app.getPath("documents"), suggestedFilename),

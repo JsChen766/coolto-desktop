@@ -238,9 +238,7 @@ function selectReference(selected: ResumeChatReference): void {
         </button>
       </div>
     </div>
-    <p class="composer-disclaimer">
-      {{ $t('Coolto 可能会出错，请核对重要信息与待执行操作。') }}
-    </p>
+    <p class="composer-disclaimer">{{ $t('发送后会把当前对话、引用/上传材料和必要岗位、经历或简历摘录交给模型。Coolto 可能会出错，请核对重要信息。') }}</p>
     <ResumePickerPopup
       v-if="pickerOpen"
       @select="handlePick"

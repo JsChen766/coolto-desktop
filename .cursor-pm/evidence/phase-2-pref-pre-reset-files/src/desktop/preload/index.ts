@@ -1,0 +1,244 @@
+import { contextBridge, ipcRenderer, webUtils } from "electron";
+
+import type {
+  AgentPromptInput,
+  AttachmentRemoveInput,
+  ApprovalResolveInput,
+  BrowserNavigateInput,
+  BrowserOpenInput,
+  BrowserState,
+  DesktopAgentEvent,
+  DesktopApi,
+} from "../shared/types.js";
+import { onboardingPreloadApi } from "./onboarding-api.js";
+import { agentTasksPreloadApi } from "./agent-tasks-api.js";
+import { childApi, subscribeIpc } from "./ipc-helpers.js";
+import { conversationPreloadApi } from "./conversation-api.js";
+import { preferencePreloadApi } from "./preference-api.js";
+
+const api: DesktopApi = {
+  platform: process.platform,
+  auth: {
+    getCurrentUser: () => ipcRenderer.invoke("auth:current"),
+    getCredits: () => ipcRenderer.invoke("auth:credits"),
+	requestEmailCode: (email) =>
+		ipcRenderer.invoke("auth:email-code:request", email),
+	verifyEmailCode: (email, challengeId, code) =>
+		ipcRenderer.invoke("auth:email-code:verify", email, challengeId, code),
+    logout: () => ipcRenderer.invoke("auth:logout"),
+    syncNow: () => ipcRenderer.invoke("auth:sync-now"),
+    onSyncCompleted: (listener) => subscribeIpc("sync:completed", listener),
+  },
+  privacy: {
+    getState: () => ipcRenderer.invoke("privacy:get-state"),
+    accept: () => ipcRenderer.invoke("privacy:accept"),
+    decline: () => ipcRenderer.invoke("privacy:decline"),
+    exportData: (options) => ipcRenderer.invoke("privacy:export", options),
+    startDeletion: (input) => ipcRenderer.invoke("privacy:deletion:start", input),
+    retryDeletion: () => ipcRenderer.invoke("privacy:deletion:retry"),
+    acknowledgeDeletion: () => ipcRenderer.invoke("privacy:deletion:ack"),
+    getDeletionState: () => ipcRenderer.invoke("privacy:deletion:state"),
+    onStateChange: (listener) => subscribeIpc("privacy:event", listener),
+    onDeletionStateChange: (listener) =>
+      subscribeIpc("privacy:deletion:event", listener),
+  },
+  checkout: {
+    plans: () => ipcRenderer.invoke("checkout:plans"),
+    create: (planType: string) =>
+      ipcRenderer.invoke("checkout:create", planType),
+    verify: (checkoutId: string) =>
+      ipcRenderer.invoke("checkout:verify", checkoutId),
+  },
+  shell: {
+    openExternal: (url: string) =>
+      ipcRenderer.invoke("shell:open-external", url),
+  },
+  conversations: conversationPreloadApi,
+  attachments: {
+    list: (conversationId) =>
+      ipcRenderer.invoke("attachments:list", conversationId),
+    select: (conversationId) =>
+      ipcRenderer.invoke("attachments:select", conversationId),
+    selectFile: (conversationId, file) => {
+      const inputPath = webUtils.getPathForFile(file);
+      return inputPath
+        ? ipcRenderer.invoke("attachments:capture-file", conversationId, inputPath)
+        : Promise.resolve(undefined);
+    },
+    remove: (input: AttachmentRemoveInput) =>
+      ipcRenderer.invoke("attachments:remove", input),
+  },
+  resumeDrafts: {
+    list: () => ipcRenderer.invoke("resume-drafts:list"),
+    get: (artifactId) => ipcRenderer.invoke("resume-drafts:get", artifactId),
+    edit: (input) => ipcRenderer.invoke("resume-drafts:edit", input),
+    setLineSpacing: (input) =>
+      ipcRenderer.invoke("resume-drafts:set-line-spacing", input),
+    restore: (input) => ipcRenderer.invoke("resume-drafts:restore", input),
+    accept: (artifactId) =>
+      ipcRenderer.invoke("resume-drafts:accept", artifactId),
+    reject: (artifactId) =>
+      ipcRenderer.invoke("resume-drafts:reject", artifactId),
+    exportPdf: (input) =>
+      ipcRenderer.invoke("resume-drafts:export-pdf", input),
+    save: (input) => ipcRenderer.invoke("resume-drafts:save", input),
+  },
+  updates: {
+    getState: () => ipcRenderer.invoke("updates:state"),
+    check: (trigger) => ipcRenderer.invoke("updates:check", trigger),
+    install: () => ipcRenderer.invoke("updates:install"),
+    onStateChange: (listener) =>
+      subscribeIpc("updates:event", listener),
+  },
+  library: {
+    list: () => ipcRenderer.invoke("library:list"),
+    preview: (resumeId) => ipcRenderer.invoke("library:preview", resumeId),
+    rename: (input) => ipcRenderer.invoke("library:rename", input),
+    archive: (input) => ipcRenderer.invoke("library:archive", input),
+    deleteDraft: (input) => ipcRenderer.invoke("library:delete-draft", input),
+    getCheckpoints: (artifactId) =>
+      ipcRenderer.invoke("library:get-checkpoints", artifactId),
+    restoreCheckpoint: (input) =>
+      ipcRenderer.invoke("library:restore-checkpoint", input),
+  },
+  deliveryResumeFiles: {
+    list: () => ipcRenderer.invoke("delivery-resume-files:list"),
+    importFile: () => ipcRenderer.invoke("delivery-resume-files:import"),
+    rename: (input) => ipcRenderer.invoke("delivery-resume-files:rename", input),
+    select: (input) => ipcRenderer.invoke("delivery-resume-files:select", input),
+    delete: (input) => ipcRenderer.invoke("delivery-resume-files:delete", input),
+  },
+  jobAssets: {
+    get: () => ipcRenderer.invoke("job-assets:get"),
+  },
+  experiences: {
+    search: (options) => ipcRenderer.invoke("experiences:search", options),
+    get: (experienceId) => ipcRenderer.invoke("experiences:get", experienceId),
+    history: (input) => ipcRenderer.invoke("experiences:history", input),
+    prepareCreate: (input) => ipcRenderer.invoke("experiences:prepare-create", input),
+    prepareUpdate: (input) => ipcRenderer.invoke("experiences:prepare-update", input),
+    prepareArchive: (id) => ipcRenderer.invoke("experiences:prepare-archive", id),
+    prepareRestore: (id) => ipcRenderer.invoke("experiences:prepare-restore", id),
+    prepareDelete: (id) => ipcRenderer.invoke("experiences:prepare-delete", id),
+    prepareRestoreRevision: (input) =>
+      ipcRenderer.invoke("experiences:prepare-restore-revision", input),
+    syncIssue: (id) => ipcRenderer.invoke("experiences:sync-issue", id),
+    prepareAcceptServer: (id) =>
+      ipcRenderer.invoke("experiences:prepare-accept-server", id),
+    prepareReapply: (id) => ipcRenderer.invoke("experiences:prepare-reapply", id),
+    prepareSaveAsNew: (id) =>
+      ipcRenderer.invoke("experiences:prepare-save-as-new", id),
+    executeProposal: (id) =>
+      ipcRenderer.invoke("experiences:execute-proposal", id),
+  },
+  profile: {
+    get: () => ipcRenderer.invoke("profile:get"),
+    prepareUpdate: (changes) => ipcRenderer.invoke("profile:prepare-update", changes),
+    prepareReapply: (changes) => ipcRenderer.invoke("profile:prepare-reapply", changes),
+    prepareAcceptServer: () => ipcRenderer.invoke("profile:prepare-accept-server"),
+    executeProposal: (id) => ipcRenderer.invoke("profile:execute-proposal", id),
+  },
+  preferences: preferencePreloadApi,
+  applications: {
+    list: (options) => ipcRenderer.invoke("applications:list", options),
+    references: () => ipcRenderer.invoke("applications:references"),
+    get: (applicationId) => ipcRenderer.invoke("applications:get", applicationId),
+    prepareCreate: (input) => ipcRenderer.invoke("applications:prepare-create", input),
+    prepareUpdate: (input) => ipcRenderer.invoke("applications:prepare-update", input),
+    prepareTransition: (input) =>
+      ipcRenderer.invoke("applications:prepare-transition", input),
+    prepareDelete: (applicationId) =>
+      ipcRenderer.invoke("applications:prepare-delete", applicationId),
+    executeProposal: (proposalId) =>
+      ipcRenderer.invoke("applications:execute-proposal", proposalId),
+  },
+  tracker: {
+    detail: (applicationId) => ipcRenderer.invoke("tracker:detail", applicationId),
+    overview: () => ipcRenderer.invoke("tracker:overview"),
+    syncIssues: () => ipcRenderer.invoke("tracker:sync-issues"),
+    prepareRecovery: (input) => ipcRenderer.invoke("tracker:prepare-recovery", input),
+    executeRecovery: (id) => ipcRenderer.invoke("tracker:execute-recovery", id),
+    retryPending: () => ipcRenderer.invoke("tracker:retry-pending"),
+  },
+  interviews: childApi("interviews"),
+  notes: childApi("notes"),
+  reminders: childApi("reminders"),
+  agent: {
+    prompt: (input: AgentPromptInput) =>
+      ipcRenderer.invoke("agent:prompt", input),
+    cancel: () => ipcRenderer.invoke("agent:cancel"),
+    pendingApprovals: (conversationId) =>
+      ipcRenderer.invoke("agent:pending-approvals", conversationId),
+    resolveApproval: (input: ApprovalResolveInput) =>
+      ipcRenderer.invoke("agent:resolve-approval", input),
+    onEvent: (listener) => {
+      const handler = (
+        _event: Electron.IpcRendererEvent,
+        payload: {
+          conversationId: string;
+          event: DesktopAgentEvent;
+        },
+      ): void => listener(payload.conversationId, payload.event);
+      ipcRenderer.on("agent:event", handler);
+      return () => ipcRenderer.removeListener("agent:event", handler);
+    },
+  },
+  mailConnections: {
+    providers: () => ipcRenderer.invoke("mail-connections:providers"),
+    list: () => ipcRenderer.invoke("mail-connections:list"),
+    connect: (provider) => ipcRenderer.invoke("mail-connections:connect", provider),
+    disconnect: (connectionId) =>
+      ipcRenderer.invoke("mail-connections:disconnect", connectionId),
+  },
+  calendar: {
+    status: () => ipcRenderer.invoke("calendar:status"),
+    requestAccess: (level) => ipcRenderer.invoke("calendar:request-access", level),
+    syncInterview: (input) => ipcRenderer.invoke("calendar:sync-interview", input),
+    openSystemSettings: () => ipcRenderer.invoke("calendar:open-system-settings"),
+    onOpenInterview: (listener) => subscribeIpc("calendar:open-interview", listener),
+  },
+  onboarding: onboardingPreloadApi,
+  agentTasks: agentTasksPreloadApi,
+  window: {
+    minimize: () => ipcRenderer.invoke("window:minimize"),
+    toggleMaximize: () => ipcRenderer.invoke("window:toggle-maximize"),
+    close: () => ipcRenderer.invoke("window:close"),
+    reportDraftSaveState: (state) =>
+      ipcRenderer.invoke("window:draft-save-state", state),
+    completeSaveBeforeClose: (success) =>
+      ipcRenderer.invoke("window:save-before-close-complete", success),
+    onSaveBeforeClose: (listener) =>
+      subscribeIpc("window:save-before-close", listener),
+  },
+  data: {
+    clearLocal: () => ipcRenderer.invoke("data:clear-local"),
+  },
+  browser: {
+    open: (input?: BrowserOpenInput) =>
+      ipcRenderer.invoke("browser:open", input),
+    close: () => ipcRenderer.invoke("browser:close"),
+    navigate: (input: BrowserNavigateInput) =>
+      ipcRenderer.invoke("browser:navigate", input),
+    goBack: () => ipcRenderer.invoke("browser:go-back"),
+    goForward: () => ipcRenderer.invoke("browser:go-forward"),
+    reload: () => ipcRenderer.invoke("browser:reload"),
+    getState: () => ipcRenderer.invoke("browser:get-state"),
+    abortFill: () => ipcRenderer.invoke("browser:abort-fill"),
+    onStateChanged: (listener: (state: BrowserState) => void) =>
+      subscribeIpc("browser:state-changed", listener),
+    onFillProgress: (listener) =>
+      subscribeIpc("browser:fill-progress", listener),
+    onReviewDecision: (listener) =>
+      subscribeIpc("browser:review-decision", listener),
+    onReviewComplete: (listener) =>
+      subscribeIpc("browser:review-complete", listener),
+    onCaptchaDetected: (listener) =>
+      subscribeIpc("browser:captcha-detected", listener),
+    onOpenAgentTask: (listener) =>
+      subscribeIpc("browser:open-agent-task", listener),
+    onOpenPageInApp: (listener) =>
+      subscribeIpc("browser:open-page-in-app", listener),
+  },
+};
+
+contextBridge.exposeInMainWorld("coolto", api);

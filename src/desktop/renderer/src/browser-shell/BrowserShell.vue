@@ -10,6 +10,7 @@ import type {
 } from "@desktop/types";
 import BrowserAddressBar from "./BrowserAddressBar.vue";
 import BrowserAgentCapsule from "./BrowserAgentCapsule.vue";
+import BrowserAnalyzeJdButton from "./BrowserAnalyzeJdButton.vue";
 import BrowserDownloadTrigger from "./BrowserDownloadTrigger.vue";
 import BrowserFindBar from "./BrowserFindBar.vue";
 import BrowserPageHandoffButton from "./BrowserPageHandoffButton.vue";
@@ -136,6 +137,8 @@ function reportHeight(): void {
       @reset-zoom="shell.resetZoom()"
       @dismiss-permission-notice="shell.dismissPermissionNotice()">
       <template #toolbar-end>
+        <BrowserAnalyzeJdButton v-if="canHandOffPage"
+          @open="shell.analyzeJdInApp()" />
         <BrowserPageHandoffButton v-if="canHandOffPage"
           @open="shell.openPageInApp()" />
         <BrowserDownloadTrigger ref="downloadTriggerRef" :downloads="state.downloads"
