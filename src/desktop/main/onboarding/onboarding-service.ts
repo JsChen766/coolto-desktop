@@ -110,6 +110,27 @@ export class OnboardingService {
     await this.state.clear?.();
   }
 
+  public async skip(): Promise<OnboardingResult> {
+    const current = await this.status();
+    if (current.state === "completed") {
+      return {
+        status: current,
+        conversation: current.conversationId
+          ? await this.#conversationOrNull(current.conversationId) : null,
+      };
+    }
+    const conversation = current.conversationId
+      ? await this.#resetConversation(current.conversationId) : null;
+    const status: OnboardingStatus = {
+      ...current,
+      state: "completed",
+      step: "completed",
+      completedAt: new Date().toISOString(),
+    };
+    await this.state.write(status);
+    return { status, conversation };
+  }
+
   async #requireActive(): Promise<OnboardingStatus> {
     const current = await this.status();
     if (current.state !== "in_progress" || !current.conversationId) {
@@ -134,6 +155,11 @@ export class OnboardingService {
 
   async #conversationOrNull(id: string): Promise<ConversationDetail | null> {
     try { return await this.conversations.get(id); } catch { return null; }
+  }
+
+  async #resetConversation(id: string): Promise<ConversationDetail> {
+    await this.conversations.rename(id, "新对话");
+    return this.conversations.saveMessages(id, []);
   }
 }
 

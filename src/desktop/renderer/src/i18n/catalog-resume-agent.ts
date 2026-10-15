@@ -61,6 +61,7 @@ export const resumeAgentMessages: Record<string, string> = {
   "6 位验证码": "6-digit code",
   "验证码已发送至你的邮箱，请查收。": "The verification code has been sent to your email. Please check your inbox.",
   "重新发送": "Resend",
+  "修改邮箱": "Change email",
   "验证并登录": "Verify and sign in",
   "获取验证码": "Get verification code",
   "验证码": "Verification code",

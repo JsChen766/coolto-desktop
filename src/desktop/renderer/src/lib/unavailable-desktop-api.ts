@@ -49,6 +49,7 @@ export function createUnavailableDesktopApi(): DesktopApi {
       start: unavailable,
       advance: unavailable,
       openBrowserDemo: unavailable,
+      skip: unavailable,
       complete: unavailable,
     },
     conversations: {

@@ -67,6 +67,7 @@ const {
   openDialog,
   openResumeDraft,
   requestEmailCode,
+  resetEmailChallenge,
   resumeOperationContext,
   resumePreviewChoice,
   resumeWorkspace,
@@ -122,6 +123,7 @@ function closeSettings(): void {
       :challenge="emailChallenge"
       :first-visit="firstVisit"
       @request-code="requestEmailCode"
+      @change-email="resetEmailChallenge"
       @verify-code="verifyEmailCode"
     />
     <div

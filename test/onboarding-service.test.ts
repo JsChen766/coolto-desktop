@@ -67,6 +67,41 @@ test("out-of-order actions fail closed and English script is deterministic", asy
   assert.match(textOf(conversations.messages.at(-1)!), /real experience library/u);
 });
 
+test("skip completes every active step and resets the guide conversation", async () => {
+  const steps: OnboardingStatus["step"][] = [
+    "welcome", "experience", "resume", "browser", "browser_review",
+    "tracker", "complete",
+  ];
+  for (const step of steps) {
+    const state = new MemoryState();
+    const conversations = new MemoryConversations();
+    const service = new OnboardingService(state, conversations);
+    const started = await service.start("zh-CN");
+    state.value = { ...started.status, step };
+    const skipped = await service.skip();
+
+    assert.equal(skipped.status.state, "completed", step);
+    assert.equal(skipped.status.step, "completed", step);
+    assert.ok(skipped.status.completedAt, step);
+    assert.equal(skipped.conversation?.title, "新对话", step);
+    assert.deepEqual(conversations.messages, [], step);
+  }
+});
+
+test("skip before start is persistent and completed skip is idempotent", async () => {
+  const state = new MemoryState();
+  const conversations = new MemoryConversations();
+  const service = new OnboardingService(state, conversations);
+
+  const first = await service.skip();
+  const second = await service.skip();
+
+  assert.equal(first.status.state, "completed");
+  assert.equal(first.status.conversationId, null);
+  assert.deepEqual(second, first);
+  assert.equal(conversations.created, 0);
+});
+
 class MemoryState implements OnboardingStateRepository {
   value: OnboardingStatus | undefined;
   async read(): Promise<OnboardingStatus | undefined> {
