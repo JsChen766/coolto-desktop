@@ -81,7 +81,7 @@
 }
 .danger-text { color: var(--danger); }
 @media (max-width: 820px) {
-  .preference-dialog-backdrop { padding: 10px; }
+  .preference-dialog-backdrop { padding: 10px calc(10px + var(--window-controls-width, 0px)) 10px 10px; }
   .preference-dialog { width: 100%; max-height: none; height: calc(100vh - 20px); border-radius: 12px; }
   .preference-dialog-header { padding: 18px 18px 0; }
   .preference-error, .preference-notice, .preference-loading, .preference-proposal, .preference-form, .preference-list-section, .preference-suggestions, .preference-effect, .preference-answer-vault { margin-left: 18px; margin-right: 18px; }

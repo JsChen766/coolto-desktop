@@ -5,6 +5,7 @@ import type {
   DesktopAgentEvent,
   DesktopApprovalRequest,
 } from "@desktop/types";
+import { appendVisibleAssistantDelta } from "../../../../agent/user-visible-text.js";
 import { completeToolRun, type ToolRun } from "./tool-run-state";
 import { desktopErrorMessage } from "./desktop-error-message";
 import {
@@ -107,8 +108,10 @@ function handleCurrentConversationEvent(
       state.runError.value = undefined;
       return;
     case "message.delta":
-      // Model narration is an internal execution detail. The completed,
-      // projected assistant message is loaded after the run settles.
+      state.streamingText.value = appendVisibleAssistantDelta(
+        state.streamingText.value,
+        event.text,
+      );
       return;
     case "assistant.notice":
       state.current.value?.messages.push(event.message);

@@ -6,7 +6,7 @@
   display: grid;
   place-items: center;
   background: rgb(15 17 21 / 55%);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(var(--overlay-blur));
   padding: 24px;
 }
 

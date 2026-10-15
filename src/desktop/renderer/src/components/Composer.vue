@@ -132,7 +132,7 @@ function selectReference(selected: ResumeChatReference): void {
       </div>
       <div
         v-if="attachment"
-        class="composer-attachment"
+        class="composer-attachment chrome-enter"
         data-testid="chat-composer-attachment"
       >
         <FileText :size="16" :stroke-width="1.8" aria-hidden="true" />
@@ -211,7 +211,6 @@ function selectReference(selected: ResumeChatReference): void {
             :size="17"
             @click="$emit('selectAttachment')"
           />
-          <span class="composer-hint">{{ $t('Enter 发送 · Shift+Enter 换行') }}</span>
         </div>
         <button
           v-if="running"
@@ -238,11 +237,12 @@ function selectReference(selected: ResumeChatReference): void {
         </button>
       </div>
     </div>
-    <p class="composer-disclaimer">{{ $t('发送后会把当前对话、引用/上传材料和必要岗位、经历或简历摘录交给模型。Coolto 可能会出错，请核对重要信息。') }}</p>
-    <ResumePickerPopup
-      v-if="pickerOpen"
-      @select="handlePick"
-      @close="pickerOpen = false"
-    />
+    <Transition name="overlay-fade">
+      <ResumePickerPopup
+        v-if="pickerOpen"
+        @select="handlePick"
+        @close="pickerOpen = false"
+      />
+    </Transition>
   </footer>
 </template>

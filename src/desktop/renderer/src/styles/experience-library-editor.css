@@ -15,9 +15,9 @@
 
 .experience-editor-header h2 {
   margin: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 24px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .experience-editor-header p {

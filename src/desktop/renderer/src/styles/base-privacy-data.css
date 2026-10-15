@@ -1,6 +1,7 @@
 /* Privacy data actions */
-.privacy-data-section-actions {
-  flex-wrap: wrap;
+.privacy-data-actions.privacy-data-section-actions {
+  justify-content: flex-start;
+  margin: 4px 0 14px;
 }
 
 .privacy-data-backdrop {
@@ -25,7 +26,7 @@
 
 .privacy-data-dialog-header h2 {
   margin: 0 0 4px;
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 19px;
   font-weight: 600;
 }

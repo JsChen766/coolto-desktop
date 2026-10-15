@@ -140,22 +140,24 @@ function keydown(event: KeyboardEvent): void {
             <p class="settings-pane-lead">
               {{ $t('查看和编辑你的联系方式与职业画像，Agent 会使用这些信息生成简历。') }}
             </p>
-            <button
-              class="secondary-button settings-section-action"
-              type="button"
-              data-settings-initial-focus
-              @click="emit('openProfile')"
-            >
-              {{ $t('编辑个人信息') }}
-            </button>
-            <button
-              class="secondary-button settings-section-action"
-              type="button"
-              @click="emit('openCredits')"
-            >
-              {{ $t('查看用量') }}
-            </button>
-            <p v-if="usage" class="settings-pane-lead">
+            <div class="settings-section-actions">
+              <button
+                class="secondary-button"
+                type="button"
+                data-settings-initial-focus
+                @click="emit('openProfile')"
+              >
+                {{ $t('编辑个人信息') }}
+              </button>
+              <button
+                class="secondary-button"
+                type="button"
+                @click="emit('openCredits')"
+              >
+                {{ $t('查看用量') }}
+              </button>
+            </div>
+            <p v-if="usage" class="settings-usage">
               {{ $tf('经历 {used}/{max} · 云端简历 {resumeUsed}/{resumeMax}', {
                 used: usage.experiences,
                 max: usage.experienceMax,

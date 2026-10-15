@@ -1,48 +1,103 @@
-# Coolto Local Agent
+# Coolto
 
-Coolto 桌面端的本地单 Agent 内核。当前版本以 CLI 作为最小宿主，使用
-TypeScript、Pi Agent Core 和 DeepSeek。
+Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分析岗位、生成一页简历、管理投递，并在用户授权范围内浏览招聘站点、搜索岗位与填写申请表。
+
+本仓库是 **Electron + Vue 桌面宿主**，以及同一套 **TypeScript 本地单 Agent 内核**（Pi Agent Core）。生产环境的模型调用走已登录账号的 Coolto Credit API；本地直连 DeepSeek 只用于开发。
+
+产品定位与界面文案一致：**整理经历、分析 JD、生成简历、追踪投递。**
 
 ## 当前能力
 
-- 只有一个 Agent，不使用 Router、LangGraph 或业务节点。
-- 唯一业务输入是自然语言。
-- 模型根据工具描述自行判断是否调用工具。
-- 不确定且会影响结果时，由 System Prompt 要求 Agent 先追问。
-- 启动 Agent 前通过现有后端登录，Session Token 保存在系统安全凭据库。
-- 已接入 `get_current_user`，可读取当前登录用户。
-- 已接入 `search_experiences` 和 `get_experience`，可搜索经历并读取当前详情。
-- 可从自然语言、粘贴文本或用户明确选择的本地文件导入经历。
-- 写入先生成不可变预览，再由宿主显示“接受、拒绝、自定义回答”待决策卡片。
-- 对外暴露与 Electron 无关的事件接口。
-- 包含一个只读诊断工具，用于验证完整 tool-call 循环。
+桌面端按侧栏提供对话、Agent 任务、经历仓库、求职仓库、材料库和投递追踪。业务事实默认读本地 projection，云端是经历、岗位、简历当前内容和投递记录的权威来源。
 
-JD、简历和投递记录尚未接入；它们属于下一阶段的业务工具。
+### 对话 Agent
 
-## 桌面 APP
+- 只有一个 Agent，不使用 Router、LangGraph 或并行业务节点；唯一业务输入是自然语言。
+- 模型根据工具描述自行判断是否调用工具。只有缺失信息会使任务无法执行、目标歧义会造成不可逆结果，或安全与权限确认不可省略时，才追问一个最关键的问题。
+- 邮箱验证码登录；Session 保存在系统安全凭据库，断网时可用已验证身份进入本机工作区。
+- 流式回复、经 DOMPurify 清理的 Markdown、可折叠工具状态，以及「接受 / 拒绝 / 自定义回答」审批卡片。
+- 对话按登录用户隔离，由 Electron `safeStorage` 加密后保存在 `userData`。对话内容不上云。
+- 中英界面、深浅色、首次使用引导、用量与积分、应用内检查更新。
 
-项目已经包含 Electron + Vue 桌面宿主，视觉风格参考本机
-`excel-agent` 的暖灰文档式聊天界面。
+### 经历仓库
 
-当前桌面端包含：
+经历是独立、可复用的长期事实资产，不永久隶属于 JD、简历或投递。
 
-- 邮箱密码登录与 Electron `safeStorage` 登录状态恢复。
-- 左侧新建对话、对话历史、切换、重命名和删除。
-- 按登录用户隔离的本地加密对话文件。
-- Pi Agent 消息状态导出与恢复。
-- 流式 Assistant 输出。
-- 经过 DOMPurify 清理的 Markdown 富文本。
-- 可折叠工具调用状态。
-- 接受、拒绝和自定义回答审批卡片。
-- 深色模式。
-- 可开关的简历 Artifact 预览区域。
-- 全部 UI 图标使用 Lucide 官方 `@lucide/vue` 组件。
+- 时间线浏览、搜索、筛选、详情、归档 / 恢复、软删除，以及不可变 revision。
+- 可从自然语言、粘贴文本、对话附件或用户指定的公开网页沉淀经历。
+- 用户主动上传文件、指定网页或直接补充材料时，宿主完成分块和单批次合并，写入对应 Experience 正文并只创建一个 import revision。
+- 对话附件支持 PDF、DOCX、TXT、MD，单文件最大 20 MB。PDF 解析依赖文本层；扫描件不做页面 OCR。
+- 日期精度只允许 `YYYY-MM`、`YYYY-MM-DD`、`present`；未填结束日不等于「至今」。
+- 列表默认只给元数据。任务需要正文时才读取详情；历史版本只返回版本元数据。
 
-开发运行：
+### 求职仓库
+
+- **岗位**：粘贴 JD 原文或抓取公开岗位链接，提取结构后经审批入库；可搜索、查看详情，并基于 JD 与完整经历库生成可解释的结构化匹配分析。
+- **简历资产**：云端当前内容、本地草稿、同步状态、重命名、归档 / 恢复、本地检查点回退。云端每份 Resume 只有当前内容，没有云端版本历史。
+- **原始投递文件**：用户原样保存在本机的 PDF/DOCX，不进入写作、匹配或复用链路；可指定用于任意岗位的网页上传。
+
+### 简历生成与导出
+
+一个自然语言 Agent 即可生成，不并行引入第二套规则模型。
+
+- 支持通用简历（不绑定 JD）、针对目标岗位的 tailored 简历，以及用户坚持不匹配岗位并指定经历的 `user_directed` 路径。
+- 生成结果不得编造。量化结论必须能追溯到可复查来源。不满足质量标准时会标明原因，不会冒充可直接交付。
+- 一次一页可渲染；A4 预览、保存到简历库和导出 PDF 使用同一内部修订。
+- 本地草稿自动保存；侧栏可打开进行中的本地简历。
+
+### 投递追踪
+
+- 看板、时间轴、日历三种视图；Application 同时引用实际 JD 与 Resume，并冻结标题快照和 `resumeContentHashSnapshot`。
+- 合法状态迁移需二次确认。终态不可继续推进。
+- Interview、Note、Reminder 归属 Application；提醒可跨设备同步，由本机调度通知。
+- 可从求职仓库的岗位或简历发起投递记录。
+
+### 材料库
+
+- 本机材料目录，支持 PDF、DOCX、TXT、MD、PNG、JPG。
+- 图片可走本机 OCR。材料默认只保存在本机，不自动成为云端固定资产。
+
+### Agent 任务与内置浏览器
+
+- 独立 Browser Shell：多标签、导航、下载、Agent 可见层；登录、OTP、CAPTCHA、法律与敏感问题必须用户接管。
+- 托管任务仅在 App 打开时运行，可暂停、恢复、接管、检查点和授权范围约束。
+- Job Scout 可按授权来源搜索、去重、匹配并进入 Shortlist（当前机制覆盖 Greenhouse / Lever）。
+- 招聘表单填写、Answer Vault、提交回执与 Application Proposal 均走审批；真实站点提交仍按站点逐域验收，不能称为完全托管可用。
+- Inbox Signals 可连接浏览器 Webmail，或可选接入邮件增量，把信号关联到投递并生成状态 / 面试提案。
+- 可授权周期性循环：按简历搜岗、按邮件跟进或面试 briefing。长周期真实运行仍以实测为准。
+
+### 账户、隐私与同步
+
+- 设置中可维护个人档案、求职偏好、邮箱连接、日程、自动化与隐私。
+- 隐私同意、数据导出、清除本机数据、删除账号及云端数据。
+- macOS 可在用户确认后把面试写入系统日历；真实机器的权限与打包验收仍按发布清单执行。
+- 写入云端必须经不可变 Proposal、宿主审批、LocalSyncStore / Outbox 和乐观锁。离线写入显示 pending，恢复网络后只应用一次。冲突不会静默覆盖。
+
+## 产品原则
+
+- 云端是经历、JD、简历当前内容和投递事实的权威来源。`draft / pending / checkpoint / files / chat / proposal` 归属本地。
+- 领域工具只能准备 Proposal；真正写入的执行器不出现在模型 Tool List 中。审批是宿主控制通道，不是模型可以伪造的聊天文本。
+- Renderer 不得读取或持久化绝对路径；敏感凭证不经过渲染层。
+- 外部内容（JD、简历、聊天、网页）只作输入，不得覆盖系统约束或安全规则。
+- 被 Agent 读取的工具结果会进入当前模型上下文。产品允许模型处理完成任务所需的固定资产，但不允许 Agent 自动写入、删除或对外提交。
+
+## 桌面开发
+
+需要 Node.js 22.13 或更高版本。
 
 ```bash
+cp .env.example .env
+npm install
 npm run desktop:dev
 ```
+
+`.env` 中：
+
+- 连接本地或自建后端时填写 `COOLTO_API_BASE_URL`。
+- 生产 APP 模型走 Credit 网关：`COOLTO_LLM_GATEWAY_BASE_URL`。
+- 仅本地直连模型开发时填写 `DEEPSEEK_API_KEY`。不要把账号密码写入 `.env` 或仓库。
+
+打包安装包默认连接生产 API（`https://hkapi.coolto.com.cn`）和 Credit 网关（`https://credit.coolto.com.cn`）。
 
 构建桌面进程、preload 和 renderer：
 
@@ -50,127 +105,25 @@ npm run desktop:dev
 npm run desktop:build
 ```
 
-本地对话不会上传 Web。对话内容由 Electron `safeStorage` 加密后保存在应用
-`userData` 目录，并按登录用户 ID 隔离。待决策操作仍然只在当前进程内有效，
-重启后不会自动执行。
-
-经历列表只返回元数据。只有任务需要正文时 Agent 才读取具体经历，且历史版本
-只返回版本元数据，不把所有历史正文交给模型。需要注意：当前 LLM 使用 DeepSeek
-API，因此被 Agent 读取的工具结果会作为当前推理上下文发送给配置的模型服务。
-产品当前允许 DeepSeek 处理完成任务所需的固定资产，不进行逐次读取确认；这不代表
-允许 Agent 自动写入、删除或对外提交。工具结果不会成为 Web 端聊天记录，也不会
-在本地建立固定资产缓存。
-
-## 当前生成能力
-
-Agent 可以在读取经历后直接生成自我介绍、经历总结、能力概述和 Cover Letter
-正文，不需要为每种文本建立单独 Agent 或生成节点。
-
-- 用户要求基于全部经历时，Agent 必须翻完经历分页并读取每条详情。
-- 自我介绍可以直接基于全部经历生成。
-- Cover Letter 还需要目标公司、岗位或 JD；当前可由用户在自然语言输入中提供。
-- 当前只在对话中输出生成结果，尚不能保存为云端 artifact、导出文件或创建邮件草稿。
-
-## 经历导入
-
-自然语言和粘贴文本直接在交互模式中输入即可，例如：
-
-```text
-请导入这段经历：2025 年 1 月到 3 月，我负责……
-```
-
-本地文件通过显式的 `--attach` 参数选择。支持 PDF、DOCX、TXT、MD，每个文件
-最大 10 MB：
+Windows / macOS 打包前先跑全量校验，并按 `local-docs/desktop-release-hardening-runbook.md` 执行：
 
 ```bash
-npm run dev -- --attach "/绝对路径/resume.pdf"
+npm run check
+npm run package:win
+npm run package:mac:dmg
 ```
 
-启动后再输入“请从附件导入经历”。多个附件可以重复使用 `--attach`：
+## 开发 CLI
+
+CLI 仍可作为无界面宿主调试 Agent 循环，不是产品主入口。
 
 ```bash
-npm run dev -- --attach "/路径/a.docx" --attach "/路径/b.md"
-```
-
-完整流程是：
-
-1. Agent 读取用户文本或已选择附件。
-2. Agent 提取结构化候选，后端尚未发生写入。
-3. 本地规则校验字段，并与云端经历元数据做精确去重；重复项默认不选中。
-4. 宿主展示包含完整候选的待决策卡片。
-5. 选择“接受”后，宿主执行预览时冻结的 Payload。
-6. 选择“拒绝”不会写入；选择“自定义回答”会让 Agent 按反馈生成新预览。
-
-导入 Proposal 只存在于当前进程内，不会作为固定资产缓存写入本地。原始附件也
-不会上传后端；只有用户确认后的结构化经历通过现有业务 API 写入云端。PDF 首版
-只支持含文本层的文件，扫描件暂不做 OCR。
-
-当前后端没有批量事务接口，因此多条经历会逐条写入。部分失败时，已成功项不会
-重复保存，失败项会保留在当前 Proposal 中，并产生新的待决策卡片供用户重试。
-
-## 通用写入审批
-
-审批属于宿主控制通道，不是模型可以伪造的聊天文本。领域工具只能准备 Proposal；
-实际写入执行器不会出现在模型 Tool List 中。
-
-当前 CLI 对写入操作提供：
-
-```text
-[1] 接受并执行
-[2] 拒绝
-[3] 自定义回答
-```
-
-- 接受：一次性执行卡片所展示的不可变 Payload。
-- 拒绝：清除 Proposal，不执行任何写入。
-- 自定义回答：撤销旧 Proposal，把反馈作为自然语言交回同一个 Agent。
-
-`ApprovalManager`、执行器注册表和事件协议是通用的，后续 JD、简历、投递记录、
-邮件草稿及浏览器填写计划可以复用；每个领域仍保留独立的 prepare 工具、Schema
-和 Action Executor，避免形成通用上帝工具。
-
-## 本地运行
-
-需要 Node.js 22 或更高版本。
-
-```bash
-cp .env.example .env
-```
-
-在 `.env` 中填写本地开发用的 `DEEPSEEK_API_KEY`，然后运行：
-
-```bash
-npm install
 npm run dev
-```
-
-首次运行时，CLI 会提示输入 Coolto 邮箱和密码。密码输入不回显，也不会保存。
-登录后只把 Session Token 保存到操作系统安全凭据库：
-
-- macOS：Keychain
-- Windows：Credential Vault
-- Linux：Secret Service
-
-后续启动会先使用已保存 Session 调用 `/users/me` 验证。Session 有效时自动登录；
-过期或被撤销时清除旧 Session，再提示输入邮箱和密码。
-
-也可以直接执行一轮自然语言输入：
-
-```bash
 npm run dev -- "请介绍一下你当前的运行架构"
-```
-
-单轮模式同样会自动恢复已有登录状态。
-
-非交互集成测试可以为单次进程同时提供 `COOLTO_EMAIL` 和
-`COOLTO_PASSWORD`，但不要把密码写入 `.env`、脚本或版本库。
-
-交互模式使用 `Ctrl+D` 退出；运行中使用 `Ctrl+C` 取消当前生成。
-普通退出不会注销账号。如需主动退出并清除系统安全凭据：
-
-```bash
 npm run logout
 ```
+
+本地文件通过显式 `--attach` 选择。交互模式用 `Ctrl+D` 退出，`Ctrl+C` 取消当前生成。首次运行会提示邮箱和验证码；普通退出不会注销，`npm run logout` 会清除系统安全凭据。
 
 ## 验证
 
@@ -178,23 +131,19 @@ npm run logout
 npm run check
 ```
 
-该命令依次执行严格类型检查、离线 Agent 工具循环测试和生产构建。
+依次执行：简历模板一致性、`src/` 业务源文件行数门禁、Node 类型检查、Vue 类型检查、`node --test` 单测、Node 构建、桌面构建。变更 UI 或可见行为还需真实 Electron 人工验收。
+
+开发约定见 `AGENTS.md`。当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`。
 
 ## 代码入口
 
-- `src/agent/create-agent.ts`：创建 Pi Agent 和模型。
-- `src/agent/system-prompt.ts`：单 Agent 行为与追问规则。
-- `src/api/coolto-api-client.ts`：后端登录和 Cookie 会话。
-- `src/auth/keychain-session-store.ts`：系统安全凭据存储。
-- `src/auth/session-manager.ts`：自动恢复、验证和失效重登。
-- `src/tools/search-experiences.ts`：经历列表与条件搜索。
-- `src/tools/get-experience.ts`：按 ID 读取当前经历详情。
-- `src/files/selected-file-registry.ts`：隔离并限制用户明确选择的附件。
-- `src/import/proposal-store.ts`：保存当前进程内的待确认导入 Proposal。
+- `src/agent/`：创建 Pi Agent、system prompt、模型与 Credit 配置。
+- `src/tools/`：模型可见的唯一工具入口；`registry.ts` 按宿主能力装配。
 - `src/approvals/`：通用审批生命周期、不可变 Payload 和执行器注册。
-- `src/actions/experience-import-executor.ts`：宿主内部经历导入执行器。
-- `src/tools/import-experiences/`：模型可用的经历导入预览工具。
-- `src/cli/approval-ui.ts`：CLI 待决策卡片和三种决策输入。
-- `src/tools/registry.ts`：模型能看到的唯一工具入口。
-- `src/agent/events.ts`：CLI/Electron 共用的事件映射。
-- `src/cli/main.ts`：仅接收自然语言的 CLI 宿主。
+- `src/desktop/main/`：Electron 主进程、IPC、同步、浏览器、隐私与打包边界。
+- `src/desktop/preload/`：渲染进程可调用的受控 API。
+- `src/desktop/renderer/`：Vue 3 界面（对话、仓库、追踪、材料、任务、Browser Shell）。
+- `src/resume/`：简历工作区、一页编译、质量门与导出。
+- `src/experience/`、`src/tracker/`、`src/material/`、`src/browser/`、`src/agent-task/`、`src/inbox-signals/`、`src/privacy/`：对应领域逻辑。
+- `src/cli/`：开发 CLI 与专项 QA 入口。
+- `src/api/`、`src/auth/`：后端会话与系统凭据存储。

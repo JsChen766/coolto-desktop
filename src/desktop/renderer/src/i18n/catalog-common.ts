@@ -182,10 +182,6 @@ export const commonMessages: Record<string, string> = {
   "移除简历上下文": "Remove resume context",
   "简历引用": "Resume reference",
   "给 Coolto 发消息…": "Message Coolto…",
-  "Enter 发送 · Shift+Enter 换行": "Enter to send · Shift+Enter for a new line",
-  "Coolto 可能会出错，请核对重要信息与待执行操作。": "Coolto can make mistakes. Review important information and pending actions.",
-  "发送后会把当前对话、引用/上传材料和必要岗位、经历或简历摘录交给模型。Coolto 可能会出错，请核对重要信息。":
-    "Sending shares the current chat, attached or cited materials, and the job, experience or resume excerpts needed for this task with the model. Coolto can make mistakes. Review important information.",
   "工具调用出现问题": "A tool call encountered an issue",
   "浏览器": "Browser",
   "后退": "Back",

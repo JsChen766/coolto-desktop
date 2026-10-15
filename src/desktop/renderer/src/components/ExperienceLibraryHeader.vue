@@ -91,5 +91,6 @@ defineEmits<{
         <RefreshCw :size="16" :class="{ spin: loading }" aria-hidden="true" />
       </button>
     </div>
+    <div class="window-controls-slot no-drag" aria-hidden="true" />
   </header>
 </template>

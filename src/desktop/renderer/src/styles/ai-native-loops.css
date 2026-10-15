@@ -1,6 +1,6 @@
 .loop-dialog-backdrop { z-index: 110; }
 .loop-dialog { width: min(680px, calc(100vw - 40px)); max-height: min(760px, calc(100vh - 40px)); overflow: auto;
-  padding: 22px; animation: loop-dialog-in var(--motion-panel) var(--ease-out-quint); }
+  padding: 22px; animation: panel-enter var(--motion-panel) var(--ease-out-quint); }
 .loop-dialog-header, .loop-dialog-header > div { display: flex; align-items: flex-start; gap: 10px; }
 .loop-dialog-header { justify-content: space-between; } .loop-dialog-header h2 { font-family: var(--font-ui); font-size: 1.125rem; }
 .loop-dialog-header p { margin: 4px 0 0; } .loop-dialog-icon { display: grid; place-items: center; width: 34px; height: 34px;
@@ -38,7 +38,6 @@
   border-bottom: 1px solid var(--border); } .loop-review dt { color: var(--muted); } .loop-review dd { margin: 0; overflow-wrap: anywhere; }
 .loop-review > p { margin: 0; color: var(--text-soft); } .loop-dialog-actions { position: sticky; bottom: -22px;
   margin: 20px -22px -22px; padding: 14px 22px; background: var(--bg); border-top: 1px solid var(--border); }
-@keyframes loop-dialog-in { from { transform: translateY(8px) scale(.99); } }
 .loop-source-row .dialog-select { min-width: 0; }
 @media (max-width: 620px) { .loop-source-row { grid-template-columns: 1fr 1fr 32px; }
   .loop-source-row select, .loop-source-row .dialog-select { grid-column: 1 / -1; } .loop-two-column { grid-template-columns: 1fr; }

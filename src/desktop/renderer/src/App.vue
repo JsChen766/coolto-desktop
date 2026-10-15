@@ -94,7 +94,6 @@ function closeSettings(): void {
 
 <template>
   <div class="app-frame" :class="[`platform-${desktopApi.platform}`]">
-    <WindowTitleBar v-if="desktopApi.platform !== 'darwin'" />
     <ForcedUpdateDialog
       :state="updateState"
       @install="installUpdate"
@@ -176,39 +175,52 @@ function closeSettings(): void {
         :controller="onboarding"
       />
       <AppMainWorkspace v-else ref="mainWorkspace" :shell="shell" />
-      <ConversationDialog
-        v-if="dialog"
-        :mode="dialog.mode"
-        :title="dialog.conversation.title"
-        @close="dialog = undefined"
-        @confirm="confirmDialog"
-      />
-      <ResumePreviewChoiceDialog
-        v-if="resumePreviewChoice"
-        :entry="resumePreviewChoice"
-        @close="resumePreviewChoice = undefined"
-        @local="chooseResumePreview('local')"
-        @cloud="chooseResumePreview('cloud')"
-      />
-      <CloudResumeCopyDialog
-        v-if="cloudCopyConfirmation && resumeOperationContext"
-        :title="resumeOperationContext.label"
-        @close="cloudCopyConfirmation = false"
-        @confirm="confirmCloudResumeCopy"
-      />
-      <ProfileDialog v-if="profileDialogOpen" :api="desktopApi" @close="closeProfile" />
-      <PreferenceDialog v-if="preferenceDialogOpen" :api="desktopApi" @close="closePreferences" />
-      <SettingsDialog
-        v-if="settingsDialogOpen"
-        :api="desktopApi"
-        :conversation-id="current?.id ?? ''"
-        @close="closeSettings"
-        @open-profile="openProfileFromSettings"
-        @open-preferences="openPreferencesFromSettings"
-        @open-agent-task="openTaskFromSettings"
-        @open-credits="creditsHost?.open()"
-      />
+      <Transition name="overlay-fade">
+        <ConversationDialog
+          v-if="dialog"
+          :mode="dialog.mode"
+          :title="dialog.conversation.title"
+          @close="dialog = undefined"
+          @confirm="confirmDialog"
+        />
+      </Transition>
+      <Transition name="overlay-fade">
+        <ResumePreviewChoiceDialog
+          v-if="resumePreviewChoice"
+          :entry="resumePreviewChoice"
+          @close="resumePreviewChoice = undefined"
+          @local="chooseResumePreview('local')"
+          @cloud="chooseResumePreview('cloud')"
+        />
+      </Transition>
+      <Transition name="overlay-fade">
+        <CloudResumeCopyDialog
+          v-if="cloudCopyConfirmation && resumeOperationContext"
+          :title="resumeOperationContext.label"
+          @close="cloudCopyConfirmation = false"
+          @confirm="confirmCloudResumeCopy"
+        />
+      </Transition>
+      <Transition name="overlay-fade">
+        <ProfileDialog v-if="profileDialogOpen" :api="desktopApi" @close="closeProfile" />
+      </Transition>
+      <Transition name="overlay-fade">
+        <PreferenceDialog v-if="preferenceDialogOpen" :api="desktopApi" @close="closePreferences" />
+      </Transition>
+      <Transition name="overlay-fade">
+        <SettingsDialog
+          v-if="settingsDialogOpen"
+          :api="desktopApi"
+          :conversation-id="current?.id ?? ''"
+          @close="closeSettings"
+          @open-profile="openProfileFromSettings"
+          @open-preferences="openPreferencesFromSettings"
+          @open-agent-task="openTaskFromSettings"
+          @open-credits="creditsHost?.open()"
+        />
+      </Transition>
       <CreditsHost ref="creditsHost" :api="desktopApi" :user="user" />
     </div>
+    <WindowTitleBar v-if="desktopApi.platform !== 'darwin'" />
   </div>
 </template>

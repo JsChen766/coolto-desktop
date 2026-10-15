@@ -8,9 +8,10 @@
 }
 
 .chat-header {
+  position: relative;
   height: 48px;
   min-height: 48px;
-  padding: 0 8px;
+  padding: 0 calc(8px + var(--window-controls-width, 0px)) 0 8px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -41,12 +42,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13.5px;
-  font-weight: 520;
+  font-weight: 500;
+  transition: background var(--motion-instant) var(--ease-out-quart),
+    color var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .chat-title:hover {
   background: var(--surface);
   color: var(--text);
+}
+
+.chat-title:active {
+  transform: scale(var(--press-scale));
 }
 
 .preview-toggle {
@@ -56,12 +64,19 @@
   background: transparent;
   color: var(--text-soft);
   font-size: 12.5px;
+  transition: background var(--motion-instant) var(--ease-out-quart),
+    color var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .preview-toggle:hover,
 .preview-toggle.active {
   background: var(--surface);
   color: var(--text);
+}
+
+.preview-toggle:active {
+  transform: scale(var(--press-scale));
 }
 
 .workspace-body {
@@ -97,7 +112,7 @@
 .empty-state {
   flex: 1;
   min-height: 420px;
-  padding: 110px 20px 60px;
+  padding: 88px 20px 52px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -117,11 +132,15 @@
 }
 
 .empty-state h1 {
-  margin: 0;
-  font-family: var(--font-serif);
+  margin: 0 0 22px;
+  font-family: var(--font-ui);
   font-size: 29px;
-  font-weight: 550;
+  font-weight: 600;
   letter-spacing: -0.025em;
+}
+
+.empty-state h1:has(+ p) {
+  margin-bottom: 0;
 }
 
 .empty-state > p {
@@ -149,11 +168,20 @@
   gap: 9px;
   text-align: left;
   font-size: 12.5px;
+  transition:
+    border-color var(--motion-fast) var(--ease-out-quart),
+    background var(--motion-fast) var(--ease-out-quart),
+    color var(--motion-fast) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .suggestion-card:hover {
   border-color: var(--border-strong);
   color: var(--text);
+}
+
+.suggestion-card:active:not(:disabled) {
+  transform: scale(var(--press-scale));
 }
 
 .suggestion-arrow {
@@ -190,7 +218,6 @@
   word-break: break-word;
 }
 
-/* 消息携带的附件（气泡上方右对齐的纯文本标签：icon + 文件名） */
 .message-attachments { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .message-attachment { width: fit-content; max-width: 240px; display: flex; align-items: center; gap: 5px; color: var(--text-soft); font-size: 11px; }
 .message-attachment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -198,27 +225,17 @@
 .message-attachment.attachment-status-parsed, .message-attachment.attachment-status-saved { color: var(--text); }
 .message-attachment.attachment-status-error { color: var(--danger); }
 
-.role-assistant {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
+.role-assistant { display: flex; flex-direction: column; gap: 9px; }
 
 .message-meta { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
-.copy-button { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--muted); background: transparent; }
+.copy-button { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--muted); background: transparent; transition: color var(--motion-instant) var(--ease-out-quart), background var(--motion-instant) var(--ease-out-quart), transform var(--motion-instant) var(--ease-out-quart); }
 .copy-button:hover { color: var(--text); background: var(--surface-strong); }
+.copy-button:active { transform: scale(var(--press-scale)); }
 
-.live-response {
-  position: relative;
-}
-
+.live-response { position: relative; }
 .stream-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .stream-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text); animation: stream-breathe 1.2s ease-in-out infinite; }
 @keyframes stream-breathe { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
 
-.run-error {
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--danger) 8%, transparent);
-}
+.run-error { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--danger) 8%, transparent); }
 

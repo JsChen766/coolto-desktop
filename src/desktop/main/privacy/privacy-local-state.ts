@@ -6,20 +6,14 @@ import { app, safeStorage } from "electron";
 
 import { canonicalApiOrigin } from "../../../privacy/export-canonical.js";
 import { localScopeDigest } from "../../../privacy/local-scope.js";
+import {
+  emptyStoredPrivacyFile,
+  parseStoredPrivacyFile,
+  type CachedPrivacyConsent,
+  type StoredPrivacyFile,
+} from "./privacy-local-file.js";
 
-export interface CachedPrivacyConsent {
-  policyVersion: string;
-  contentHash: string;
-  status: "accepted" | "declined" | "withdrawn";
-  acceptedAt: string | null;
-  decisionAt: string;
-}
-
-interface StoredPrivacyFile {
-  version: 1;
-  apiBaseUrl: string;
-  entries: Record<string, CachedPrivacyConsent>;
-}
+export type { CachedPrivacyConsent } from "./privacy-local-file.js";
 
 export class PrivacyLocalState {
   readonly #path: string;
@@ -44,9 +38,7 @@ export class PrivacyLocalState {
     const file = await this.#load();
     delete file.entries[scopeKey(this.#apiBaseUrl, accountId)];
     if (Object.keys(file.entries).length === 0) {
-      await unlink(this.#path).catch((error: unknown) => {
-        if (!isMissing(error)) throw error;
-      });
+      await this.#discard();
       return;
     }
     await this.#save(file);
@@ -57,31 +49,37 @@ export class PrivacyLocalState {
     delete file.entries[scopeKey(this.#apiBaseUrl, accountId)];
     delete file.entries.anonymous;
     if (Object.keys(file.entries).length === 0) {
-      await unlink(this.#path).catch((error: unknown) => {
-        if (!isMissing(error)) throw error;
-      });
+      await this.#discard();
       return;
     }
     await this.#save(file);
   }
 
   public async clearAll(): Promise<void> {
-    await unlink(this.#path).catch((error: unknown) => {
-      if (!isMissing(error)) throw error;
-    });
+    await this.#discard();
   }
 
   async #load(): Promise<StoredPrivacyFile> {
+    const empty = emptyStoredPrivacyFile(this.#apiBaseUrl);
     try {
       requireEncryption();
-      const decrypted = safeStorage.decryptString(await readFile(this.#path));
-      const parsed = JSON.parse(decrypted) as unknown;
-      if (!isStoredFile(parsed, this.#apiBaseUrl)) throw new Error("本地隐私状态格式无效");
-      return parsed;
+      const parsed = JSON.parse(safeStorage.decryptString(await readFile(this.#path))) as unknown;
+      const file = parseStoredPrivacyFile(parsed, this.#apiBaseUrl);
+      if (file) return file;
+      await this.#discard();
+      return empty;
     } catch (error: unknown) {
-      if (isMissing(error)) return { version: 1, apiBaseUrl: this.#apiBaseUrl, entries: {} };
-      throw error;
+      if (isMissing(error)) return empty;
+      if (isEncryptionUnavailable(error)) throw error;
+      await this.#discard();
+      return empty;
     }
+  }
+
+  async #discard(): Promise<void> {
+    await unlink(this.#path).catch((error: unknown) => {
+      if (!isMissing(error)) throw error;
+    });
   }
 
   async #save(file: StoredPrivacyFile): Promise<void> {
@@ -122,21 +120,8 @@ function requireEncryption(): void {
   if (!safeStorage.isEncryptionAvailable()) throw new Error("系统安全存储不可用，拒绝保存隐私状态");
 }
 
-function isStoredFile(value: unknown, apiBaseUrl: string): value is StoredPrivacyFile {
-  if (!value || typeof value !== "object") return false;
-  const file = value as Partial<StoredPrivacyFile>;
-  return file.version === 1 && file.apiBaseUrl === apiBaseUrl &&
-    Boolean(file.entries) && typeof file.entries === "object" &&
-    Object.values(file.entries).every(isCachedConsent);
-}
-
-function isCachedConsent(value: unknown): value is CachedPrivacyConsent {
-  if (!value || typeof value !== "object") return false;
-  const entry = value as Partial<CachedPrivacyConsent>;
-  return typeof entry.policyVersion === "string" && typeof entry.contentHash === "string" &&
-    ["accepted", "declined", "withdrawn"].includes(entry.status ?? "") &&
-    (entry.acceptedAt === null || typeof entry.acceptedAt === "string") &&
-    typeof entry.decisionAt === "string";
+function isEncryptionUnavailable(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("系统安全存储不可用");
 }
 
 function isMissing(error: unknown): boolean {

@@ -29,7 +29,6 @@ export const detailMessages: Record<string, string> = {
   "拒绝": "Reject",
   "自定义回答": "Custom response",
   "告诉 Agent 应该如何调整…": "Tell the Agent what to change…",
-  "Enter 提交 · Shift+Enter 换行": "Enter to submit · Shift+Enter for a new line",
   "提交": "Submit",
   "正在打开本地简历…": "Opening local resume…",
   "恢复不会写入云端": "Restore does not write to the cloud",
@@ -67,8 +66,6 @@ export const detailMessages: Record<string, string> = {
   "删除这个对话？": "Delete this conversation?",
   "今天想完成什么？": "What would you like to accomplish today?",
   "管理岗位与简历": "Jobs and resumes",
-  "选择一个入口，继续寻找岗位、准备材料或跟进投递。":
-    "Choose where to continue: find roles, prepare materials, or track applications.",
   "我可以读取你的经历，并帮助你准备求职材料。": "I can review your experience and help prepare your job-search materials.",
   "按月": "Month only",
   "精确到日": "Exact date",

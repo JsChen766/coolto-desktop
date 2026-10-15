@@ -24,8 +24,8 @@
 .markdown-content h4 {
   margin: 1.25em 0 0.5em;
   color: var(--text);
-  font-family: var(--font-serif);
-  font-weight: 620;
+  font-family: var(--font-ui);
+  font-weight: 600;
   letter-spacing: -0.012em;
   line-height: 1.35;
 }

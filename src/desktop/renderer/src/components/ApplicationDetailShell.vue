@@ -78,8 +78,16 @@ async function syncInterview(value: InterviewRound): Promise<void> {
 
 <template>
   <ApplicationDetailPanel :application="application" :references="references" :detail="tracker.detail.value" :detail-loading="tracker.loading.value" :submission-receipt="submissionReceipt" :focus-interview-id="focusInterviewId" :calendar-supported="calendarSupported" :calendar-busy-id="calendarBusyId" :calendar-message="calendarMessage" :loops-enabled="loopsEnabled" :busy="busy || tracker.busy.value" :error="error || tracker.error.value" @close="$emit('close')" @update="$emit('update', $event)" @transition="$emit('transition', $event)" @delete="$emit('delete')" @open-url="$emit('openUrl', $event)" @open-asset="(kind, id) => $emit('openAsset', kind, id)" @start-loop="$emit('startLoop', $event, tracker.detail.value.interviews)" @prepare-interview="$emit('prepareInterview')" @add-interview="open('interview')" @edit-interview="open('interview', $event)" @sync-interview="syncInterview" @add-note="open('note')" @edit-note="open('note', $event)" @add-reminder="open('reminder')" @edit-reminder="open('reminder', $event)" @remove-child="remove" />
-  <InterviewEditorDialog v-if="editor === 'interview'" :interview="interview" :next-round="nextRound" :busy="tracker.busy.value" :error="tracker.error.value" @close="closeEditor" @review="reviewInterview" />
-  <NoteEditorDialog v-if="editor === 'note'" :note="note" :interviews="tracker.detail.value.interviews" :busy="tracker.busy.value" :error="tracker.error.value" @close="closeEditor" @review="reviewNote" />
-  <ReminderEditorDialog v-if="editor === 'reminder'" :reminder="reminder" :interviews="tracker.detail.value.interviews" :busy="tracker.busy.value" :error="tracker.error.value" @close="closeEditor" @review="reviewReminder" />
-  <TrackerChildProposalDialog v-if="tracker.proposal.value" :proposal="tracker.proposal.value" :busy="tracker.busy.value" :error="tracker.error.value" @close="tracker.proposal.value = undefined" @confirm="execute" />
+  <Transition name="overlay-fade">
+    <InterviewEditorDialog v-if="editor === 'interview'" :interview="interview" :next-round="nextRound" :busy="tracker.busy.value" :error="tracker.error.value" @close="closeEditor" @review="reviewInterview" />
+  </Transition>
+  <Transition name="overlay-fade">
+    <NoteEditorDialog v-if="editor === 'note'" :note="note" :interviews="tracker.detail.value.interviews" :busy="tracker.busy.value" :error="tracker.error.value" @close="closeEditor" @review="reviewNote" />
+  </Transition>
+  <Transition name="overlay-fade">
+    <ReminderEditorDialog v-if="editor === 'reminder'" :reminder="reminder" :interviews="tracker.detail.value.interviews" :busy="tracker.busy.value" :error="tracker.error.value" @close="closeEditor" @review="reviewReminder" />
+  </Transition>
+  <Transition name="overlay-fade">
+    <TrackerChildProposalDialog v-if="tracker.proposal.value" :proposal="tracker.proposal.value" :busy="tracker.busy.value" :error="tracker.error.value" @close="tracker.proposal.value = undefined" @confirm="execute" />
+  </Transition>
 </template>

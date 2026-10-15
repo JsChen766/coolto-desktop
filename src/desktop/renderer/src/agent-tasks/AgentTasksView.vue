@@ -74,7 +74,7 @@ watch(() => props.focusRequest, (request) => {
 <style scoped>
 .agent-tasks-view { height: 100%; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--bg); }
 .tasks-header { min-height: 66px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px;
-  align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--border); }
+  align-items: center; padding: 10px calc(18px + var(--window-controls-width, 0px)) 10px 18px; border-bottom: 1px solid var(--border); }
 .tasks-header h1 { margin: 0; font-size: 16px; } .tasks-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
 .icon-button { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px;
   background: transparent; color: var(--text-soft); cursor: pointer; }

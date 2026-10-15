@@ -24,7 +24,9 @@ await build({
 
 const require = createRequire(import.meta.url);
 const electronBinary = process.env.ELECTRON_BIN ?? require("electron");
-const userDataDir = resolve(defaultUserDataDir);
+const userDataDir = resolve(
+  process.env.COOLTO_DEV_LOGIN_USER_DATA_DIR?.trim() || defaultUserDataDir,
+);
 const child = spawn(
   electronBinary,
   [`--user-data-dir=${userDataDir}`, outfile],

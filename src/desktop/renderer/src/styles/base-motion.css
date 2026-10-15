@@ -1,0 +1,87 @@
+@keyframes overlay-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes overlay-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--overlay-rise)) scale(0.99);
+  }
+}
+
+@keyframes panel-leave {
+  to {
+    opacity: 0;
+    transform: translateY(var(--overlay-rise)) scale(0.99);
+  }
+}
+
+@keyframes chrome-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+.chrome-enter {
+  animation: chrome-enter var(--motion-standard) var(--ease-out-quart);
+}
+
+.overlay-fade-enter-active {
+  animation: overlay-enter var(--motion-standard) var(--ease-out-quart);
+}
+
+.overlay-fade-leave-active {
+  animation: overlay-leave var(--motion-exit) var(--ease-out-quart);
+}
+
+.overlay-fade-enter-active > .dialog-card,
+.panel-rise-enter-active {
+  animation: panel-enter var(--motion-panel) var(--ease-out-quint);
+}
+
+.overlay-fade-leave-active > .dialog-card,
+.overlay-fade-leave-active > .resume-picker,
+.panel-rise-leave-active {
+  animation: panel-leave var(--motion-exit) var(--ease-out-quart);
+}
+
+.overlay-fade-leave-active.dialog-backdrop,
+.overlay-fade-leave-active.resume-picker-backdrop {
+  animation: overlay-leave var(--motion-exit) var(--ease-out-quart);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-instant: 0ms;
+    --motion-fast: 0ms;
+    --motion-standard: 0ms;
+    --motion-panel: 0ms;
+    --motion-exit: 0ms;
+    --press-scale: 1;
+  }
+
+  .overlay-fade-enter-active,
+  .overlay-fade-leave-active,
+  .overlay-fade-enter-active > .dialog-card,
+  .overlay-fade-leave-active > .dialog-card,
+  .overlay-fade-leave-active > .resume-picker,
+  .panel-rise-enter-active,
+  .panel-rise-leave-active,
+  .dialog-backdrop,
+  .dialog-card,
+  .resume-picker-backdrop,
+  .resume-picker,
+  .popover,
+  .repository-action-menu,
+  .chrome-enter {
+    animation: none;
+  }
+}

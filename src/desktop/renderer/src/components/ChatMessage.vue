@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const copied = ref(false);
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
+const isFresh = Date.now() - Date.parse(props.message.createdAt) < 2000;
 
 const completedTime = computed(() => {
   if (!props.message.completedAt) return "";
@@ -37,7 +38,7 @@ async function copyContent(): Promise<void> {
 <template>
   <article
     class="chat-message"
-    :class="`role-${message.role}`"
+    :class="[`role-${message.role}`, { 'chrome-enter': isFresh }]"
     data-testid="chat-message"
     :data-message-id="message.id"
     :data-message-role="message.role"

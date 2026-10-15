@@ -181,6 +181,7 @@ function resolveMaterialApi(): MaterialApi | undefined {
     <MaterialLibraryHeader
       :query="query"
       :status="status"
+      :loading="loading"
       :busy="busy"
       :api-ready="Boolean(api)"
       @update:query="query = $event"
@@ -190,6 +191,7 @@ function resolveMaterialApi(): MaterialApi | undefined {
       @export-package="exportPackage"
       @restore-package="restorePackage"
       @refresh="load"
+      @clear-filters="clearFilters"
     />
     <div v-if="unavailable" class="material-page-state">
       <strong>{{ $t('材料宿主尚未接入') }}</strong>

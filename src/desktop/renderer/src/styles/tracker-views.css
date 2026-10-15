@@ -185,7 +185,7 @@
   justify-content: space-between;
 }
 .calendar-toolbar > div { display: flex; flex-direction: column; gap: 2px; }
-.calendar-toolbar strong { font-family: var(--font-serif); font-size: 15px; }
+.calendar-toolbar strong { font-family: var(--font-ui); font-size: 15px; }
 .calendar-toolbar span { color: var(--muted); font-size: 10.5px; }
 .calendar-toolbar nav { display: flex; gap: 3px; }
 .calendar-toolbar button {

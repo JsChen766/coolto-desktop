@@ -6,9 +6,13 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
+  transition:
+    background var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .tracker-card:hover { background: var(--surface-strong); }
+.tracker-card:active { transform: scale(var(--press-scale)); }
 
 .tracker-card-open {
   width: 100%;

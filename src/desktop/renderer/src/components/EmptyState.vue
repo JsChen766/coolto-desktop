@@ -162,7 +162,7 @@ const stageCopy: Record<EmptyStateStage, { title: string; description: string }>
   },
   active_search: {
     title: "今天想完成什么？",
-    description: "选择一个入口，继续寻找岗位、准备材料或跟进投递。",
+    description: "",
   },
 };
 
@@ -184,7 +184,7 @@ function run(item: Suggestion): void {
       <Sparkles :size="25" :stroke-width="1.55" />
     </div>
     <h1>{{ $t(stageCopy[stage].title) }}</h1>
-    <p>{{ $t(stageCopy[stage].description) }}</p>
+    <p v-if="stageCopy[stage].description">{{ $t(stageCopy[stage].description) }}</p>
     <div
       class="suggestion-list"
       :class="{ 'is-three-column': stage === 'active_search' }"

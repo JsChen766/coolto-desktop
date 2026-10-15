@@ -10,22 +10,24 @@ defineEmits<{ decide: [decision: DesktopApprovalDecision] }>();
 </script>
 
 <template>
-  <DelegationPanel
-    v-if="request.actionType === 'agent_task.provision'"
-    :request="request"
-    :busy="busy"
-    @decide="$emit('decide', $event)"
-  />
-  <ResumeStrategyChoiceCard
-    v-else-if="request.actionType === 'resume.strategy.choose'"
-    :request="request"
-    :busy="busy"
-    @decide="$emit('decide', $event)"
-  />
-  <ApprovalCard
-    v-else
-    :request="request"
-    :busy="busy"
-    @decide="$emit('decide', $event)"
-  />
+  <div class="chrome-enter">
+    <DelegationPanel
+      v-if="request.actionType === 'agent_task.provision'"
+      :request="request"
+      :busy="busy"
+      @decide="$emit('decide', $event)"
+    />
+    <ResumeStrategyChoiceCard
+      v-else-if="request.actionType === 'resume.strategy.choose'"
+      :request="request"
+      :busy="busy"
+      @decide="$emit('decide', $event)"
+    />
+    <ApprovalCard
+      v-else
+      :request="request"
+      :busy="busy"
+      @decide="$emit('decide', $event)"
+    />
+  </div>
 </template>

@@ -10,7 +10,7 @@
 
 .tracker-view-header {
   min-height: 74px;
-  padding: 14px 20px;
+  padding: 14px calc(20px + var(--window-controls-width, 0px)) 14px 20px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -27,12 +27,21 @@
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  transition:
+    background var(--motion-instant) var(--ease-out-quart),
+    color var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .tracker-back-button:hover,
 .tracker-refresh-button:hover:not(:disabled) {
   background: var(--surface);
   color: var(--text);
+}
+
+.tracker-back-button:active,
+.tracker-refresh-button:active:not(:disabled) {
+  transform: scale(var(--press-scale));
 }
 
 .tracker-refresh-button {
@@ -159,6 +168,26 @@
   font-size: 11.5px;
 }
 
+.tracker-view-switcher button {
+  position: relative;
+  isolation: isolate;
+  transition:
+    color var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
+}
+.tracker-view-switcher button:active { transform: scale(var(--press-scale)); }
+.tracker-view-switcher.has-pill button.active {
+  background: transparent;
+  box-shadow: none;
+}
+.tracker-view-pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 7px;
+  background: var(--bg);
+  box-shadow: 0 1px 4px rgb(32 32 30 / 8%);
+}
 @media (max-width: 940px) {
   .tracker-view-header { flex-wrap: wrap; }
   .tracker-search { order: 5; width: 100%; }

@@ -52,21 +52,26 @@
 .tracker-child-section > header button {
   min-height: 28px;
   padding: 0 8px;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 7px;
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-soft);
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 11px;
+  transition:
+    background var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
+}
+.tracker-child-section > header button:active {
+  transform: scale(var(--press-scale));
 }
 .tracker-child-list,
 .tracker-note-list { display: flex; flex-direction: column; gap: 8px; }
 .tracker-child-item,
 .tracker-note-list > article {
   padding: 11px;
-  border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
 }
@@ -75,7 +80,7 @@
 .tracker-child-item strong { font-size: 12px; }
 .tracker-child-item span,
 .tracker-child-item small { color: var(--muted); font-size: 10.5px; overflow-wrap: anywhere; }
-.tracker-child-item.overdue { border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); }
+.tracker-child-item.overdue { background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
 .tracker-child-item.overdue small { color: var(--danger); }
 .tracker-child-item.selected { box-shadow: inset 0 0 0 1px var(--text-soft); }
 .tracker-child-item nav,
@@ -149,7 +154,7 @@
 .calendar-child-event.reminder i { background: #b9852d; }
 .tracker-sync-issues { width: min(620px, 100%); }
 .tracker-sync-issue-list { max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.tracker-sync-issue-list article { padding: 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); display: flex; justify-content: space-between; gap: 12px; }
+.tracker-sync-issue-list article { padding: 11px; border-radius: 9px; background: var(--surface); display: flex; justify-content: space-between; gap: 12px; }
 .tracker-sync-issue-list article > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .tracker-sync-issue-list strong { font-size: 12px; }
 .tracker-sync-issue-list span,

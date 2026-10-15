@@ -26,9 +26,9 @@
 
 .experience-detail-title h2 {
   margin: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: clamp(22px, 2.4vw, 30px);
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.025em;
 }
 
@@ -76,7 +76,7 @@
   margin: 0 0 5px;
   color: var(--muted);
   font-size: 10px;
-  font-weight: 560;
+  font-weight: 500;
 }
 
 .experience-facts dd {

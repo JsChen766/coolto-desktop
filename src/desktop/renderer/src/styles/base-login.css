@@ -30,7 +30,7 @@
 
 .login-copy h1 {
   margin: 0 0 8px;
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.025em;
@@ -59,8 +59,8 @@
   font-weight: 520;
 }
 
-.login-form input,
-.dialog-card input,
+.login-form input:not([type="checkbox"]):not([type="radio"]),
+.dialog-card input:not([type="checkbox"]):not([type="radio"]),
 .dialog-card select {
   width: 100%;
   height: 42px;
@@ -92,11 +92,27 @@
   opacity: 0.55;
 }
 
-.login-form input:focus,
-.dialog-card input:focus,
+.dialog-card input[type="checkbox"],
+.dialog-card input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--text);
+}
+
+.login-form input:not([type="checkbox"]):not([type="radio"]):focus,
+.dialog-card input:not([type="checkbox"]):not([type="radio"]):focus,
 .dialog-card select:focus {
   border-color: var(--border-strong);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--border) 58%, transparent);
+}
+
+.dialog-card input[type="checkbox"]:focus-visible,
+.dialog-card input[type="radio"]:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 
 .primary-button,
@@ -108,9 +124,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   background: var(--text);
   color: var(--bg);
   font-weight: 600;
+  transition:
+    background var(--motion-fast) var(--ease-out-quart),
+    color var(--motion-fast) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .login-form .primary-button {
@@ -151,7 +172,13 @@
 
 .primary-button:hover:not(:disabled),
 .small-primary-button:hover:not(:disabled) {
-  filter: brightness(0.88);
+  background: color-mix(in srgb, var(--text) 86%, var(--muted));
+}
+
+.primary-button:active:not(:disabled),
+.secondary-button:active:not(:disabled),
+.small-primary-button:active:not(:disabled) {
+  transform: scale(var(--press-scale));
 }
 
 .primary-button.danger {
@@ -159,9 +186,22 @@
   color: #fff;
 }
 
+.primary-button.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 86%, var(--text));
+}
+
 .secondary-button {
-  background: var(--surface);
-  color: var(--text-soft);
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 12%, var(--surface-strong));
+  color: var(--text);
+}
+
+.secondary-button.danger-text:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface-strong));
 }
 
 .form-error,

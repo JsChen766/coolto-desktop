@@ -5,9 +5,9 @@ import { desktopApi } from "../lib/desktop-api";
 </script>
 
 <template>
-  <header class="window-titlebar no-drag">
+  <header class="window-titlebar">
     <div class="window-titlebar-drag" />
-    <div class="window-titlebar-controls">
+    <div class="window-titlebar-controls no-drag">
       <button
         type="button"
         class="window-control"

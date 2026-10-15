@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { Ellipsis, Menu, Plus, Search } from "@lucide/vue";
+import { Ellipsis, Menu, Plus, RefreshCw, Search } from "@lucide/vue";
 import type { MaterialView } from "@desktop/types/material";
+import MaterialLibraryStatusFilter from "./MaterialLibraryStatusFilter.vue";
 
 defineProps<{
   query: string;
   status: MaterialView["status"] | "";
+  loading: boolean;
   busy: boolean;
   apiReady: boolean;
 }>();
@@ -16,6 +18,7 @@ defineEmits<{
   exportPackage: [];
   restorePackage: [];
   refresh: [];
+  clearFilters: [];
 }>();
 </script>
 
@@ -32,32 +35,32 @@ defineEmits<{
         <Menu :size="17" aria-hidden="true" />
       </button>
       <h1>{{ $t('材料库') }}</h1>
-      <div class="material-library-header-actions no-drag">
-        <button
-          class="primary-button icon-label"
-          type="button"
-          :disabled="busy || !apiReady"
-          @click="$emit('importFiles')"
-        >
-          <Plus :size="15" aria-hidden="true" />{{ $t('导入材料') }}
-        </button>
-        <details class="material-more-actions">
-          <summary class="icon-button" :aria-label="$t('更多材料操作')" :title="$t('更多材料操作')">
-            <Ellipsis :size="16" aria-hidden="true" />
-          </summary>
-          <div class="material-more-menu" role="menu">
-            <button type="button" role="menuitem" :disabled="busy || !apiReady" @click="$emit('restorePackage')">
-              {{ $t('恢复备份') }}
-            </button>
-            <button type="button" role="menuitem" :disabled="busy || !apiReady" @click="$emit('exportPackage')">
-              {{ $t('导出备份') }}
-            </button>
-          </div>
-        </details>
-      </div>
+      <details class="material-more-actions no-drag">
+        <summary class="icon-button" :aria-label="$t('更多材料操作')" :title="$t('更多材料操作')">
+          <Ellipsis :size="16" aria-hidden="true" />
+        </summary>
+        <div class="material-more-menu" role="menu">
+          <button type="button" role="menuitem" :disabled="busy || !apiReady" @click="$emit('restorePackage')">
+            {{ $t('恢复备份') }}
+          </button>
+          <button type="button" role="menuitem" :disabled="busy || !apiReady" @click="$emit('exportPackage')">
+            {{ $t('导出备份') }}
+          </button>
+        </div>
+      </details>
       <div class="window-controls-slot no-drag" aria-hidden="true" />
     </div>
     <div class="material-library-header-toolbar no-drag">
+      <button
+        class="icon-button"
+        type="button"
+        :disabled="loading"
+        :aria-label="$t('刷新材料列表')"
+        :title="$t('刷新材料列表')"
+        @click="$emit('refresh')"
+      >
+        <RefreshCw :size="16" :class="{ spin: loading }" aria-hidden="true" />
+      </button>
       <label class="material-library-search">
         <Search :size="15" aria-hidden="true" />
         <input
@@ -67,20 +70,19 @@ defineEmits<{
           @input="$emit('update:query', ($event.target as HTMLInputElement).value)"
         />
       </label>
-      <div class="material-status-filter">
-        <select
-          :value="status"
-          :aria-label="$t('按状态筛选')"
-          @change="$emit('update:status', ($event.target as HTMLSelectElement).value as MaterialView['status'] | '')"
-        >
-          <option value="">{{ $t('全部状态') }}</option>
-          <option value="unclassified">{{ $t('未归类') }}</option>
-          <option value="needs_confirmation">{{ $t('待确认') }}</option>
-          <option value="ready">{{ $t('已整理') }}</option>
-          <option value="expired">{{ $t('OCR 已过期') }}</option>
-          <option value="failed">{{ $t('处理失败') }}</option>
-        </select>
-      </div>
+      <MaterialLibraryStatusFilter
+        :status="status"
+        @update:status="$emit('update:status', $event)"
+        @clear="$emit('clearFilters')"
+      />
+      <button
+        class="primary-button icon-label material-import-button"
+        type="button"
+        :disabled="busy || !apiReady"
+        @click="$emit('importFiles')"
+      >
+        <Plus :size="15" aria-hidden="true" />{{ $t('导入材料') }}
+      </button>
     </div>
   </header>
 </template>

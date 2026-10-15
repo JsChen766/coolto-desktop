@@ -8,7 +8,11 @@
 .suggestion-card.is-primary:hover {
   border-color: transparent;
   color: var(--bg);
-  filter: brightness(0.88);
+  background: color-mix(in srgb, var(--text) 86%, var(--muted));
+}
+
+.suggestion-card.is-primary:active:not(:disabled) {
+  transform: scale(var(--press-scale));
 }
 
 .suggestion-list.is-three-column {
@@ -22,7 +26,7 @@
 }
 
 .composer.guided-highlight {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 18%, transparent);
+  box-shadow: var(--shadow-lift), 0 0 0 3px color-mix(in srgb, var(--text) 18%, transparent);
 }
 
 @media (max-width: 520px) {

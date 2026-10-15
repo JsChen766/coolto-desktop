@@ -175,7 +175,7 @@ test("desktop chat components expose the stable smoke contract", async () => {
   assert.match(approvalCard, /data-approval-action-type/u);
   assert.match(approvalCard, /data-testid="approval-accept"/u);
   assert.match(eventHandler, /case "run\.started":[\s\S]+runError\.value = undefined/u);
-  assert.match(eventHandler, /case "message\.delta":[\s\S]{0,240}?return;/u);
+  assert.match(eventHandler, /case "message\.delta":[\s\S]{0,240}?appendVisibleAssistantDelta/u);
   assert.match(eventHandler, /case "assistant\.notice":[\s\S]{0,240}?messages\.push/u);
   assert.match(eventHandler, /markLocalSaving\(event\.replacePreview/u);
   assert.match(resumeWorkspace, /if \(replacePreview\) activeDraft\.value = undefined/u);

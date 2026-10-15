@@ -166,27 +166,33 @@ function selectAndReport(experienceId: string): void {
       </section>
     </div>
 
-    <ExperienceProposalDialog
-      v-if="maintenance.proposal.value"
-      :proposal="maintenance.proposal.value"
-      :busy="maintenance.busy.value"
-      :error="maintenance.error.value"
-      @back="maintenance.closeProposal"
-      @close="maintenance.closeProposal"
-      @confirm="maintenance.executeProposal"
-    />
-    <ExperienceSyncIssueDialog
-      v-if="maintenance.syncIssue.value"
-      :issue="maintenance.syncIssue.value"
-      :busy="maintenance.busy.value"
-      :error="maintenance.error.value"
-      @close="maintenance.syncIssue.value = undefined"
-      @action="maintenance.prepareSyncAction"
-    />
-    <ExperienceUnsavedDialog
-      v-if="maintenance.unsavedOpen.value"
-      @stay="maintenance.answerLeave(false)"
-      @discard="maintenance.answerLeave(true)"
-    />
+    <Transition name="overlay-fade">
+      <ExperienceProposalDialog
+        v-if="maintenance.proposal.value"
+        :proposal="maintenance.proposal.value"
+        :busy="maintenance.busy.value"
+        :error="maintenance.error.value"
+        @back="maintenance.closeProposal"
+        @close="maintenance.closeProposal"
+        @confirm="maintenance.executeProposal"
+      />
+    </Transition>
+    <Transition name="overlay-fade">
+      <ExperienceSyncIssueDialog
+        v-if="maintenance.syncIssue.value"
+        :issue="maintenance.syncIssue.value"
+        :busy="maintenance.busy.value"
+        :error="maintenance.error.value"
+        @close="maintenance.syncIssue.value = undefined"
+        @action="maintenance.prepareSyncAction"
+      />
+    </Transition>
+    <Transition name="overlay-fade">
+      <ExperienceUnsavedDialog
+        v-if="maintenance.unsavedOpen.value"
+        @stay="maintenance.answerLeave(false)"
+        @discard="maintenance.answerLeave(true)"
+      />
+    </Transition>
   </div>
 </template>

@@ -199,7 +199,6 @@ function accept(): void {
         @keydown.enter.exact.prevent="submitCustom"
       />
       <div class="approval-custom-footer">
-        <span>{{ $t('Enter 提交 · Shift+Enter 换行') }}</span>
         <button
           class="small-primary-button"
           type="button"

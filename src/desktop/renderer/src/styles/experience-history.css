@@ -58,8 +58,8 @@
 }
 
 .experience-revision-item.pending {
-  border-color: var(--border-strong);
-  background: var(--surface);
+  border-color: transparent;
+  background: var(--surface-strong);
 }
 
 .experience-revision-item header {

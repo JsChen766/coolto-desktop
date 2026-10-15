@@ -26,11 +26,12 @@
     display: inline-flex;
   }
 
-  .repository-applications-label {
+  .repository-toolbar-action-label {
     display: none;
   }
 
-  .repository-applications {
+  .repository-toolbar-leading .secondary-button,
+  .repository-toolbar-leading .primary-button {
     min-width: 34px;
     padding: 0 9px;
   }
@@ -85,26 +86,10 @@
     justify-content: center;
   }
 
-  .repository-primary-action {
-    margin-left: 0;
-  }
-
-  .repository-primary-action-label {
-    display: none;
-  }
-
-  .repository-header-toolbar {
-    flex-wrap: wrap;
-  }
-
   .repository-search {
-    width: 100%;
+    flex: 1 1 220px;
+    width: auto;
     max-width: none;
-    flex-basis: 100%;
-  }
-
-  .repository-applications {
-    margin-left: 0;
   }
 
   .repository-detail-header,
@@ -123,4 +108,4 @@
     display: none;
   }
 }
-
+

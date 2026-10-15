@@ -9,10 +9,13 @@
 
 .repository-header {
   position: relative;
+  box-sizing: border-box;
+  width: 100%;
   padding: 12px calc(20px + var(--window-controls-width, 0px)) 10px 20px;
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 10px;
 }
 
@@ -20,10 +23,25 @@
   padding-top: 24px;
 }
 
-.repository-header-primary,
+.repository-header-primary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
 .repository-header-toolbar {
   display: flex;
   align-items: center;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.repository-toolbar-leading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   min-width: 0;
 }
@@ -52,20 +70,8 @@
   flex-shrink: 0;
 }
 
-.repository-primary-action {
-  margin-left: auto;
-  min-height: 34px;
-  padding: 0 11px;
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.repository-header-toolbar {
-  padding-left: 0;
-}
-
 .repository-search {
-  width: min(290px, 32vw);
+  width: min(320px, 34vw);
   height: 34px;
   padding: 0 10px;
   border-radius: 8px;
@@ -74,9 +80,15 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  flex: 1;
-  min-width: 0;
-  max-width: 420px;
+  flex-shrink: 0;
+}
+
+.repository-toolbar-leading .primary-button,
+.repository-toolbar-leading .secondary-button {
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .repository-search input {
@@ -93,11 +105,6 @@
   flex-shrink: 0;
 }
 
-.repository-applications {
-  margin-left: auto;
-  min-height: 34px;
-  flex-shrink: 0;
-}
 
 .repository-layout {
   min-width: 0;
@@ -160,4 +167,4 @@
 .sidebar-scrim {
   display: none;
 }
-
+

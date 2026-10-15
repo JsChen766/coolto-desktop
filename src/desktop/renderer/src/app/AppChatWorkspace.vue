@@ -145,7 +145,7 @@ function restartLastRun(): void { void send("请重新开始刚才的任务，�
               <ChatRunTerminal v-if="showRunTerminal" :terminal="current.lastRun!" @continue="continueLastRun" @restart="restartLastRun" @open-draft="openResumeDraft" />
               <article
                 v-if="toolRuns.length || streamingText"
-                class="chat-message role-assistant live-response"
+                class="chat-message role-assistant live-response chrome-enter"
                 data-testid="chat-live-response"
               >
                 <ToolActivity :runs="toolRuns" />

@@ -187,5 +187,6 @@ function resumeActionLabel(action: "保存到简历库" | "导出到本地文件
         <span>{{ $t('预览') }}</span>
       </button>
     </div>
+    <div class="window-controls-slot no-drag" aria-hidden="true" />
   </header>
 </template>

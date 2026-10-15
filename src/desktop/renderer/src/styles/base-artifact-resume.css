@@ -94,12 +94,20 @@
   gap: 7px;
   text-align: left;
   font-size: 13px;
+  transition:
+    background var(--motion-instant) var(--ease-out-quart),
+    color var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .resume-draft-row:hover,
 .resume-draft-row.active {
   background: var(--surface);
   color: var(--text);
+}
+
+.resume-draft-row:active:not(:disabled) {
+  transform: scale(var(--press-scale));
 }
 
 .resume-draft-row:disabled {

@@ -5,19 +5,27 @@
 .experience-filter-trigger {
   min-height: 34px;
   padding: 0 10px;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 8px;
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-soft);
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  transition:
+    background var(--motion-instant) var(--ease-out-quart),
+    color var(--motion-instant) var(--ease-out-quart),
+    transform var(--motion-instant) var(--ease-out-quart);
 }
 
 .experience-filter-trigger:hover {
-  background: var(--surface);
+  background: var(--surface-strong);
   color: var(--text);
+}
+
+.experience-filter-trigger:active {
+  transform: scale(var(--press-scale));
 }
 
 .experience-filter-trigger > span {

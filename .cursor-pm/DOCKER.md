@@ -3,13 +3,10 @@
 **Only one backend stack for App manual testing:**
 
 ```powershell
-# App 手测（隐私门 / Profile / Preference）需要带 privacy 模块的后端：
-cd E:\vsProjects\coolto\.codex-worktrees\prd-privacy-be
+# App 手测（隐私门 / Profile / Preference）：主 checkout 在 dev/cursor/target_prd（含 privacy 模块）
+cd E:\vsProjects\coolto\cv-agent-be
 docker compose up -d --build
 docker compose --profile tools run --rm migrate up
-
-# 仅改 Go 业务、不需要隐私 API 时可用主 checkout：
-# cd E:\vsProjects\coolto\cv-agent-be && docker compose up -d --build
 ```
 
 - API: `http://127.0.0.1:8080` (`/health/live`, `/health/ready`)
@@ -21,10 +18,10 @@ App worktree (Phase 2): set `COOLTO_API_BASE_URL=http://127.0.0.1:8080` in `.env
 **Dev login (no real email):** seed account + password login into Electron session:
 
 ```powershell
-cd E:\vsProjects\coolto\.codex-worktrees\prd-privacy-be
+cd E:\vsProjects\coolto\cv-agent-be
 docker compose --profile tools run --rm -e GOOSE_TABLE=goose_db_version_dev -e GOOSE_MIGRATION_DIR=migrations-dev migrate up
 
-cd E:\vsProjects\coolto\.codex-worktrees\prd-profile-pref-app-takeover
+cd E:\vsProjects\coolto\cv-agent-app
 node scripts/run-dev-desktop-login.mjs
 npm run desktop:dev
 ```
@@ -47,7 +44,7 @@ Handoff secrets stay in gitignored `.env`. Production compose defaults remain `A
 ## Do not
 
 - Run `docker compose up` inside unrelated `.codex-worktrees/*-be` slices. **Exception:** `prd-admin-analytics-handback-be` is the D₁ overlay for the shared `cv-agent-app-be` project (see Phase 5 above).
-- Run `migrate up` from **handback** worktree against the live `cv-agent-app-be` project while **privacy-be** owns that DB — goose can disagree on `00016`. Use `scripts/run-analytics-handback-db-acceptance.py` (isolated project) for D₁ gates instead.
+- Run `migrate up` from **handback** worktree against the live `cv-agent-app-be` project while **`cv-agent-be` @ target_prd** owns that DB — goose can disagree on `00016`. Use `scripts/run-analytics-handback-db-acceptance.py` (isolated project) for D₁ gates instead.
 - Spin per-slice stacks (`profile-pref-acceptance`, `pri-health`, …); removed 2026-09-11.
 
 ## Other compose projects on this machine

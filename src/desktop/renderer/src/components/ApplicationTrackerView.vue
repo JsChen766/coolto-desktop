@@ -7,14 +7,12 @@ import { useApplicationTrackerPage } from "../tracker/use-application-tracker-pa
 import { desktopApi } from "../lib/desktop-api";
 import { openPresentedBrowser } from "../browser/open-presented-browser";
 import { APPLICATION_BOARD_COLUMNS } from "../tracker/application-board";
-import ApplicationBoardColumn from "./ApplicationBoardColumn.vue";
-import ApplicationCalendarView from "./ApplicationCalendarView.vue";
 import ApplicationCreateDialog from "./ApplicationCreateDialog.vue";
 import ApplicationCorrectionDialog from "./ApplicationCorrectionDialog.vue";
 import ApplicationDeleteDialog from "./ApplicationDeleteDialog.vue";
 import ApplicationDetailShell from "./ApplicationDetailShell.vue";
 import ApplicationTransitionDialog from "./ApplicationTransitionDialog.vue";
-import ApplicationTimelineView from "./ApplicationTimelineView.vue";
+import ApplicationTrackerStage from "./ApplicationTrackerStage.vue";
 import ApplicationViewSwitcher from "./ApplicationViewSwitcher.vue";
 import { useTrackerOverview } from "../tracker/use-tracker-overview";
 import { useTrackerSyncRecovery } from "../tracker/use-tracker-sync-recovery";
@@ -118,36 +116,18 @@ function prepareInterview(): void {
       </div>
     </div>
 
-    <div v-if="tracker.loading.value && !tracker.applications.value.length" class="tracker-loading">
-      {{ $t('正在读取本地投递记录…') }}
-    </div>
-    <div v-else-if="activeView === 'board'" class="tracker-board">
-      <ApplicationBoardColumn
-        v-for="column in APPLICATION_BOARD_COLUMNS"
-        :key="column.key"
-        :title="$t(column.title)"
-        :description="$t(column.description)"
-        :applications="applicationsFor(column.statuses)"
-        :busy="tracker.busy.value"
-        :interviews="overview.snapshot.value.interviews"
-        :reminders="overview.snapshot.value.reminders"
-        @open="openApplication"
-        @transition="prepareTransition"
-      />
-    </div>
-    <ApplicationTimelineView
-      v-else-if="activeView === 'timeline'"
-      :applications="filtered"
-      :events="overview.snapshot.value.statusEvents"
-      :interviews="overview.snapshot.value.interviews"
-      @open="openApplication"
-    />
-    <ApplicationCalendarView
-      v-else
-      :applications="filtered"
+    <ApplicationTrackerStage
+      :active-view="activeView"
+      :loading="tracker.loading.value"
+      :busy="tracker.busy.value"
+      :has-applications="Boolean(tracker.applications.value.length)"
+      :filtered="filtered"
       :interviews="overview.snapshot.value.interviews"
       :reminders="overview.snapshot.value.reminders"
+      :events="overview.snapshot.value.statusEvents"
+      :applications-for="applicationsFor"
       @open="openApplication"
+      @transition="prepareTransition"
     />
 
     <ApplicationDetailShell
@@ -169,59 +149,69 @@ function prepareInterview(): void {
       @prepare-interview="prepareInterview"
     />
 
-    <ApplicationCreateDialog
-      v-if="createOpen"
-      :references="tracker.references.value"
-      :initial="createInitial"
-      :proposal="createProposal"
-      :busy="tracker.busy.value"
-      :error="tracker.error.value"
-      @close="createOpen = false; createProposal = undefined"
-      @back="createProposal = undefined"
-      @review="prepareCreate"
-      @confirm="executeCreate"
-    />
-    <ApplicationCorrectionDialog
-      v-if="correctionProposal"
-      :proposal="correctionProposal"
-      :busy="tracker.busy.value"
-      :error="tracker.error.value"
-      @close="correctionProposal = undefined"
-      @confirm="executeCorrection"
-    />
-    <ApplicationTransitionDialog
-      v-if="transitionApplication && transitionTarget"
-      :application="transitionApplication"
-      :target="transitionTarget"
-      :busy="tracker.busy.value"
-      :error="tracker.error.value"
-      @close="transitionApplication = undefined; transitionTarget = undefined"
-      @confirm="confirmTransition"
-    />
-    <ApplicationDeleteDialog
-      v-if="deleteTarget"
-      :application="deleteTarget"
-      :busy="tracker.busy.value"
-      :error="tracker.error.value"
-      :child-counts="{
-        interviews: overview.snapshot.value.interviews.filter(item => item.applicationId === deleteTarget!.id).length,
-        notes: overview.snapshot.value.notes.filter(item => item.applicationId === deleteTarget!.id).length,
-        reminders: overview.snapshot.value.reminders.filter(item => item.applicationId === deleteTarget!.id).length,
-      }"
-      @close="deleteTarget = undefined"
-      @confirm="confirmDelete"
-    />
-    <TrackerSyncIssuesDialog
-      v-if="recovery.open.value"
-      :issues="recovery.issues.value"
-      :proposal="recovery.proposal.value"
-      :busy="recovery.busy.value"
-      :error="recovery.error.value"
-      @close="recovery.open.value = false"
-      @back="recovery.proposal.value = undefined"
-      @prepare="recovery.prepare"
-      @confirm="recovery.execute"
-    />
+    <Transition name="overlay-fade">
+      <ApplicationCreateDialog
+        v-if="createOpen"
+        :references="tracker.references.value"
+        :initial="createInitial"
+        :proposal="createProposal"
+        :busy="tracker.busy.value"
+        :error="tracker.error.value"
+        @close="createOpen = false; createProposal = undefined"
+        @back="createProposal = undefined"
+        @review="prepareCreate"
+        @confirm="executeCreate"
+      />
+    </Transition>
+    <Transition name="overlay-fade">
+      <ApplicationCorrectionDialog
+        v-if="correctionProposal"
+        :proposal="correctionProposal"
+        :busy="tracker.busy.value"
+        :error="tracker.error.value"
+        @close="correctionProposal = undefined"
+        @confirm="executeCorrection"
+      />
+    </Transition>
+    <Transition name="overlay-fade">
+      <ApplicationTransitionDialog
+        v-if="transitionApplication && transitionTarget"
+        :application="transitionApplication"
+        :target="transitionTarget"
+        :busy="tracker.busy.value"
+        :error="tracker.error.value"
+        @close="transitionApplication = undefined; transitionTarget = undefined"
+        @confirm="confirmTransition"
+      />
+    </Transition>
+    <Transition name="overlay-fade">
+      <ApplicationDeleteDialog
+        v-if="deleteTarget"
+        :application="deleteTarget"
+        :busy="tracker.busy.value"
+        :error="tracker.error.value"
+        :child-counts="{
+          interviews: overview.snapshot.value.interviews.filter(item => item.applicationId === deleteTarget!.id).length,
+          notes: overview.snapshot.value.notes.filter(item => item.applicationId === deleteTarget!.id).length,
+          reminders: overview.snapshot.value.reminders.filter(item => item.applicationId === deleteTarget!.id).length,
+        }"
+        @close="deleteTarget = undefined"
+        @confirm="confirmDelete"
+      />
+    </Transition>
+    <Transition name="overlay-fade">
+      <TrackerSyncIssuesDialog
+        v-if="recovery.open.value"
+        :issues="recovery.issues.value"
+        :proposal="recovery.proposal.value"
+        :busy="recovery.busy.value"
+        :error="recovery.error.value"
+        @close="recovery.open.value = false"
+        @back="recovery.proposal.value = undefined"
+        @prepare="recovery.prepare"
+        @confirm="recovery.execute"
+      />
+    </Transition>
     <ApplicationLoopDialog v-if="loopKind && tracker.selected.value"
       :api="desktopApi" :conversation-id="conversationId ?? ''" :application="tracker.selected.value"
       :interviews="loopInterviews" :kind="loopKind" @close="loopKind = undefined"

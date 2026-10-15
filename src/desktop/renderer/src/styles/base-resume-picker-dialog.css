@@ -4,9 +4,10 @@
   inset: 0;
   z-index: 120;
   background: rgb(20 20 18 / 25%);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(var(--overlay-blur));
   display: grid;
   place-items: center;
+  animation: overlay-enter var(--motion-standard) var(--ease-out-quart);
 }
 
 .resume-picker {
@@ -14,10 +15,11 @@
   max-height: 400px;
   padding: 16px;
   border-radius: 12px;
-  background: var(--bg);
+  background: var(--surface-float);
   box-shadow: var(--shadow-menu);
   display: flex;
   flex-direction: column;
+  animation: panel-enter var(--motion-panel) var(--ease-out-quint);
 }
 
 .resume-picker-title {
@@ -49,7 +51,7 @@
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background var(--motion-fast) var(--ease-out-quart);
 }
 
 .resume-picker-item:hover,
@@ -75,24 +77,26 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  padding: 24px;
+  padding: 24px calc(24px + var(--window-controls-width, 0px)) 24px 24px;
   background: rgb(20 20 18 / 25%);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(var(--overlay-blur));
   display: grid;
   place-items: center;
+  animation: overlay-enter var(--motion-standard) var(--ease-out-quart);
 }
 
 .dialog-card {
   width: min(400px, 100%);
   padding: 20px;
   border-radius: 14px;
-  background: var(--bg);
+  background: var(--surface-float);
   box-shadow: var(--shadow-menu);
+  animation: panel-enter var(--motion-panel) var(--ease-out-quint);
 }
 
 .dialog-card h2 {
   margin: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 19px;
   font-weight: 600;
 }
@@ -115,10 +119,6 @@
   .artifact-panel {
     width: 480px;
     min-width: 420px;
-  }
-
-  .composer-hint {
-    display: none;
   }
 }
 
