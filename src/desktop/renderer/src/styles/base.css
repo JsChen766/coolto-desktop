@@ -25,6 +25,7 @@
 @import "./base-resume-library-row.css";
 @import "./base-resume-library-dialogs.css";
 @import "./base-settings-dialog.css";
+@import "./ai-provider-settings.css";
 @import "./preference-dialog.css";
 @import "./base-privacy-data.css";
 @import "./ai-native-loops.css";

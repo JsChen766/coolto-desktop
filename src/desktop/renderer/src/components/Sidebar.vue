@@ -26,8 +26,6 @@ defineProps<{
   updateState: AppUpdateState;
   updateChecking: boolean;
   updateUpToDate: boolean;
-  credits?: number | undefined;
-  unlimited?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -198,17 +196,13 @@ onBeforeUnmount(() => window.removeEventListener("click", closeMenus));
         :update-state="updateState"
         :update-checking="updateChecking"
         :update-up-to-date="updateUpToDate"
-        :credits="credits"
-        :unlimited="unlimited"
         @toggle="openMenuId = openMenuId === 'user' ? undefined : 'user'"
         @close="openMenuId = undefined"
         @toggle-theme="$emit('toggleTheme')"
         @open-profile="$emit('openProfile', $event)"
         @open-settings="$emit('openSettings')"
-        @open-credits="$emit('openCredits')"
         @check-update="$emit('checkUpdate')"
         @install-update="$emit('installUpdate')"
-        @logout="$emit('logout')"
       />
     </div>
   </aside>

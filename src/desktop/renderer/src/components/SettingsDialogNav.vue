@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   IdCard,
+  Sparkles,
   Link2,
   MessageSquareText,
   Radar,
@@ -10,6 +11,7 @@ import {
 
 export type SettingsNavId =
   | "profile"
+  | "ai"
   | "connections"
   | "automation"
   | "privacy"
@@ -21,6 +23,7 @@ const emit = defineEmits<{ select: [id: SettingsNavId] }>();
 
 const items: { id: SettingsNavId; label: string; icon: typeof IdCard }[] = [
   { id: "profile", label: "个人档案", icon: IdCard },
+  { id: "ai", label: "AI 接口", icon: Sparkles },
   { id: "connections", label: "连接与日程", icon: Link2 },
   { id: "automation", label: "自动化", icon: Radar },
   { id: "privacy", label: "隐私与数据", icon: ShieldCheck },

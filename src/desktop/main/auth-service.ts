@@ -1,3 +1,5 @@
+import { app } from "electron";
+
 import { AuthPrivacyCoordinator } from "./auth-helpers.js";
 import { CooltoApiClient } from "../../api/coolto-api-client.js";
 import type {
@@ -5,9 +7,19 @@ import type {
   DeviceInput,
   EmailChallengeAccepted,
 } from "../../api/types.js";
-import { loadLocalEnv, readApiBaseUrl } from "../../config.js";
+import { loadLocalEnv } from "../../config.js";
+import {
+  LOCAL_DESKTOP_ORIGIN,
+  LOCAL_DESKTOP_TOKEN,
+  createLocalDesktopUser,
+} from "../../local-desktop.js";
 import { createUuidV7 } from "../../sync/uuid-v7.js";
 import { ElectronAuthSessionStore } from "./electron-auth-session-store.js";
+import { createLocalDesktopPrivacyApi } from "./local-desktop-privacy-api.js";
+import {
+  LocalDesktopIdentityStore,
+  localDesktopIdentityPath,
+} from "./local-desktop-identity-store.js";
 import { PrivacyService } from "./privacy/privacy-service.js";
 import { PrivacyLocalState } from "./privacy/privacy-local-state.js";
 import { DeletionRecoveryStore } from "./privacy/deletion-recovery-store.js";
@@ -17,12 +29,10 @@ import { SyncRuntime } from "./sync/sync-runtime.js";
 import {
   createPlanCheckout,
   getCheckoutPlans,
-  getCredits,
   verifyPlanCheckout,
 } from "./auth-billing.js";
 import {
   buildDeviceInput,
-  restoreAuthSession,
   saveAuthSession,
   startAuthSync,
 } from "./auth-runtime-helpers.js";
@@ -38,10 +48,10 @@ export class DesktopAuthService {
 
   public constructor() {
     loadLocalEnv();
-    this.#apiBaseUrl = readApiBaseUrl().replace(/\/+$/, "");
+    this.#apiBaseUrl = LOCAL_DESKTOP_ORIGIN;
     this.apiClient = new CooltoApiClient({ baseUrl: this.#apiBaseUrl });
     this.privacy = new PrivacyService({
-      api: this.apiClient.privacy,
+      api: createLocalDesktopPrivacyApi(),
       apiBaseUrl: this.#apiBaseUrl,
       localState: new PrivacyLocalState(this.#apiBaseUrl),
     });
@@ -71,14 +81,15 @@ export class DesktopAuthService {
     });
   }
 
-  public restore(): Promise<CurrentUser | undefined> {
-    return restoreAuthSession({
-      currentUser: this.#currentUser,
-      loadSession: () => this.#sessionStore.load(),
-      clearSession: () => this.#sessionStore.clear(),
-      apiClient: this.apiClient,
-      coordinator: this.#privacyCoordinator,
-    });
+  public async restore(): Promise<CurrentUser | undefined> {
+    if (this.#currentUser) return this.#currentUser;
+    const identity = await new LocalDesktopIdentityStore(
+      localDesktopIdentityPath(app.getPath("userData")),
+    ).loadOrCreate();
+    const user = createLocalDesktopUser(identity.userId, identity.deviceId);
+    this.apiClient.restoreSession(LOCAL_DESKTOP_TOKEN);
+    await this.#privacyCoordinator.activate(user, false);
+    return user;
   }
 
   public async requestEmailCode(email: string): Promise<EmailChallengeAccepted> {
@@ -178,7 +189,14 @@ export class DesktopAuthService {
   }
 
   public getCredits() {
-    return getCredits(this);
+    return {
+      weeklyFreeCredits: 0,
+      creditBalance: 0,
+      planType: "NONE",
+      hasFreeTrial: false,
+      unlimited: true,
+      recentTransactions: [],
+    };
   }
 
   public getCheckoutPlans() {

@@ -46,7 +46,7 @@ test("unlimited presentation hides numeric zero and purchase plans", async () =>
   assert.match(host, /:summary="summary"[\s\S]+:refresh-summary="refreshSummary"/u);
   assert.match(dialog, /v-if="!summary\.unlimited"/u);
   assert.match(balance, /v-if="summary\.unlimited"[\s\S]+无限量/u);
-  assert.match(account, /v-if="credits !== undefined && !unlimited"/u);
+  assert.doesNotMatch(account, /Credit 与套餐/u);
   assert.doesNotMatch(state, /api\.auth\.getCredits/u);
 });
 

@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import {
-  Crown,
   Ellipsis,
   IdCard,
   Languages,
-  LogOut,
   Moon,
   RefreshCw,
   Settings,
   Sun,
-  Zap,
 } from "@lucide/vue";
 import { computed, ref } from "vue";
 
@@ -28,9 +25,6 @@ const props = defineProps<{
   updateState: AppUpdateState;
   updateChecking: boolean;
   updateUpToDate: boolean;
-  credits?: number | undefined;
-  /** 管理员不限量用户：左下角显示 VIP 式黄色「无限量」标识。 */
-  unlimited?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -39,10 +33,8 @@ const emit = defineEmits<{
   toggleTheme: [];
   openProfile: [trigger: HTMLElement];
   openSettings: [];
-  openCredits: [];
   checkUpdate: [];
   installUpdate: [];
-  logout: [];
 }>();
 
 const userMenuTrigger = ref<HTMLButtonElement>();
@@ -88,27 +80,7 @@ function emitClose(): void {
     <div class="user-copy">
       <span class="user-email">{{ user.email }}</span>
       <span class="user-status-row">
-        <button
-          v-if="unlimited"
-          class="user-unlimited-badge"
-          type="button"
-          :title="$t('Credit 与套餐')"
-          @click="emitClose(); $emit('openCredits')"
-        >
-          <Crown :size="11" :stroke-width="2" aria-hidden="true" />
-          <span>{{ $t('无限量') }}</span>
-        </button>
-        <span v-else>{{ $t('已登录') }}</span>
-        <button
-          v-if="credits !== undefined && !unlimited"
-          class="user-credits-chip"
-          type="button"
-          :title="$t('Credit 与套餐')"
-          @click="emitClose(); $emit('openCredits')"
-        >
-          <Zap :size="11" :stroke-width="2" aria-hidden="true" />
-          <span>{{ credits }}</span>
-        </button>
+        <span>{{ $t('本机工作区') }}</span>
       </span>
     </div>
     <button
@@ -144,10 +116,6 @@ function emitClose(): void {
         <Settings :size="16" :stroke-width="1.8" aria-hidden="true" />
         <span>{{ $t('设置') }}</span>
       </button>
-      <button class="menu-row icon-label" type="button" @click="emitClose(); $emit('openCredits')">
-        <Zap :size="16" :stroke-width="1.8" aria-hidden="true" />
-        <span>{{ $t('Credit 与套餐') }}</span>
-      </button>
       <button
         class="menu-row icon-label update-menu-row"
         type="button"
@@ -166,11 +134,6 @@ function emitClose(): void {
           aria-hidden="true"
         />
         <span>{{ updateRowLabel }}</span>
-      </button>
-      <div class="menu-divider" />
-      <button class="menu-row icon-label" type="button" @click="$emit('logout')">
-        <LogOut :size="16" :stroke-width="1.8" aria-hidden="true" />
-        <span>{{ $t('退出登录') }}</span>
       </button>
     </div>
   </div>

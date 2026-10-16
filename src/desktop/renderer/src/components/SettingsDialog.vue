@@ -6,6 +6,7 @@ import type { DesktopApi } from "@desktop/types";
 import MailConnectionsSettings from "./MailConnectionsSettings.vue";
 import CalendarSettings from "./CalendarSettings.vue";
 import AiNativeAutomationSettings from "./AiNativeAutomationSettings.vue";
+import AiProviderSettings from "./AiProviderSettings.vue";
 import PrivacyDataSection from "./PrivacyDataSection.vue";
 import SettingsDialogNav, { type SettingsNavId } from "./SettingsDialogNav.vue";
 
@@ -15,18 +16,11 @@ const emit = defineEmits<{
   openProfile: [];
   openPreferences: [];
   openAgentTask: [taskId: string];
-  openCredits: [];
 }>();
 const dialog = ref<HTMLElement>();
 const activeNav = ref<SettingsNavId>("profile");
 const feedbackError = ref<string>();
 const alwaysOnTop = ref(false);
-const usage = ref<{
-  experiences: number;
-  experienceMax: number;
-  resumes: number;
-  resumeMax: number;
-}>();
 
 const FEEDBACK_FORM_URL =
   "https://gjp785oqywpv.jp.larksuite.com/share/base/form/shrjpRBazL52SDCRqU2gJI8489c";
@@ -37,9 +31,6 @@ onMounted(() => {
   void props.api.window.desktopPrefs().then((prefs) => {
     alwaysOnTop.value = prefs.alwaysOnTop;
   });
-  void props.api.window.assetUsage().then((counts) => {
-    usage.value = counts;
-  }).catch(() => undefined);
 });
 
 function dismiss(event?: Event): void {
@@ -149,22 +140,7 @@ function keydown(event: KeyboardEvent): void {
               >
                 {{ $t('编辑个人信息') }}
               </button>
-              <button
-                class="secondary-button"
-                type="button"
-                @click="emit('openCredits')"
-              >
-                {{ $t('查看用量') }}
-              </button>
             </div>
-            <p v-if="usage" class="settings-usage">
-              {{ $tf('经历 {used}/{max} · 云端简历 {resumeUsed}/{resumeMax}', {
-                used: usage.experiences,
-                max: usage.experienceMax,
-                resumeUsed: usage.resumes,
-                resumeMax: usage.resumeMax,
-              }) }}
-            </p>
             <label class="settings-toggle">
               <input
                 type="checkbox"
@@ -176,6 +152,14 @@ function keydown(event: KeyboardEvent): void {
                 <small>{{ $t('填表时让主窗口保持在最前，方便对照简历和经历。') }}</small>
               </span>
             </label>
+          </template>
+
+          <template v-else-if="activeNav === 'ai'">
+            <h3>{{ $t('AI 接口') }}</h3>
+            <p class="settings-pane-lead">
+              {{ $t('填写你自己的 OpenAI 兼容接口。数据只保存在本机，不会经过 Coolto 云。') }}
+            </p>
+            <AiProviderSettings :api="api" />
           </template>
 
           <template v-else-if="activeNav === 'connections'">

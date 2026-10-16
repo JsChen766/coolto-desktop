@@ -3,7 +3,6 @@ import { nextTick, ref } from "vue";
 
 import {
   ConversationDialog,
-  LoginScreen,
   Sidebar,
 } from "./app/app-components";
 import AppMainWorkspace from "./app/AppMainWorkspace.vue";
@@ -16,9 +15,7 @@ import PrivacyGateShell from "./components/PrivacyGateShell.vue";
 import ProfileDialog from "./components/ProfileDialog.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import PreferenceDialog from "./components/PreferenceDialog.vue";
-import CreditsHost from "./components/CreditsHost.vue";
 import WindowTitleBar from "./components/WindowTitleBar.vue";
-import ForcedUpdateDialog from "./components/ForcedUpdateDialog.vue";
 import OnboardingWorkspace from "./onboarding/OnboardingWorkspace.vue";
 import { useOnboarding } from "./onboarding/use-onboarding";
 
@@ -59,15 +56,12 @@ const {
   dark,
   desktopApi,
   dialog,
-  emailChallenge,
   installUpdate,
   loginBusy,
   loginError,
   logout,
   openDialog,
   openResumeDraft,
-  requestEmailCode,
-  resetEmailChallenge,
   resumeOperationContext,
   resumePreviewChoice,
   resumeWorkspace,
@@ -80,12 +74,10 @@ const {
   updateUpToDate,
   checkUpdate,
   user,
-  verifyEmailCode,
   openTracker,
   openPrimaryView,
 } = shell;
 const onboarding = useOnboarding(shell);
-const creditsHost = ref<InstanceType<typeof CreditsHost>>();
 
 function closeSettings(): void {
   settingsDialogOpen.value = false;
@@ -95,11 +87,6 @@ function closeSettings(): void {
 
 <template>
   <div class="app-frame" :class="[`platform-${desktopApi.platform}`]">
-    <ForcedUpdateDialog
-      :state="updateState"
-      @install="installUpdate"
-      @retry="checkUpdate"
-    />
     <div v-if="booting" class="boot-screen">
       <div class="boot-pulse" />
     </div>
@@ -116,16 +103,9 @@ function closeSettings(): void {
       @decline="declinePrivacy"
       @logout="logout"
     />
-    <LoginScreen
-      v-else-if="!user"
-      :busy="loginBusy"
-      :error="loginError"
-      :challenge="emailChallenge"
-      :first-visit="firstVisit"
-      @request-code="requestEmailCode"
-      @change-email="resetEmailChallenge"
-      @verify-code="verifyEmailCode"
-    />
+    <div v-else-if="!user" class="boot-screen">
+      <p>{{ loginError || $t('无法初始化本机工作区') }}</p>
+    </div>
     <div
       v-else
       class="app-shell"
@@ -144,8 +124,6 @@ function closeSettings(): void {
         :update-state="updateState"
         :update-checking="updateChecking"
         :update-up-to-date="updateUpToDate"
-        :credits="creditsHost?.totalCredits"
-        :unlimited="creditsHost?.unlimited === true"
         @create="guardNavigation(createChat)"
         @select="guardNavigation(() => selectChat($event))"
         @select-draft="guardNavigation(() => openResumeDraft($event))"
@@ -159,7 +137,6 @@ function closeSettings(): void {
         @toggle-theme="toggleTheme"
         @open-profile="openProfile"
         @open-settings="settingsDialogOpen = true"
-        @open-credits="creditsHost?.open()"
         @check-update="checkUpdate"
         @install-update="installUpdate"
         @logout="guardNavigation(logout)"
@@ -218,10 +195,8 @@ function closeSettings(): void {
           @open-profile="openProfileFromSettings"
           @open-preferences="openPreferencesFromSettings"
           @open-agent-task="openTaskFromSettings"
-          @open-credits="creditsHost?.open()"
         />
       </Transition>
-      <CreditsHost ref="creditsHost" :api="desktopApi" :user="user" />
     </div>
     <WindowTitleBar v-if="desktopApi.platform !== 'darwin'" />
   </div>

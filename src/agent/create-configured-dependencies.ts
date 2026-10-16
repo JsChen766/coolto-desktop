@@ -1,34 +1,19 @@
+import { resolveAiProviderConfig } from "../ai-provider-runtime.js";
 import type { AppConfig } from "../config.js";
-import {
-  createDeepSeekDependencies,
-  type AgentDependencies,
-} from "./create-agent.js";
+import { createOpenAiCompatibleDependencies } from "./openai-compatible-runtime.js";
+import type { AgentDependencies } from "./create-agent.js";
 
-type ModelAccessConfig = Pick<
-  AppConfig,
-  "apiKey" | "modelId" | "llmGatewayBaseUrl" | "llmOperationType"
->;
+type ModelAccessConfig = Pick<AppConfig, "apiKey" | "modelId">;
 
-/**
- * Local dev builds use a direct DeepSeek connection when DEEPSEEK_API_KEY is
- * configured; production (desktop app / credited accounts) routes through the
- * authenticated Coolto LLM gateway with credit metadata.
- */
+/** Open-source Desktop talks to the user-supplied OpenAI-compatible endpoint. */
 export function createConfiguredModelDependencies(
   config: ModelAccessConfig,
-  getSessionToken: () => string,
+  _getSessionToken: () => string,
 ): AgentDependencies {
-  if (config.apiKey) {
-    return createDeepSeekDependencies(config.modelId);
-  }
-  return createDeepSeekDependencies(
-    config.modelId,
-    config.llmGatewayBaseUrl
-      ? {
-          baseUrl: config.llmGatewayBaseUrl,
-          operationType: config.llmOperationType,
-          getSessionToken,
-        }
-      : undefined,
+  const provider = resolveAiProviderConfig();
+  return createOpenAiCompatibleDependencies(
+    config.modelId || provider.modelId,
+    provider.baseUrl,
+    () => provider.apiKey || config.apiKey || "",
   );
 }

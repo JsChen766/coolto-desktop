@@ -21,14 +21,13 @@ test("match report panel exposes a single generate CTA", async () => {
   assert.doesNotMatch(workspace, /MatchReportCard[\s\S]*基于此报告生成简历/u);
 });
 
-test("settings profile pane shows usage, credits, and always-on-top", async () => {
+test("settings profile pane shows always-on-top and an AI provider pane", async () => {
   const source = await readFile(
     new URL("../src/desktop/renderer/src/components/SettingsDialog.vue", import.meta.url),
     "utf8",
   );
-  assert.match(source, /查看用量/u);
   assert.match(source, /窗口置顶/u);
-  assert.match(source, /assetUsage/u);
   assert.match(source, /setAlwaysOnTop/u);
-  assert.match(source, /openCredits/u);
+  assert.match(source, /AiProviderSettings/u);
+  assert.match(source, /activeNav === 'ai'/u);
 });

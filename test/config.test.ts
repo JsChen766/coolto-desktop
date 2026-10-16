@@ -1,21 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { setAiProviderOverride } from "../src/ai-provider-runtime.js";
 import { readConfig } from "../src/config.js";
+import { LOCAL_DESKTOP_ORIGIN } from "../src/local-desktop.js";
 
-test("config rejects missing direct and gateway model access", () => {
-  assert.throws(() => readConfig({}), /COOLTO_LLM_GATEWAY_BASE_URL/);
-});
-
-test("config allows a production gateway without a provider API key", () => {
+test("config uses local origin and env LLM settings without a credit gateway", () => {
+  setAiProviderOverride(undefined);
   assert.deepEqual(
     readConfig({
-      COOLTO_LLM_GATEWAY_BASE_URL: " https://credit.coolto.com.cn ",
+      LLM_BASE_URL: " https://api.example.com/v1 ",
+      LLM_API_KEY: " secret ",
+      LLM_MODEL: " my-model ",
     }),
     {
-      modelId: "deepseek-v4-flash",
-      apiBaseUrl: "http://127.0.0.1:8080",
-      llmGatewayBaseUrl: "https://credit.coolto.com.cn",
+      apiKey: "secret",
+      modelId: "my-model",
+      apiBaseUrl: LOCAL_DESKTOP_ORIGIN,
       llmOperationType: "match_analyze",
       thinkingLevel: "off",
       resumeMaxBulletLines: 3,
@@ -23,11 +24,11 @@ test("config allows a production gateway without a provider API key", () => {
   );
 });
 
-test("config applies the default model and thinking level", () => {
-  assert.deepEqual(readConfig({ DEEPSEEK_API_KEY: " secret " }), {
-    apiKey: "secret",
-    modelId: "deepseek-v4-flash",
-    apiBaseUrl: "http://127.0.0.1:8080",
+test("config allows missing API key and keeps OpenAI-compatible defaults", () => {
+  setAiProviderOverride(undefined);
+  assert.deepEqual(readConfig({}), {
+    modelId: "deepseek-chat",
+    apiBaseUrl: LOCAL_DESKTOP_ORIGIN,
     llmOperationType: "match_analyze",
     thinkingLevel: "off",
     resumeMaxBulletLines: 3,
@@ -39,23 +40,7 @@ test("config applies the default model and thinking level", () => {
     }).thinkingLevel,
     "high",
   );
-  assert.deepEqual(
-    readConfig({
-      DEEPSEEK_API_KEY: "secret",
-      COOLTO_LLM_GATEWAY_BASE_URL: " https://credit.coolto.com.cn ",
-      COOLTO_LLM_OPERATION_TYPE: "resume_generate",
-    }),
-    {
-      apiKey: "secret",
-      modelId: "deepseek-v4-flash",
-      apiBaseUrl: "http://127.0.0.1:8080",
-      llmGatewayBaseUrl: "https://credit.coolto.com.cn",
-      llmOperationType: "resume_generate",
-      thinkingLevel: "off",
-      resumeMaxBulletLines: 3,
-    },
-  );
-  assert.deepEqual(
+  assert.equal(
     readConfig({
       DEEPSEEK_API_KEY: "secret",
       COOLTO_RESUME_MAX_BULLET_LINES: "2",

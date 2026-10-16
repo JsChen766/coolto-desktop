@@ -51,6 +51,10 @@ export function createBrowserDemoApi(): DesktopApi {
       syncNow: async () => undefined,
       onSyncCompleted: () => () => undefined,
     },
+    aiProvider: {
+      get: async () => ({ baseUrl: "https://api.deepseek.com", modelId: "deepseek-chat", hasApiKey: false }),
+      save: async () => { throw new Error("Browser Demo 不保存 AI 接口"); },
+    },
     privacy: {
       getState: async () => ({
         available: true,

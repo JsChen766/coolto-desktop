@@ -17,13 +17,7 @@ let mainWindow: BrowserWindow | undefined;
 const calendarDeepLinks = new CalendarDeepLinkRouter(() => mainWindow);
 calendarDeepLinks.listen();
 calendarDeepLinks.acceptArguments(process.argv);
-// Production defaults: packaged builds must reach the production API and the
-// Credit/LLM gateway. Development and custom deployments can still override
-// via COOLTO_* environment variables (??= keeps an existing value).
-if (app.isPackaged) {
-  process.env.COOLTO_API_BASE_URL ??= "https://hkapi.coolto.com.cn";
-  process.env.COOLTO_LLM_GATEWAY_BASE_URL ??= "https://credit.coolto.com.cn";
-}
+// Open-source Desktop never points at Coolto cloud or Credit.
 // Single instance: two processes writing the same conversation files corrupt
 // each other's atomic saves (EPERM on rename); keep one instance and focus it.
 if (!app.requestSingleInstanceLock()) {

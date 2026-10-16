@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { Download, FileText, ShieldCheck, Trash2, UserRoundX, X } from "@lucide/vue";
+import { FileText, ShieldCheck, Trash2, X } from "@lucide/vue";
 import { nextTick, ref } from "vue";
 
 import type { DesktopApi } from "@desktop/types";
 import type { PrivacyPolicyView } from "../../../../privacy/types.js";
 import { BUNDLED_PRIVACY_POLICY, PRIVACY_POLICY_CONTENT } from "../../../../privacy/policy.js";
-import AccountDeletionDialog from "./AccountDeletionDialog.vue";
-import DataExportDialog from "./DataExportDialog.vue";
 import { translate } from "../i18n/locale";
 
 const props = defineProps<{ api: DesktopApi }>();
-const exportOpen = ref(false);
-const deletionOpen = ref(false);
 const policyOpen = ref(false);
 const policyLoading = ref(false);
 const policyAvailable = ref(false);
@@ -22,8 +18,6 @@ const serverChangeClass = ref<PrivacyPolicyView["changeClass"]>();
 const serverEffectiveAt = ref<string>();
 const policyDialog = ref<HTMLElement>();
 const policyTrigger = ref<HTMLButtonElement>();
-const exportTrigger = ref<HTMLButtonElement>();
-const deletionTrigger = ref<HTMLButtonElement>();
 const confirmingClear = ref(false);
 const clearing = ref(false);
 const clearResult = ref<"cleared" | "partial_failure" | "blocked">();
@@ -84,15 +78,6 @@ async function clearDevice(): Promise<void> {
 }
 
 
-function closeExport(): void {
-  exportOpen.value = false;
-  void nextTick(() => exportTrigger.value?.focus());
-}
-
-function closeDeletion(): void {
-  deletionOpen.value = false;
-  void nextTick(() => deletionTrigger.value?.focus());
-}
 function closePolicy(): void {
   const trigger = policyTrigger.value;
   policyOpen.value = false;
@@ -132,7 +117,7 @@ function policyKeydown(event: KeyboardEvent): void {
       <h3>{{ $t('隐私与数据') }}</h3>
     </div>
     <p class="settings-section-desc">
-      {{ $t('你可以导出自己的数据、只清除当前设备，或删除 Coolto 拥有的账号与云端数据。') }}
+      {{ $t('开源 Desktop 的数据只在本机。你可以查看隐私政策，或清除当前设备上的本地数据。') }}
     </p>
     <p class="settings-section-desc">
       {{ $t('发送给模型前，会使用当前对话、你明确引用或上传的材料，以及完成该任务所需的岗位、经历或简历摘录；不会上传本机绝对路径或登录凭据。') }}
@@ -141,14 +126,6 @@ function policyKeydown(event: KeyboardEvent): void {
       <button ref="policyTrigger" class="secondary-button" type="button" :disabled="policyLoading" @click="openPolicy">
         <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
         <span>{{ policyLoading ? $t('正在读取隐私政策…') : $t('查看当前隐私政策') }}</span>
-      </button>
-      <button ref="exportTrigger" class="secondary-button" type="button" @click="exportOpen = true">
-        <Download :size="14" :stroke-width="1.8" aria-hidden="true" />
-        <span>{{ $t('导出数据') }}</span>
-      </button>
-      <button ref="deletionTrigger" class="secondary-button" type="button" @click="deletionOpen = true">
-        <UserRoundX :size="14" :stroke-width="1.8" aria-hidden="true" />
-        <span>{{ $t('删除账号及云端数据') }}</span>
       </button>
     </div>
     <p v-if="policyError" class="form-error" role="alert">{{ policyError }}</p>
@@ -169,8 +146,6 @@ function policyKeydown(event: KeyboardEvent): void {
     <p v-if="clearResult === 'partial_failure'" class="form-error" role="alert">{{ $t('本机部分数据未能清除，请重试。云端数据仍然保留。') }}</p>
     <p v-if="clearResult === 'blocked'" class="form-error" role="alert">{{ $t('Agent 或浏览器操作正在运行，请完成或停止后再清除。') }}</p>
     <p v-if="clearError" class="form-error" role="alert">{{ clearError }}</p>
-    <DataExportDialog v-if="exportOpen" :api="api" @close="closeExport" />
-    <AccountDeletionDialog v-if="deletionOpen" :api="api" @close="closeDeletion" />
     <div v-if="policyOpen" class="dialog-backdrop privacy-data-backdrop" @mousedown.self="closePolicy">
       <section
         ref="policyDialog"

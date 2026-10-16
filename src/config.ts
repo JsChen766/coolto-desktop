@@ -2,8 +2,10 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { DEFAULT_MODEL_ID } from "./agent/create-agent.js";
+import { resolveAiProviderConfig } from "./ai-provider-runtime.js";
+import { LOCAL_DESKTOP_ORIGIN } from "./local-desktop.js";
 
-export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8080";
+export const DEFAULT_API_BASE_URL = LOCAL_DESKTOP_ORIGIN;
 
 export type AgentThinkingLevel =
   | "off"
@@ -48,19 +50,11 @@ export function loadLocalEnv(cwd = process.cwd()): void {
 export function readConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): AppConfig {
-  const apiKey = env.DEEPSEEK_API_KEY?.trim();
-  const llmGatewayBaseUrl = env.COOLTO_LLM_GATEWAY_BASE_URL?.trim();
-  if (!apiKey && !llmGatewayBaseUrl) {
-    throw new Error(
-      "缺少模型访问配置。生产 APP 请设置 COOLTO_LLM_GATEWAY_BASE_URL；本地直连开发请设置 DEEPSEEK_API_KEY。",
-    );
-  }
-
+  const provider = resolveAiProviderConfig(env);
   return {
-    ...(apiKey ? { apiKey } : {}),
-    modelId: env.COOLTO_MODEL?.trim() || DEFAULT_MODEL_ID,
+    ...(provider.apiKey ? { apiKey: provider.apiKey } : {}),
+    modelId: provider.modelId || DEFAULT_MODEL_ID,
     apiBaseUrl: readApiBaseUrl(env),
-    ...(llmGatewayBaseUrl ? { llmGatewayBaseUrl } : {}),
     llmOperationType: readOperationType(env),
     thinkingLevel: readThinkingLevel(env),
     resumeMaxBulletLines: readMaxBulletLines(env),
@@ -105,7 +99,7 @@ function readThinkingLevel(env: NodeJS.ProcessEnv): AgentThinkingLevel {
 }
 
 export function readApiBaseUrl(
-  env: NodeJS.ProcessEnv = process.env,
+  _env: NodeJS.ProcessEnv = process.env,
 ): string {
-  return env.COOLTO_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL;
+  return LOCAL_DESKTOP_ORIGIN;
 }

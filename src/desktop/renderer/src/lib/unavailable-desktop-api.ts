@@ -16,6 +16,10 @@ export function createUnavailableDesktopApi(): DesktopApi {
       syncNow: unavailable,
       onSyncCompleted: () => () => undefined,
     },
+    aiProvider: {
+      get: unavailable,
+      save: unavailable,
+    },
     privacy: {
       getState: unavailable,
       accept: unavailable,

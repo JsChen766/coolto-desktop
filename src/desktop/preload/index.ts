@@ -16,20 +16,21 @@ import { childApi, subscribeIpc } from "./ipc-helpers.js";
 import { conversationPreloadApi } from "./conversation-api.js";
 import { preferencePreloadApi } from "./preference-api.js";
 import { materialPreloadApi } from "./material-api.js";
+import { aiProviderPreloadApi } from "./ai-provider-api.js";
 
 const api: DesktopApi = {
   platform: process.platform,
   auth: {
     getCurrentUser: () => ipcRenderer.invoke("auth:current"),
     getCredits: () => ipcRenderer.invoke("auth:credits"),
-	requestEmailCode: (email) =>
-		ipcRenderer.invoke("auth:email-code:request", email),
-	verifyEmailCode: (email, challengeId, code) =>
-		ipcRenderer.invoke("auth:email-code:verify", email, challengeId, code),
+    requestEmailCode: (email) => ipcRenderer.invoke("auth:email-code:request", email),
+    verifyEmailCode: (email, challengeId, code) =>
+      ipcRenderer.invoke("auth:email-code:verify", email, challengeId, code),
     logout: () => ipcRenderer.invoke("auth:logout"),
     syncNow: () => ipcRenderer.invoke("auth:sync-now"),
     onSyncCompleted: (listener) => subscribeIpc("sync:completed", listener),
   },
+  aiProvider: aiProviderPreloadApi,
   privacy: {
     getState: () => ipcRenderer.invoke("privacy:get-state"),
     accept: () => ipcRenderer.invoke("privacy:accept"),

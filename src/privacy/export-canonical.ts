@@ -115,6 +115,10 @@ export function canonicalApiOrigin(apiBaseUrl: string): string {
   } catch {
     throw new Error("导出 API 来源无效");
   }
+  if (parsed.protocol === "local:") {
+    if (parsed.host !== "desktop") throw new Error("导出 API 来源无效");
+    return "local://desktop";
+  }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("导出 API 来源无效");
   }

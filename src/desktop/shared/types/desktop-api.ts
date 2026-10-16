@@ -88,8 +88,10 @@ import type { DeliveryResumeFilesDesktopApi } from "./delivery-resume-files.js";
 import type { OnboardingDesktopApi } from "./onboarding.js";
 import type { CalendarDesktopApi } from "./calendar.js";
 import type { LocalClearResultView, PrivacyDesktopApi } from "./privacy.js";
+import type { AiProviderDesktopApi } from "./ai-provider.js";
 import type { PreferenceDesktopApi } from "./preferences.js";
 import type { MaterialApi } from "./material.js";
+
 export interface DesktopApi {
   platform: DesktopPlatform;
   auth: {
@@ -113,6 +115,7 @@ export interface DesktopApi {
   calendar: CalendarDesktopApi;
   onboarding: OnboardingDesktopApi;
   privacy: PrivacyDesktopApi;
+  aiProvider: AiProviderDesktopApi;
   conversations: ConversationsDesktopApi;
   attachments: {
     list(conversationId: string): Promise<DesktopAttachment[]>;
@@ -231,15 +234,8 @@ export interface DesktopApi {
   };
   browser: BrowserDesktopApi;
 }
-export type WindowDraftSaveState =
-  | "idle"
-  | "dirty"
-  | "saving"
-  | "saved"
-  | "error";
-export interface DesktopShellPrefs {
-  alwaysOnTop: boolean;
-}
+export type WindowDraftSaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+export interface DesktopShellPrefs { alwaysOnTop: boolean; }
 export interface DesktopAssetUsage {
   experiences: number;
   experienceMax: number;

@@ -24,8 +24,8 @@ test("privacy dialogs keep destructive states keyboard reachable", async () => {
   assert.match(deletionDialog, /third-party|外部/u);
   assert.match(section, /partial_failure/u);
   assert.match(section, /blocked/u);
-  assert.match(section, /exportTrigger/u);
-  assert.match(section, /deletionTrigger/u);
+  assert.doesNotMatch(section, /exportTrigger/u);
+  assert.doesNotMatch(section, /deletionTrigger/u);
   assert.match(section, /nextTick/u);
 });
 test("privacy UI keeps demo and unavailable APIs fail-closed", async () => {

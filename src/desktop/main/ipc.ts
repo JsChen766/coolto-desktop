@@ -19,6 +19,7 @@ import {
 import { ResumeLibraryService } from "./resume-library/resume-library-service.js";
 import { registerResumeLibraryIpc, LIBRARY_IPC_CHANNELS } from "./resume-library/resume-library-ipc.js";
 import { AUTH_IPC_CHANNELS, registerAuthIpc } from "./auth-ipc.js";
+import { AI_PROVIDER_IPC_CHANNELS, registerAiProviderIpc } from "./ai-provider-ipc.js";
 import {
   CHECKOUT_IPC_CHANNELS,
   registerCheckoutIpc,
@@ -97,6 +98,7 @@ export function registerDesktopIpc(
 ): void {
   for (const channel of [
     ...AUTH_IPC_CHANNELS,
+    ...AI_PROVIDER_IPC_CHANNELS,
     ...CHECKOUT_IPC_CHANNELS,
     ...SHELL_IPC_CHANNELS,
     ...CONVERSATION_AGENT_IPC_CHANNELS,
@@ -160,6 +162,7 @@ export function registerDesktopIpc(
     () => services.clear("account_changed"),
     privacyWiring.ipc,
   );
+  registerAiProviderIpc(ipcMain);
   registerCheckoutIpc(ipcMain, auth);
   registerResumeDraftIpc(ipcMain, servicesForCurrentUser);
   registerMailConnectionIpc(ipcMain, servicesForCurrentUser);
@@ -171,11 +174,7 @@ export function registerDesktopIpc(
   );
 
   const updateService = new ElectronUpdateService(electronUpdaterDriver, {
-    feedUrl:
-      process.env.COOLTO_UPDATE_FEED_URL ??
-      (app.isPackaged
-        ? "https://home.coolto.com.cn/downloads/"
-        : "http://127.0.0.1:8099"),
+    feedUrl: process.env.COOLTO_UPDATE_FEED_URL ?? "",
     currentVersion: () => app.getVersion(),
     forceDev:
       !app.isPackaged && process.env.COOLTO_UPDATE_DEV === "1",

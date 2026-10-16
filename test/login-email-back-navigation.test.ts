@@ -21,7 +21,8 @@ test("OTP login can return to editable email entry", async () => {
   assert.match(screen, /function changeEmail[\s\S]*code\.value = ""/u);
   assert.match(screen, /emailInput\.value\?\.focus\(\)/u);
   assert.match(screen, /emailInput\.value\?\.select\(\)/u);
-  assert.match(app, /@change-email="resetEmailChallenge"/u);
+  assert.doesNotMatch(app, /LoginScreen/u);
+  assert.match(app, /无法初始化本机工作区/u);
   assert.match(auth, /function resetEmailChallenge[\s\S]*emailChallenge\.value = undefined/u);
   assert.match(auth, /function resetEmailChallenge[\s\S]*loginError\.value = undefined/u);
   assert.match(styles, /\.login-back-button:focus-visible/u);

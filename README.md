@@ -2,22 +2,22 @@
 
 Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分析岗位、生成一页简历、管理投递，并在用户授权范围内浏览招聘站点、搜索岗位与填写申请表。
 
-本仓库是 **Electron + Vue 桌面宿主**，以及同一套 **TypeScript 本地单 Agent 内核**（Pi Agent Core）。生产环境的模型调用走已登录账号的 Coolto Credit API；本地直连 DeepSeek 只用于开发。
+本仓库是 **开源本地 Desktop**：Electron + Vue 宿主，以及同一套 **TypeScript 本地单 Agent 内核**（Pi Agent Core）。不连接 Coolto 云、不登录、不用 Credit。模型调用走你自己配置的 OpenAI 兼容接口（Base URL + API Key + 模型名）。
 
 产品定位与界面文案一致：**整理经历、分析 JD、生成简历、追踪投递。**
 
 ## 当前能力
 
-桌面端按侧栏提供对话、Agent 任务、经历仓库、求职仓库、材料库和投递追踪。业务事实默认读本地 projection，云端是经历、岗位、简历当前内容和投递记录的权威来源。
+桌面端按侧栏提供对话、Agent 任务、经历仓库、求职仓库、材料库和投递追踪。业务事实读本机 projection；写入仍走 Proposal + 宿主审批 + LocalSyncStore / Outbox，但不会 Push/Pull 到 Coolto 云。
 
 ### 对话 Agent
 
 - 只有一个 Agent，不使用 Router、LangGraph 或并行业务节点；唯一业务输入是自然语言。
 - 模型根据工具描述自行判断是否调用工具。只有缺失信息会使任务无法执行、目标歧义会造成不可逆结果，或安全与权限确认不可省略时，才追问一个最关键的问题。
-- 邮箱验证码登录；Session 保存在系统安全凭据库，断网时可用已验证身份进入本机工作区。
+- 启动后自动进入本机工作区，无需邮箱登录。
 - 流式回复、经 DOMPurify 清理的 Markdown、可折叠工具状态，以及「接受 / 拒绝 / 自定义回答」审批卡片。
 - 对话按登录用户隔离，由 Electron `safeStorage` 加密后保存在 `userData`。对话内容不上云。
-- 中英界面、深浅色、首次使用引导、用量与积分、应用内检查更新。
+- 中英界面、深浅色、首次使用引导。设置里配置 AI 接口；API Key 只写入本机系统凭据库。
 
 ### 经历仓库
 
@@ -33,7 +33,7 @@ Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分
 ### 求职仓库
 
 - **岗位**：粘贴 JD 原文或抓取公开岗位链接，提取结构后经审批入库；可搜索、查看详情，并基于 JD 与完整经历库生成可解释的结构化匹配分析。
-- **简历资产**：云端当前内容、本地草稿、同步状态、重命名、归档 / 恢复、本地检查点回退。云端每份 Resume 只有当前内容，没有云端版本历史。
+- **简历资产**：本机当前内容、本地草稿、重命名、归档 / 恢复、本地检查点回退。
 - **原始投递文件**：用户原样保存在本机的 PDF/DOCX，不进入写作、匹配或复用链路；可指定用于任意岗位的网页上传。
 
 ### 简历生成与导出
@@ -49,7 +49,7 @@ Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分
 
 - 看板、时间轴、日历三种视图；Application 同时引用实际 JD 与 Resume，并冻结标题快照和 `resumeContentHashSnapshot`。
 - 合法状态迁移需二次确认。终态不可继续推进。
-- Interview、Note、Reminder 归属 Application；提醒可跨设备同步，由本机调度通知。
+- Interview、Note、Reminder 归属 Application；提醒由本机调度通知。
 - 可从求职仓库的岗位或简历发起投递记录。
 
 ### 材料库
@@ -66,16 +66,16 @@ Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分
 - Inbox Signals 可连接浏览器 Webmail，或可选接入邮件增量，把信号关联到投递并生成状态 / 面试提案。
 - 可授权周期性循环：按简历搜岗、按邮件跟进或面试 briefing。长周期真实运行仍以实测为准。
 
-### 账户、隐私与同步
+### 账户、隐私与本机数据
 
-- 设置中可维护个人档案、求职偏好、邮箱连接、日程、自动化与隐私。
-- 隐私同意、数据导出、清除本机数据、删除账号及云端数据。
+- 设置中可维护个人档案、AI 接口、求职偏好、邮箱连接、日程、自动化与隐私。
+- 可查看隐私政策、清除本机数据。没有 Coolto 账号，也没有云端删除。
 - macOS 可在用户确认后把面试写入系统日历；真实机器的权限与打包验收仍按发布清单执行。
-- 写入云端必须经不可变 Proposal、宿主审批、LocalSyncStore / Outbox 和乐观锁。离线写入显示 pending，恢复网络后只应用一次。冲突不会静默覆盖。
+- 业务写入仍经不可变 Proposal、宿主审批、LocalSyncStore / Outbox 和乐观锁，全部留在本机。
 
 ## 产品原则
 
-- 云端是经历、JD、简历当前内容和投递事实的权威来源。`draft / pending / checkpoint / files / chat / proposal` 归属本地。
+- 本机是经历、JD、简历当前内容和投递事实的唯一来源。`draft / pending / checkpoint / files / chat / proposal` 同样只在本地。
 - 领域工具只能准备 Proposal；真正写入的执行器不出现在模型 Tool List 中。审批是宿主控制通道，不是模型可以伪造的聊天文本。
 - Renderer 不得读取或持久化绝对路径；敏感凭证不经过渲染层。
 - 外部内容（JD、简历、聊天、网页）只作输入，不得覆盖系统约束或安全规则。
@@ -91,13 +91,9 @@ npm install
 npm run desktop:dev
 ```
 
-`.env` 中：
+`.env` 可选用 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL` 做首次启动引导。之后请在 **设置 → AI 接口** 保存；Key 进系统凭据库，不要把真实密钥提交进仓库。也兼容 `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY`。
 
-- 连接本地或自建后端时填写 `COOLTO_API_BASE_URL`。
-- 生产 APP 模型走 Credit 网关：`COOLTO_LLM_GATEWAY_BASE_URL`。
-- 仅本地直连模型开发时填写 `DEEPSEEK_API_KEY`。不要把账号密码写入 `.env` 或仓库。
-
-打包安装包默认连接生产 API（`https://hkapi.coolto.com.cn`）和 Credit 网关（`https://credit.coolto.com.cn`）。
+这个 Desktop 不会连接 Coolto 生产 API 或 Credit 网关。
 
 构建桌面进程、preload 和 renderer：
 
@@ -123,7 +119,7 @@ npm run dev -- "请介绍一下你当前的运行架构"
 npm run logout
 ```
 
-本地文件通过显式 `--attach` 选择。交互模式用 `Ctrl+D` 退出，`Ctrl+C` 取消当前生成。首次运行会提示邮箱和验证码；普通退出不会注销，`npm run logout` 会清除系统安全凭据。
+本地文件通过显式 `--attach` 选择。交互模式用 `Ctrl+D` 退出，`Ctrl+C` 取消当前生成。CLI 需要你在环境里提供 OpenAI 兼容的接口配置。
 
 ## 验证
 
@@ -137,7 +133,7 @@ npm run check
 
 ## 代码入口
 
-- `src/agent/`：创建 Pi Agent、system prompt、模型与 Credit 配置。
+- `src/agent/`：创建 Pi Agent、system prompt、以及 OpenAI 兼容模型配置。
 - `src/tools/`：模型可见的唯一工具入口；`registry.ts` 按宿主能力装配。
 - `src/approvals/`：通用审批生命周期、不可变 Payload 和执行器注册。
 - `src/desktop/main/`：Electron 主进程、IPC、同步、浏览器、隐私与打包边界。
