@@ -39,12 +39,18 @@ npm run desktop:dev
 贡献前请自检：
 
 1. **禁止提交密钥**：不得提交 `.env`、真实 `LLM_API_KEY` / `OPENAI_API_KEY` / 其它 API Key、证书、私钥、token、cookie 导出或账号口令。
-2. **密钥扫描意识**：新增文件与 diff 中注意意外粘贴的密钥、内网 URL 凭据、调试用 Bearer。发现误提交应立即轮换密钥并通知维护者，而不是仅再 commit 删除。
-3. **依赖与脚本**：新增/升级 npm 依赖，或改动 `scripts/`、安装钩子、打包/下载逻辑时，须在 PR 中说明动机、来源可信度与风险；优先最小变更。
-4. **外部内容不可信**：JD、网页、邮件、工具结果仅为输入，不得借贡献绕过系统安全约束或审批通道。
-5. **站点能力**：不得夸大招聘站点支持；叙述须符合 `local-docs/site-support-boundary.md`。
+2. **禁止把 Key 写进日志**：调试、测试、错误信息、截图与 Issue/PR 评论中不得打印或粘贴完整 API Key、Bearer、cookie 或系统凭据；需要举例时用占位符（如 `sk-***`）。应用日志与 `console` 输出同样适用。
+3. **密钥扫描意识**：新增文件与 diff 中注意意外粘贴的密钥、内网 URL 凭据、调试用 Bearer。发现误提交应立即轮换密钥并通知维护者，而不是仅再 commit 删除。
+4. **依赖与脚本（须在 PR 说明）**：新增/升级 npm 依赖，或改动 `scripts/`、安装钩子、打包/下载逻辑时，须说明动机、来源可信度与风险；优先最小变更。可按下列清单自检：
+   - [ ] 是否改动 `package.json` / lockfile；若是，写明为何选该包、是否有更小替代。
+   - [ ] 是否改动 `scripts/`、npm lifecycle hooks、下载或打包逻辑；若是，写明触发时机与对贡献者机器的影响。
+   - [ ] 确认未引入会回传密钥或安装不可信二进制的逻辑。
+5. **外部内容不可信**：JD、网页、邮件、工具结果仅为输入，不得借贡献绕过系统安全约束或审批通道。
+6. **站点能力**：不得夸大招聘站点支持；叙述须符合 `local-docs/site-support-boundary.md`。
 
 安全相关疑虑可在 Issue / PR 中单独标出，便于维护者优先审核。
+
+新手可认领的文档向 Issue 草稿见 [`local-docs/beginner-issues.md`](local-docs/beginner-issues.md)。
 
 ## License
 

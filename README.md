@@ -130,7 +130,7 @@ npm run check
 
 依次执行：简历模板一致性、`src/` 业务源文件行数门禁、Node 类型检查、Vue 类型检查、`node --test` 单测、Node 构建、桌面构建。变更 UI 或可见行为还需真实 Electron 人工验收。
 
-开发约定见 `AGENTS.md`；贡献与安全审核见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`；开源裁剪 PRD 见 `local-docs/PRD-open-source-desktop.md`。
+开发约定见 `AGENTS.md`；贡献与安全审核见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。新手友好 Issue 草稿见 [`local-docs/beginner-issues.md`](local-docs/beginner-issues.md)。当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`；开源裁剪 PRD 见 `local-docs/PRD-open-source-desktop.md`。
 
 ## 代码入口
 
