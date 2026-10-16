@@ -62,6 +62,7 @@ Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分
 - 独立 Browser Shell：多标签、导航、下载、Agent 可见层；登录、OTP、CAPTCHA、法律与敏感问题必须用户接管。
 - 托管任务仅在 App 打开时运行，可暂停、恢复、接管、检查点和授权范围约束。
 - Job Scout 可按授权来源搜索、去重、匹配并进入 Shortlist（当前机制覆盖 Greenhouse / Lever）。
+- 招聘站点与搜岗来源的正式/候选边界见 [`local-docs/site-support-boundary.md`](local-docs/site-support-boundary.md)（Greenhouse/Lever 为搜岗来源；BOSS/JobsDB/LinkedIn 为 candidate，非稳定全自动投递）。
 - 招聘表单填写、Answer Vault、提交回执与 Application Proposal 均走审批；真实站点提交仍按站点逐域验收，不能称为完全托管可用。
 - Inbox Signals 可连接浏览器 Webmail，或可选接入邮件增量，把信号关联到投递并生成状态 / 面试提案。
 - 可授权周期性循环：按简历搜岗、按邮件跟进或面试 briefing。长周期真实运行仍以实测为准。
@@ -129,7 +130,7 @@ npm run check
 
 依次执行：简历模板一致性、`src/` 业务源文件行数门禁、Node 类型检查、Vue 类型检查、`node --test` 单测、Node 构建、桌面构建。变更 UI 或可见行为还需真实 Electron 人工验收。
 
-开发约定见 `AGENTS.md`。当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`。
+开发约定见 `AGENTS.md`；贡献与安全审核见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`；开源裁剪 PRD 见 `local-docs/PRD-open-source-desktop.md`。
 
 ## 代码入口
 

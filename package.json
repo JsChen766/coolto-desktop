@@ -2,6 +2,7 @@
   "name": "coolto-local-agent",
   "version": "0.1.27",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "main": "out/main/index.cjs",
   "description": "Open-source local Coolto desktop agent with a bring-your-own OpenAI-compatible LLM",
