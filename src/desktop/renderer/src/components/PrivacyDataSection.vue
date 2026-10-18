@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { FileText, ShieldCheck, Trash2, X } from "@lucide/vue";
+import { Download, FileText, ShieldCheck, Trash2, X } from "@lucide/vue";
 import { nextTick, ref } from "vue";
 
 import type { DesktopApi } from "@desktop/types";
 import type { PrivacyPolicyView } from "../../../../privacy/types.js";
 import { BUNDLED_PRIVACY_POLICY, PRIVACY_POLICY_CONTENT } from "../../../../privacy/policy.js";
 import { translate } from "../i18n/locale";
+import DataExportDialog from "./DataExportDialog.vue";
 
 const props = defineProps<{ api: DesktopApi }>();
 const policyOpen = ref(false);
@@ -18,6 +19,7 @@ const serverChangeClass = ref<PrivacyPolicyView["changeClass"]>();
 const serverEffectiveAt = ref<string>();
 const policyDialog = ref<HTMLElement>();
 const policyTrigger = ref<HTMLButtonElement>();
+const exportOpen = ref(false);
 const confirmingClear = ref(false);
 const clearing = ref(false);
 const clearResult = ref<"cleared" | "partial_failure" | "blocked">();
@@ -127,23 +129,38 @@ function policyKeydown(event: KeyboardEvent): void {
         <FileText :size="14" :stroke-width="1.8" aria-hidden="true" />
         <span>{{ policyLoading ? $t('正在读取隐私政策…') : $t('查看当前隐私政策') }}</span>
       </button>
+      <button
+        data-export-trigger
+        class="secondary-button"
+        type="button"
+        @click="exportOpen = true"
+      >
+        <Download :size="14" :stroke-width="1.8" aria-hidden="true" />
+        <span>{{ $t('导出本机数据') }}</span>
+      </button>
     </div>
+    <DataExportDialog
+      v-if="exportOpen"
+      :api="api"
+      :local-only="true"
+      @close="exportOpen = false"
+    />
     <p v-if="policyError" class="form-error" role="alert">{{ policyError }}</p>
     <p v-if="!confirmingClear" class="settings-section-desc">
-      {{ $t('清除当前设备会删除本机对话、草稿、任务、连接、浏览器状态和同步数据库；云端资产保留，系统 Downloads 文件不受影响。') }}
+      {{ $t('清除本机数据会删除本机对话、草稿、任务、连接、浏览器状态和同步数据库；开源 Desktop 无云端资产。系统 Downloads 中的文件不受影响。') }}
     </p>
     <p v-else class="settings-clear-warning" role="alert">
-      {{ $t('确认清除当前设备？本机数据与登录状态将被删除，云端资产不会删除。') }}
+      {{ $t('确认清除本机数据？本机业务数据与本地登录/凭据状态将被删除；开源 Desktop 无云端资产可删。') }}
     </p>
     <div class="settings-section-actions">
       <button v-if="confirmingClear" class="secondary-button" type="button" :disabled="clearing" @click="confirmingClear = false">{{ $t('取消') }}</button>
       <button class="secondary-button danger-text" type="button" :disabled="clearing" @click="clearDevice">
         <Trash2 :size="14" :stroke-width="1.8" aria-hidden="true" />
-        <span>{{ clearing ? $t('正在清除…') : confirmingClear ? $t('再次确认清除') : $t('清除当前设备') }}</span>
+        <span>{{ clearing ? $t('正在清除…') : confirmingClear ? $t('再次确认清除') : $t('清除本机数据') }}</span>
       </button>
     </div>
     <p v-if="clearResult === 'cleared'" class="settings-clear-success" role="status">{{ $t('本地数据已清除，正在重新加载…') }}</p>
-    <p v-if="clearResult === 'partial_failure'" class="form-error" role="alert">{{ $t('本机部分数据未能清除，请重试。云端数据仍然保留。') }}</p>
+    <p v-if="clearResult === 'partial_failure'" class="form-error" role="alert">{{ $t('本机部分数据未能清除，请重试。开源 Desktop 无云端副本可回灌。') }}</p>
     <p v-if="clearResult === 'blocked'" class="form-error" role="alert">{{ $t('Agent 或浏览器操作正在运行，请完成或停止后再清除。') }}</p>
     <p v-if="clearError" class="form-error" role="alert">{{ clearError }}</p>
     <div v-if="policyOpen" class="dialog-backdrop privacy-data-backdrop" @mousedown.self="closePolicy">

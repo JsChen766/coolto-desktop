@@ -1,4 +1,4 @@
-export const PRIVACY_POLICY_VERSION = "privacy-2026-09-08-v1" as const;
+export const PRIVACY_POLICY_VERSION = "privacy-2026-10-18-v1" as const;
 
 export type PrivacyConsentStatus =
   | "accepted"

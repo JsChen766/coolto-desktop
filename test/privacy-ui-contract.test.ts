@@ -24,7 +24,10 @@ test("privacy dialogs keep destructive states keyboard reachable", async () => {
   assert.match(deletionDialog, /third-party|外部/u);
   assert.match(section, /partial_failure/u);
   assert.match(section, /blocked/u);
-  assert.doesNotMatch(section, /exportTrigger/u);
+  assert.match(section, /data-export-trigger/u);
+  assert.match(section, /导出本机数据/u);
+  assert.match(section, /清除本机数据/u);
+  assert.doesNotMatch(section, /云端资产保留/u);
   assert.doesNotMatch(section, /deletionTrigger/u);
   assert.match(section, /nextTick/u);
 });

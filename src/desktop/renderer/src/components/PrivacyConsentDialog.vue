@@ -20,7 +20,7 @@ const emit = defineEmits<{
 const fullOpen = ref(false);
 const dialog = ref<HTMLElement>();
 const fullText = ref<HTMLElement>();
-const policyVersion = computed(() => props.state?.policy?.policyVersion ?? "privacy-2026-09-08-v1");
+const policyVersion = computed(() => props.state?.policy?.policyVersion ?? "privacy-2026-10-18-v1");
 
 onMounted(() => {
   dialog.value?.querySelector<HTMLElement>("[data-privacy-initial-focus]")?.focus();
@@ -90,7 +90,7 @@ function keydown(event: KeyboardEvent): void {
         </section>
         <section>
           <h2>{{ $t('数据存储位置') }}</h2>
-          <p>{{ $t('经历、JD、简历与投递记录加密保存在本机与 Coolto 云端服务；对话记录仅保存在本机。') }}</p>
+          <p>{{ $t('经历、JD、简历与投递记录仅加密保存在本机；开源 Desktop 不连接 Coolto 云；对话记录仅保存在本机。') }}</p>
         </section>
         <section>
           <h2>{{ $t('你的权利') }}</h2>

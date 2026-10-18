@@ -88,7 +88,7 @@ function keydown(event: KeyboardEvent): void {
     >
       <header class="privacy-data-dialog-header">
           <h2 id="privacy-export-title">{{ $t(localOnly ? '导出本机数据' : '导出数据') }}</h2>
-          <p id="privacy-export-description">{{ $t(localOnly ? '仅导出本机数据，不读取云端快照。' : '云端快照由 Coolto 服务端生成；本机内容会明确标记为仅本机。') }}</p>
+          <p id="privacy-export-description">{{ $t(localOnly ? '仅导出本机数据（经历、JD、简历、Application 等可选含对话/草稿/任务）。' : '云端快照由 Coolto 服务端生成；本机内容会明确标记为仅本机。') }}</p>
         <button class="icon-button" type="button" :disabled="busy" :aria-label="$t('关闭')" @click="emit('close')">
           <X :size="17" :stroke-width="1.8" aria-hidden="true" />
         </button>

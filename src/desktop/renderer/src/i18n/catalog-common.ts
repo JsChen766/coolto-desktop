@@ -165,7 +165,7 @@ export const commonMessages: Record<string, string> = {
   "查看和编辑你的联系方式与职业画像，Agent 会使用这些信息生成简历。": "View and edit your contact details and career profile, which the Agent uses to generate resumes.",
   "编辑个人信息": "Edit profile",
   "隐私与数据": "Privacy & data",
-  "LLM 仅在发起任务时处理你的经历、JD 与简历内容；业务数据加密保存在本机与 Coolto 云端服务，对话记录仅保存在本机。": "The LLM only processes your experiences, JDs and resumes when you start a task; business data is stored encrypted on this device and the Coolto cloud; conversations stay on this device only.",
+  "LLM 仅在发起任务时处理你的经历、JD 与简历内容；业务数据仅加密保存在本机（开源 Desktop 不连接 Coolto 云），对话记录仅保存在本机。": "The LLM only processes your experiences, JDs and resumes when you start a task; business data is stored encrypted on this device only (open-source Desktop does not connect to Coolto cloud); conversations stay on this device.",
   "清除本地数据会删除本机的对话历史、简历草稿与同步缓存；云端数据不受影响，重新同步后会再次拉取。": "Clearing local data deletes chat history, resume drafts and sync caches on this device; cloud data is unaffected and will be pulled again after resyncing.",
   "确认清除？本机对话历史、简历草稿与同步缓存将被永久删除，无法恢复。": "Clear anyway? Chat history, resume drafts and sync caches on this device will be permanently deleted and cannot be recovered.",
   "清除本地数据": "Clear local data",

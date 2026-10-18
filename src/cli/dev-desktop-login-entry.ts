@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { app, safeStorage } from "electron";
 
 import { createUuidV7 } from "../sync/uuid-v7.js";
+import { BUNDLED_PRIVACY_POLICY } from "../privacy/policy.js";
 
 const DEFAULT_EMAIL = "dev@example.com";
 const DEFAULT_PASSWORD = "devpassword";
@@ -63,8 +64,8 @@ async function recordDevPrivacyConsent(
       "idempotency-key": `dev-desktop-login-${Date.now()}`,
     },
     body: JSON.stringify({
-      policyVersion: "privacy-2026-09-08-v1",
-      contentHash: "30521add8e9658ff045bfcca9db58c14cee14d5be4b15c13b93641bb566b7c3a",
+      policyVersion: BUNDLED_PRIVACY_POLICY.policyVersion,
+      contentHash: BUNDLED_PRIVACY_POLICY.contentHash,
       decision: "accept",
       deviceId,
       appVersion: process.env.npm_package_version ?? "0.1.26",
