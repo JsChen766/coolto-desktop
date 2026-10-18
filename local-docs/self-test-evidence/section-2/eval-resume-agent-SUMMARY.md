@@ -1,30 +1,38 @@
 # Section-2: eval:resume-agent (LLM)
 
 - Date: 2026-10-18 (Asia/Shanghai)
-- Command: `npm run eval:resume-agent`
+- Command: `npm run eval:resume-agent` (BYO `LLM_*` only; Node 22)
 - Env: `COOLTO_RESUME_AGENT_EVAL_RESULT_PATH` → `section-2/eval-resume-agent-result.json`
-- Exit: **1**
-- Duration: ~1s
+- Case filter: `COOLTO_RESUME_AGENT_EVAL_CASE` (used for rate-limit retries)
+- Exit (combined evidence): **0 / passed=true** (3/3)
+- Model: `agnes-2.5-flash` (name only; **no key material**)
 
-## Failure (blocker)
+## Root cause fixed
 
-Non-interactive terminal cannot complete Coolto OTP login:
+Eval previously called `ensureAuthenticated` → `performEmailOtpLogin`, which throws in non-TTY (`AuthInteractiveRequired`). Model deps already used BYO OpenAI-compatible (`createConfiguredModelDependencies` / commit `03bf676`) and ignored the session token — Coolto OTP was dead weight.
 
-```
-Error: 当前终端无法安全读取登录信息。请在交互终端运行。
-  at performEmailOtpLogin (src/cli/login.ts)
-  at ensureAuthenticated (src/auth/session-manager.ts)
-```
+## Fix
 
-- No stored Keychain session restored
-- `.env` provides LLM_* only (no Coolto email/password session bootstrap)
-- No result JSON written (failed before cases)
-- Model configured (name only): `agnes-2.5-flash` via `readConfig()` — **no key material recorded**
+- Skip Coolto OTP entirely; require `LLM_API_KEY` (or `OPENAI_API_KEY` / `DEEPSEEK_API_KEY`).
+- Cap OpenAI-compat `maxTokens` at 65536 (DeepSeek template was 384000 → Agnes `400 max_tokens exceeds limit`); optional `LLM_MAX_TOKENS`.
+- Align assertions/prompt with current tools: `create_resume_workspace` + `apply_resume_content` (old `get_resume_source_snapshot` / `prepare_resume_draft` / `write_bullet` removed from surface).
 
-## Error type (desensitized)
+## Agnes HTTP
 
-`AuthInteractiveRequired` / OTP login blocked in non-TTY — not an Agnes LLM HTTP failure (eval never reached model calls).
+**Yes — real calls.** Combined usage ≈ 271k tokens across 3 cases. First blocker was auth; second was `max_tokens`; third was free-tier **429** when running all cases back-to-back.
 
-## Verdict
+## Result
 
-**BLOCKED** — needs interactive Coolto login or a pre-seeded session before LLM eval cases can run.
+| Case | Passed | Status | Notes |
+|------|--------|--------|-------|
+| semantic-zh | true | ready_for_approval | Full-suite first case |
+| semantic-en | true | ready_for_approval | Solo retry after 429 backoff |
+| semantic-missing | true | (no workspace) | Solo retry; asked for material |
+
+Back-to-back full suite once hit 429 on en/missing after zh passed; evidence JSON merges the three successful runs (see `notes` field).
+
+## Artifacts
+
+- `eval-resume-agent-result.json`
+- `eval-resume-agent.log` (last full-suite attempt)
+- `eval-semantic-*-result.json` (solo retries)

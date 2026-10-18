@@ -10,7 +10,11 @@ import {
   setAiProviderOverride,
   resolveAiProviderConfig,
 } from "../src/ai-provider-runtime.js";
-import { createOpenAiCompatibleDependencies } from "../src/agent/openai-compatible-runtime.js";
+import {
+  createOpenAiCompatibleDependencies,
+  OPENAI_COMPAT_MAX_TOKENS_CEILING,
+  resolveOpenAiCompatMaxTokens,
+} from "../src/agent/openai-compatible-runtime.js";
 
 test("AI provider env aliases never leak the raw key in the public view", () => {
   const fromEnv = readAiProviderFromEnv({
@@ -49,4 +53,12 @@ test("stored override wins over env and OpenAI-compatible runtime uses that base
   } finally {
     setAiProviderOverride(undefined);
   }
+});
+
+test("OpenAI-compatible runtime caps maxTokens for BYO hosts", () => {
+  assert.equal(resolveOpenAiCompatMaxTokens(384_000), OPENAI_COMPAT_MAX_TOKENS_CEILING);
+  assert.equal(resolveOpenAiCompatMaxTokens(384_000, { LLM_MAX_TOKENS: "8192" }), 8192);
+  const runtime = createOpenAiCompatibleDependencies("agnes-2.5-flash", "https://example.invalid/v1", () => "k");
+  assert.ok(runtime.model.maxTokens <= OPENAI_COMPAT_MAX_TOKENS_CEILING);
+  assert.equal(runtime.model.id, "agnes-2.5-flash");
 });

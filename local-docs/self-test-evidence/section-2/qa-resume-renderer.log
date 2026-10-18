@@ -1,4 +1,3 @@
-=== qa:resume-renderer start 2026-10-18 21:03:11 CST ===
 
 > coolto-local-agent@0.1.27 qa:resume-renderer
 > npm run desktop:build && node scripts/run-resume-renderer-qa.mjs
@@ -11,8 +10,8 @@ vite v7.3.6 building ssr environment for production...
 transforming...
 ✓ 1879 modules transformed.
 rendering chunks...
-out/main/index.cjs  1,798.31 kB
-✓ built in 4.38s
+out/main/index.cjs  1,798.57 kB
+✓ built in 4.14s
 vite v7.3.6 building ssr environment for production...
 transforming...
 ✓ 16 modules transformed.
@@ -23,7 +22,7 @@ out/preload/browser-agent-inspector.cjs    0.69 kB
 out/preload/material-feature.cjs           0.95 kB
 out/preload/browser-shell.cjs              3.33 kB
 out/preload/index.cjs                     12.40 kB
-✓ built in 42ms
+✓ built in 48ms
 vite v7.3.6 building client environment for production...
 transforming...
 ✓ 2786 modules transformed.
@@ -66,39 +65,33 @@ rendering chunks...
 ../../../out/renderer/assets/style-CPKEt6aw.js                             65.07 kB
 ../../../out/renderer/assets/_plugin-vue_export-helper-zHexdtfm.js         80.71 kB
 ../../../out/renderer/assets/tokens-BZlWrDvo.js                            87.96 kB
-../../../out/renderer/assets/index-C2yShnEe.js                            772.54 kB
+../../../out/renderer/assets/index-Dtbo4LRq.js                            772.60 kB
 
 (!) Some chunks are larger than 500 kB after minification. Consider:
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 4.54s
+✓ built in 4.46s
 Sandbox preload bundles are standalone: 6 entries.
-[46466:1018/210321.055136:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[46466:1018/210321.386792:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[46466:1018/210321.386883:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[46466:1018/210321.386969:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
-[46466:1018/210321.436920:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[46466:1018/210321.475586:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[46466:1018/210321.475674:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[46466:1018/210321.480981:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
-[46533:1018/210321.483893:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:285] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.
-node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-
-AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-
-false !== true
-
-    at file:///workspace/coolto-desktop-local/scripts/run-resume-renderer-qa.mjs:94:8 {
-  generatedMessage: true,
-  code: 'ERR_ASSERTION',
-  actual: false,
-  expected: true,
-  operator: 'strictEqual',
-  diff: 'simple'
+[54252:1018/211209.386264:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[54252:1018/211209.644066:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[54252:1018/211209.644144:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[54252:1018/211209.644183:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[54252:1018/211209.701921:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[54252:1018/211209.739674:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[54252:1018/211209.739836:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[54252:1018/211209.744755:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[54328:1018/211209.747686:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:285] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.
+{
+  "passed": true,
+  "usageRatio": 0.966,
+  "minimumBulletTailRatio": 0.7679,
+  "workspaceUsageRatio": 0.9351,
+  "workspaceBindingCount": 19,
+  "artifactDirectory": "/tmp/coolto-resume-renderer-qa-KZHDXk",
+  "resultPath": "/tmp/coolto-resume-renderer-qa-KZHDXk/result.json",
+  "pdfPath": "/tmp/coolto-resume-renderer-qa-KZHDXk/qualified.pdf",
+  "screenshotPath": "/tmp/coolto-resume-renderer-qa-KZHDXk/qualified.png",
+  "pdfPageScreenshotPath": "/tmp/coolto-resume-renderer-qa-KZHDXk/qualified-pdf-page.png",
+  "g6PdfPath": "/tmp/coolto-resume-renderer-qa-KZHDXk/g6-export.pdf"
 }
-
-Node.js v22.23.3
-=== qa:resume-renderer exit=1 at 2026-10-18 21:04:14 CST ===

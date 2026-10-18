@@ -23,12 +23,18 @@ npm run desktop:dev
 2. 打开 **设置**（`src/desktop/renderer/src/components/SettingsDialog.vue`）→ **AI 接口**（`AiProviderSettings.vue`）：可保存 Base URL / Model / Key；Key 应进系统凭据库，而非明文长期躺在渲染层。
 3. 无 Key 时：界面可浏览仓库类页面；对话生成应失败或提示配置，**不应**静默伪造成功。
 
-可选冒烟（需桌面已开且暴露 CDP，默认 `http://127.0.0.1:9222`）：
+可选冒烟（需桌面已开且暴露 CDP，默认 `http://127.0.0.1:9222`）。`desktop:dev` **默认不**开 CDP；请用：
 
 ```bash
-# 环境变量名（无密钥）：COOLTO_SMOKE_CDP、COOLTO_SMOKE_TIMEOUT_MS
-npm run smoke:desktop-chat
+# 推荐：显式带 remote-debugging-port
+npm run desktop:dev:cdp
+# 等价：npm run desktop:dev -- --remote-debugging-port=9222
+
+# 另一终端（环境变量名无密钥：COOLTO_SMOKE_CDP、COOLTO_SMOKE_TIMEOUT_MS）
+npm run smoke:desktop-chat -- --new-chat --message "回复 OK"
 ```
+
+`smoke:desktop-chat` 要求 CDP `/json` 里出现 `title === "Coolto"` 且 URL 为 renderer/`localhost`；若只有空 title/url 的 page target，说明窗口尚未完成加载或未走到主界面。
 
 驱动入口：`scripts/coolto-desktop-driver.mjs`（`npm run desktop:driver`）。
 

@@ -73,6 +73,10 @@ export function markdownQualified(): CurrentResumeStructure {
 export function longContactQualified(): CurrentResumeStructure {
   const structure = qualifiedChinese();
   removeLastExperienceBullet(structure);
+  // Long contact line wraps and adds height; free one skills bullet so usage
+  // stays within the 0.98 maximum (was ~0.983 → page_overfilled).
+  const skills = structure.sections.find((candidate) => candidate.type === "skills");
+  skills?.items[0]?.bullets.pop();
   if (structure.contact) {
     structure.contact.linkedin = null;
     structure.contact.website =

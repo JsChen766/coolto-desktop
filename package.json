@@ -15,6 +15,7 @@
     "check:resume-template": "node scripts/sync-resume-template-assets.mjs --check",
     "check:source-lines": "node scripts/check-source-lines.mjs",
     "desktop:dev": "electron-vite dev",
+    "desktop:dev:cdp": "electron-vite dev -- --remote-debugging-port=9222",
     "desktop:build": "electron-vite build && node scripts/build-material-ocr-worker.mjs && node scripts/check-sandbox-preload-bundles.mjs",
     "desktop:build:protected": "npm run desktop:build && node scripts/protect-main-bundle.mjs",
     "native:build:win": "node scripts/build-native-core.mjs win-x64",

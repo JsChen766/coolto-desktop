@@ -7,13 +7,9 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 
 import { createCooltoAgent } from "../src/agent/create-agent.js";
 import { createConfiguredModelDependencies } from "../src/agent/create-configured-dependencies.js";
-import { CooltoApiClient } from "../src/api/coolto-api-client.js";
-import { KeychainSessionStore } from "../src/auth/keychain-session-store.js";
-import { ensureAuthenticated } from "../src/auth/session-manager.js";
 import { loadLocalEnv, readConfig } from "../src/config.js";
 import { ResumeWorkspaceStore } from "../src/resume/workspace/workspace-store.js";
 import { createToolRegistry } from "../src/tools/registry.js";
-import { performEmailOtpLogin } from "../src/cli/login.js";
 import {
   createSemanticEvalBuilder,
   semanticEvalCases,
@@ -23,17 +19,19 @@ import { SemanticEvalCompiler } from "./support/semantic-eval-compiler.js";
 
 loadLocalEnv();
 const config = readConfig();
-const apiClient = new CooltoApiClient({ baseUrl: config.apiBaseUrl });
-const sessionStore = new KeychainSessionStore({ apiBaseUrl: config.apiBaseUrl });
-const authenticated = await ensureAuthenticated(
-  apiClient,
-  sessionStore,
-  config.apiBaseUrl,
-  performEmailOtpLogin,
-);
+// Open-source path: BYO OpenAI-compatible API only (LLM_API_KEY / OPENAI_API_KEY /
+// DEEPSEEK_API_KEY). Do not call Coolto OTP / ensureAuthenticated — that blocked
+// non-TTY eval and never reached the model (see commit 03bf676).
+if (!config.apiKey?.trim()) {
+  throw new Error(
+    "eval:resume-agent requires a user-supplied OpenAI-compatible API key. " +
+      "Set LLM_API_KEY (or OPENAI_API_KEY / DEEPSEEK_API_KEY) in .env. " +
+      "Coolto interactive OTP login is not used for local OSS eval.",
+  );
+}
 const modelDependencies = createConfiguredModelDependencies(
   config,
-  () => apiClient.getSessionToken(),
+  () => "",
 );
 const reports = [];
 const selectedCase = process.env.COOLTO_RESUME_AGENT_EVAL_CASE;
@@ -152,15 +150,16 @@ async function runCase(evalCase: SemanticEvalCase) {
     noForbiddenClaim: evalCase.forbiddenTerms.every(
       (term) => !bulletText.toLocaleLowerCase().includes(term.toLocaleLowerCase()),
     ),
-    usedSnapshot: toolNames.includes("get_resume_source_snapshot"),
+    // Current agent-orchestrated surface (post write_bullet era):
+    // create_resume_workspace builds the host snapshot; apply_resume_content writes.
+    usedSnapshot: expectsWorkspace
+      ? toolNames.includes("create_resume_workspace")
+      : true,
     usedDraft: expectsWorkspace
-      ? toolNames.includes("prepare_resume_draft")
+      ? toolNames.includes("create_resume_workspace")
       : true,
     usedWriteOrPatch: expectsWorkspace
-      ? (
-          toolNames.includes("write_bullet") ||
-          toolNames.includes("patch_resume_candidate")
-        )
+      ? toolNames.includes("apply_resume_content")
       : true,
     respectedRepairLimit: (workspace?.repairRound ?? 0) <= 3,
     askedForMaterial: evalCase.expectsNoWorkspace
@@ -192,7 +191,10 @@ async function runCase(evalCase: SemanticEvalCase) {
 
 function promptFor(evalCase: SemanticEvalCase): string {
   const ids = evalCase.experiences.map((experience) => experience.id).join(", ");
-  return `请完成一次受控简历语义评测。目标 JD ID 是 ${evalCase.jd.id}，按顺序使用经历 ${ids}，语言为 ${evalCase.language}。必须先读取 source snapshot，查看布局预算后自行决策布局，再并行逐条写入证据绑定的 bullets（数字、技术、结果必须逐字来自证据），达到 layout_qualified 后由程序自动质量 review 并持续进行允许的局部修复，直到 ready_for_approval 或 needs_user_decision。不得编造来源中不存在的数字、技术、结果或责任级别；不得声称保存。完成后只简短报告最终状态。`;
+  if (evalCase.expectsNoWorkspace) {
+    return `请完成一次受控简历语义评测。目标 JD ID 是 ${evalCase.jd.id}，候选经历 ${ids || "（无）"}，语言为 ${evalCase.language}。素材不足以生成合规简历时，不要创建工作区；向用户追问补充材料（例如缺失的关键经历/技术），不得编造。完成后只简短说明还缺什么。`;
+  }
+  return `请完成一次受控简历语义评测。目标 JD ID 是 ${evalCase.jd.id}，按顺序使用经历 ${ids}，语言为 ${evalCase.language}。必须先调用 create_resume_workspace（宿主会读取 source snapshot 与布局预算），再用 apply_resume_content 写入证据绑定内容（数字、技术、结果必须逐字来自证据），达到 layout_qualified 后由程序自动质量 review 并持续局部修复，直到 ready_for_approval 或 needs_user_decision。不得编造来源中不存在的数字、技术、结果或责任级别；不得声称保存。完成后只简短报告最终状态。`;
 }
 
 function summarizeUsage(messages: AgentMessage[]) {

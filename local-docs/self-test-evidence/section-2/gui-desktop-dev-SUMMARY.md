@@ -20,3 +20,9 @@ Not captured. (Even if captured, `local-docs/**/*.png` is gitignored.)
 ## Verdict
 
 **PARTIAL**: desktop:dev + CDP port up; chat smoke **did not** find a Coolto page target. Process left running in background for optional inspection.
+
+## Follow-up (same day)
+
+- Added `npm run desktop:dev:cdp` (= `electron-vite dev -- --remote-debugging-port=9222`).
+- Documented in `local-docs/oss-gui-self-test.md`: smoke requires CDP page with `title === "Coolto"`.
+- Not re-smoked in this fix turn after CDP doc/script change (prior failure was empty title/url while port listened).

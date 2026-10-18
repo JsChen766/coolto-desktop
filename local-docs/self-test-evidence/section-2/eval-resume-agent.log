@@ -1,17 +1,151 @@
-=== eval:resume-agent start 2026-10-18 21:04:37 CST ===
-RESULT_PATH=/workspace/coolto-desktop-local/local-docs/self-test-evidence/section-2/eval-resume-agent-result.json
 
 > coolto-local-agent@0.1.27 eval:resume-agent
 > node --import tsx scripts/run-resume-agent-eval.ts
 
-/workspace/coolto-desktop-local/src/cli/login.ts:24
-    throw new Error(
-          ^
-
-Error: 当前终端无法安全读取登录信息。请在交互终端运行。
-    at performEmailOtpLogin (/workspace/coolto-desktop-local/src/cli/login.ts:24:11)
-    at ensureAuthenticated (/workspace/coolto-desktop-local/src/auth/session-manager.ts:36:9)
-    at async <anonymous> (/workspace/coolto-desktop-local/scripts/run-resume-agent-eval.ts:28:23)
-
-Node.js v22.23.3
-=== eval:resume-agent exit=1 at 2026-10-18 21:04:38 CST ===
+{
+  "passed": false,
+  "modelId": "agnes-2.5-flash",
+  "caseCount": 3,
+  "passedCaseCount": 1,
+  "totalInputTokens": 20967,
+  "totalOutputTokens": 4025,
+  "totalTokens": 158624,
+  "totalDurationMs": 43233.86,
+  "reports": [
+    {
+      "id": "semantic-zh",
+      "passed": true,
+      "expectedStatus": "ready_for_approval",
+      "actualStatus": "ready_for_approval",
+      "revision": 2,
+      "repairRound": 0,
+      "bulletCount": 3,
+      "compileCount": 2,
+      "toolNames": [
+        "create_resume_workspace",
+        "create_resume_workspace",
+        "apply_resume_content",
+        "apply_resume_content",
+        "apply_resume_content",
+        "apply_resume_content",
+        "apply_resume_content",
+        "apply_resume_content",
+        "apply_resume_content"
+      ],
+      "usage": {
+        "input": 14512,
+        "output": 3611,
+        "totalTokens": 129227,
+        "modelCalls": 8
+      },
+      "durationMs": 37161.43,
+      "assertions": {
+        "noRuntimeError": true,
+        "workspaceCreated": true,
+        "expectedStatus": true,
+        "evidenceBound": true,
+        "noForbiddenClaim": true,
+        "usedSnapshot": true,
+        "usedDraft": true,
+        "usedWriteOrPatch": true,
+        "respectedRepairLimit": true,
+        "askedForMaterial": true
+      },
+      "runtimeError": null,
+      "assistantErrors": [],
+      "toolFailures": [
+        {
+          "name": "apply_resume_content",
+          "message": "Validation failed for tool \"apply_resume_content\":\n  - items: must be array\n\nReceived arguments:\n{\n  \"candidateId\": \"resume-workspace-a3e272b9-bd7d-4f93-b0a7-b2367e3e50bd\",\n  \"expectedRevision\": 1,\n  \"items\": \"[{\\\"bullets\\\": [{\\\"evidenceIds\\\": [\\\"work-zh:0:26\\\"], \\\"origin\\\": \\\"grounded\\\", \\\"plannedLines\\\": 3, \\\"text\\\": \\\"使用 Python 对运营数据执行清洗，建立数据异常检查规则以识别缺失、重复及异常记录\\\"}, {\\\"evidenceIds\\\": [\\\"work-zh:26:49\\\", \\\"work-zh:49:71\\\"], \\\"origin\\\": \\\"grounded\\\", \\\"plannedLines\\\": 7, \\\"text\\\": \\\"为 3 个业务团队建立统"
+        },
+        {
+          "name": "apply_resume_content",
+          "message": "Validation failed for tool \"apply_resume_content\":\n  - items.0.bullets.0.text: must have required properties text\n  - items.0.bullets.1.text: must have required properties text\n  - items.0.bullets.2.text: must have required properties text\n\nReceived arguments:\n{\n  \"candidateId\": \"resume-workspace-a3e272b9-bd7d-4f93-b0a7-b2367e3e50bd\",\n  \"expectedRevision\": 1,\n  \"items\": [\n    {\n      \"bullets\": [\n        {\n          \"evidenceIds\": [\n            \"work-zh:0:26\"\n          ],\n          \"origin\": \"gr"
+        },
+        {
+          "name": "apply_resume_content",
+          "message": "Validation failed for tool \"apply_resume_content\":\n  - items.0.bullets.0.text: must have required properties text\n  - items.0.bullets.1.text: must have required properties text\n  - items.0.bullets.2.text: must have required properties text\n\nReceived arguments:\n{\n  \"candidateId\": \"resume-workspace-a3e272b9-bd7d-4f93-b0a7-b2367e3e50bd\",\n  \"expectedRevision\": 1,\n  \"items\": [\n    {\n      \"bullets\": [\n        {\n          \"evidenceIds\": [\n            \"work-zh:0:26\"\n          ],\n          \"origin\": \"gr"
+        }
+      ],
+      "finalResponse": "\n\n",
+      "remainingIssues": []
+    },
+    {
+      "id": "semantic-en",
+      "passed": false,
+      "expectedStatus": "ready_for_approval",
+      "actualStatus": "writing",
+      "revision": 0,
+      "repairRound": 0,
+      "bulletCount": 0,
+      "compileCount": 1,
+      "toolNames": [
+        "create_resume_workspace",
+        "create_resume_workspace"
+      ],
+      "usage": {
+        "input": 6455,
+        "output": 414,
+        "totalTokens": 29397,
+        "modelCalls": 3
+      },
+      "durationMs": 5749.34,
+      "assertions": {
+        "noRuntimeError": false,
+        "workspaceCreated": true,
+        "expectedStatus": false,
+        "evidenceBound": false,
+        "noForbiddenClaim": true,
+        "usedSnapshot": true,
+        "usedDraft": true,
+        "usedWriteOrPatch": false,
+        "respectedRepairLimit": true,
+        "askedForMaterial": true
+      },
+      "runtimeError": null,
+      "assistantErrors": [
+        "429: {\"code\":\"\",\"message\":\"You’ve reached the API rate limit for free users. Upgrade to a Token Plan to unlock higher limits and continue using the API without interruption. (request id: 20261018132133747216372rlYNB3YP)\",\"type\":\"AgnesAI_error\"}"
+      ],
+      "toolFailures": [],
+      "finalResponse": "",
+      "remainingIssues": []
+    },
+    {
+      "id": "semantic-missing",
+      "passed": false,
+      "expectedStatus": "needs_user_decision",
+      "actualStatus": null,
+      "revision": null,
+      "repairRound": null,
+      "bulletCount": 0,
+      "compileCount": 0,
+      "toolNames": [],
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "totalTokens": 0,
+        "modelCalls": 1
+      },
+      "durationMs": 323.09,
+      "assertions": {
+        "noRuntimeError": false,
+        "workspaceCreated": true,
+        "expectedStatus": true,
+        "evidenceBound": true,
+        "noForbiddenClaim": true,
+        "usedSnapshot": true,
+        "usedDraft": true,
+        "usedWriteOrPatch": true,
+        "respectedRepairLimit": true,
+        "askedForMaterial": false
+      },
+      "runtimeError": null,
+      "assistantErrors": [
+        "429: {\"code\":\"\",\"message\":\"You’ve reached the API rate limit for free users. Upgrade to a Token Plan to unlock higher limits and continue using the API without interruption. (request id: 2026101813213442928048fv9dAT7T)\",\"type\":\"AgnesAI_error\"}"
+      ],
+      "toolFailures": [],
+      "finalResponse": "",
+      "remainingIssues": []
+    }
+  ]
+}
