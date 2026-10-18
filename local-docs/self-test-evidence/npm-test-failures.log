@@ -1,0 +1,118 @@
+=== npm test failures (excerpt) ===
+4768:not ok 782 - [C4-known] Library toolbar filters still use native select (documented exception)
+4769-  ---
+4770-  duration_ms: 3.074955
+4771-  type: 'test'
+4772-  location: '/workspace/coolto-desktop-local/test/phase-2-checklist-automation.test.ts:1:2428'
+4773-  failureType: 'testCodeFailure'
+4774-  error: |-
+4775-    The input did not match the regular expression /<select\b/u. Input:
+4776-    
+4777-    '<script setup lang="ts">\n' +
+4778-      'import { Archive } from "@lucide/vue";\n' +
+4779-      'import { computed, onMounted, ref, watch } from "vue";\n' +
+4780-      '\n' +
+4781-      'import type { MaterialApi, MaterialSearchOptions, MaterialView } from "@desktop/types/material";\n' +
+4782-      'import MaterialDetailPanel from "./MaterialDetailPanel.vue";\n' +
+4783-      'import MaterialImpactPreview from "./MaterialImpactPreview.vue";\n' +
+4784-      'import MaterialLibraryHeader from "./MaterialLibraryHeader.vue";\n' +
+4785-      'import MaterialLibraryList from "./MaterialLibraryList.vue";\n' +
+4786-      'import type { MaterialDeleteImpact } from "@desktop/types/material";\n' +
+4787-      '\n' +
+4788-      'const props = defineProps<{ api?: MaterialApi }>();\n' +
+--
+5288:not ok 786 - leftover PRD surfaces expose disclosure, JD analyze, URL paste, and interview prep
+5289-  ---
+5290-  duration_ms: 9.064575
+5291-  type: 'test'
+5292-  location: '/workspace/coolto-desktop-local/test/prd-leftover-gaps.test.ts:1:1267'
+5293-  failureType: 'testCodeFailure'
+5294-  error: |-
+5295-    The input did not match the regular expression /发送后会把当前对话/u. Input:
+5296-    
+5297-    '<script setup lang="ts">\n' +
+5298-      'import { ArrowUp, FileText, Paperclip, Plus, Square, X } from "@lucide/vue";\n' +
+5299-      'import {\n' +
+5300-      '  computed,\n' +
+5301-      '  nextTick,\n' +
+5302-      '  onBeforeUnmount,\n' +
+5303-      '  onMounted,\n' +
+5304-      '  ref,\n' +
+5305-      '  useTemplateRef,\n' +
+5306-      '} from "vue";\n' +
+5307-      'import ComposerResumeContext from "./ComposerResumeContext.vue";\n' +
+5308-      'import IconButton from "./IconButton.vue";\n' +
+--
+5842:not ok 793 - accepted behavior suggestions are consumed durably and stay consumed after restart
+5843-  ---
+5844-  duration_ms: 0.817482
+5845-  type: 'test'
+5846-  location: '/workspace/coolto-desktop-local/test/preference-app.test.ts:1:7371'
+5847-  failureType: 'testCodeFailure'
+5848-  error: 'Preference suggestion 不存在或已经被消费'
+5849-  code: 'ERR_TEST_FAILURE'
+5850-  stack: |-
+5851-    <anonymous> (/workspace/coolto-desktop-local/src/desktop/main/agent-task/preference-suggestion-store.ts:110:15)
+5852-    AgentHarnessStateRepository.read (/workspace/coolto-desktop-local/src/agent-task/agent-harness-state-repository.ts:26:28)
+5853-    async TestContext.<anonymous> (/workspace/coolto-desktop-local/test/preference-app.test.ts:194:3)
+5854-    async Test.run (node:internal/test_runner/test:1054:7)
+5855-    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+5856-  ...
+5857-# Subtest: suggestion-bound preference approval consumes the suggestion with the local enqueue
+5858:not ok 794 - suggestion-bound preference approval consumes the suggestion with the local enqueue
+5859-  ---
+5860-  duration_ms: 4.465295
+5861-  type: 'test'
+5862-  location: '/workspace/coolto-desktop-local/test/preference-app.test.ts:1:9110'
+5863-  failureType: 'testCodeFailure'
+5864-  error: |-
+5865-    The input did not match the regular expression /确认内容不一致/u. Input:
+5866-    
+5867-    'Error: Preference suggestion 不存在或已经被消费'
+5868-    
+5869-  code: 'ERR_ASSERTION'
+5870-  name: 'AssertionError'
+5871-  expected:
+5872-  actual:
+5873-  error: 'Preference suggestion 不存在或已经被消费'
+5874-  stack: |-
+5875-    <anonymous> (/workspace/coolto-desktop-local/src/desktop/main/agent-task/preference-suggestion-store.ts:110:15)
+5876-    AgentHarnessStateRepository.read (/workspace/coolto-desktop-local/src/agent-task/agent-harness-state-repository.ts:26:28)
+5877-    async PreferenceProposalService.prepareCreateFromSuggestion (/workspace/coolto-desktop-local/src/desktop/main/preference/preference-proposal-service.ts:58:24)
+5878-    async waitForActual (node:assert:644:5)
+--
+5890:not ok 795 - accepted suggestion orphan is reconciled after enqueue and rollback persistence failures
+5891-  ---
+5892-  duration_ms: 0.563592
+5893-  type: 'test'
+5894-  location: '/workspace/coolto-desktop-local/test/preference-app.test.ts:1:10372'
+5895-  failureType: 'testCodeFailure'
+5896-  error: 'Preference suggestion 不存在或已经被消费'
+5897-  code: 'ERR_TEST_FAILURE'
+5898-  stack: |-
+5899-    <anonymous> (/workspace/coolto-desktop-local/src/desktop/main/agent-task/preference-suggestion-store.ts:110:15)
+5900-    AgentHarnessStateRepository.read (/workspace/coolto-desktop-local/src/agent-task/agent-harness-state-repository.ts:26:28)
+5901-    async PreferenceProposalService.prepareCreateFromSuggestion (/workspace/coolto-desktop-local/src/desktop/main/preference/preference-proposal-service.ts:58:24)
+5902-    async TestContext.<anonymous> (/workspace/coolto-desktop-local/test/preference-app.test.ts:251:20)
+5903-    async Test.run (node:internal/test_runner/test:1054:7)
+5904-    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+5905-  ...
+5906-# Subtest: registry is allowlisted, typed, scoped, and sensitive-safe
+5907-ok 796 - registry is allowlisted, typed, scoped, and sensitive-safe
+5908-  ---
+5909-  duration_ms: 5.285647
+5910-  type: 'test'
+
+=== summary footer ===
+  type: 'test'
+  ...
+1..1532
+# tests 1542
+# suites 0
+# pass 1537
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18130.003774
+EXIT:1

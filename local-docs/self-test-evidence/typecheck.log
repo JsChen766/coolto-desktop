@@ -1,0 +1,9 @@
+
+> coolto-local-agent@0.1.27 typecheck
+> tsc -p tsconfig.json --noEmit
+
+test/support/qa-pdf-seed-fixture.ts(43,5): error TS2554: Expected 1 arguments, but got 2.
+test/support/qa-pdf-seed-fixture.ts(68,9): error TS2375: Type '{ structure: ResumeStructure; compileResult: ResumeCompileResult; compileObservedRevision: number; bindings: never[]; bulletProvenance: ResumeBulletProvenance[]; ... 35 more ...; pageFillProgress?: { consecutiveZeroGrowthRounds: number; }; }' is not assignable to type 'ResumeWorkspace' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'lineBudgetVersion' are incompatible.
+    Type 'undefined' is not assignable to type '"item-lines-v1"'.
+EXIT:2

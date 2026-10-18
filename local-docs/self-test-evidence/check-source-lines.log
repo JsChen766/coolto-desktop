@@ -1,0 +1,6 @@
+
+> coolto-local-agent@0.1.27 check:source-lines
+> node scripts/check-source-lines.mjs
+
+Source policy passed: 1405 files, each <= 250 lines.
+EXIT:0

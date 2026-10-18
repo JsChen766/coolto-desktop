@@ -1,0 +1,6 @@
+
+> coolto-local-agent@0.1.27 check:resume-template
+> node scripts/sync-resume-template-assets.mjs --check
+
+Resume storage/rendering template snapshot is synchronized.
+EXIT:0

@@ -1,0 +1,5 @@
+
+> coolto-local-agent@0.1.27 desktop:typecheck
+> tsc -p tsconfig.preload.json --noEmit && vue-tsc -p tsconfig.web.json --noEmit
+
+EXIT:0

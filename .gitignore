@@ -20,3 +20,6 @@ coverage/
 local-builds/
 /local-qa-data/
 .idea
+
+# OSS self-test evidence logs (redacted) may be committed
+!local-docs/self-test-evidence/**/*.log

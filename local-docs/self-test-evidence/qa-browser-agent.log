@@ -1,0 +1,251 @@
+
+> coolto-local-agent@0.1.27 qa:browser-agent
+> npm run desktop:build && esbuild src/cli/browser-agent-qa-entry.ts --bundle --platform=node --format=cjs --external:electron --outfile=out/cli/browser-agent-qa-entry.cjs && node scripts/run-browser-agent-qa.mjs
+
+
+> coolto-local-agent@0.1.27 desktop:build
+> electron-vite build && node scripts/build-material-ocr-worker.mjs && node scripts/check-sandbox-preload-bundles.mjs
+
+vite v7.3.6 building ssr environment for production...
+transforming...
+✓ 1879 modules transformed.
+rendering chunks...
+out/main/index.cjs  1,798.31 kB
+✓ built in 4.58s
+vite v7.3.6 building ssr environment for production...
+transforming...
+✓ 16 modules transformed.
+rendering chunks...
+out/preload/resume.cjs                     0.30 kB
+out/preload/browser-download-popover.cjs   0.69 kB
+out/preload/browser-agent-inspector.cjs    0.69 kB
+out/preload/material-feature.cjs           0.95 kB
+out/preload/browser-shell.cjs              3.33 kB
+out/preload/index.cjs                     12.40 kB
+✓ built in 50ms
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 2786 modules transformed.
+rendering chunks...
+../../../out/renderer/resume.html                                           0.74 kB
+../../../out/renderer/material-feature.html                                 0.80 kB
+../../../out/renderer/browser-download-popover.html                         1.24 kB
+../../../out/renderer/browser-agent-inspector.html                          1.31 kB
+../../../out/renderer/browser-shell.html                                    1.45 kB
+../../../out/renderer/index.html                                            1.76 kB
+../../../out/renderer/assets/inter-latin-400-normal-C38fXH4l.woff2         23.66 kB
+../../../out/renderer/assets/inter-latin-500-normal-Cerq10X2.woff2         24.27 kB
+../../../out/renderer/assets/inter-latin-600-normal-LgqL8muc.woff2         24.45 kB
+../../../out/renderer/assets/inter-latin-400-normal-CyCys3Eg.woff          30.70 kB
+../../../out/renderer/assets/inter-latin-600-normal-CiBQ2DWP.woff          31.26 kB
+../../../out/renderer/assets/inter-latin-500-normal-BL9OpVg8.woff          31.28 kB
+../../../out/renderer/assets/times-Cll7ChuL.ttf                         1,195.69 kB
+../../../out/renderer/assets/simsun-BG1i-YiF.ttc                       18,070.49 kB
+../../../out/renderer/assets/app-scrollbar-D4nRQOEd.css                     2.37 kB
+../../../out/renderer/assets/browser-download-popover-IxetSq3T.css          2.91 kB
+../../../out/renderer/assets/tokens-BMMeqlti.css                            3.80 kB
+../../../out/renderer/assets/style-CY0m0jYJ.css                             4.20 kB
+../../../out/renderer/assets/browser-agent-inspector-C8rt9Eia.css           8.49 kB
+../../../out/renderer/assets/browser-shell-CpOdUKIb.css                    15.77 kB
+../../../out/renderer/assets/index-Dxc0oyut.css                            80.65 kB
+../../../out/renderer/assets/material-library-responsive-CWEja0SZ.css      93.14 kB
+../../../out/renderer/assets/loader-circle-DV2Fn7-5.js                      0.16 kB
+../../../out/renderer/assets/material-feature-CJ80w7ec.js                   0.26 kB
+../../../out/renderer/assets/triangle-alert-B9MHlnuB.js                     0.29 kB
+../../../out/renderer/assets/hand-BMO4HCsw.js                               0.43 kB
+../../../out/renderer/assets/sliders-horizontal-DQUQmbjc.js                 0.79 kB
+../../../out/renderer/assets/shield-check-Ck5trLhx.js                       1.10 kB
+../../../out/renderer/assets/rotate-cw-CdTUFBUW.js                          1.10 kB
+../../../out/renderer/assets/square-hZYf2mWy.js                             1.29 kB
+../../../out/renderer/assets/resume-6_3A5kcf.js                             3.18 kB
+../../../out/renderer/assets/browser-download-popover-BMCiQEKq.js           3.33 kB
+../../../out/renderer/assets/browser-agent-inspector-JD84qrwp.js           13.36 kB
+../../../out/renderer/assets/material-library-responsive-lED97eFt.js       21.44 kB
+../../../out/renderer/assets/browser-shell-BM49sNlL.js                     25.90 kB
+../../../out/renderer/assets/style-CPKEt6aw.js                             65.07 kB
+../../../out/renderer/assets/_plugin-vue_export-helper-zHexdtfm.js         80.71 kB
+../../../out/renderer/assets/tokens-BZlWrDvo.js                            87.96 kB
+../../../out/renderer/assets/index-C2yShnEe.js                            772.54 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 4.55s
+Sandbox preload bundles are standalone: 6 entries.
+
+  out/cli/browser-agent-qa-entry.cjs  392.8kb
+
+⚡ Done in 12ms
+Downloading Electron binary...
+[17861:1018/202656.425146:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[17861:1018/202657.352724:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[17861:1018/202657.352844:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[17861:1018/202657.352873:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[17861:1018/202657.413211:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[17861:1018/202657.432028:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[17861:1018/202657.452126:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[17861:1018/202657.452232:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[17861:1018/202657.459259:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[17861:1018/202657.881104:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[17861:1018/202657.881155:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[17861:1018/202657.881212:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[17861:1018/202657.881233:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+{
+  "suiteVersion": "bsf3-v1",
+  "passed": 36,
+  "runtime": {
+    "electron": "43.2.0",
+    "platform": "linux"
+  },
+  "results": [
+    {
+      "name": "01 initial tab exists",
+      "passed": true
+    },
+    {
+      "name": "01a Agent Capsule opens the canonical task Inspector",
+      "passed": true
+    },
+    {
+      "name": "01b Agent Inspector sends takeover command",
+      "passed": true
+    },
+    {
+      "name": "02 active tab is page 1",
+      "passed": true
+    },
+    {
+      "name": "03 DOM snapshot contains role",
+      "passed": true
+    },
+    {
+      "name": "04 AX snapshot exists",
+      "passed": true
+    },
+    {
+      "name": "05 screenshot is bounded",
+      "passed": true
+    },
+    {
+      "name": "05a Browser Webmail captures real page evidence",
+      "passed": true
+    },
+    {
+      "name": "05b Browser Webmail message dedupes",
+      "passed": true
+    },
+    {
+      "name": "06 semantic button query",
+      "passed": true
+    },
+    {
+      "name": "06a semantic query includes accessible labels",
+      "passed": true
+    },
+    {
+      "name": "07 same-origin frame query",
+      "passed": true
+    },
+    {
+      "name": "08 open shadow query",
+      "passed": true
+    },
+    {
+      "name": "09 wait for text",
+      "passed": true
+    },
+    {
+      "name": "10 wait for element",
+      "passed": true
+    },
+    {
+      "name": "11 nested/action elements tagged",
+      "passed": true
+    },
+    {
+      "name": "11a ARIA mail row is tagged and clickable",
+      "passed": true
+    },
+    {
+      "name": "11b transient target highlight precedes a semantic page action",
+      "passed": true
+    },
+    {
+      "name": "12 hover event applied",
+      "passed": true
+    },
+    {
+      "name": "13 drag/drop event applied",
+      "passed": true
+    },
+    {
+      "name": "14 keypress writes focused input",
+      "passed": true,
+      "details": {
+        "editorValue": "a"
+      }
+    },
+    {
+      "name": "14a submit click remains blocked",
+      "passed": true
+    },
+    {
+      "name": "14b Enter submit bypass remains blocked",
+      "passed": true
+    },
+    {
+      "name": "14c SubmissionIntent confirms fixture form",
+      "passed": true
+    },
+    {
+      "name": "14d SubmissionReceipt creates Tracker once",
+      "passed": true
+    },
+    {
+      "name": "15 new tab navigates",
+      "passed": true
+    },
+    {
+      "name": "16 tab list has two entries",
+      "passed": true
+    },
+    {
+      "name": "17 select tab changes active",
+      "passed": true
+    },
+    {
+      "name": "18 navigate reaches URL",
+      "passed": true
+    },
+    {
+      "name": "19 history back",
+      "passed": true
+    },
+    {
+      "name": "20 history forward",
+      "passed": true
+    },
+    {
+      "name": "21 reload settles",
+      "passed": true
+    },
+    {
+      "name": "22 close tab leaves one",
+      "passed": true
+    },
+    {
+      "name": "23 download completion is observed without path",
+      "passed": true
+    },
+    {
+      "name": "24 unsafe URL blocked",
+      "passed": true
+    },
+    {
+      "name": "25 ungranted control blocked",
+      "passed": true
+    }
+  ]
+}
+EXIT:0
