@@ -2,21 +2,39 @@ TAP version 13
 # Subtest: sanitize drops bodies and redacts secrets and home paths
 ok 1 - sanitize drops bodies and redacts secrets and home paths
   ---
-  duration_ms: 1.832687
+  duration_ms: 1.70939
   type: 'test'
   ...
 # Subtest: local diagnostic ring records metadata-only timeline events
 ok 2 - local diagnostic ring records metadata-only timeline events
   ---
-  duration_ms: 54.41745
+  duration_ms: 53.788138
   type: 'test'
   ...
-1..2
-# tests 2
+# Subtest: product action helpers cover defined OSS timeline actions
+ok 3 - product action helpers cover defined OSS timeline actions
+  ---
+  duration_ms: 51.627122
+  type: 'test'
+  ...
+# Subtest: export package manifest counts match UI-visible asset kinds
+ok 4 - export package manifest counts match UI-visible asset kinds
+  ---
+  duration_ms: 167.26761
+  type: 'test'
+  ...
+# Subtest: local-only export still rejects secret fields and keeps desensitization
+ok 5 - local-only export still rejects secret fields and keeps desensitization
+  ---
+  duration_ms: 81.265837
+  type: 'test'
+  ...
+1..5
+# tests 5
 # suites 0
-# pass 2
+# pass 5
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 217.412764
+# duration_ms 677.678383

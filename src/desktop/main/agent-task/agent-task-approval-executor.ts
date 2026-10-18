@@ -1,5 +1,6 @@
 import type { ActionExecutor } from "../../../approvals/executor-registry.js";
 import type { AgentTaskProposalService } from "./agent-task-proposal-service.js";
+import { recordManagedTaskStatus } from "../../../diagnostics/record-product-action.js";
 
 export function createAgentTaskApprovalExecutor(
   proposals: AgentTaskProposalService,
@@ -8,6 +9,7 @@ export function createAgentTaskApprovalExecutor(
     execute: async ({ payload }) => {
       const proposalId = readProposalId(payload);
       const taskId = await proposals.execute(proposalId);
+      recordManagedTaskStatus("queued", { taskId });
       return {
         summary: "Agent 任务授权已确认，等待启动。",
         details: { proposalId, taskId },

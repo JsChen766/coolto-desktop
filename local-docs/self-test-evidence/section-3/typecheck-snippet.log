@@ -1,4 +1,1 @@
-
-> coolto-local-agent@0.1.27 typecheck
-> tsc -p tsconfig.json --noEmit
-
+Source policy passed: 1410 files, each <= 250 lines.

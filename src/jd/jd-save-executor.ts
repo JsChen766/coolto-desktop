@@ -5,6 +5,7 @@ import type {
 } from "../approvals/executor-registry.js";
 import type { JdSaveApprovalPayload } from "./types.js";
 import { JdProposalStore } from "./proposal-store.js";
+import { recordProductAction } from "../diagnostics/record-product-action.js";
 
 export function createJdSaveExecutor(
   writer: JdWriter,
@@ -15,6 +16,7 @@ export function createJdSaveExecutor(
       executeSave(context, writer, proposalStore),
     reject: (context) => {
       proposalStore.clear(readPayload(context.payload).proposalId);
+      recordProductAction("jd_import", "cancelled");
     },
   };
 }
@@ -58,6 +60,10 @@ async function executeSave(
   );
 
   proposalStore.clear(payload.proposalId);
+  recordProductAction("jd_import", "success", {
+    requirementsCount: jdRecord.requirements.length,
+    sourceKind: payload.sourceKind,
+  });
   return {
     summary: `已保存岗位描述「${jdRecord.title}」到本地，等待同步`,
     details: {

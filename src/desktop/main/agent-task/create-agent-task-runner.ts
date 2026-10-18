@@ -7,6 +7,7 @@ import type { BrowserAgentController } from "../../../browser/agent-control-type
 import { AgentTaskScheduler } from "../../../agent-task/agent-task-scheduler.js";
 import { BrowserAgentProjectionCoordinator } from "./browser-agent-projection-coordinator.js";
 import type { BrowserState } from "../../shared/types.js";
+import { recordManagedTaskStatus } from "../../../diagnostics/record-product-action.js";
 
 export async function createAgentTaskRuntime(
   services: AgentHarnessServices,
@@ -22,6 +23,7 @@ export async function createAgentTaskRuntime(
   );
   status.bindSource(() => projection.dispose());
   const changed = async (task: import("../../../agent-task/task-types.js").AgentTaskV1) => {
+    recordManagedTaskStatus(task.status, { taskId: task.id });
     await projection.taskChanged(task);
     if (["completed", "partially_completed", "failed", "canceled", "expired"]
       .includes(task.status)) await cleanupTask(task.id).catch(() => undefined);

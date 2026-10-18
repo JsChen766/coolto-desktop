@@ -1,4 +1,5 @@
 import type { MatchReport } from "./types.js";
+import { recordProductAction } from "../diagnostics/record-product-action.js";
 
 export interface MatchReportEntry {
   report: MatchReport;
@@ -19,6 +20,11 @@ export class MatchReportStore {
   add(report: MatchReport, jdTitle: string, jdCompany: string | null): void {
     this.#entries.set(report.id, { report, jdTitle, jdCompany });
     this.#latestId = report.id;
+    recordProductAction("match_analysis", "success", {
+      finalScore: report.finalScore,
+      experienceCount: report.experiences.length,
+      expired: report.expired,
+    });
   }
 
   getEntry(id: string): MatchReportEntry {

@@ -32,12 +32,13 @@
 | 步骤 | 本机入口 | 诊断线索 |
 |------|----------|----------|
 | 启动 | `desktop:dev` 终端 + `events.jsonl` 的 `app_start` | phase=`success` |
-| 导入经历 | 对话工具 / 经历仓库 | 审批卡片；可选后续诊断 action=`experience_import` |
-| 导入 JD | `prepare_jd_import` 审批 | 求职仓库岗位详情 |
-| 匹配 | `prepare_match_analysis` | 匹配报告 UI |
-| 生成简历 | 简历预览 / PDF | Resume generation trace；outcome 成功或明确终态 |
-| 导出 / 清除 | 设置 → 隐私与数据 | `data_export` / `data_clear` 写入 `events.jsonl` |
-| 投递任务 | Agent 任务 + Tracker | 任务阶段、SubmissionIntent/Receipt、本机 Application |
+| 导入经历 | 审批导入 / 材料沉淀 | `experience_import`（success / failure / cancelled） |
+| 导入 JD | `prepare_jd_import` 审批通过 | `jd_import` success；拒绝为 cancelled |
+| 匹配 | `prepare_match_analysis` → MatchReport | `match_analysis` success |
+| 生成简历 | 简历工作区 / 预览 | Resume trace + `resume_generation` success/failure |
+| 导出简历 PDF | PDF 导出审批 | `resume_export` success/cancelled |
+| 导出 / 清除 | 设置 → 隐私与数据 | `data_export` / `data_clear` |
+| 托管任务 | Agent 任务授权与运行 | `managed_task`（started / waiting_user / success / failure / cancelled） |
 
 ## 最小数据原则
 

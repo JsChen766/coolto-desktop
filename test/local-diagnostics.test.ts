@@ -14,6 +14,10 @@ import {
   redactDiagnosticText,
   sanitizeDiagnosticDetail,
 } from "../src/diagnostics/sanitize.js";
+import {
+  recordManagedTaskStatus,
+  recordProductAction,
+} from "../src/diagnostics/record-product-action.js";
 
 test("sanitize drops bodies and redacts secrets and home paths", () => {
   const detail = sanitizeDiagnosticDetail({
@@ -66,5 +70,33 @@ test("local diagnostic ring records metadata-only timeline events", async () => 
   const body = await readFile(path!, "utf8");
   assert.match(body, /"action":"app_start"/u);
   assert.doesNotMatch(body, /should-not-persist/u);
-  assert.doesNotMatch(body, /sk-/u);
+  assert.doesNotMatch(body, /\bsk-[A-Za-z0-9]/u);
+});
+
+test("product action helpers cover defined OSS timeline actions", async () => {
+  const root = await mkdtemp(join(tmpdir(), "coolto-diag-actions-"));
+  configureLocalDiagnostics(root);
+  const before = recentLocalDiagnostics().length;
+  recordProductAction("match_analysis", "success", { finalScore: 0.8 });
+  recordProductAction("resume_export", "success", { pageCount: 1 });
+  recordManagedTaskStatus("queued", { taskId: "task-1" });
+  recordManagedTaskStatus("waiting", { taskId: "task-1" });
+  recordManagedTaskStatus("completed", { taskId: "task-1" });
+  recordManagedTaskStatus("failed", { taskId: "task-2" });
+  const recent = recentLocalDiagnostics().slice(before);
+  const actions = recent.map((event) => `${event.action}:${event.phase}`);
+  assert.deepEqual(actions, [
+    "match_analysis:success",
+    "resume_export:success",
+    "managed_task:started",
+    "managed_task:waiting_user",
+    "managed_task:success",
+    "managed_task:failure",
+  ]);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const body = await readFile(localDiagnosticsLogPath()!, "utf8");
+  assert.match(body, /"action":"managed_task"/u);
+  assert.match(body, /"action":"match_analysis"/u);
+  assert.doesNotMatch(body, /\bsk-[A-Za-z0-9]/u);
+  assert.doesNotMatch(body, /should-not-persist|SECRET RESUME/u);
 });

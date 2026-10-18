@@ -6,6 +6,7 @@ import type {
   ResumePdfExportApprovalPayload,
   ResumePdfExportGateway,
 } from "./types.js";
+import { recordProductAction } from "../../diagnostics/record-product-action.js";
 
 export function createResumePdfExportExecutor(
   gateway: ResumePdfExportGateway,
@@ -22,11 +23,16 @@ async function executeExport(
   const payload = readPayload(context.payload);
   const result = await gateway.exportPdf(payload, context.signal);
   if (result.status === "cancelled") {
+    recordProductAction("resume_export", "cancelled");
     return {
       summary: "已取消 PDF 导出，没有创建文件。",
       details: { proposalId: payload.proposalId, status: result.status },
     };
   }
+  recordProductAction("resume_export", "success", {
+    bytes: result.bytes,
+    pageCount: result.pageCount,
+  });
   return {
     summary: `PDF 已导出：${result.filename}`,
     details: {

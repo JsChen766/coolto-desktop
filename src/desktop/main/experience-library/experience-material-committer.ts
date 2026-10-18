@@ -12,6 +12,7 @@ import type {
   ExperienceExecutionResult,
   ExperienceWriteProposal,
 } from "../../../experience/maintenance-types.js";
+import { recordProductAction } from "../../../diagnostics/record-product-action.js";
 
 export class LocalExperienceMaterialCommitter
 implements ExperienceMaterialCommitter {
@@ -39,12 +40,18 @@ implements ExperienceMaterialCommitter {
       });
       const result = this.proposals.execute(proposal.id);
       if (!result.experience) throw new Error("材料经历本地创建失败");
+      recordProductAction("experience_import", "success", {
+        path: "material", created: true, sectionCount: input.sections.length,
+      });
       return response(result.experience.id, result.experience.title, true, false, block, input);
     }
 
     const current = await this.experiences.getExperience(input.target.experienceId);
     const content = current.currentRevision?.content ?? "";
     if (content.includes(materialMarker(input.sourceHash))) {
+      recordProductAction("experience_import", "cancelled", {
+        path: "material", duplicate: true,
+      });
       return response(current.id, current.title, false, true, "", input);
     }
     const merged = mergeContent(content, block);
@@ -58,6 +65,9 @@ implements ExperienceMaterialCommitter {
     }
     const result = this.proposals.execute(proposal.id);
     if (!result.experience) throw new Error("材料经历本地更新失败");
+    recordProductAction("experience_import", "success", {
+      path: "material", created: false, sectionCount: input.sections.length,
+    });
     return response(current.id, current.title, false, false, block, input);
   }
 }

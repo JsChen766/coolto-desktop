@@ -13,6 +13,7 @@ import {
   type ResumeTraceToolMetadata,
 } from "./trace-types.js";
 import { summarizeTrace } from "./trace-summary.js";
+import { recordProductAction } from "../../diagnostics/record-product-action.js";
 
 const RESUME_TOOLS = new Set([
   "create_resume_workspace",
@@ -182,6 +183,11 @@ export class ResumeGenerationTraceStore {
     const completed = structuredClone(active.trace);
     this.#completed.push(completed);
     this.#latestByConversation.set(conversationId, completed);
+    recordProductAction("resume_generation", input.failed ? "failure" : "success", {
+      outcome,
+      stopReason,
+      ...(input.workspaceStatus ? { workspaceStatus: input.workspaceStatus } : {}),
+    });
     return completed;
   }
 

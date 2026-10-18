@@ -10,6 +10,7 @@ import {
 } from "../import/approval-draft.js";
 import { ExperienceImportProposalStore } from "../import/proposal-store.js";
 import type { ProfileContactUpdate, ProfileProposalExecutor } from "../profile/types.js";
+import { recordProductAction } from "../diagnostics/record-product-action.js";
 
 export function createExperienceImportExecutor(
   writer: ExperienceWriter,
@@ -18,7 +19,10 @@ export function createExperienceImportExecutor(
 ): ActionExecutor {
   return {
     execute: async (context) => executeImport(context, writer, proposalStore, profiles),
-    reject: (context) => proposalStore.clear(readPayload(context.payload).proposalId),
+    reject: (context) => {
+      proposalStore.clear(readPayload(context.payload).proposalId);
+      recordProductAction("experience_import", "cancelled");
+    },
   };
 }
 
@@ -63,6 +67,15 @@ async function executeImport(
     skippedDuplicateCount: proposal.candidates.filter((item) => !item.selected && item.duplicateOf).length,
     completedAt: new Date().toISOString(),
   };
+  recordProductAction(
+    "experience_import",
+    failed.length && !saved.length ? "failure" : failed.length ? "cancelled" : "success",
+    {
+      savedCount: saved.length,
+      failedCount: failed.length,
+      skippedDuplicateCount: details.skippedDuplicateCount,
+    },
+  );
   return {
     summary: `个人资料已${selection.profile ? "加入本地同步队列；" : "未变更；"}已保存 ${saved.length} 条经历到本地，等待同步`,
     details,
