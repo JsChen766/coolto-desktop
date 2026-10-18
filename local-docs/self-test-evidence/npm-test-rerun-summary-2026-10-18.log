@@ -1,0 +1,20 @@
+ok 1531 - read-only Webmail click guard blocks destructive and unknown controls
+  ---
+  duration_ms: 0.613331
+  type: 'test'
+  ...
+# Subtest: non-Webmail click behavior remains unchanged
+ok 1532 - non-Webmail click behavior remains unchanged
+  ---
+  duration_ms: 2.182649
+  type: 'test'
+  ...
+1..1532
+# tests 1542
+# suites 0
+# pass 1542
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16653.004211

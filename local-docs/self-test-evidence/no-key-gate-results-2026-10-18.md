@@ -55,3 +55,31 @@ npm run qa:browser-agent                             # EXIT:0; passed: 36
 - **未 push、未开 PR**
 - 未猜测或注入任何 API Key
 - `qa:browser-agent` 日志中有 Chromium/dbus 噪音（无显示总线），未影响 suite 结果
+
+## 修复后重跑（2026-10-18 20:30–20:31 Asia/Shanghai）
+
+- **Node**：nvm `v22.23.3`
+- **基线 HEAD（修前）**：`850545a`
+- **密钥**：仍未读取/写入真实 API Key
+
+### 根因与修复（小范围）
+
+| 失败 | 根因 | 修复 |
+|------|------|------|
+| `typecheck` TS2554 | `ResumePdfCompiler.compile` 仅接受 1 参，fixture 仍传 fixtureId | `compiler.compile(structure)` |
+| `typecheck` TS2375 | `exactOptionalPropertyTypes` 下不可把 `undefined` 赋给可选 `lineBudgetVersion` 等 | 从 `ready` 解构省略这些键再展开 |
+| C4 select | 材料库已改为自定义 `MaterialLibraryStatusFilter`，不再含 `<select>`；简历库仍保留原生 select | 更新断言：材料无 select + 自定义 filter；简历仍有 select |
+| PRD leftover disclosure | Composer 免责声明已在隐私拆分中移除；披露文案在 `PrivacyDataSection` | 测 Composer send 控件 + Privacy「发送给模型前/当前对话」 |
+| 3× preference-app | fixture `expiresAt: 2026-10-01` 早于墙钟；`pruneAgentHarnessState(Date.now())` 在 save 时删掉 suggestion | `expiresAt` → `2099-01-01T00:00:00.000Z` |
+
+### 重跑结果
+
+| 步骤 | 命令 | 结果 |
+|------|------|------|
+| Node 类型检查 | `npm run typecheck` | **通过**（exit 0） |
+| 桌面类型检查 | `npm run desktop:typecheck` | **通过**（exit 0） |
+| 单测 | `npm test` | **通过**：1542 pass / **0 fail**（~16.7s） |
+
+摘录见 [`typecheck-rerun-2026-10-18.log`](./typecheck-rerun-2026-10-18.log)、[`desktop-typecheck-rerun-2026-10-18.log`](./desktop-typecheck-rerun-2026-10-18.log)、[`npm-test-rerun-summary-2026-10-18.log`](./npm-test-rerun-summary-2026-10-18.log)。
+
+**结论（重跑）**：无 Key 门禁中先前失败的 `typecheck` 与 `npm test` 已通过；`desktop:typecheck` 仍绿。未 push。
