@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 const MATERIAL_IMPORT_FILTERS = [{
   name: "文档材料",
-  extensions: ["pdf", "docx", "txt", "md", "markdown", "png", "jpg", "jpeg", "webp"],
+  extensions: ["pdf", "docx", "txt", "md", "markdown", "png", "jpg", "jpeg"],
 }];
 
 function qaMaterialImportPaths(): string[] | undefined {

@@ -1,6 +1,14 @@
-import type { MaterialAssetV1 } from "./material-types.js";
+import type { MaterialAssetV1, MaterialIntakeAuthorizationV1 } from "./material-types.js";
 import { normalizeMaterialAsset } from "./material-normalizer.js";
 import type { MaterialCatalogEntry, MaterialRepository, MaterialStoredRecord } from "./material-repository.js";
+
+
+/** Persist-time intake: delivery_resume assets were authorized at intake/restore; COW rewrite must not strip them. */
+function persistenceAuthorization(asset: MaterialAssetV1): MaterialIntakeAuthorizationV1 | undefined {
+  return asset.metadata.sourceKind === "delivery_resume"
+    ? { sourceKind: "delivery_resume", materialIntent: true }
+    : undefined;
+}
 
 export function assertMaterialOwner(record: MaterialStoredRecord, ownerId: string | undefined): void {
   if (ownerId && record.asset.identity.ownerId !== ownerId) throw new Error("Material owner scope mismatch");
@@ -10,7 +18,7 @@ export function normalizeMaterialRecord(record: MaterialStoredRecord): MaterialS
   return {
     ...record,
     bytes: Uint8Array.from(record.bytes),
-    asset: normalizeMaterialAsset(record.asset),
+    asset: normalizeMaterialAsset(record.asset, persistenceAuthorization(record.asset)),
     classification: record.classification ?? "unclassified",
     parsedChunks: record.parsedChunks.map((chunk) => ({ ...chunk })),
     ocrSegments: record.ocrSegments.map((segment) => ({ ...segment, bbox: segment.bbox ? { ...segment.bbox } : null })),
@@ -25,7 +33,7 @@ export function cloneMaterialRecord(record: MaterialStoredRecord): MaterialStore
 
 export function toMaterialCatalogEntry(record: MaterialStoredRecord | MaterialCatalogEntry): MaterialCatalogEntry {
   return {
-    asset: normalizeMaterialAsset(record.asset),
+    asset: normalizeMaterialAsset(record.asset, persistenceAuthorization(record.asset)),
     lifecycleStatus: record.lifecycleStatus,
     classification: record.classification ?? "unclassified",
     relations: record.relations.map(cloneRelation),

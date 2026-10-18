@@ -22,6 +22,7 @@ export interface MaterialView {
   expiresAt: string | null;
   relationCount: number;
   citationCount: number;
+  relatedExperienceIds: string[];
   lastError: string | null;
 }
 export interface MaterialSearchOptions {

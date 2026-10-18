@@ -42,6 +42,13 @@ function statusLabel(status: MaterialView["status"]): string {
       <dt>{{ $t('类型') }}</dt><dd>{{ material.mediaKind }}</dd>
       <dt>{{ $t('来源') }}</dt><dd>{{ material.sourceLabel || material.sourceKind }}</dd>
       <dt>{{ $t('引用') }}</dt><dd>{{ material.citationCount }}</dd>
+      <dt>{{ $t('关联经历') }}</dt>
+      <dd v-if="material.relatedExperienceIds.length">
+        <ul class="material-related-experiences">
+          <li v-for="experienceId in material.relatedExperienceIds" :key="experienceId">{{ experienceId }}</li>
+        </ul>
+      </dd>
+      <dd v-else class="material-muted">{{ $t('尚未关联 Experience') }}</dd>
     </dl>
     <section class="material-preview-section">
       <h3>{{ $t('本地预览') }}</h3>

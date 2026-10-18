@@ -1,0 +1,316 @@
+TAP version 13
+# Subtest: delivery file tools select any user file without resume-writing tools
+ok 1 - delivery file tools select any user file without resume-writing tools
+  ---
+  duration_ms: 1.961268
+  type: 'test'
+  ...
+# Subtest: browser delivery upload resolves a host path without exposing it
+ok 2 - browser delivery upload resolves a host path without exposing it
+  ---
+  duration_ms: 0.495971
+  type: 'test'
+  ...
+# Subtest: a newly attached file can be saved unchanged as a delivery resume
+ok 3 - a newly attached file can be saved unchanged as a delivery resume
+  ---
+  duration_ms: 0.47371
+  type: 'test'
+  ...
+# Subtest: saving uses the selected snapshot after the original path expires
+ok 4 - saving uses the selected snapshot after the original path expires
+  ---
+  duration_ms: 5.197146
+  type: 'test'
+  ...
+# Subtest: normalizes a strict owner-bound asset without mutating input
+ok 5 - normalizes a strict owner-bound asset without mutating input
+  ---
+  duration_ms: 8.571979
+  type: 'test'
+  ...
+# Subtest: rejects unsafe paths, URLs, credentials, and raw-body fields
+ok 6 - rejects unsafe paths, URLs, credentials, and raw-body fields
+  ---
+  duration_ms: 4.485307
+  type: 'test'
+  ...
+# Subtest: requires explicit intent for original delivery resumes
+ok 7 - requires explicit intent for original delivery resumes
+  ---
+  duration_ms: 3.089825
+  type: 'test'
+  ...
+# Subtest: hashes bytes and keeps content identity independent from metadata rename
+ok 8 - hashes bytes and keeps content identity independent from metadata rename
+  ---
+  duration_ms: 0.520534
+  type: 'test'
+  ...
+# Subtest: normalizes page, paragraph, offset citations and binds every version
+ok 9 - normalizes page, paragraph, offset citations and binds every version
+  ---
+  duration_ms: 1.922889
+  type: 'test'
+  ...
+# Subtest: plans unclassified and multi-Experience relation proposals without body copies
+ok 10 - plans unclassified and multi-Experience relation proposals without body copies
+  ---
+  duration_ms: 1.174309
+  type: 'test'
+  ...
+# Subtest: keeps OCR trust fail-closed for missing engine, low confidence, and expiry
+ok 11 - keeps OCR trust fail-closed for missing engine, low confidence, and expiry
+  ---
+  duration_ms: 1.145964
+  type: 'test'
+  ...
+# Subtest: dedupes by owner, content hash, and canonical metadata while preserving identity
+ok 12 - dedupes by owner, content hash, and canonical metadata while preserving identity
+  ---
+  duration_ms: 1.38225
+  type: 'test'
+  ...
+# Subtest: rejects malformed strict assets before they can become facts
+ok 13 - rejects malformed strict assets before they can become facts
+  ---
+  duration_ms: 0.603088
+  type: 'test'
+  ...
+# Subtest: requires complete citation binding and rejects hidden fields
+ok 14 - requires complete citation binding and rejects hidden fields
+  ---
+  duration_ms: 0.700734
+  type: 'test'
+  ...
+# Subtest: canonical JSON fails closed for unsupported values and arrays
+ok 15 - canonical JSON fails closed for unsupported values and arrays
+  ---
+  duration_ms: 0.339455
+  type: 'test'
+  ...
+# Subtest: rejects sparse, prototype, high-index, and oversized arrays
+ok 16 - rejects sparse, prototype, high-index, and oversized arrays
+  ---
+  duration_ms: 31.880065
+  type: 'test'
+  ...
+# Subtest: rejects duplicate relation targets and never scans after invalid members
+ok 17 - rejects duplicate relation targets and never scans after invalid members
+  ---
+  duration_ms: 0.530524
+  type: 'test'
+  ...
+# Subtest: serializes relation provenance and requires it for delivery validation
+ok 18 - serializes relation provenance and requires it for delivery validation
+  ---
+  duration_ms: 0.548931
+  type: 'test'
+  ...
+# Subtest: rejects duplicate citation fingerprints within and across targets
+ok 19 - rejects duplicate citation fingerprints within and across targets
+  ---
+  duration_ms: 0.93849
+  type: 'test'
+  ...
+# Subtest: rejects hidden and accessor values in canonical JSON
+ok 20 - rejects hidden and accessor values in canonical JSON
+  ---
+  duration_ms: 0.189616
+  type: 'test'
+  ...
+# Subtest: dedupes mixed sources from plain snapshots without proxy getters
+ok 21 - dedupes mixed sources from plain snapshots without proxy getters
+  ---
+  duration_ms: 1.531259
+  type: 'test'
+  ...
+# Subtest: rejects Unicode-equivalent network identifiers without rewriting benign metadata
+ok 22 - rejects Unicode-equivalent network identifiers without rewriting benign metadata
+  ---
+  duration_ms: 1.784068
+  type: 'test'
+  ...
+# Subtest: rejects strict accessors before invoking their getters
+ok 23 - rejects strict accessors before invoking their getters
+  ---
+  duration_ms: 0.552217
+  type: 'test'
+  ...
+# Subtest: relation planner accepts ordinary user text authorization
+ok 24 - relation planner accepts ordinary user text authorization
+  ---
+  duration_ms: 0.157758
+  type: 'test'
+  ...
+# Subtest: rejects invalid relation classifications before proposal output
+ok 25 - rejects invalid relation classifications before proposal output
+  ---
+  duration_ms: 0.175343
+  type: 'test'
+  ...
+# Subtest: relation validator rejects accessor fields without invoking them
+ok 26 - relation validator rejects accessor fields without invoking them
+  ---
+  duration_ms: 0.157658
+  type: 'test'
+  ...
+# Subtest: §10 upload supported text/image and expose processing status via MaterialView
+ok 27 - §10 upload supported text/image and expose processing status via MaterialView
+  ---
+  duration_ms: 7.824414
+  type: 'test'
+  ...
+# Subtest: §10 material↔Experience relations are queryable and delete previews impact
+ok 28 - §10 material↔Experience relations are queryable and delete previews impact
+  ---
+  duration_ms: 11.010062
+  type: 'test'
+  ...
+# Subtest: §10 low-confidence OCR stays needs_confirmation until user confirms
+ok 29 - §10 low-confidence OCR stays needs_confirmation until user confirms
+  ---
+  duration_ms: 1.661864
+  type: 'test'
+  ...
+# Subtest: §10 delivery_resume without materialIntent refuses before parse (no inventory write)
+ok 30 - §10 delivery_resume without materialIntent refuses before parse (no inventory write)
+  ---
+  duration_ms: 0.701039
+  type: 'test'
+  ...
+# Subtest: feature export and restore preserves raw hash and relations locally
+ok 31 - feature export and restore preserves raw hash and relations locally
+  ---
+  duration_ms: 18.272498
+  type: 'test'
+  ...
+# Subtest: restore rejects another account package
+ok 32 - restore rejects another account package
+  ---
+  duration_ms: 0.987156
+  type: 'test'
+  ...
+# Subtest: restore rejects malformed relation, citation, time, and path-alias tampering without partial mutation
+ok 33 - restore rejects malformed relation, citation, time, and path-alias tampering without partial mutation
+  ---
+  duration_ms: 3.056161
+  type: 'test'
+  ...
+# Subtest: restore rejects sparse and accessor-shaped package fields before they can be read
+ok 34 - restore rejects sparse and accessor-shaped package fields before they can be read
+  ---
+  duration_ms: 0.501499
+  type: 'test'
+  ...
+# Subtest: restore binds OCR evidence to the exact material version and rejects unknown binding fields
+ok 35 - restore binds OCR evidence to the exact material version and rejects unknown binding fields
+  ---
+  duration_ms: 2.87298
+  type: 'test'
+  ...
+# Subtest: material file boundary returns opaque IDs and copies bytes
+ok 36 - material file boundary returns opaque IDs and copies bytes
+  ---
+  duration_ms: 6.194587
+  type: 'test'
+  ...
+# Subtest: delete cancel is a no-op and preview lists affected citations
+ok 37 - delete cancel is a no-op and preview lists affected citations
+  ---
+  duration_ms: 19.444905
+  type: 'test'
+  ...
+# Subtest: confirmed delete removes only local material record
+ok 38 - confirmed delete removes only local material record
+  ---
+  duration_ms: 0.845145
+  type: 'test'
+  ...
+# Subtest: delete confirmation expires when its relation or classification impact changes
+ok 39 - delete confirmation expires when its relation or classification impact changes
+  ---
+  duration_ms: 1.259893
+  type: 'test'
+  ...
+# Subtest: local text import stores parsed text and same bytes dedupe
+ok 40 - local text import stores parsed text and same bytes dedupe
+  ---
+  duration_ms: 7.957904
+  type: 'test'
+  ...
+# Subtest: image import remains queued for OCR and never uses conversation parser path
+ok 41 - image import remains queued for OCR and never uses conversation parser path
+  ---
+  duration_ms: 0.441888
+  type: 'test'
+  ...
+# Subtest: material library component and workspace branch compile as reachable views
+ok 42 - material library component and workspace branch compile as reachable views
+  ---
+  duration_ms: 43.435124
+  type: 'test'
+  ...
+# Subtest: material library submits its query to the host rather than filtering catalog metadata locally
+ok 43 - material library submits its query to the host rather than filtering catalog metadata locally
+  ---
+  duration_ms: 3.647051
+  type: 'test'
+  ...
+# Subtest: material relation recovery state remains visible and cannot repeat a host write
+ok 44 - material relation recovery state remains visible and cannot repeat a host write
+  ---
+  duration_ms: 0.740423
+  type: 'test'
+  ...
+# Subtest: §10 material library UI surfaces processing status, OCR confirm, relations, and delete impact
+ok 45 - §10 material library UI surfaces processing status, OCR confirm, relations, and delete impact
+  ---
+  duration_ms: 1.805034
+  type: 'test'
+  ...
+# Subtest: high confidence local OCR becomes ready with bbox evidence and expiry
+ok 46 - high confidence local OCR becomes ready with bbox evidence and expiry
+  ---
+  duration_ms: 19.334986
+  type: 'test'
+  ...
+# Subtest: low confidence OCR requires explicit confirmation before ready
+ok 47 - low confidence OCR requires explicit confirmation before ready
+  ---
+  duration_ms: 4.37265
+  type: 'test'
+  ...
+# Subtest: closing OCR rejects queued work and prevents new jobs
+ok 48 - closing OCR rejects queued work and prevents new jobs
+  ---
+  duration_ms: 3.550093
+  type: 'test'
+  ...
+# Subtest: multi-Experience relation waits for approval and stores citations only
+ok 49 - multi-Experience relation waits for approval and stores citations only
+  ---
+  duration_ms: 19.480403
+  type: 'test'
+  ...
+# Subtest: an unreceipted host batch error preserves the recovery state instead of retrying or rolling back
+ok 50 - an unreceipted host batch error preserves the recovery state instead of retrying or rolling back
+  ---
+  duration_ms: 2.49159
+  type: 'test'
+  ...
+# Subtest: duplicate citation fingerprints and unclassified targets fail closed
+ok 51 - duplicate citation fingerprints and unclassified targets fail closed
+  ---
+  duration_ms: 0.795646
+  type: 'test'
+  ...
+1..51
+# tests 51
+# suites 0
+# pass 51
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2702.747915

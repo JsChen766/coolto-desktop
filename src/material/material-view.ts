@@ -25,6 +25,7 @@ export interface MaterialView {
   expiresAt: string | null;
   relationCount: number;
   citationCount: number;
+  relatedExperienceIds: string[];
   lastError: string | null;
 }
 
@@ -86,6 +87,7 @@ export function toMaterialView(record: MaterialStoredRecord): MaterialView {
     expiresAt: record.asset.processing.ocr?.expiresAt ?? null,
     relationCount: record.relations.length,
     citationCount: record.relations.reduce((count, relation) => count + relation.citations.length, 0),
+    relatedExperienceIds: relatedExperienceIdsFrom(record.relations),
     lastError: record.lastError,
   };
 }
@@ -111,6 +113,7 @@ function toMaterialViewFromCatalog(entry: MaterialCatalogEntry): MaterialView {
     expiresAt: entry.asset.processing.ocr?.expiresAt ?? null,
     relationCount: entry.relations.length,
     citationCount: entry.relations.reduce((count, relation) => count + relation.citations.length, 0),
+    relatedExperienceIds: relatedExperienceIdsFrom(entry.relations),
     lastError: entry.lastError,
   };
 }
@@ -151,6 +154,11 @@ function matchesQuery(query: string, ...values: Array<string | null | undefined>
   return values.some((value) => value?.toLocaleLowerCase().includes(query));
 }
 
+
+function relatedExperienceIdsFrom(relations: readonly { experienceId: string }[]): string[] {
+  return [...new Set(relations.map((relation) => relation.experienceId))]
+    .sort((left, right) => left.localeCompare(right));
+}
 function displayStatus(classification: MaterialClassification, lifecycleStatus: MaterialStoredRecord["lifecycleStatus"]): MaterialStoredRecord["lifecycleStatus"] {
   return classification === "unclassified" && lifecycleStatus === "ready" ? "unclassified" : lifecycleStatus;
 }

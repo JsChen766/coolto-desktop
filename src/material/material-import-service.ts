@@ -14,12 +14,20 @@ import {
   type MaterialRepository,
   type MaterialStoredRecord,
 } from "./material-repository.js";
-import type { MaterialAssetV1, MaterialMediaKind, MaterialSourceKind } from "./material-types.js";
+import {
+  assertMaterialIntakeAuthorized,
+  type MaterialAssetV1,
+  type MaterialIntakeAuthorizationV1,
+  type MaterialMediaKind,
+  type MaterialSourceKind,
+} from "./material-types.js";
 
 export interface MaterialImportInput {
   fileId: string;
   ownerId: string;
   sourceKind?: MaterialSourceKind;
+  /** Required when sourceKind is delivery_resume — otherwise import refuses before parse. */
+  authorization?: MaterialIntakeAuthorizationV1;
   sourceLabel?: string | null;
   title?: string;
   capturedAt?: string;
@@ -50,6 +58,9 @@ export class MaterialImportService {
   public async import(input: MaterialImportInput): Promise<MaterialImportResult> {
     const ownerId = input.ownerId.trim();
     if (!ownerId) throw new Error("材料账号不能为空");
+    const sourceKind = input.sourceKind ?? "user_upload";
+    // 原样投递件未经授权不解析入库（开源 PRD §10）
+    assertMaterialIntakeAuthorized(sourceKind, input.authorization);
     const selected = await this.files.read(input.fileId);
     const bytes = Uint8Array.from(selected.content);
     const contentHash = hashMaterialBytes(bytes);
@@ -61,7 +72,6 @@ export class MaterialImportService {
       if (record) return { duplicate: true, record };
     }
     const parsed = await this.#parser.parse({ metadata: selected.metadata, content: Buffer.from(bytes) });
-    const sourceKind = input.sourceKind ?? "user_upload";
     const capturedAt = input.capturedAt ?? new Date().toISOString();
     const mediaKind = mediaKindFor(selected.metadata.type, parsed.requiresOcr);
     const asset = createAsset({

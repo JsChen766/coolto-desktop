@@ -16,6 +16,8 @@ const root = ref<HTMLElement>();
 const options: { value: MaterialView["status"] | ""; label: string }[] = [
   { value: "", label: "全部状态" },
   { value: "unclassified", label: "未归类" },
+  { value: "queued", label: "等待 OCR" },
+  { value: "processing", label: "处理中" },
   { value: "needs_confirmation", label: "待确认" },
   { value: "ready", label: "已整理" },
   { value: "expired", label: "OCR 已过期" },
