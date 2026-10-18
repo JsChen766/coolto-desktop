@@ -112,7 +112,7 @@ npm run package:win
 npm run package:mac:dmg
 ```
 
-Linux 以源码 + `desktop:dev` / `desktop:build` 为主；无独立 `package:linux` 必达门禁。
+Linux 以源码 + `desktop:dev` / `desktop:build` 为主；可选 `npm run package:linux`（AppImage，box 冒烟）。Win/Mac 真机安装包见 `package:win` / `package:mac*`，开源 P0 标为 **deferred**（需对应 OS）。
 
 ### 更新说明（开源必达）
 

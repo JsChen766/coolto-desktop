@@ -1,22 +1,36 @@
-# §5 跨平台安装与更新（必达）— 自测证据（2026-10-18 Asia/Shanghai）
+# §5 跨平台安装与更新 — 自测证据（2026-10-18 Asia/Shanghai）
 
 ## 验收项对照
 
 | 验收项 | 现状 | 本轮改动 |
 |--------|------|----------|
-| README 给出 Win/mac 开发启动与最小运行步骤 | README「桌面开发与跨平台安装」覆盖 Win/mac/**Linux** 源码路径 | 是（文档） |
-| 配置用户自备 API 后可完成 §1 或 §2 至少一条 | 指向 `oss-self-test-checklist` / `.env.example` / 设置→AI 接口 | 是（交叉引用） |
-| 平台能力拒绝时有降级说明，不伪造成功 | README 降级表：通知 / 日历 / Linux keyring；代码侧既有 skip / permission_required | 是（文档；代码既有） |
+| README 给出 Win/mac/Linux 开发启动与最小运行步骤 | README「桌面开发与跨平台安装」 | 是（补 `package:linux` 说明） |
+| 配置用户自备 API 后可完成主路径 | 指向 checklist / `.env.example` | 沿用 |
+| 平台能力拒绝时有降级说明 | README 降级表 | 沿用 |
+| **Linux 打包冒烟（本轮加严）** | `npm run package:linux` → AppImage + `linux-unpacked` | 是 |
 
-## 非必达（明确不阻断）
+## Linux box 冒烟（2026-10-18 Asia/Shanghai）
 
-- Authenticode / Apple 公证：runbook 可选
-- 完整自动更新 infra：README 写明「开源版请自行管理版本」
-
-## 抽查
-
-```bash
-rg -n "自行管理版本|package:win|Notification.isSupported|permission_required" README.md src/desktop/main/tracker/reminder-notification-scheduler.ts src/desktop/main/calendar/calendar-sync-service.ts
+```text
+npm run package:linux
+# = desktop:build && electron-builder --linux AppImage --x64
+# EXIT 0
+# 产物：
+#   dist-electron/Coolto-0.1.27-x86_64.AppImage (~227M)
+#   dist-electron/linux-unpacked/coolto-local-agent
 ```
 
-见 `readme-install-scan.log`。
+成功标准：**builder 成功** ✓。
+
+补充启动探测（无桌面 / 无 Linux coolto-core 原生保护模块时）：进程进入主进程 JS，随后因「正式包缺少原生保护模块哈希」与 keyring 不可用而失败——属 box 环境限制，不否定 builder 成功。完整 GUI 启动需本机密钥环 +（若启用保护）对应平台原生模块。
+
+详见 `linux-package-smoke.log` / `readme-install-scan.log`。
+
+## Deferred（明确不阻断 P0）
+
+| 项 | 状态 |
+|----|------|
+| Win 真机 `package:win` / 安装器 | **deferred**（需 Windows） |
+| Mac 真机 `package:mac*` / 公证 | **deferred**（需 macOS；公证可选） |
+| Authenticode / Apple 公证 | 可选；见 release hardening runbook |
+| 完整自动更新 infra | 开源版自行管理版本（README） |

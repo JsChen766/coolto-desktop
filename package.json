@@ -54,7 +54,8 @@
     "check": "npm run check:resume-template && npm run check:source-lines && npm run typecheck && npm run desktop:typecheck && npm run test && npm run build && npm run desktop:build",
     "package:win": "npm run native:build:win && npm run desktop:build:protected && electron-builder --win nsis --x64 && npm run verify:release:win && npm run verify:installer:win",
     "package:mac": "npm run native:build:mac && npm run desktop:build:protected && electron-builder --mac --dir --universal && npm run verify:release:mac",
-    "package:mac:dmg": "npm run native:build:mac && npm run desktop:build:protected && electron-builder --mac --universal && npm run verify:release:mac"
+    "package:mac:dmg": "npm run native:build:mac && npm run desktop:build:protected && electron-builder --mac --universal && npm run verify:release:mac",
+    "package:linux": "npm run desktop:build && electron-builder --linux AppImage --x64"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.84.2",
