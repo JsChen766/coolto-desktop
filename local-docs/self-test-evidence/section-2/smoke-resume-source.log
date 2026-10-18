@@ -1,0 +1,9 @@
+=== smoke:resume-source start 2026-10-18 21:04:53 CST ===
+
+> coolto-local-agent@0.1.27 smoke:resume-source
+> node --import tsx scripts/run-resume-source-smoke.ts
+
+Error: COOLTO_EMAIL and COOLTO_PASSWORD are required for the smoke test
+    at scripts/run-resume-source-smoke.ts:9
+
+=== smoke:resume-source exit=1 at 2026-10-18 21:04:54 CST ===

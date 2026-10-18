@@ -1,0 +1,17 @@
+=== eval:resume-agent start 2026-10-18 21:04:37 CST ===
+RESULT_PATH=/workspace/coolto-desktop-local/local-docs/self-test-evidence/section-2/eval-resume-agent-result.json
+
+> coolto-local-agent@0.1.27 eval:resume-agent
+> node --import tsx scripts/run-resume-agent-eval.ts
+
+/workspace/coolto-desktop-local/src/cli/login.ts:24
+    throw new Error(
+          ^
+
+Error: 当前终端无法安全读取登录信息。请在交互终端运行。
+    at performEmailOtpLogin (/workspace/coolto-desktop-local/src/cli/login.ts:24:11)
+    at ensureAuthenticated (/workspace/coolto-desktop-local/src/auth/session-manager.ts:36:9)
+    at async <anonymous> (/workspace/coolto-desktop-local/scripts/run-resume-agent-eval.ts:28:23)
+
+Node.js v22.23.3
+=== eval:resume-agent exit=1 at 2026-10-18 21:04:38 CST ===

@@ -1,0 +1,11 @@
+=== smoke:desktop-chat start 2026-10-18 21:06:25 CST ===
+
+> coolto-local-agent@0.1.27 smoke:desktop-chat
+> node scripts/run-desktop-chat-smoke.mjs --new-chat --message 回复 OK
+
+{
+  "success": false,
+  "error": "No Coolto CDP page target at http://127.0.0.1:9222 within 60000ms",
+  "cdp": "http://127.0.0.1:9222"
+}
+=== smoke:desktop-chat exit=1 at 2026-10-18 21:07:25 CST ===
