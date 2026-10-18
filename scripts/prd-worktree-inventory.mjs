@@ -9,6 +9,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// Maintainer-only map. Override with COOLTO_LOCAL_ROOT; never commit a real machine path.
+const localRoot = process.env.COOLTO_LOCAL_ROOT
+  ? path.resolve(process.env.COOLTO_LOCAL_ROOT)
+  : path.resolve(repoRoot, "..");
 const gitBin = process.platform === "win32" ? "git.exe" : "git";
 
 function run(gitDir, args) {
@@ -57,25 +61,23 @@ function countDirty(wtPath) {
 }
 
 const ROLE = {
-  [path.normalize("E:/vsProjects/coolto/cv-agent-app")]: "USER primary (do not use for PRD line)",
-  [path.normalize("E:/vsProjects/coolto/.codex-worktrees/prd-privacy")]:
+  [path.normalize(path.join(localRoot, "cv-agent-app"))]: "USER primary (do not use for PRD line)",
+  [path.normalize(path.join(localRoot, ".codex-worktrees/prd-privacy"))]:
     "INTEGRATION TRUNK — Phase 4 merged (480 paths)",
-  [path.normalize("E:/vsProjects/coolto/.codex-worktrees/prd-app-closure")]:
+  [path.normalize(path.join(localRoot, ".codex-worktrees/prd-app-closure"))]:
     "Phase 4 closure — read-only reference",
-  [path.normalize("E:/vsProjects/coolto/.codex-worktrees/prd-material-product-takeover")]:
+  [path.normalize(path.join(localRoot, ".codex-worktrees/prd-material-product-takeover"))]:
     "Phase 1 MAT — read-only reference",
-  [path.normalize("E:/vsProjects/coolto/.codex-worktrees/prd-profile-pref-app-takeover")]:
+  [path.normalize(path.join(localRoot, ".codex-worktrees/prd-profile-pref-app-takeover"))]:
     "Phase 2 PRO/PREF — read-only reference",
-  [path.normalize("E:/vsProjects/coolto/.codex-worktrees/prd-material-product")]:
+  [path.normalize(path.join(localRoot, ".codex-worktrees/prd-material-product"))]:
     "retire — use *-takeover",
-  [path.normalize("E:/vsProjects/coolto/.codex-worktrees/prd-profile-pref-app")]:
+  [path.normalize(path.join(localRoot, ".codex-worktrees/prd-profile-pref-app"))]:
     "retire — reconcile 7 paths first",
-  [path.normalize(
-    "E:/vsProjects/coolto/.codex-worktrees/prd-admin-analytics-handback-be",
-  )]: "Backend D1 — active writer",
-  [path.normalize(
-    "E:/vsProjects/coolto/.codex-worktrees/prd-backend-shared-integration",
-  )]: "Backend ACCEPT reference (read-only)",
+  [path.normalize(path.join(localRoot, ".codex-worktrees/prd-admin-analytics-handback-be"))]:
+    "Backend D1 — active writer",
+  [path.normalize(path.join(localRoot, ".codex-worktrees/prd-backend-shared-integration"))]:
+    "Backend ACCEPT reference (read-only)",
 };
 
 const entries = parseWorktrees();

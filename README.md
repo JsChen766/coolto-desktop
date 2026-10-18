@@ -6,6 +6,16 @@ Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分
 
 产品定位与界面文案一致：**整理经历、分析 JD、生成简历、追踪投递。**
 
+### 开源范围说明
+
+本仓库开源首期以本机主路径为准：BYO LLM、经历 / JD / 简历 / 投递、材料库、托管 Browser 任务（搜岗与表单填写在授权与审批边界内）。下列能力在开源 PRD 中标为延后或增强，**当前 README 与产品文案不宣称已交付**：
+
+- **§8 面试训练 / 模拟面试**（deferred）：投递里可有 Interview 实体、briefing 与日历写入，不等于面试训练产品。
+- **§11 浏览器站点字段级记忆**（P2）：Answer Vault 与审批填写 ≠ 站点结构记忆。
+
+站点支持边界见 [`local-docs/site-support-boundary.md`](local-docs/site-support-boundary.md)；阶段证据见 [`local-docs/oss-phase-p1-summary.md`](local-docs/oss-phase-p1-summary.md)。
+
+
 ## 当前能力
 
 桌面端按侧栏提供对话、Agent 任务、经历仓库、求职仓库、材料库和投递追踪。业务事实读本机 projection；写入仍走 Proposal + 宿主审批 + LocalSyncStore / Outbox，但不会 Push/Pull 到 Coolto 云。

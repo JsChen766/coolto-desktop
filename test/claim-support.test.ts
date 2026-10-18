@@ -73,9 +73,9 @@ const SNAPSHOT: ResumeSourceSnapshot = {
   },
   profile: {
     userId: "user-1",
-    fullName: "陈昊暘",
-    contactEmail: "chenandrew418@gmail.com",
-    phone: "+852 4765 7136",
+    fullName: "Example User",
+    contactEmail: "user@example.com",
+    phone: "+1 555 0100",
     location: null,
     linkedinUrl: null,
     githubUrl: null,

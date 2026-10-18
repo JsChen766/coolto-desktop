@@ -8,6 +8,11 @@ dist-electron/
 out/
 .env
 .env.local
+.env.*.local
+*.secret
+*.pem
+*.p12
+*.pfx
 coverage/
 *.log
 /output
@@ -20,6 +25,9 @@ coverage/
 local-builds/
 /local-qa-data/
 .idea
+
+# Internal PM sandbox / historical worktree evidence (personal paths); not for public tree
+.cursor-pm/
 
 # OSS self-test evidence logs (redacted) may be committed
 !local-docs/self-test-evidence/**/*.log

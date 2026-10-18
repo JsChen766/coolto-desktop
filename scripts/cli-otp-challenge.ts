@@ -10,9 +10,10 @@ const config = readConfig();
 const client = new CooltoApiClient({ baseUrl: config.apiBaseUrl });
 const deviceId = await cliDeviceId();
 const challengeId = randomUUID();
+const email = process.env.COOLTO_OTP_EMAIL ?? "you@example.com";
 const challenge = await client.requestEmailChallenge({
   challengeId,
-  email: "263824690@qq.com",
+  email,
   purpose: "login",
   device: {
     id: deviceId,
@@ -23,4 +24,4 @@ const challenge = await client.requestEmailChallenge({
 });
 console.log(`challengeId=${challengeId}`);
 console.log(`expiresAt=${challenge.expiresAt}`);
-console.log("验证码已发送至 263824690@qq.com，请把收到的验证码告诉我");
+console.log(`验证码已发送至 ${email}，请把收到的验证码告诉我`);

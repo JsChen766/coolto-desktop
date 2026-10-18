@@ -902,7 +902,7 @@ BSF5/BE6 平台验收一并回补后才能进入 BE8 的完整交付结论。
   fill 标记落在该 option 的无语义子节点，`browser_click_element` 按 fail-closed 拒绝；本轮由宿主只对
   同时包含 `Coolto/BE5/Outlook/QA/20260829` 五个 token 的唯一 AX option 做一次非坐标语义接管，随后恢复
   同一等待任务。AgentTask 进入 `completed`，无工具的自然语言结果回报：主题
-  `[Ext] Coolto BE5 Outlook QA 20260829`，发件人 `andrew chen <chenandrew418@gmail.com>`，时间
+  `[Ext] Coolto BE5 Outlook QA 20260829`，发件人 `Example Sender <sender@example.com>`，时间
   `2026-08-29 12:30`，正文只有测试标识 `COOLTO-BE5-OUTLOOK-20260829-A`；未回复、删除、移动、归档或
   下载附件。当前 AX/页面也独立核对到相同主题、发件人/时间和正文标识。
 - 已补最小后续修复：fill 目标本身若是 button/link/input/select/textarea 或已有交互 role，绝不上提；只有
@@ -935,7 +935,7 @@ BSF5/BE6 平台验收一并回补后才能进入 BE8 的完整交付结论。
   不扩展 126/yeah.net；跨日后旧 Grant 正确过期，新任务明确使用当日有效期。真实页面是网易邮箱 6.0 hash
   模块：全文搜索 `mbox.SearchModule` 返回两封同主题邮件，A/B 正文标识分别为
   `COOLTO-BE5-163-20260829-A` / `-B`，页面时间为 2026-08-30 00:02 / 00:05，发件人均为
-  `Jiansheng Chen<jianshengchen528@gmail.com>`。
+  `Example Sender <sender@example.com>`。
 - 163 邮件行不是标准 row/option，而是 `div[role=link].rF0.nui-txt-flag0`。只读策略仅在精确
   `hw.mail.163.com`、且危险文案检查通过后允许该 class 组合；删除/回复等 link 仍拒绝。真实 Agent 自动点击
   A/B 均成功。阅读正文位于同 origin `readhtml3.jsp` iframe；旧快照由顶层页面先占满 20k 后才追加 frame，
