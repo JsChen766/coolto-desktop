@@ -56,6 +56,10 @@ export function createDemoMatchReport(): MatchReportArtifactData {
     ],
     coverageRatio: 0.67,
     evidenceCompleteness: 0.85,
+    scoreConfidence: "high",
+    displayScore: 78,
+    modelId: "demo-local",
+    scorerVersion: "1.1",
     generatedAt: new Date().toISOString(),
     expired: false,
   };

@@ -8,6 +8,10 @@ import { buildMatchReport } from "../match/report-builder.js";
 import { MatchReportStore } from "../match/report-store.js";
 import { scoreToTier } from "../match/scorer.js";
 import type { DimensionInput } from "../match/scorer.js";
+import {
+  MATCH_SCORER_VERSION,
+  resolveHostCoverage,
+} from "../match/score-trust.js";
 
 const dimensionKeySchema = Type.Union([
   Type.Literal("skills"),
@@ -84,26 +88,41 @@ const parameters = Type.Object({
   coverageRatio: Type.Number({
     minimum: 0,
     maximum: 1,
-    description: "岗位要求覆盖比例（0–1）。highlights 覆盖了多少条要求。",
+    description:
+      "岗位要求覆盖比例（0–1）自评。宿主会按 highlights 与 JD requirementIds 重算，且不会采用高于宿主结果的声称值。",
   }),
   evidenceCompleteness: Type.Number({
     minimum: 0,
     maximum: 1,
-    description: "证据完整度（0–1）。能提供原文引用的亮点占比。",
+    description:
+      "证据完整度（0–1）自评。宿主按带原文引用的亮点占比重算，且不会采用高于宿主结果的声称值；信息不足时不得虚报高精度。",
   }),
 });
+
+export interface PrepareMatchAnalysisOptions {
+  /** Local BYO model id / config name recorded on the report (no secrets). */
+  modelId?: string;
+}
 
 export function createPrepareMatchAnalysisTool(
   jdReader: JdReader,
   experienceReader: ExperienceReader,
   matchReportStore: MatchReportStore,
+  options: PrepareMatchAnalysisOptions = {},
 ): AgentTool<typeof parameters> {
+  const resolvedModelId =
+    typeof options.modelId === "string" && options.modelId.trim().length > 0
+      ? options.modelId.trim()
+      : "local-byo";
+
   return {
     name: "prepare_match_analysis",
     label: "生成匹配分析报告",
     description:
       "用户要求将简历与 JD 比对时调用。必须先用 get_jd 确认 jdId，并用 get_experience 读取相关经历后再调用本工具。" +
-      "所有 highlights 必须有原文引用，不得编造。分数须如实评分，不得虚高。",
+      "所有 highlights 必须有原文引用，不得编造。分数须如实评分，不得虚高。" +
+      "匹配分为相对参考、非录用概率；信息不足时不得虚报覆盖率或高精度。" +
+      "宿主会重算 coverageRatio / evidenceCompleteness，并记录本机模型名与规则版本。",
     parameters,
     execute: async (_toolCallId, params, signal) => {
       const jd = await jdReader.getJd(params.jdId, signal);
@@ -152,19 +171,26 @@ export function createPrepareMatchAnalysisTool(
         suggestion: g.suggestion,
       }));
 
+      const hostCoverage = resolveHostCoverage({
+        requirementIds: jdRef.requirementIds,
+        highlights,
+        claimedCoverageRatio: params.coverageRatio,
+        claimedEvidenceCompleteness: params.evidenceCompleteness,
+      });
+
       const report = buildMatchReport(
         {
           dimensions: dimensionInputs,
           highlights,
           gaps,
-          coverageRatio: params.coverageRatio,
-          evidenceCompleteness: params.evidenceCompleteness,
+          coverageRatio: hostCoverage.coverageRatio,
+          evidenceCompleteness: hostCoverage.evidenceCompleteness,
         },
         jdRef,
         experienceRefs,
         {
-          modelId: "claude-sonnet-4-6",
-          scorerVersion: "1.0",
+          modelId: resolvedModelId,
+          scorerVersion: MATCH_SCORER_VERSION,
           generatedAt: new Date().toISOString(),
         },
       );
@@ -180,8 +206,12 @@ export function createPrepareMatchAnalysisTool(
         highlightsCount: report.highlights.length,
         gapsCount: report.gaps.length,
         coverageRatio: report.coverageRatio,
+        evidenceCompleteness: report.evidenceCompleteness,
+        scorerVersion: report.meta.scorerVersion,
+        modelId: report.meta.modelId,
+        disclaimer: "相对参考，非录用概率",
         instruction:
-          "宿主已收到匹配报告并渲染卡片。请用 1–2 句话概括主要结论，不要重复罗列所有亮点和缺口。",
+          "宿主已收到匹配报告并渲染卡片。请用 1–2 句话概括主要结论，明确说明分数为相对参考、非录用概率；不要重复罗列所有亮点和缺口。信息不足时说明置信度有限。",
       };
 
       return {

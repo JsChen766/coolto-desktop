@@ -7,7 +7,7 @@ import {
 } from "../src/agent/system-prompt.js";
 
 test("system prompt plans dynamic bullet lines and uses component expansion", () => {
-  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v158");
+  assert.equal(SYSTEM_PROMPT_VERSION, "coolto-local-agent/v159");
   assert.match(COOLTO_SYSTEM_PROMPT, /fetch_public_https_text/);
   assert.match(COOLTO_SYSTEM_PROMPT, /用户当前最新、明确的指令具有最高执行优先级/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /信息不足但仍可安全、可逆执行/u);
@@ -144,5 +144,7 @@ test("system prompt plans dynamic bullet lines and uses component expansion", ()
   assert.match(COOLTO_SYSTEM_PROMPT, /当前指令 > 显式偏好 > 行为建议/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /删除后本机标记删除，新任务不再使用/u);
   assert.match(COOLTO_SYSTEM_PROMPT, /开源版不连接 Coolto 云/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /非录用概率/u);
+  assert.match(COOLTO_SYSTEM_PROMPT, /不得虚报覆盖率或假高精度/u);
   assert.match(SYSTEM_PROMPT_VERSION, /^coolto-local-agent\/v\d+$/);
 });

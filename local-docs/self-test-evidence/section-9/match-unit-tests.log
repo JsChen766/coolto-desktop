@@ -1,0 +1,256 @@
+TAP version 13
+# Subtest: buildMatchReport generates a unique ID with correct prefix
+ok 1 - buildMatchReport generates a unique ID with correct prefix
+  ---
+  duration_ms: 1.024502
+  type: 'test'
+  ...
+# Subtest: buildMatchReport computes finalScore from dimensions
+ok 2 - buildMatchReport computes finalScore from dimensions
+  ---
+  duration_ms: 0.186567
+  type: 'test'
+  ...
+# Subtest: buildMatchReport copies jdRef fields correctly
+ok 3 - buildMatchReport copies jdRef fields correctly
+  ---
+  duration_ms: 0.49536
+  type: 'test'
+  ...
+# Subtest: buildMatchReport copies meta fields
+ok 4 - buildMatchReport copies meta fields
+  ---
+  duration_ms: 0.158532
+  type: 'test'
+  ...
+# Subtest: buildMatchReport deep-clones requirementIds so mutation does not affect report
+ok 5 - buildMatchReport deep-clones requirementIds so mutation does not affect report
+  ---
+  duration_ms: 0.110091
+  type: 'test'
+  ...
+# Subtest: buildMatchReport sets expired to false
+ok 6 - buildMatchReport sets expired to false
+  ---
+  duration_ms: 0.089756
+  type: 'test'
+  ...
+# Subtest: match report resume instruction names the job without technical IDs
+ok 7 - match report resume instruction names the job without technical IDs
+  ---
+  duration_ms: 0.740797
+  type: 'test'
+  ...
+# Subtest: match report panel exposes a single generate CTA
+ok 8 - match report panel exposes a single generate CTA
+  ---
+  duration_ms: 4.015054
+  type: 'test'
+  ...
+# Subtest: settings profile pane shows always-on-top and an AI provider pane
+ok 9 - settings profile pane shows always-on-top and an AI provider pane
+  ---
+  duration_ms: 1.073253
+  type: 'test'
+  ...
+# Subtest: Match card and panel state score is relative reference not hiring probability
+ok 10 - Match card and panel state score is relative reference not hiring probability
+  ---
+  duration_ms: 3.179279
+  type: 'test'
+  ...
+# Subtest: Match panel surfaces coverage, evidence completeness, model and scorer version
+ok 11 - Match panel surfaces coverage, evidence completeness, model and scorer version
+  ---
+  duration_ms: 1.506301
+  type: 'test'
+  ...
+# Subtest: Match UI degrades precision and flags low confidence
+ok 12 - Match UI degrades precision and flags low confidence
+  ---
+  duration_ms: 0.816077
+  type: 'test'
+  ...
+# Subtest: Match card and panel keep highlight evidence and gap JD requirement text
+ok 13 - Match card and panel keep highlight evidence and gap JD requirement text
+  ---
+  duration_ms: 0.75747
+  type: 'test'
+  ...
+# Subtest: MATCH_SCORER_VERSION is 1.1 for OSS trust rules
+ok 14 - MATCH_SCORER_VERSION is 1.1 for OSS trust rules
+  ---
+  duration_ms: 0.746078
+  type: 'test'
+  ...
+# Subtest: resolveHostCoverage recomputes coverage from highlight requirement ids
+ok 15 - resolveHostCoverage recomputes coverage from highlight requirement ids
+  ---
+  duration_ms: 0.235067
+  type: 'test'
+  ...
+# Subtest: resolveHostCoverage never adopts inflated claimed ratios
+ok 16 - resolveHostCoverage never adopts inflated claimed ratios
+  ---
+  duration_ms: 0.142561
+  type: 'test'
+  ...
+# Subtest: resolveHostCoverage keeps a lower honest claim
+ok 17 - resolveHostCoverage keeps a lower honest claim
+  ---
+  duration_ms: 0.114286
+  type: 'test'
+  ...
+# Subtest: resolveHostCoverage lowers evidence when highlights lack quotes
+ok 18 - resolveHostCoverage lowers evidence when highlights lack quotes
+  ---
+  duration_ms: 0.151592
+  type: 'test'
+  ...
+# Subtest: resolveHostCoverage is zero evidence when JD has requirements but no highlights
+ok 19 - resolveHostCoverage is zero evidence when JD has requirements but no highlights
+  ---
+  duration_ms: 0.072521
+  type: 'test'
+  ...
+# Subtest: presentMatchScore degrades precision when evidence is incomplete
+ok 20 - presentMatchScore degrades precision when evidence is incomplete
+  ---
+  duration_ms: 0.640808
+  type: 'test'
+  ...
+# Subtest: confidenceFromEvidence thresholds
+ok 21 - confidenceFromEvidence thresholds
+  ---
+  duration_ms: 0.113826
+  type: 'test'
+  ...
+# Subtest: buildDimensionScores attaches correct weights
+ok 22 - buildDimensionScores attaches correct weights
+  ---
+  duration_ms: 0.897781
+  type: 'test'
+  ...
+# Subtest: computeFinalScore calculates weighted sum correctly
+ok 23 - computeFinalScore calculates weighted sum correctly
+  ---
+  duration_ms: 0.192347
+  type: 'test'
+  ...
+# Subtest: computeFinalScore rounds to one decimal
+ok 24 - computeFinalScore rounds to one decimal
+  ---
+  duration_ms: 0.152673
+  type: 'test'
+  ...
+# Subtest: buildDimensionScores throws when a dimension is missing
+ok 25 - buildDimensionScores throws when a dimension is missing
+  ---
+  duration_ms: 0.441569
+  type: 'test'
+  ...
+# Subtest: buildDimensionScores throws on score > 100
+ok 26 - buildDimensionScores throws on score > 100
+  ---
+  duration_ms: 0.158955
+  type: 'test'
+  ...
+# Subtest: buildDimensionScores throws on score < 0
+ok 27 - buildDimensionScores throws on score < 0
+  ---
+  duration_ms: 0.128488
+  type: 'test'
+  ...
+# Subtest: scoreToTier returns excellent for >= 90
+ok 28 - scoreToTier returns excellent for >= 90
+  ---
+  duration_ms: 0.232427
+  type: 'test'
+  ...
+# Subtest: scoreToTier returns correct tiers for boundaries
+ok 29 - scoreToTier returns correct tiers for boundaries
+  ---
+  duration_ms: 0.100902
+  type: 'test'
+  ...
+# Subtest: tool stores report in MatchReportStore after execution
+ok 30 - tool stores report in MatchReportStore after execution
+  ---
+  duration_ms: 2.201337
+  type: 'test'
+  ...
+# Subtest: tool result contains reportId
+ok 31 - tool result contains reportId
+  ---
+  duration_ms: 0.406224
+  type: 'test'
+  ...
+# Subtest: tool result contains jdTitle from the JD reader
+ok 32 - tool result contains jdTitle from the JD reader
+  ---
+  duration_ms: 0.379029
+  type: 'test'
+  ...
+# Subtest: tool finalScore is computed from fixed weights, not passed as-is
+ok 33 - tool finalScore is computed from fixed weights, not passed as-is
+  ---
+  duration_ms: 0.259895
+  type: 'test'
+  ...
+# Subtest: store entry has correct jdTitle and jdCompany from JD
+ok 34 - store entry has correct jdTitle and jdCompany from JD
+  ---
+  duration_ms: 0.279163
+  type: 'test'
+  ...
+# Subtest: tool reads jdId from JD reader to build jd reference
+ok 35 - tool reads jdId from JD reader to build jd reference
+  ---
+  duration_ms: 0.192492
+  type: 'test'
+  ...
+# Subtest: tool result tier is based on computed finalScore
+ok 36 - tool result tier is based on computed finalScore
+  ---
+  duration_ms: 0.2601
+  type: 'test'
+  ...
+# Subtest: tool uses usedExperiences to populate experience references
+ok 37 - tool uses usedExperiences to populate experience references
+  ---
+  duration_ms: 0.254526
+  type: 'test'
+  ...
+# Subtest: host clamps inflated coverage and evidence completeness claims
+ok 38 - host clamps inflated coverage and evidence completeness claims
+  ---
+  duration_ms: 0.426855
+  type: 'test'
+  ...
+# Subtest: host records local model id and scorer version 1.1
+ok 39 - host records local model id and scorer version 1.1
+  ---
+  duration_ms: 0.38388
+  type: 'test'
+  ...
+# Subtest: tool summary reminds score is not a hiring probability
+ok 40 - tool summary reminds score is not a hiring probability
+  ---
+  duration_ms: 0.297238
+  type: 'test'
+  ...
+# Subtest: system prompt plans dynamic bullet lines and uses component expansion
+ok 41 - system prompt plans dynamic bullet lines and uses component expansion
+  ---
+  duration_ms: 2.169222
+  type: 'test'
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 41
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1318.801861

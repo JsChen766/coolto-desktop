@@ -31,6 +31,12 @@ function severityLabel(severity: string): string {
   if (severity === "preferred") return translate("优先");
   return translate("可选");
 }
+
+function displayScore(report: MatchReportArtifactData): number {
+  return typeof report.displayScore === "number"
+    ? report.displayScore
+    : Math.round(report.finalScore);
+}
 </script>
 
 <template>
@@ -41,7 +47,7 @@ function severityLabel(severity: string): string {
   >
     <div class="match-card-header">
       <div class="match-score-circle" :style="{ '--tier-color': tierColor(report.tier) }">
-        <span class="match-score-num">{{ Math.round(report.finalScore) }}</span>
+        <span class="match-score-num">{{ displayScore(report) }}</span>
         <span class="match-score-label">{{ $t('分') }}</span>
       </div>
       <div class="match-card-meta">
@@ -53,6 +59,14 @@ function severityLabel(severity: string): string {
       </div>
       <ArrowUpRight class="match-card-open" :size="16" :stroke-width="1.8" aria-hidden="true" />
     </div>
+
+    <p class="match-score-disclaimer">{{ $t('相对参考，非录用概率') }}</p>
+    <p
+      v-if="report.scoreConfidence === 'low'"
+      class="match-score-confidence match-score-confidence-low"
+    >
+      {{ $t('信息不足，置信度较低') }}
+    </p>
 
     <ul v-if="report.highlights.length > 0" class="match-highlight-list">
       <li

@@ -210,3 +210,42 @@ test("tool uses usedExperiences to populate experience references", async () => 
   assert.equal(entry?.report.experiences.length, 1);
   assert.equal(entry?.report.experiences[0]?.experienceId, "exp-1");
 });
+
+test("host clamps inflated coverage and evidence completeness claims", async () => {
+  const store = new MatchReportStore();
+  const tool = makeTool(makeJdReader(), store);
+  const inflated = {
+    ...validParams,
+    coverageRatio: 1,
+    evidenceCompleteness: 1,
+  };
+  await tool.execute("call-1", inflated);
+  const entry = store.getLatest();
+  // JD has 2 requirements; validParams highlights only req-2 → coverage 0.5
+  assert.equal(entry?.report.coverageRatio, 0.5);
+  assert.equal(entry?.report.evidenceCompleteness, 1);
+});
+
+test("host records local model id and scorer version 1.1", async () => {
+  const store = new MatchReportStore();
+  const tool = createPrepareMatchAnalysisTool(
+    makeJdReader(),
+    makeExperienceReader(),
+    store,
+    { modelId: "deepseek-chat" },
+  );
+  await tool.execute("call-1", validParams);
+  const entry = store.getLatest();
+  assert.equal(entry?.report.meta.modelId, "deepseek-chat");
+  assert.equal(entry?.report.meta.scorerVersion, "1.1");
+});
+
+test("tool summary reminds score is not a hiring probability", async () => {
+  const store = new MatchReportStore();
+  const tool = makeTool(makeJdReader(), store);
+  const result = await tool.execute("call-1", validParams);
+  const text = result.content[0]?.type === "text" ? result.content[0].text : "";
+  const summary = JSON.parse(text) as { disclaimer: string; instruction: string };
+  assert.match(summary.disclaimer, /非录用概率/u);
+  assert.match(summary.instruction, /非录用概率/u);
+});

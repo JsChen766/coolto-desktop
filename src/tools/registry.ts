@@ -79,6 +79,8 @@ export interface ToolRegistryDependencies extends
   selectedFileRegistry?: SelectedFileRegistry;
   approvalManager?: ApprovalManager;
   matchReportStore?: MatchReportStore;
+  /** Local BYO model id recorded on MatchReport.meta (no secrets). */
+  matchModelId?: string;
   browserPageReader?: BrowserPageReader;
   browserAgentController?: BrowserAgentController;
   browserPageOperator?: BrowserPageOperator;
@@ -166,6 +168,7 @@ export function createToolRegistry(
         dependencies.jdReader,
         dependencies.experienceReader,
         dependencies.matchReportStore,
+        { modelId: dependencies.matchModelId },
       ),
     );
   }

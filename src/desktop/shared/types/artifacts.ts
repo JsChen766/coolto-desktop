@@ -18,6 +18,12 @@ export interface MatchReportArtifactData {
   gaps: MatchGap[];
   coverageRatio: number;
   evidenceCompleteness: number;
+  /** high | medium | low from host evidence completeness. */
+  scoreConfidence: "high" | "medium" | "low";
+  /** Score shown in UI after precision degradation. */
+  displayScore: number;
+  modelId: string;
+  scorerVersion: string;
   generatedAt: string;
   expired: boolean;
   anchorMessageId?: string;

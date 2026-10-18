@@ -124,3 +124,25 @@
   white-space: nowrap;
 }
 
+
+.match-score-disclaimer {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.match-score-confidence {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.match-score-confidence-low {
+  color: #b95a5a;
+  font-weight: 600;
+}
+
+.match-score-confidence-medium {
+  color: #c8943a;
+}

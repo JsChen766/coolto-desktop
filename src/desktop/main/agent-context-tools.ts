@@ -17,6 +17,7 @@ import type { AiNativeLoopService } from "./agent-task/ai-native-loop-service.js
 import type { TaskLifecycleController } from "../../agent-task/task-lifecycle-controller.js";
 import type { JobScoutController } from "../../job-scout/job-scout-controller.js";
 import { createToolRegistry } from "../../tools/registry.js";
+import { readConfig } from "../../config.js";
 import type { AgentContextFactoryDependencies } from "./agent-context-factory.js";
 import type { ResumeSourceSnapshotBuilder } from "../../resume/source-snapshot.js";
 import { resolveResumeProfilePreferenceContext } from "./profile-preference-context.js";
@@ -47,6 +48,7 @@ export interface AgentToolAssemblyInput {
 
 export function createAgentContextTools(input: AgentToolAssemblyInput): CapabilityAgentTool[] {
   const { deps } = input;
+  const config = readConfig();
   return createToolRegistry({
     currentUserReader: deps.apiClient, userProfileReader: deps.profiles,
     profileProposals: deps.profileProposals, preferences: deps.preferences,
@@ -56,7 +58,8 @@ export function createAgentContextTools(input: AgentToolAssemblyInput): Capabili
     materialHost: deps.materialHost,
     jdReader: deps.jds, resumeReader: deps.resumePublications,
     importProposalStore: input.proposalStore, jdProposalStore: input.jdProposalStore,
-    matchReportStore: input.matchReportStore, approvalManager: input.approvalManager,
+    matchReportStore: input.matchReportStore, matchModelId: config.modelId,
+    approvalManager: input.approvalManager,
     selectedFileRegistry: input.selectedFiles, deliveryResumeFiles: deps.deliveryResumeFiles,
     managedResumeUploads: deps.managedResumeUploads, aiNativeLoops: input.aiNativeLoops,
     browserPageReader: deps.browserAgentController, browserAgentController: deps.browserAgentController,

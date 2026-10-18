@@ -53,13 +53,29 @@ function scoreBarWidth(dim: MatchDimensionScore): string {
 function formatDate(iso: string): string {
   return iso.slice(0, 16).replace("T", " ");
 }
+
+function formatRatio(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+function displayScore(data: MatchReportArtifactData): number {
+  return typeof data.displayScore === "number"
+    ? data.displayScore
+    : Math.round(data.finalScore);
+}
+
+function confidenceLabel(confidence: MatchReportArtifactData["scoreConfidence"] | undefined): string {
+  if (confidence === "low") return translate("信息不足，置信度较低");
+  if (confidence === "medium") return translate("置信度中等");
+  return "";
+}
 </script>
 
 <template>
   <aside class="match-report-panel">
     <div class="match-panel-header">
       <div class="match-panel-score" :style="{ '--tier-color': tierColor(data.tier) }">
-        {{ Math.round(data.finalScore) }}
+        {{ displayScore(data) }}
       </div>
       <div class="match-panel-meta">
         <span class="match-panel-tier" :style="{ color: tierColor(data.tier) }">
@@ -69,6 +85,20 @@ function formatDate(iso: string): string {
         <p v-if="data.jdCompany" class="match-panel-company">{{ data.jdCompany }}</p>
       </div>
     </div>
+
+    <p class="match-score-disclaimer match-panel-disclaimer">
+      {{ $t('相对参考，非录用概率') }}
+    </p>
+    <p
+      v-if="data.scoreConfidence === 'low' || data.scoreConfidence === 'medium'"
+      class="match-score-confidence"
+      :class="{
+        'match-score-confidence-low': data.scoreConfidence === 'low',
+        'match-score-confidence-medium': data.scoreConfidence === 'medium',
+      }"
+    >
+      {{ confidenceLabel(data.scoreConfidence) }}
+    </p>
 
     <section class="match-panel-section">
       <h3 class="match-panel-section-title">{{ $t('维度得分') }}</h3>
@@ -121,6 +151,27 @@ function formatDate(iso: string): string {
           </div>
           <p class="match-gap-explanation">{{ g.explanation }}</p>
           <p class="match-gap-suggestion">{{ $tf('建议：{suggestion}', { suggestion: g.suggestion }) }}</p>
+        </li>
+      </ul>
+    </section>
+
+    <section class="match-panel-section match-panel-trust">
+      <ul class="match-trust-list">
+        <li>
+          <span>{{ $t('覆盖率') }}</span>
+          <strong>{{ formatRatio(data.coverageRatio) }}</strong>
+        </li>
+        <li>
+          <span>{{ $t('证据完整度') }}</span>
+          <strong>{{ formatRatio(data.evidenceCompleteness) }}</strong>
+        </li>
+        <li v-if="data.scorerVersion">
+          <span>{{ $t('规则版本') }}</span>
+          <strong>{{ data.scorerVersion }}</strong>
+        </li>
+        <li v-if="data.modelId">
+          <span>{{ $t('模型') }}</span>
+          <strong>{{ data.modelId }}</strong>
         </li>
       </ul>
     </section>
