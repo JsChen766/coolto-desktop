@@ -1,0 +1,358 @@
+TAP version 13
+# Subtest: Preference create waits for approval and emits the accepted backend mutation shape
+ok 1 - Preference create waits for approval and emits the accepted backend mutation shape
+  ---
+  duration_ms: 5.357389
+  type: 'test'
+  ...
+# Subtest: Preference update keeps priority when a value change omits priority
+ok 2 - Preference update keeps priority when a value change omits priority
+  ---
+  duration_ms: 0.901831
+  type: 'test'
+  ...
+# Subtest: Preference disable, re-enable, and delete remain proposal-bound mutations
+ok 3 - Preference disable, re-enable, and delete remain proposal-bound mutations
+  ---
+  duration_ms: 1.036955
+  type: 'test'
+  ...
+# Subtest: Preference reapply uses replaceBlocked and preserves the server expected version
+ok 4 - Preference reapply uses replaceBlocked and preserves the server expected version
+  ---
+  duration_ms: 0.621549
+  type: 'test'
+  ...
+# Subtest: Preference resolution excludes local conflict and failed entities
+ok 5 - Preference resolution excludes local conflict and failed entities
+  ---
+  duration_ms: 0.881057
+  type: 'test'
+  ...
+# Subtest: conflicted Preference blocks ordinary mutation until recovery
+ok 6 - conflicted Preference blocks ordinary mutation until recovery
+  ---
+  duration_ms: 0.753117
+  type: 'test'
+  ...
+# Subtest: accepted behavior suggestions are consumed durably and stay consumed after restart
+ok 7 - accepted behavior suggestions are consumed durably and stay consumed after restart
+  ---
+  duration_ms: 2.397052
+  type: 'test'
+  ...
+# Subtest: suggestion-bound preference approval consumes the suggestion with the local enqueue
+ok 8 - suggestion-bound preference approval consumes the suggestion with the local enqueue
+  ---
+  duration_ms: 0.977808
+  type: 'test'
+  ...
+# Subtest: accepted suggestion orphan is reconciled after enqueue and rollback persistence failures
+ok 9 - accepted suggestion orphan is reconciled after enqueue and rollback persistence failures
+  ---
+  duration_ms: 1.24484
+  type: 'test'
+  ...
+# Subtest: registry is allowlisted, typed, scoped, and sensitive-safe
+ok 10 - registry is allowlisted, typed, scoped, and sensitive-safe
+  ---
+  duration_ms: 3.735835
+  type: 'test'
+  ...
+# Subtest: rejects email address in every free-list Preference key
+ok 11 - rejects email address in every free-list Preference key
+  ---
+  duration_ms: 0.219397
+  type: 'test'
+  ...
+# Subtest: rejects international phone in every free-list Preference key
+ok 12 - rejects international phone in every free-list Preference key
+  ---
+  duration_ms: 0.39578
+  type: 'test'
+  ...
+# Subtest: rejects local phone number in every free-list Preference key
+ok 13 - rejects local phone number in every free-list Preference key
+  ---
+  duration_ms: 0.152312
+  type: 'test'
+  ...
+# Subtest: rejects Bearer token in every free-list Preference key
+ok 14 - rejects Bearer token in every free-list Preference key
+  ---
+  duration_ms: 0.529593
+  type: 'test'
+  ...
+# Subtest: rejects OpenAI API key in every free-list Preference key
+ok 15 - rejects OpenAI API key in every free-list Preference key
+  ---
+  duration_ms: 0.103511
+  type: 'test'
+  ...
+# Subtest: rejects publishable API key in every free-list Preference key
+ok 16 - rejects publishable API key in every free-list Preference key
+  ---
+  duration_ms: 0.265544
+  type: 'test'
+  ...
+# Subtest: rejects GitHub API token in every free-list Preference key
+ok 17 - rejects GitHub API token in every free-list Preference key
+  ---
+  duration_ms: 0.103706
+  type: 'test'
+  ...
+# Subtest: rejects Slack API token in every free-list Preference key
+ok 18 - rejects Slack API token in every free-list Preference key
+  ---
+  duration_ms: 0.189085
+  type: 'test'
+  ...
+# Subtest: rejects Google API key in every free-list Preference key
+ok 19 - rejects Google API key in every free-list Preference key
+  ---
+  duration_ms: 0.254057
+  type: 'test'
+  ...
+# Subtest: rejects AWS access key ID in every free-list Preference key
+ok 20 - rejects AWS access key ID in every free-list Preference key
+  ---
+  duration_ms: 0.137815
+  type: 'test'
+  ...
+# Subtest: rejects JWT in every free-list Preference key
+ok 21 - rejects JWT in every free-list Preference key
+  ---
+  duration_ms: 0.068606
+  type: 'test'
+  ...
+# Subtest: rejects Chinese identity ID in every free-list Preference key
+ok 22 - rejects Chinese identity ID in every free-list Preference key
+  ---
+  duration_ms: 1.359479
+  type: 'test'
+  ...
+# Subtest: rejects US SSN in every free-list Preference key
+ok 23 - rejects US SSN in every free-list Preference key
+  ---
+  duration_ms: 0.060653
+  type: 'test'
+  ...
+# Subtest: rejects passport-like ID in every free-list Preference key
+ok 24 - rejects passport-like ID in every free-list Preference key
+  ---
+  duration_ms: 0.103171
+  type: 'test'
+  ...
+# Subtest: benign sensitive-looking values remain accepted in every free-list key
+ok 25 - benign sensitive-looking values remain accepted in every free-list key
+  ---
+  duration_ms: 0.238014
+  type: 'test'
+  ...
+# Subtest: scope normalization enforces canonical encoding and mutually exclusive modifiers
+ok 26 - scope normalization enforces canonical encoding and mutually exclusive modifiers
+  ---
+  duration_ms: 0.423213
+  type: 'test'
+  ...
+# Subtest: Preference normalization derives immutable hashes and rejects caller tampering
+ok 27 - Preference normalization derives immutable hashes and rejects caller tampering
+  ---
+  duration_ms: 1.306475
+  type: 'test'
+  ...
+# Subtest: behavior-confirmed provenance must be the normalized suggestion pattern
+ok 28 - behavior-confirmed provenance must be the normalized suggestion pattern
+  ---
+  duration_ms: 0.167701
+  type: 'test'
+  ...
+# Subtest: proposal input validates action snapshots, lifecycle actions, and owner binding
+ok 29 - proposal input validates action snapshots, lifecycle actions, and owner binding
+  ---
+  duration_ms: 0.576218
+  type: 'test'
+  ...
+# Subtest: delete rejects missing preferenceId before version checks
+ok 30 - delete rejects missing preferenceId before version checks
+  ---
+  duration_ms: 0.092313
+  type: 'test'
+  ...
+# Subtest: delete rejects missing expectedEntityVersion with an ID
+ok 31 - delete rejects missing expectedEntityVersion with an ID
+  ---
+  duration_ms: 0.055083
+  type: 'test'
+  ...
+# Subtest: pending suggestions are typed, thresholded, and never represented as active Preferences
+ok 32 - pending suggestions are typed, thresholded, and never represented as active Preferences
+  ---
+  duration_ms: 1.012039
+  type: 'test'
+  ...
+# Subtest: rejection suppression is owner-scoped, bounded, and expires without mutating suggestion
+ok 33 - rejection suppression is owner-scoped, bounded, and expires without mutating suggestion
+  ---
+  duration_ms: 2.516643
+  type: 'test'
+  ...
+# Subtest: behavior-derived evidence is bound to owner, session, action, and event
+ok 34 - behavior-derived evidence is bound to owner, session, action, and event
+  ---
+  duration_ms: 0.855295
+  type: 'test'
+  ...
+# Subtest: suggestion reads require host clock and persistent suppression evidence
+ok 35 - suggestion reads require host clock and persistent suppression evidence
+  ---
+  duration_ms: 2.286845
+  type: 'test'
+  ...
+# Subtest: Preference dialog hands focus across list, edit, proposal, and list phases
+ok 36 - Preference dialog hands focus across list, edit, proposal, and list phases
+  ---
+  duration_ms: 4.56928
+  type: 'test'
+  ...
+# Subtest: Preference validation exposes invalid focus and live descriptions
+ok 37 - Preference validation exposes invalid focus and live descriptions
+  ---
+  duration_ms: 1.545105
+  type: 'test'
+  ...
+# Subtest: Preference close restores only a still-connected opener
+ok 38 - Preference close restores only a still-connected opener
+  ---
+  duration_ms: 0.746556
+  type: 'test'
+  ...
+# Subtest: Preference proposal copy is local-only and previews before save
+ok 39 - Preference proposal copy is local-only and previews before save
+  ---
+  duration_ms: 1.880722
+  type: 'test'
+  ...
+# Subtest: Preference form covers every supported scope and validates scoped fields
+ok 40 - Preference form covers every supported scope and validates scoped fields
+  ---
+  duration_ms: 1.397424
+  type: 'test'
+  ...
+# Subtest: Preference approval draft is local-only and previews before write
+ok 41 - Preference approval draft is local-only and previews before write
+  ---
+  duration_ms: 1.254459
+  type: 'test'
+  ...
+# Subtest: prepare_preference_change tool requires explicit remember-and-approve wording
+ok 42 - prepare_preference_change tool requires explicit remember-and-approve wording
+  ---
+  duration_ms: 0.225803
+  type: 'test'
+  ...
+# Subtest: sensitive identity and auth shapes are rejected from preference values
+ok 43 - sensitive identity and auth shapes are rejected from preference values
+  ---
+  duration_ms: 1.906937
+  type: 'test'
+  ...
+# Subtest: deleted preference is ignored and current-turn override wins
+ok 44 - deleted preference is ignored and current-turn override wins
+  ---
+  duration_ms: 3.869269
+  type: 'test'
+  ...
+# Subtest: resolution precedence is scope, priority, source, time, then stable ID
+ok 45 - resolution precedence is scope, priority, source, time, then stable ID
+  ---
+  duration_ms: 4.855561
+  type: 'test'
+  ...
+# Subtest: priority and source/time precedence apply after equal scope specificity
+ok 46 - priority and source/time precedence apply after equal scope specificity
+  ---
+  duration_ms: 0.763383
+  type: 'test'
+  ...
+# Subtest: equal-rank conflicting values produce a conflict instead of an ID winner
+ok 47 - equal-rank conflicting values produce a conflict instead of an ID winner
+  ---
+  duration_ms: 0.38835
+  type: 'test'
+  ...
+# Subtest: current message override wins ephemerally and is explainable
+ok 48 - current message override wins ephemerally and is explainable
+  ---
+  duration_ms: 0.450418
+  type: 'test'
+  ...
+# Subtest: disabled, deleted, expired, mismatched, and pending suggestion entries never apply
+ok 49 - disabled, deleted, expired, mismatched, and pending suggestion entries never apply
+  ---
+  duration_ms: 0.809179
+  type: 'test'
+  ...
+# Subtest: resolution ordering, context fingerprint, and selected values are deterministic and immutable
+ok 50 - resolution ordering, context fingerprint, and selected values are deterministic and immutable
+  ---
+  duration_ms: 2.018891
+  type: 'test'
+  ...
+# Subtest: resolution requires an explicit clock and evaluates expiry deterministically
+ok 51 - resolution requires an explicit clock and evaluates expiry deterministically
+  ---
+  duration_ms: 0.338472
+  type: 'test'
+  ...
+# Subtest: resolution rejects foreign and mixed owner inputs
+ok 52 - resolution rejects foreign and mixed owner inputs
+  ---
+  duration_ms: 0.362785
+  type: 'test'
+  ...
+# Subtest: session-bound contexts have distinct fingerprints and reject cross-session suggestions
+ok 53 - session-bound contexts have distinct fingerprints and reject cross-session suggestions
+  ---
+  duration_ms: 0.358352
+  type: 'test'
+  ...
+# Subtest: ANA suggestion identity changes with a materially different scope
+ok 54 - ANA suggestion identity changes with a materially different scope
+  ---
+  duration_ms: 3.952612
+  type: 'test'
+  ...
+# Subtest: Preference mutations use the strict backend business payload
+ok 55 - Preference mutations use the strict backend business payload
+  ---
+  duration_ms: 1.137175
+  type: 'test'
+  ...
+# Subtest: Sync normalizers accept Preference bootstrap, pull, and push results
+ok 56 - Sync normalizers accept Preference bootstrap, pull, and push results
+  ---
+  duration_ms: 0.302012
+  type: 'test'
+  ...
+# Subtest: Sync normalizers reject unknown entity types instead of widening the boundary
+ok 57 - Sync normalizers reject unknown entity types instead of widening the boundary
+  ---
+  duration_ms: 0.371266
+  type: 'test'
+  ...
+# Subtest: system prompt plans dynamic bullet lines and uses component expansion
+ok 58 - system prompt plans dynamic bullet lines and uses component expansion
+  ---
+  duration_ms: 2.187676
+  type: 'test'
+  ...
+1..58
+# tests 58
+# suites 0
+# pass 58
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1674.228017

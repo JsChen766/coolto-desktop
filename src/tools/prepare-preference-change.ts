@@ -52,7 +52,7 @@ export function createPreparePreferenceChangeTool(
   return {
     name: "prepare_preference_change",
     label: "准备偏好变更",
-    description: "只为用户明确要求的已注册表达或求职习惯创建 Preference 审批。不会保存任意提示词、敏感信息或行为推断；本轮采用不等于长期保存。",
+    description: "仅在用户明确要求记住长期习惯（如「以后都这样」）时调用。先创建可预览的审批，用户确认前不写入本机。只支持 registry 已注册的表达/求职习惯；禁止密码、Token、OTP、身份/法律、联系方式或未确认推断。本轮临时指令不得调用本工具。",
     parameters,
     execute: async (_toolCallId, params) => {
       const proposal = await prepareProposal(preferences, params as PreferenceToolParams);

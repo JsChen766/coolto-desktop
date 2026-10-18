@@ -14,7 +14,7 @@ export function createPreferenceUpdateExecutor(
     execute: async (context) => {
       const payload = readPayload(context);
       const result = await preferences.execute(payload.proposalId);
-      return { summary: result ? "长期偏好已保存到本机，等待同步" : "已接受服务端长期偏好" };
+      return { summary: result ? "长期偏好已写入本机" : "已按已拉取副本更新本机偏好" };
     },
   };
 }

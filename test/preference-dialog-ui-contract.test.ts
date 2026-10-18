@@ -37,3 +37,17 @@ test("Preference close restores only a still-connected opener", async () => {
   assert.match(lifecycle, /preferenceTrigger\.value\?\.isConnected/u);
   assert.match(lifecycle, /preferenceTrigger\.value\.focus\(\)/u);
 });
+
+test("Preference proposal copy is local-only and previews before save", async () => {
+  const dialog = await source("components/PreferenceDialog.vue");
+  assert.match(dialog, /确认偏好变更/u);
+  assert.match(dialog, /查看变更并确认/u);
+  assert.match(dialog, /确认并保存/u);
+  assert.match(dialog, /确认后会写入本机偏好/u);
+  assert.match(dialog, /开源版不连接 Coolto 云/u);
+  assert.doesNotMatch(dialog, /同步 Worker 提交/u);
+  assert.doesNotMatch(dialog, /Coolto 同步协议/u);
+  const hook = await source("preference/use-preference-dialog.ts");
+  assert.match(hook, /已写入本机偏好/u);
+  assert.doesNotMatch(hook, /等待同步/u);
+});

@@ -29,7 +29,7 @@ export function createPreferenceApprovalDraft(
     scopeKey: PREFERENCE_CHANGE_APPROVAL_SCOPE,
     risk: preview.action === "delete" ? "destructive" : "write",
     title: actionTitle(preview.action),
-    description: "只影响之后的新任务；已生成的简历、投递记录和历史对话不会改变。",
+    description: "接受后会写入本机长期偏好（经本地同步队列持久化；开源版不连接 Coolto 云）。只影响之后的新任务；已生成的简历、投递记录和历史对话不会改变。",
     preview: {
       summary: [
         { label: "规则", value: preview.key },
@@ -61,7 +61,7 @@ function actionTitle(action: ApprovalPreviewPreference["action"]): string {
   return {
     create: "保存为长期偏好", update: "更新长期偏好", disable: "停用长期偏好",
     enable: "重新启用长期偏好", delete: "删除长期偏好", reapply: "重新应用长期偏好",
-    accept_server: "接受服务端长期偏好",
+    accept_server: "接受已拉取副本的长期偏好",
   }[action];
 }
 

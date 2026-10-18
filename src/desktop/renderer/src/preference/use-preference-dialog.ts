@@ -83,7 +83,7 @@ export function usePreferenceDialog(api: DesktopApi) {
     if (!proposal.value) return;
     await run(async () => {
       await api.preferences.executeProposal(proposal.value!.id);
-      notice.value = "已保存到本机，等待同步";
+      notice.value = "已写入本机偏好";
       cancelEdit();
       await load();
     });
