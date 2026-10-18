@@ -124,6 +124,8 @@ npm run logout
 
 ## 验证
 
+开源自测（无 Key / 有 Key 清单与 GUI 步骤）见 [`local-docs/oss-self-test-checklist.md`](local-docs/oss-self-test-checklist.md)；GUI 点通见 [`local-docs/oss-gui-self-test.md`](local-docs/oss-gui-self-test.md)。
+
 ```bash
 npm run check
 ```
