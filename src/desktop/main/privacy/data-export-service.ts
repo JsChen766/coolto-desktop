@@ -10,6 +10,7 @@ import { canonicalExportJson } from "../../../privacy/export-canonical.js";
 import type { ExportLocalPayload } from "../../../privacy/export-types.js";
 import type { PrivacyExportOptions, PrivacyExportResult } from "../../shared/types/privacy.js";
 import { renameWithRetry } from "../atomic-rename.js";
+import { recordLocalDiagnostic } from "../../../diagnostics/local-event-log.js";
 
 export interface ExportLocalReadOptions {
   apiBaseUrl: string;
@@ -83,13 +84,28 @@ export class DataExportService {
     if (!sameScope(scope, this.getScope())) throw new Error("账号来源切换期间拒绝导出");
     const suggestedFilename = `coolto-export-v1-${filenameTimestamp(this.now())}.coolto-export.json`;
     const destination = await this.saveDialog.choosePath(suggestedFilename);
-    if (!destination) return { status: "cancelled", fileName: null, mode: null };
+    if (!destination) {
+      recordLocalDiagnostic({ action: "data_export", phase: "cancelled" });
+      return { status: "cancelled", fileName: null, mode: null };
+    }
     if (!sameScope(scope, this.getScope())) throw new Error("账号来源切换期间拒绝导出");
     try {
       await writeAtomic(destination, canonicalExportJson(envelope), () => sameScope(scope, this.getScope()));
     } catch {
+      recordLocalDiagnostic({ action: "data_export", phase: "failure" });
       throw new Error("导出文件写入失败，请重试");
     }
+    recordLocalDiagnostic({
+      action: "data_export",
+      phase: "success",
+      detail: {
+        mode,
+        includeConversations: options.includeConversations,
+        includeDrafts: options.includeDrafts,
+        includeTasks: options.includeTasks,
+        includeCloudAssets: options.includeCloudAssets,
+      },
+    });
     return { status: "exported", fileName: basename(destination), mode };
   }
 }

@@ -1,3 +1,4 @@
+import { recordLocalDiagnostic } from "../../../diagnostics/local-event-log.js";
 export interface LocalClearScope {
   apiBaseUrl: string;
   ownerId: string;
@@ -29,6 +30,11 @@ export async function executeLocalClear(
   operations: LocalClearOperations,
 ): Promise<LocalClearResult> {
   if (operations.agentRunning) {
+    recordLocalDiagnostic({
+      action: "data_clear",
+      phase: "cancelled",
+      detail: { reason: "agent_running" },
+    });
     return {
       status: "blocked",
       cloudAssets: "preserved",
@@ -52,8 +58,14 @@ export async function executeLocalClear(
   if (failed.length === 0) {
     await runScope("session", operations.clearSession, cleared, failed);
   }
+  const status = failed.length === 0 ? "cleared" : "partial_failure";
+  recordLocalDiagnostic({
+    action: "data_clear",
+    phase: status === "cleared" ? "success" : "failure",
+    detail: { clearedCount: cleared.length, failedCount: failed.length },
+  });
   return {
-    status: failed.length === 0 ? "cleared" : "partial_failure",
+    status,
     cloudAssets: "preserved",
     cleared,
     failed,

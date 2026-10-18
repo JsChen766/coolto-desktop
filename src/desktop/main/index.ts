@@ -1,18 +1,20 @@
-import { dirname, join } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
 
 import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
 
+import {
+  configureLocalDiagnostics,
+  recordLocalDiagnostic,
+} from "../../diagnostics/local-event-log.js";
 import { registerDesktopIpc } from "./ipc.js";
 import { registerBrowserIpc } from "./browser/browser-ipc.js";
 import { ElectronResumeCompilerService } from "./resume-compiler-service.js";
-import { runResumeWorkspaceQa } from "./resume-workspace-qa.js";
-import { getResumeFixture } from "../../resume/fixtures.js";
-import { inspectResumePdf } from "../../resume/pdf-postflight.js";
-import { runResumePdfExportQa } from "./resume-pdf-export-qa.js";
 import { runResumePerformanceQa } from "./resume-performance-qa.js";
+import { runResumeRendererQa } from "./dev-resume-renderer-qa.js";
 import { initializeNativeProtection } from "./native-protection.js";
 import { CalendarDeepLinkRouter } from "./calendar/calendar-deep-link-router.js";
+
 let mainWindow: BrowserWindow | undefined;
 const calendarDeepLinks = new CalendarDeepLinkRouter(() => mainWindow);
 calendarDeepLinks.listen();
@@ -33,6 +35,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(bootstrap);
 }
 initializeNativeProtection();
+
 function createWindow(): void {
   const isMac = process.platform === "darwin";
   const resumeCompiler = new ElectronResumeCompilerService(ipcMain);
@@ -112,96 +115,6 @@ function createWindow(): void {
   mainWindow = window;
 }
 
-async function writeOutput(path: string, data: string | Buffer): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, data);
-}
-
-async function runResumeRendererQa(): Promise<void> {
-  const compiler = new ElectronResumeCompilerService(ipcMain);
-  try {
-    const fixtureIds = (
-      process.env.COOLTO_RESUME_QA_FIXTURES ??
-      "zh-qualified,en-qualified,mixed-qualified,underfilled,tail-failure,overflow"
-    )
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean);
-    const compileResults = [];
-    for (const fixtureId of fixtureIds) {
-      compileResults.push(
-        await compiler.compile(getResumeFixture(fixtureId), fixtureId),
-      );
-    }
-
-    const concurrentCompileResults = await Promise.all([
-      compiler.compile(getResumeFixture("education-details-qualified"), "concurrent-qualified"),
-      compiler.compile(getResumeFixture("tail-failure"), "concurrent-tail"),
-    ]);
-
-    const pdfFixtureId =
-      process.env.COOLTO_RESUME_QA_PDF_FIXTURE ?? "zh-qualified";
-    let pdfCompilation;
-    try {
-      pdfCompilation = await compiler.compileForPdf(
-        getResumeFixture(pdfFixtureId),
-        pdfFixtureId,
-        Boolean(process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH),
-      );
-    } catch (error: unknown) {
-      if (process.env.COOLTO_RESUME_QA_RESULT_PATH) {
-        await writeOutput(
-          process.env.COOLTO_RESUME_QA_RESULT_PATH,
-          `${JSON.stringify({ compileResults, concurrentCompileResults, pdfError: String(error) }, null, 2)}\n`,
-        );
-      }
-      throw error;
-    }
-    const pdfCompileResult = pdfCompilation.result;
-    const pdf = pdfCompilation.pdf;
-    const postflight = await inspectResumePdf(pdf);
-    const workspaceResult = await runResumeWorkspaceQa(compiler);
-    const g6ExportResult = process.env.COOLTO_RESUME_G6_EXPORT_PATH
-      ? await runResumePdfExportQa(
-          compiler,
-          process.env.COOLTO_RESUME_G6_EXPORT_PATH,
-        )
-      : undefined;
-    const result = {
-      compileResults,
-      concurrentCompileResults,
-      pdfCompileResult,
-      postflight,
-      workspaceResult,
-      ...(g6ExportResult ? { g6ExportResult } : {}),
-    };
-
-    if (process.env.COOLTO_RESUME_QA_RESULT_PATH) {
-      await writeOutput(
-        process.env.COOLTO_RESUME_QA_RESULT_PATH,
-        `${JSON.stringify(result, null, 2)}\n`,
-      );
-    }
-    if (process.env.COOLTO_RESUME_QA_PDF_PATH) {
-      await writeOutput(process.env.COOLTO_RESUME_QA_PDF_PATH, pdf);
-    }
-    if (
-      process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH &&
-      pdfCompilation.screenshot
-    ) {
-      await writeOutput(
-        process.env.COOLTO_RESUME_QA_SCREENSHOT_PATH,
-        pdfCompilation.screenshot,
-      );
-    }
-    if (process.env.COOLTO_RESUME_QA_QUIET !== "1") {
-      process.stdout.write(`${JSON.stringify(result)}\n`);
-    }
-  } finally {
-    compiler.dispose();
-  }
-}
-
 async function bootstrap(): Promise<void> {
   // Headless / keyring-less Linux (CI, cloud VMs): Electron safeStorage stays
   // unavailable without gnome-keyring/libsecret. Dev/unpackaged builds may opt
@@ -213,6 +126,12 @@ async function bootstrap(): Promise<void> {
   ) {
     safeStorage.setUsePlainTextEncryption(true);
   }
+  configureLocalDiagnostics(app.getPath("userData"));
+  void recordLocalDiagnostic({
+    action: "app_start",
+    phase: "success",
+    detail: { platform: process.platform, packaged: app.isPackaged },
+  });
   if (
     !app.isPackaged &&
     process.env.COOLTO_RESUME_PERFORMANCE_QA === "1"

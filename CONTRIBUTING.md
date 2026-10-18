@@ -36,6 +36,15 @@ npm run desktop:dev
 
 开发协作细则以 `AGENTS.md` 为准（行数门禁、Proposal/审批边界、无 commit/push 除非明确允许等）。
 
+## 本机可观测性（PRD §3）
+
+开发与排障时请先阅读 [`local-docs/local-diagnostics.md`](local-docs/local-diagnostics.md)：
+
+- 未打包 `desktop:dev` 可开 DevTools；需要自动化时用 `desktop:dev:cdp`。
+- 本机诊断 JSONL：`<userData>/diagnostics/events.jsonl`（metadata only）。
+- 可用 Agent 任务 UI、审批卡片与简历 generation trace 重建主链路时间线。
+- **禁止**把 API Key、简历/经历正文或绝对隐私路径写入日志、截图或 Issue。
+
 ## 安全审核
 
 贡献前请自检：
