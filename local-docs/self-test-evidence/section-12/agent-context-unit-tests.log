@@ -1,0 +1,244 @@
+TAP version 13
+# Subtest: resume workspace sources are redacted before transcripts are persisted
+ok 1 - resume workspace sources are redacted before transcripts are persisted
+  ---
+  duration_ms: 1.020081
+  type: 'test'
+  ...
+# Subtest: ordinary Agent messages are cloned without redaction
+ok 2 - ordinary Agent messages are cloned without redaction
+  ---
+  duration_ms: 0.632269
+  type: 'test'
+  ...
+# Subtest: in-memory resume revisions are redacted with a rebuild instruction
+ok 3 - in-memory resume revisions are redacted with a rebuild instruction
+  ---
+  duration_ms: 0.171615
+  type: 'test'
+  ...
+# Subtest: cloud Resume content is transient and must be read again
+ok 4 - cloud Resume content is transient and must be read again
+  ---
+  duration_ms: 0.218225
+  type: 'test'
+  ...
+# Subtest: material boundary results expire with the in-memory resume workspace
+ok 5 - material boundary results expire with the in-memory resume workspace
+  ---
+  duration_ms: 0.305141
+  type: 'test'
+  ...
+# Subtest: browser observations and actions expire before transcript persistence
+ok 6 - browser observations and actions expire before transcript persistence
+  ---
+  duration_ms: 0.233538
+  type: 'test'
+  ...
+# Subtest: pending receipt approval results expire across App restart
+ok 7 - pending receipt approval results expire across App restart
+  ---
+  duration_ms: 0.207581
+  type: 'test'
+  ...
+# Subtest: Delegation Proposal expires across App restart
+ok 8 - Delegation Proposal expires across App restart
+  ---
+  duration_ms: 0.216089
+  type: 'test'
+  ...
+# Subtest: Profile and Preference assistant calls persist only rebuild markers
+ok 9 - Profile and Preference assistant calls persist only rebuild markers
+  ---
+  duration_ms: 0.386823
+  type: 'test'
+  ...
+# Subtest: ordinary conversations start from safe local discovery
+ok 10 - ordinary conversations start from safe local discovery
+  ---
+  duration_ms: 1.058887
+  type: 'test'
+  ...
+# Subtest: Profile maintenance exposes only Profile and Preference read/prepare tools
+ok 11 - Profile maintenance exposes only Profile and Preference read/prepare tools
+  ---
+  duration_ms: 0.234518
+  type: 'test'
+  ...
+# Subtest: running AgentTasks keep only lifecycle tools when capability metadata is absent
+ok 12 - running AgentTasks keep only lifecycle tools when capability metadata is absent
+  ---
+  duration_ms: 0.128488
+  type: 'test'
+  ...
+# Subtest: managed scope filters by real grant actions and never leaks cross-domain tools by default
+ok 13 - managed scope filters by real grant actions and never leaks cross-domain tools by default
+  ---
+  duration_ms: 0.148998
+  type: 'test'
+  ...
+# Subtest: managed scope keeps explicitly granted lifecycle and drops bootstrap tools
+ok 14 - managed scope keeps explicitly granted lifecycle and drops bootstrap tools
+  ---
+  duration_ms: 0.207642
+  type: 'test'
+  ...
+# Subtest: every renderer context hint is inert at the IPC prompt boundary
+ok 15 - every renderer context hint is inert at the IPC prompt boundary
+  ---
+  duration_ms: 0.176912
+  type: 'test'
+  ...
+# Subtest: IPC sanitizes prompt input and runtime never reads renderer context authority
+ok 16 - IPC sanitizes prompt input and runtime never reads renderer context authority
+  ---
+  duration_ms: 4.36694
+  type: 'test'
+  ...
+# Subtest: §12 matrix: resume and discovery hide final delivery / mail tools
+ok 17 - §12 matrix: resume and discovery hide final delivery / mail tools
+  ---
+  duration_ms: 1.243192
+  type: 'test'
+  ...
+# Subtest: §12 stage switch: observe blocks write; approved_action allows granted write
+ok 18 - §12 stage switch: observe blocks write; approved_action allows granted write
+  ---
+  duration_ms: 1.282327
+  type: 'test'
+  ...
+# Subtest: §12 restart: page / file / workspace handles expire with re-read instructions
+ok 19 - §12 restart: page / file / workspace handles expire with re-read instructions
+  ---
+  duration_ms: 0.671155
+  type: 'test'
+  ...
+# Subtest: §12 single Agent: runtime is single-agent; write executors are not model tools
+ok 20 - §12 single Agent: runtime is single-agent; write executors are not model tools
+  ---
+  duration_ms: 5.302011
+  type: 'test'
+  ...
+# Subtest: §12 managed grant never widens into unscoped tools by default
+ok 21 - §12 managed grant never widens into unscoped tools by default
+  ---
+  duration_ms: 0.290955
+  type: 'test'
+  ...
+# Subtest: §12 tool capability metadata is required for every registered tool
+ok 22 - §12 tool capability metadata is required for every registered tool
+  ---
+  duration_ms: 0.196562
+  type: 'test'
+  ...
+# Subtest: default stage policy separates observation from approved action
+ok 23 - default stage policy separates observation from approved action
+  ---
+  duration_ms: 0.99828
+  type: 'test'
+  ...
+# Subtest: delegation policy blocks side effects until a host transition exists
+ok 24 - delegation policy blocks side effects until a host transition exists
+  ---
+  duration_ms: 0.639854
+  type: 'test'
+  ...
+# Subtest: TaskStageController issues monotonic transitions bound to grant and context
+ok 25 - TaskStageController issues monotonic transitions bound to grant and context
+  ---
+  duration_ms: 0.8361
+  type: 'test'
+  ...
+# Subtest: observe permits read side effects only when a scope is shared
+ok 26 - observe permits read side effects only when a scope is shared
+  ---
+  duration_ms: 0.140746
+  type: 'test'
+  ...
+# Subtest: tool registry has unique, explicitly scoped tools
+ok 27 - tool registry has unique, explicitly scoped tools
+  ---
+  duration_ms: 2.124609
+  type: 'test'
+  ...
+# Subtest: managed loop asset tools use frozen JD and Resume read/write scopes
+ok 28 - managed loop asset tools use frozen JD and Resume read/write scopes
+  ---
+  duration_ms: 0.507988
+  type: 'test'
+  ...
+# Subtest: registry exposes Answer Vault only through scoped read and prepare tools
+ok 29 - registry exposes Answer Vault only through scoped read and prepare tools
+  ---
+  duration_ms: 0.655818
+  type: 'test'
+  ...
+# Subtest: registry exposes Application candidates as an explicit read scope
+ok 30 - registry exposes Application candidates as an explicit read scope
+  ---
+  duration_ms: 0.516863
+  type: 'test'
+  ...
+# Subtest: workspace projection shortens education IDs discovered inside snapshot creation
+ok 31 - workspace projection shortens education IDs discovered inside snapshot creation
+  ---
+  duration_ms: 0.789792
+  type: 'test'
+  ...
+# Subtest: experience references remain stable and resolve after workspace restore
+ok 32 - experience references remain stable and resolve after workspace restore
+  ---
+  duration_ms: 0.552064
+  type: 'test'
+  ...
+# Subtest: material ingestion resolves a short target Experience reference
+ok 33 - material ingestion resolves a short target Experience reference
+  ---
+  duration_ms: 0.356396
+  type: 'test'
+  ...
+# Subtest: prepare_match_analysis resolves short references in usedExperiences
+ok 34 - prepare_match_analysis resolves short references in usedExperiences
+  ---
+  duration_ms: 0.27809
+  type: 'test'
+  ...
+# Subtest: Experience maintenance resolves short references inside batch operations
+ok 35 - Experience maintenance resolves short references inside batch operations
+  ---
+  duration_ms: 0.355091
+  type: 'test'
+  ...
+# Subtest: authenticated registry exposes the current user tool
+ok 36 - authenticated registry exposes the current user tool
+  ---
+  duration_ms: 0.563412
+  type: 'test'
+  ...
+# Subtest: experience registry exposes list and detail tools
+ok 37 - experience registry exposes list and detail tools
+  ---
+  duration_ms: 0.891942
+  type: 'test'
+  ...
+# Subtest: resume source registry exposes profile and JD read tools
+ok 38 - resume source registry exposes profile and JD read tools
+  ---
+  duration_ms: 0.424835
+  type: 'test'
+  ...
+# Subtest: profile update tool requires a profile proposal executor and approval manager
+ok 39 - profile update tool requires a profile proposal executor and approval manager
+  ---
+  duration_ms: 0.20364
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1577.804917
