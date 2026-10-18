@@ -4,17 +4,20 @@
 
 | 验收项 | 现状 | 本轮改动 |
 |--------|------|----------|
-| 设置中有「导出本机数据」「清除本机数据」；文案与行为一致 | `PrivacyDataSection.vue` 增加导出入口（`local-only`）；清除文案改为仅本机 | 是 |
-| 完整导出包数量/关系与 UI 可见资产对应 | 既有 `DataExportService` + 加密包；设置默认 `localOnly` | 否（沿用实现；UI 入口补齐） |
-| 清除后对话/草稿/任务/缓存按说明移除；无「假装删了云」文案 | `executeLocalClear` 既有；UI 去掉「云端资产保留」误导 | 是（文案） |
-| 隐私同意含版本与时间；升级政策可触发重确认 | 版本 bump 至 `privacy-2026-10-18-v1`（major）+ 新 contentHash | 是 |
+| 设置中有「导出本机数据」「清除本机数据」；文案与行为一致 | `PrivacyDataSection.vue` local-only 导出/清除 | 沿用上一轮 |
+| 完整导出包数量/关系与 UI 可见资产对应 | 夹具：experience×2 / jd×1 / resume×1 / application×1 + local conversations/drafts/tasks；manifest.counts 与 entries 对齐；relationshipCount=3 | 是（新增 reconciliation 夹具测试） |
+| 敏感字段脱敏仍成立 | `assertSafeExportValue` 拒绝 `api_key` 等；解密后 payload 无 `ownerId`/`access_token`/`passphrase` | 是（夹具断言） |
+| 清除后无「假装删了云」文案；隐私同意版本可重确认 | `privacy-2026-10-18-v1` + UI 文案 | 沿用 |
 
-## 关键路径
+## 命令证据
 
-- `src/privacy/policy.ts` / `src/privacy/types.ts`
-- `src/desktop/renderer/src/components/PrivacyDataSection.vue`
-- `src/desktop/renderer/src/i18n/catalog-privacy.ts`
+```text
+node --import tsx --test --test-concurrency=1 \
+  test/privacy-export-reconciliation.test.ts \
+  test/privacy-export-crypto.test.ts
+# pass（含 manifest 对账 + 禁止字段）
+node --import tsx --test test/privacy-ui-contract.test.ts
+# pass
+```
 
-## 命令
-
-见 `privacy-tests.log`（期望 pass）。
+详见 `export-reconciliation.log` / `privacy-tests.log`。证据中无密钥明文。

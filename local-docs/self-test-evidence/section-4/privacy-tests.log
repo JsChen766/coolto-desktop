@@ -128,3 +128,25 @@ ok 20 - privacy UI keeps demo and unavailable APIs fail-closed
 # skipped 0
 # todo 0
 # duration_ms 214.089954
+TAP version 13
+# Subtest: privacy dialogs keep destructive states keyboard reachable
+ok 1 - privacy dialogs keep destructive states keyboard reachable
+  ---
+  duration_ms: 3.333102
+  type: 'test'
+  ...
+# Subtest: privacy UI keeps demo and unavailable APIs fail-closed
+ok 2 - privacy UI keeps demo and unavailable APIs fail-closed
+  ---
+  duration_ms: 1.121564
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 150.682065
