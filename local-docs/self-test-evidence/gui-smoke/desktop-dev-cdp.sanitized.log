@@ -1,0 +1,29 @@
+
+> coolto-local-agent@0.1.27 desktop:dev:cdp
+> electron-vite dev -- --remote-debugging-port=9222
+vite v7.3.6 building ssr environment for development...
+transforming...
+✓ 1879 modules transformed.
+rendering chunks...
+out/main/index.cjs  1,799.40 kB
+✓ built in 3.70s
+electron main process built successfully
+-----
+✓ built in 40ms
+electron preload scripts built successfully
+dev server running for the electron renderer process at:
+  ➜  Local:   http://localhost:5173/
+starting electron app...
+[68661:1018/213606.891874:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[68661:1018/213607.120832:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[68661:1018/213607.120867:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+DevTools listening on ws://127.0.0.1:9222/devtools/browser/0cd13052-b6f3-4170-acee-0da1cb917a34
+[68729:1018/213607.240037:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:285] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.
+[68661:1018/213608.241620:INFO:CONSOLE:827] "[vite] connected.", source: http://localhost:5173/@vite/client (827)
+APPIMAGE env is not defined, current application is not an AppImage
+  ➜  Network: use --host to expose
+[68690:1018/213607.187327:WARNING:media/gpu/vaapi/vaapi_wrapper.cc:1655] drmGetDevices2() has not found any devices
+[68690:1018/213607.190400:WARNING:sandbox/policy/linux/sandbox_linux.cc:405] InitializeSandbox() called with multiple threads in process gpu-process.
+[68690:1018/213607.193513:WARNING:ui/gfx/linux/gbm_support_x11.cc:48] dri3 extension not supported.
+[68661:1018/213607.219732:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+[68661:1018/213608.059920:INFO:CONSOLE:733] "[vite] connecting...", source: http://localhost:5173/@vite/client (733)

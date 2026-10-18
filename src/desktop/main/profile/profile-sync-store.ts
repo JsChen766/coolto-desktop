@@ -24,11 +24,13 @@ export class ProfileSyncStore implements ProfileReaderV2 {
 
   public async getUserProfile(_signal?: AbortSignal): Promise<UserProfileV2> {
     await this.initialSync();
+    this.ensureLocalEmptyProfile();
     return this.readProfile(this.currentEntity());
   }
 
   public async getProfileView(): Promise<ProfileContactView> {
     await this.initialSync();
+    this.ensureLocalEmptyProfile();
     const entity = this.currentEntity();
     const profile = this.readProfile(entity);
     const issue = this.getSyncIssue();
@@ -47,6 +49,7 @@ export class ProfileSyncStore implements ProfileReaderV2 {
     localVersion: number;
   }> {
     await this.initialSync();
+    this.ensureLocalEmptyProfile();
     const entity = this.currentEntity();
     const profile = this.readProfile(entity);
     return {
@@ -55,6 +58,45 @@ export class ProfileSyncStore implements ProfileReaderV2 {
       entityVersion: entity.entityVersion,
       localVersion: entity.localVersion,
     };
+  }
+
+  /**
+   * OSS / offline local desktop never receives a sync bootstrap page, so the
+   * user_profile row may be missing. Seed an empty local projection once so
+   * chat and resume tools can read a profile without requiring cloud sync.
+   */
+  public ensureLocalEmptyProfile(): void {
+    const existing = this.local.getEntity("user_profile", this.ownerId);
+    if (existing && existing.operation !== "delete") return;
+    const empty: UserProfile = {
+      fullName: null,
+      contactEmail: null,
+      email: null,
+      phone: null,
+      location: null,
+      linkedinUrl: null,
+      githubUrl: null,
+      personalWebsite: null,
+      currentTitle: null,
+      currentCompany: null,
+      yearsOfExperience: null,
+      careerStage: null,
+      targetRoles: [],
+      targetIndustries: [],
+      targetLocations: [],
+      careerTargets: [],
+      preferredLanguage: "zh-CN",
+      resumeStyle: "standard",
+    };
+    this.local.enqueue({
+      operationId: createUuidV7(),
+      entityType: "user_profile",
+      entityId: this.ownerId,
+      action: "update",
+      expectedVersion: 0,
+      payload: toProfileServerPushPayload(empty),
+      localPayload: toProfileLocalPayload(empty),
+    });
   }
 
   public currentEntity(): LocalEntity {

@@ -1,0 +1,29 @@
+
+> coolto-local-agent@0.1.27 smoke:desktop-chat
+> node scripts/run-desktop-chat-smoke.mjs --new-chat --message 回复 OK
+
+{
+  "success": true,
+  "finalResponse": "OK",
+  "runError": "",
+  "approvalActionType": "",
+  "tools": [],
+  "toolErrors": [],
+  "progressMessages": [],
+  "augmentationAcceptCount": 0,
+  "resume": {
+    "required": false,
+    "changed": false,
+    "ready": false,
+    "artifactId": "",
+    "revision": 0,
+    "workspaceStatus": "",
+    "generationReady": false,
+    "pageCount": 0,
+    "usageRatio": 0,
+    "blockerCodes": []
+  },
+  "durationMs": 2085,
+  "agentEvents": [],
+  "cdp": "http://127.0.0.1:9222"
+}

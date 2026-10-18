@@ -28,6 +28,7 @@ export const electronUpdaterDriver: UpdateDriver = {
     autoUpdater.forceDevUpdateConfig = value;
   },
   setFeedURL(url) {
+    if (!url?.trim()) return;
     autoUpdater.setFeedURL(url);
   },
   checkForUpdates() {

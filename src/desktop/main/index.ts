@@ -1,7 +1,7 @@
 import { dirname, join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
 
 import { registerDesktopIpc } from "./ipc.js";
 import { registerBrowserIpc } from "./browser/browser-ipc.js";
@@ -98,14 +98,17 @@ function createWindow(): void {
     mainWindow = undefined;
   });
 
-  const browser = registerBrowserIpc(ipcMain, window);
-  registerDesktopIpc(ipcMain, window, resumeCompiler, browser.agentController,
-    browser.pageOperator, browser.agentStatus, browser);
+  // Load the renderer before heavy IPC/service wiring so CDP and ready-to-show
+  // are not delayed (or starved) on environments where bootstrap work is slow.
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
     void window.loadFile(join(__dirname, "../renderer/index.html"));
   }
+
+  const browser = registerBrowserIpc(ipcMain, window);
+  registerDesktopIpc(ipcMain, window, resumeCompiler, browser.agentController,
+    browser.pageOperator, browser.agentStatus, browser);
   mainWindow = window;
 }
 
@@ -200,6 +203,16 @@ async function runResumeRendererQa(): Promise<void> {
 }
 
 async function bootstrap(): Promise<void> {
+  // Headless / keyring-less Linux (CI, cloud VMs): Electron safeStorage stays
+  // unavailable without gnome-keyring/libsecret. Dev/unpackaged builds may opt
+  // into an in-memory key so local OSS GUI smoke can pass the privacy gate.
+  if (
+    process.platform === "linux" &&
+    !app.isPackaged &&
+    !safeStorage.isEncryptionAvailable()
+  ) {
+    safeStorage.setUsePlainTextEncryption(true);
+  }
   if (
     !app.isPackaged &&
     process.env.COOLTO_RESUME_PERFORMANCE_QA === "1"
