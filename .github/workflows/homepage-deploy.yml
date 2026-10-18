@@ -1,8 +1,8 @@
 name: Deploy Homepage
 
-# 官网（homepage-web）构建并部署到 home.coolto.com.cn。
-# 版本号默认从服务器 feed（latest.yml / latest-mac.yml）读取最新版本注入
-# 下载链接；也可用 workflow_dispatch 的 release-version 输入覆盖。
+# OSS: 仅手动 workflow_dispatch（商业官网部署，开源 fork 无需配置）。
+# 不配置 RELEASE_SERVER_* 则部署步骤跳过，不会因缺 secrets 变红；勿标为必填 secrets。
+# 版本号默认从服务器 feed（latest.yml / latest-mac.yml）读取；可用 release-version 覆盖。
 # 产物：vite build → dist/ → 备份服务器旧版 → 替换 website-dist。
 on:
   workflow_dispatch:
@@ -14,6 +14,8 @@ on:
 
 jobs:
   deploy-homepage:
+    # OSS fork 未配置 RELEASE_SERVER_* 时整 job 跳过（绿），避免缺 HomePage-Web / secrets 变红
+    if: ${{ secrets.RELEASE_SERVER_SSH_KEY != '' && secrets.RELEASE_SERVER_HOST != '' && secrets.RELEASE_SERVER_USER != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -46,6 +48,12 @@ jobs:
             echo "version=${{ inputs.release-version }}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          if [ -z "${SSH_KEY:-}" ] || [ -z "${SERVER_HOST:-}" ] || [ -z "${SERVER_USER:-}" ]; then
+            echo "RELEASE_SERVER_* unset and no release-version input — skipping homepage deploy path."
+            echo "version=" >> "$GITHUB_OUTPUT"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           mkdir -p ~/.ssh
           umask 077
           printf '%s\n' "$SSH_KEY" > ~/.ssh/release_ci
@@ -54,14 +62,17 @@ jobs:
             "awk '/^version:/{print \$2; exit}' /srv/coolto-releases/latest.yml" > version.txt
           cat version.txt
           echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: Build homepage
+        if: ${{ steps.version.outputs.version != '' }}
         working-directory: homepage-web
         env:
           VITE_RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: pnpm run build
 
       - name: Verify download URLs in bundle
+        if: ${{ steps.version.outputs.version != '' }}
         working-directory: homepage-web
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -75,6 +86,7 @@ jobs:
           echo "bundle references version ${VERSION}"
 
       - name: Deploy to release server
+        if: ${{ steps.version.outputs.version != '' && secrets.RELEASE_SERVER_SSH_KEY != '' }}
         env:
           SSH_KEY: ${{ secrets.RELEASE_SERVER_SSH_KEY }}
           SERVER_HOST: ${{ secrets.RELEASE_SERVER_HOST }}
@@ -104,3 +116,8 @@ jobs:
           # smoke: title should be the product name now
           ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" \
             "curl -sk https://home.coolto.com.cn/ | grep -q '<title>Coolto' && echo 'title ok'"
+
+      - name: Skip deploy when RELEASE_SERVER_* unset
+        if: ${{ steps.version.outputs.version == '' }}
+        run: echo "RELEASE_SERVER_* / release-version not available — homepage deploy skipped (OSS default)."
+

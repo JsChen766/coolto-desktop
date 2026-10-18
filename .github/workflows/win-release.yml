@@ -1,14 +1,10 @@
 name: Build Windows Release
 
-# 手动触发（workflow_dispatch），或在 main 上打 win-v* tag 自动触发。
+# OSS: 仅手动 workflow_dispatch。不配置 RELEASE_SERVER_* 则上传步骤跳过，不会因缺 secrets 变红。
+# 商业/维护者可选：在仓库 Settings → Secrets 配置后再手动 Run；勿把这些 secrets 标为必填。
 # 产物：dist-electron/Coolto-<version>-x64.exe + latest.yml + .blockmap
-# 上传到发布服务器 /srv/coolto-releases/（home.coolto.com.cn/downloads/），
-# 并重新生成下载页（合并服务器上的 latest-mac.yml）。
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "win-v*"
 
 jobs:
   build-win:
@@ -48,6 +44,7 @@ jobs:
         run: node scripts/verify-windows-installer.mjs
 
       - name: Upload artifacts to release server
+        if: ${{ secrets.RELEASE_SERVER_SSH_KEY != '' && secrets.RELEASE_SERVER_HOST != '' && secrets.RELEASE_SERVER_USER != '' }}
         shell: bash
         env:
           SSH_KEY: ${{ secrets.RELEASE_SERVER_SSH_KEY }}
@@ -71,3 +68,8 @@ jobs:
             "$SERVER_USER@$SERVER_HOST:/home/$SERVER_USER/upload-index.html"
           ssh -i ~/.ssh/release_ci "$SERVER_USER@$SERVER_HOST" \
             "sudo install -o root -g root -m 644 /home/$SERVER_USER/latest.yml /home/$SERVER_USER/Coolto-*.exe /home/$SERVER_USER/Coolto-*.exe.blockmap /srv/coolto-releases/ && sudo install -o root -g root -m 644 /home/$SERVER_USER/upload-index.html /srv/coolto-releases/index.html && rm -f /home/$SERVER_USER/latest.yml /home/$SERVER_USER/Coolto-*.exe /home/$SERVER_USER/Coolto-*.exe.blockmap /home/$SERVER_USER/upload-index.html && ls -la /srv/coolto-releases/"
+
+      - name: Skip upload when RELEASE_SERVER_* unset
+        if: ${{ secrets.RELEASE_SERVER_SSH_KEY == '' || secrets.RELEASE_SERVER_HOST == '' || secrets.RELEASE_SERVER_USER == '' }}
+        shell: bash
+        run: echo "RELEASE_SERVER_* not configured — packaging done; upload skipped (OSS default)."

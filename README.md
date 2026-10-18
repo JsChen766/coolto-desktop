@@ -124,6 +124,10 @@ npm run package:mac:dmg
 
 Linux 以源码 + `desktop:dev` / `desktop:build` 为主；可选 `npm run package:linux`（AppImage，box 冒烟）。Win/Mac 真机安装包见 `package:win` / `package:mac*`，开源 P0 标为 **deferred**（需对应 OS）。
 
+### GitHub Actions（商业发布 workflow）
+
+仓库内 `win-release` / `mac-release` / `homepage-deploy` 仅保留 **手动 `workflow_dispatch`**，开源 fork **不必**配置 `RELEASE_SERVER_*`。未配置时上传/部署步骤会跳过，不会在 clone 后因缺 secrets 自动变红。维护者若要做商业安装包上传，再自行配置 secrets 并手动 Run。详见 [`local-docs/oss-publish-checklist.md`](local-docs/oss-publish-checklist.md)。
+
 ### 更新说明（开源必达）
 
 **开源版请自行管理版本**：从 git 拉取或替换本地源码/发布物后重新 `npm install` 与构建/启动即可。仓库内虽有 `electron-updater` 与 `dev-app-update.yml` 供商业/维护者可选实验，**不作为开源必达自动更新基础设施**。更新失败或中断时，本机业务数据目录（Electron `userData`）与源码树分离，应保持可恢复；若你使用实验性自动更新，请自行验证后再升级。
@@ -166,7 +170,7 @@ npm run check
 npm run qa:browser-agent
 ```
 
-开发约定见 `AGENTS.md`；贡献与安全审核见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。新手友好 Issue 草稿见 [`local-docs/beginner-issues.md`](local-docs/beginner-issues.md)。当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`；开源裁剪 PRD 见 `local-docs/PRD-open-source-desktop.md`。
+开发约定见 `AGENTS.md`；贡献与安全审核见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。新手友好 Issue 草稿见 [`local-docs/beginner-issues.md`](local-docs/beginner-issues.md)；可粘贴到 Tracker 的正文见 [`local-docs/beginner-issues-ready-to-post.md`](local-docs/beginner-issues-ready-to-post.md)。当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`；开源裁剪 PRD 见 `local-docs/PRD-open-source-desktop.md`。
 
 ## 代码入口
 
