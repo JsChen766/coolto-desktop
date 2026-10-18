@@ -38,10 +38,7 @@ export async function createQaChromiumQualifiedWorkspace(
   const structure = stripTrailingSentencePunctuation(
     getResumeFixture("education-details-qualified"),
   );
-  const compileResult = await compiler.compile(
-    structure,
-    "education-details-qualified",
-  );
+  const compileResult = await compiler.compile(structure);
   if (!compileResult.qualified) {
     const codes = compileResult.violations.map((item) => item.code).join(", ");
     throw new Error(`QA PDF seed compile unqualified: ${codes}`);
@@ -65,17 +62,20 @@ export async function createQaChromiumQualifiedWorkspace(
       }
     }
   }
+  const {
+    workUnitMap: _workUnitMap,
+    lineBudgetVersion: _lineBudgetVersion,
+    itemLineBudgets: _itemLineBudgets,
+    ...readyBase
+  } = ready;
   const workspace: ResumeWorkspace = {
-    ...ready,
+    ...readyBase,
     structure,
     compileResult,
     compileObservedRevision: ready.revision,
     bindings: [],
     bulletProvenance,
     itemTiers,
-    workUnitMap: undefined,
-    lineBudgetVersion: undefined,
-    itemLineBudgets: undefined,
     bestSnapshot: {
       ...ready.bestSnapshot,
       structure: structuredClone(structure),

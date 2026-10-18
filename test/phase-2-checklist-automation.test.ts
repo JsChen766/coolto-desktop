@@ -59,10 +59,13 @@ test("[C2] Agent loop dialogs migrated to DialogSelect", async () => {
   for (const path of paths) await assertNoNativeSelect(path, path);
 });
 
-test("[C4-known] Library toolbar filters still use native select (documented exception)", async () => {
+test("[C4-known] Resume library still uses native select; material uses custom status filter", async () => {
   const material = await renderer("material/MaterialLibraryView.vue");
+  const materialFilter = await renderer("material/MaterialLibraryStatusFilter.vue");
   const resume = await renderer("components/ResumeLibraryView.vue");
-  assert.match(material, /<select\b/u);
+  assert.equal(/<select\b/u.test(material), false, "MaterialLibraryView should not use native <select>");
+  assert.equal(/<select\b/u.test(materialFilter), false, "MaterialLibraryStatusFilter should not use native <select>");
+  assert.match(materialFilter, /material-status-filter/u);
   assert.match(resume, /<select\b/u);
 });
 

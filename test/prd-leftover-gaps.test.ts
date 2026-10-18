@@ -44,8 +44,10 @@ test("leftover PRD surfaces expose disclosure, JD analyze, URL paste, and interv
     readFile(new URL("../src/tools/registry.ts", import.meta.url), "utf8"),
   ]);
   const [composer, privacy, analyze, browser, empty, detail, ipc, registry] = files;
-  assert.match(composer, /发送后会把当前对话/u);
+  // Composer disclaimer was removed; send-time disclosure lives in PrivacyDataSection (OSS privacy split).
+  assert.match(composer, /chat-composer-send/u);
   assert.match(privacy, /发送给模型前/u);
+  assert.match(privacy, /当前对话/u);
   assert.match(analyze, /分析当前 JD/u);
   assert.match(browser, /analyzeJdInApp/u);
   assert.match(empty, /粘贴岗位网页链接/u);

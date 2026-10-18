@@ -87,7 +87,7 @@ function pendingSuggestion(id = "suggestion-1"): PreferenceSuggestionV1 {
     scope: { kind: "global" }, conflictGroup: "resume.bullet_style", observationCount: 3,
     observationActionCount: 2, observationWindow: { from: "2026-09-01T00:00:00.000Z", to: now },
     confidence: "strong", rationale: { code: "repeated_selection_pattern", referenceHashes: [] },
-    state: "pending", createdAt: now, lastPresentedAt: null, expiresAt: "2026-10-01T00:00:00.000Z",
+    state: "pending", createdAt: now, lastPresentedAt: null, expiresAt: "2099-01-01T00:00:00.000Z",
     ruleVersion: "resume-bullet-v1",
   };
 }
