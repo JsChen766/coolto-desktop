@@ -5,7 +5,7 @@ import { createActionApprovalManager } from "../src/actions/create-action-approv
 import type { ProfileProposalExecutor } from "../src/profile/types.js";
 import { createPrepareProfileUpdateTool } from "../src/tools/prepare-profile-update.js";
 
- test("profile update is prepared for approval and writes only after acceptance", async () => {
+test("profile update is prepared for approval and writes only after acceptance", async () => {
   const profile = createProfile();
   const prepared: unknown[] = [];
   const executed: string[] = [];
@@ -48,6 +48,8 @@ import { createPrepareProfileUpdateTool } from "../src/tools/prepare-profile-upd
   assert.equal(pending.length, 1);
   assert.equal(pending[0]?.actionType, "profile.update");
   assert.equal(pending[0]?.title, "更新个人资料");
+  assert.match(pending[0]?.description ?? "", /本机个人资料/);
+  assert.doesNotMatch(pending[0]?.description ?? "", /Coolto 同步协议/);
   assert.deepEqual(
     pending[0]?.preview.profileFields?.map((field) => ({
       field: field.field, currentValue: field.currentValue,
@@ -85,6 +87,44 @@ test("profile update rejects invalid contact values before creating approval", a
   assert.equal(prepared, false);
   assert.deepEqual(approvals.listPending(), []);
 });
+
+test("profile update only includes explicitly provided fields and never invents empty ones", async () => {
+  const profile = {
+    ...createProfile(),
+    fullName: "Alice Zhang",
+    phone: "+86 138 0024 6800",
+    contactEmail: "alice.zhang@example.com",
+  };
+  const prepared: unknown[] = [];
+  const proposals: ProfileProposalExecutor = {
+    prepareImport: async () => { throw new Error("unexpected import path"); },
+    prepareUpdate: async (changes) => {
+      prepared.push(changes);
+      return {
+        id: "profile-proposal-partial", kind: "manual",
+        current: structuredClone(profile), next: { ...structuredClone(profile), ...changes },
+        syncStatus: "clean", preparedAt: "2026-10-18T00:00:00Z",
+      };
+    },
+    prepareReapply: async () => { throw new Error("unused"); },
+    prepareAcceptServer: async () => { throw new Error("unused"); },
+    execute: async () => null,
+  };
+  const approvals = createActionApprovalManager({
+    experienceWriter: { createExperience: async () => { throw new Error("unused"); } },
+    importProposalStore: { clear: () => undefined } as never,
+    profileProposals: proposals,
+  });
+  const tool = createPrepareProfileUpdateTool(
+    { getUserProfile: async () => profile }, proposals, approvals,
+  );
+  await tool.execute("partial-location", { location: "深圳" });
+  assert.deepEqual(prepared, [{ location: "深圳" }]);
+  assert.equal(Object.keys(prepared[0] as object).includes("fullName"), false);
+  assert.equal(Object.keys(prepared[0] as object).includes("phone"), false);
+  assert.equal(approvals.listPending().length, 1);
+});
+
 
 function createProfile() {
   return {

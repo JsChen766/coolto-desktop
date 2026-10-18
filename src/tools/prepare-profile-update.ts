@@ -61,7 +61,7 @@ export function createPrepareProfileUpdateTool(
     name: "prepare_profile_update",
     label: "准备更新个人资料",
     description:
-      "仅在用户明确要求更新 Profile 时调用。Profile 是长期职业背景与简历默认值，不是 Experience 事实，也不是 Preference 习惯。一次传入用户明确提供的全部字段或目标；禁止猜测、从经历推断或直接写入。工具只创建审批，用户接受后才进入本地同步链路。",
+      "仅在用户明确要求更新长期 Profile 时调用。Profile 是长期职业背景与简历默认值，不是 Experience 事实，也不是 Preference 习惯，也不是本轮临时指令。一次只传入用户明确提供的字段或目标；禁止猜测、从经历推断、臆造空字段或直接写入。本轮临时称呼/城市/目标不得调用本工具。工具只创建审批，用户接受后才写入本机。",
     parameters,
     execute: async (_toolCallId, params) => {
       const profile = await profileReader.getUserProfile();

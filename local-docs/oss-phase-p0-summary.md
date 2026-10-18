@@ -2,7 +2,7 @@
 
 日期：2026-10-18（Asia/Shanghai）  
 仓：`/workspace/coolto-desktop-local`  
-范围：**仅 P0 §1–§5**；§6–§12 **未开始**。
+范围：P0 §1–§5 已闭环；**§6 职业画像** 已于 2026-10-18 补齐证据（见 `self-test-evidence/section-6/`）；§7–§12 未开始。
 
 ## P0 达标项
 
@@ -45,7 +45,8 @@
 | Win / Mac 真机打包与安装 | `package:win` / `package:mac*`；需对应 OS |
 | Authenticode / Apple 公证 | 商业门槛；开源可选 |
 | 远程仓同步 / 开 PR | 本阶段明确 **不 push、不开 PR** |
-| §6–§12 | **未开始**；等指令 |
+| §6 职业画像 | **可勾选**；证据 `section-6/SUMMARY.md` |
+| §7–§12 | **未开始**；等指令 |
 
 ## 本轮提交主题（预期）
 

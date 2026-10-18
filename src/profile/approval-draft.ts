@@ -42,7 +42,7 @@ export function createProfileUpdateApprovalDraft(
     title: proposal.kind === "accept_server" ? "接受服务端个人资料" : "更新个人资料",
     description: proposal.kind === "accept_server"
       ? "接受后将以最新服务端版本替换本机个人资料。"
-      : "接受后会通过 Coolto 同步协议更新个人资料。",
+      : "接受后会写入本机个人资料（经本地同步队列持久化；开源版不连接 Coolto 云）。",
     preview: {
       summary: [
         { label: "待更新字段", value: `${profileFields.length + items.length} 项` },

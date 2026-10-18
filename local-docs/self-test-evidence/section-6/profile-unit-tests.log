@@ -1,0 +1,468 @@
+TAP version 13
+# Subtest: profile update is prepared for approval and writes only after acceptance
+ok 1 - profile update is prepared for approval and writes only after acceptance
+  ---
+  duration_ms: 3.56509
+  type: 'test'
+  ...
+# Subtest: profile update rejects invalid contact values before creating approval
+ok 2 - profile update rejects invalid contact values before creating approval
+  ---
+  duration_ms: 0.586924
+  type: 'test'
+  ...
+# Subtest: profile update only includes explicitly provided fields and never invents empty ones
+ok 3 - profile update only includes explicitly provided fields and never invents empty ones
+  ---
+  duration_ms: 0.436089
+  type: 'test'
+  ...
+# Subtest: browser canonical hash matches Node for UTF-8 and nested canonical JSON
+ok 4 - browser canonical hash matches Node for UTF-8 and nested canonical JSON
+  ---
+  duration_ms: 3.389004
+  type: 'test'
+  ...
+# Subtest: career targets normalize Unicode text, sort lists, and derive stable identity
+ok 5 - career targets normalize Unicode text, sort lists, and derive stable identity
+  ---
+  duration_ms: 1.998228
+  type: 'test'
+  ...
+# Subtest: trusted target creation keeps IDs opaque across content edits
+ok 6 - trusted target creation keeps IDs opaque across content edits
+  ---
+  duration_ms: 2.238749
+  type: 'test'
+  ...
+# Subtest: legacy arrays collapse to one deterministic compatibility target
+ok 7 - legacy arrays collapse to one deterministic compatibility target
+  ---
+  duration_ms: 1.680531
+  type: 'test'
+  ...
+# Subtest: empty legacy arrays stay empty and primary selection preserves target IDs
+ok 8 - empty legacy arrays stay empty and primary selection preserves target IDs
+  ---
+  duration_ms: 0.94772
+  type: 'test'
+  ...
+# Subtest: canonical and legacy target representations must agree
+ok 9 - canonical and legacy target representations must agree
+  ---
+  duration_ms: 0.454831
+  type: 'test'
+  ...
+# Subtest: target invariants reject duplicates, empty targets, excess entries, and primary conflicts
+ok 10 - target invariants reject duplicates, empty targets, excess entries, and primary conflicts
+  ---
+  duration_ms: 1.125393
+  type: 'test'
+  ...
+# Subtest: profile defaults use safe defaults, preserve unknown legacy values, and reject unknown writes
+ok 11 - profile defaults use safe defaults, preserve unknown legacy values, and reject unknown writes
+  ---
+  duration_ms: 0.297849
+  type: 'test'
+  ...
+# Subtest: profile proposal normalization accepts explicit fields only and validates supported defaults
+ok 12 - profile proposal normalization accepts explicit fields only and validates supported defaults
+  ---
+  duration_ms: 0.682861
+  type: 'test'
+  ...
+# Subtest: target normalization property 0
+ok 13 - target normalization property 0
+  ---
+  duration_ms: 0.885317
+  type: 'test'
+  ...
+# Subtest: target normalization property 1
+ok 14 - target normalization property 1
+  ---
+  duration_ms: 0.61187
+  type: 'test'
+  ...
+# Subtest: target normalization property 2
+ok 15 - target normalization property 2
+  ---
+  duration_ms: 0.462421
+  type: 'test'
+  ...
+# Subtest: target normalization property 3
+ok 16 - target normalization property 3
+  ---
+  duration_ms: 0.438305
+  type: 'test'
+  ...
+# Subtest: target normalization property 4
+ok 17 - target normalization property 4
+  ---
+  duration_ms: 0.424529
+  type: 'test'
+  ...
+# Subtest: target normalization property 5
+ok 18 - target normalization property 5
+  ---
+  duration_ms: 0.438392
+  type: 'test'
+  ...
+# Subtest: target normalization property 6
+ok 19 - target normalization property 6
+  ---
+  duration_ms: 0.970874
+  type: 'test'
+  ...
+# Subtest: target normalization property 7
+ok 20 - target normalization property 7
+  ---
+  duration_ms: 0.369156
+  type: 'test'
+  ...
+# Subtest: target normalization property 8
+ok 21 - target normalization property 8
+  ---
+  duration_ms: 0.323013
+  type: 'test'
+  ...
+# Subtest: target normalization property 9
+ok 22 - target normalization property 9
+  ---
+  duration_ms: 0.358413
+  type: 'test'
+  ...
+# Subtest: target normalization property 10
+ok 23 - target normalization property 10
+  ---
+  duration_ms: 0.337418
+  type: 'test'
+  ...
+# Subtest: target normalization property 11
+ok 24 - target normalization property 11
+  ---
+  duration_ms: 0.367892
+  type: 'test'
+  ...
+# Subtest: target normalization property 12
+ok 25 - target normalization property 12
+  ---
+  duration_ms: 0.346734
+  type: 'test'
+  ...
+# Subtest: target normalization property 13
+ok 26 - target normalization property 13
+  ---
+  duration_ms: 0.320935
+  type: 'test'
+  ...
+# Subtest: target normalization property 14
+ok 27 - target normalization property 14
+  ---
+  duration_ms: 0.483303
+  type: 'test'
+  ...
+# Subtest: target normalization property 15
+ok 28 - target normalization property 15
+  ---
+  duration_ms: 0.471755
+  type: 'test'
+  ...
+# Subtest: target normalization property 16
+ok 29 - target normalization property 16
+  ---
+  duration_ms: 0.447583
+  type: 'test'
+  ...
+# Subtest: target normalization property 17
+ok 30 - target normalization property 17
+  ---
+  duration_ms: 0.453447
+  type: 'test'
+  ...
+# Subtest: target normalization property 18
+ok 31 - target normalization property 18
+  ---
+  duration_ms: 0.482701
+  type: 'test'
+  ...
+# Subtest: target normalization property 19
+ok 32 - target normalization property 19
+  ---
+  duration_ms: 0.458135
+  type: 'test'
+  ...
+# Subtest: target normalization property 20
+ok 33 - target normalization property 20
+  ---
+  duration_ms: 0.452534
+  type: 'test'
+  ...
+# Subtest: target normalization property 21
+ok 34 - target normalization property 21
+  ---
+  duration_ms: 0.447176
+  type: 'test'
+  ...
+# Subtest: target normalization property 22
+ok 35 - target normalization property 22
+  ---
+  duration_ms: 0.949751
+  type: 'test'
+  ...
+# Subtest: target normalization property 23
+ok 36 - target normalization property 23
+  ---
+  duration_ms: 0.351086
+  type: 'test'
+  ...
+# Subtest: target normalization property 24
+ok 37 - target normalization property 24
+  ---
+  duration_ms: 0.318192
+  type: 'test'
+  ...
+# Subtest: target normalization property 25
+ok 38 - target normalization property 25
+  ---
+  duration_ms: 0.322385
+  type: 'test'
+  ...
+# Subtest: target normalization property 26
+ok 39 - target normalization property 26
+  ---
+  duration_ms: 0.327407
+  type: 'test'
+  ...
+# Subtest: target normalization property 27
+ok 40 - target normalization property 27
+  ---
+  duration_ms: 0.32003
+  type: 'test'
+  ...
+# Subtest: target normalization property 28
+ok 41 - target normalization property 28
+  ---
+  duration_ms: 0.327559
+  type: 'test'
+  ...
+# Subtest: target normalization property 29
+ok 42 - target normalization property 29
+  ---
+  duration_ms: 0.325652
+  type: 'test'
+  ...
+# Subtest: target normalization property 30
+ok 43 - target normalization property 30
+  ---
+  duration_ms: 0.330363
+  type: 'test'
+  ...
+# Subtest: target normalization property 31
+ok 44 - target normalization property 31
+  ---
+  duration_ms: 0.319035
+  type: 'test'
+  ...
+# Subtest: Profile dialog uses update for pending and reapply for blocked sync states
+ok 45 - Profile dialog uses update for pending and reapply for blocked sync states
+  ---
+  duration_ms: 2.569938
+  type: 'test'
+  ...
+# Subtest: Profile form requires resume contact fields and validates contact URL formats
+ok 46 - Profile form requires resume contact fields and validates contact URL formats
+  ---
+  duration_ms: 1.212056
+  type: 'test'
+  ...
+# Subtest: Profile form keeps blank optional fields null and emits only changed fields
+ok 47 - Profile form keeps blank optional fields null and emits only changed fields
+  ---
+  duration_ms: 0.224731
+  type: 'test'
+  ...
+# Subtest: Profile keeps unknown legacy defaults readable without treating them as new writes
+ok 48 - Profile keeps unknown legacy defaults readable without treating them as new writes
+  ---
+  duration_ms: 0.177323
+  type: 'test'
+  ...
+# Subtest: Profile legacy arrays become one stable compatibility target and edits allocate opaque identity
+ok 49 - Profile legacy arrays become one stable compatibility target and edits allocate opaque identity
+  ---
+  duration_ms: 3.066631
+  type: 'test'
+  ...
+# (node:87263) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Profile proposal writes no Outbox entry before approval and keeps resume email separate
+ok 50 - Profile proposal writes no Outbox entry before approval and keeps resume email separate
+  ---
+  duration_ms: 2.323804
+  type: 'test'
+  ...
+# Subtest: Profile unrelated edits reject unknown legacy defaults before Outbox
+ok 51 - Profile unrelated edits reject unknown legacy defaults before Outbox
+  ---
+  duration_ms: 0.877871
+  type: 'test'
+  ...
+# Subtest: Profile import refuses an overwritten snapshot and stale local proposal
+ok 52 - Profile import refuses an overwritten snapshot and stale local proposal
+  ---
+  duration_ms: 0.461538
+  type: 'test'
+  ...
+# Subtest: Profile conflict reapply uses the server version and isolates account projections
+ok 53 - Profile conflict reapply uses the server version and isolates account projections
+  ---
+  duration_ms: 0.69531
+  type: 'test'
+  ...
+# Subtest: Profile accept-server proposal freezes the fresh server before approval
+ok 54 - Profile accept-server proposal freezes the fresh server before approval
+  ---
+  duration_ms: 0.343065
+  type: 'test'
+  ...
+# Subtest: Profile view keeps legacy local projections readable before a contact email exists
+ok 55 - Profile view keeps legacy local projections readable before a contact email exists
+  ---
+  duration_ms: 0.114397
+  type: 'test'
+  ...
+# Subtest: OSS empty Profile seed keeps contact fields null so users can skip and still read profile
+ok 56 - OSS empty Profile seed keeps contact fields null so users can skip and still read profile
+  ---
+  duration_ms: 0.596015
+  type: 'test'
+  ...
+# Subtest: offline Profile update survives restart and remains ready for Outbox replay
+ok 57 - offline Profile update survives restart and remains ready for Outbox replay
+  ---
+  duration_ms: 19.088834
+  type: 'test'
+  ...
+# Subtest: system prompt plans dynamic bullet lines and uses component expansion
+ok 58 - system prompt plans dynamic bullet lines and uses component expansion
+  ---
+  duration_ms: 2.182185
+  type: 'test'
+  ...
+1..58
+# tests 58
+# suites 0
+# pass 58
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1471.887786
+TAP version 13
+# Subtest: pushProfileUpdate pushes a user_profile update through the sync protocol
+ok 1 - pushProfileUpdate pushes a user_profile update through the sync protocol
+  ---
+  duration_ms: 1.527058
+  type: 'test'
+  ...
+# Subtest: pushProfileUpdate throws on conflict and sync errors
+ok 2 - pushProfileUpdate throws on conflict and sync errors
+  ---
+  duration_ms: 4.013461
+  type: 'test'
+  ...
+# Subtest: executor validates expected fields and pushes on execute
+ok 3 - executor validates expected fields and pushes on execute
+  ---
+  duration_ms: 1.114128
+  type: 'test'
+  ...
+# Subtest: executor uses the device identity of the authenticated session
+ok 4 - executor uses the device identity of the authenticated session
+  ---
+  duration_ms: 0.456152
+  type: 'test'
+  ...
+# Subtest: executor falls back to the persisted CLI device identity without a session device
+ok 5 - executor falls back to the persisted CLI device identity without a session device
+  ---
+  duration_ms: 1.601613
+  type: 'test'
+  ...
+# Subtest: Profile server push payload matches Go sync strict schema
+ok 6 - Profile server push payload matches Go sync strict schema
+  ---
+  duration_ms: 2.754302
+  type: 'test'
+  ...
+# Subtest: Profile remote payload omits local target identity and local projection preserves it
+ok 7 - Profile remote payload omits local target identity and local projection preserves it
+  ---
+  duration_ms: 3.003003
+  type: 'test'
+  ...
+# Subtest: Profile local payload keeps opaque target identity while remote payload stays canonical
+ok 8 - Profile local payload keeps opaque target identity while remote payload stays canonical
+  ---
+  duration_ms: 1.333386
+  type: 'test'
+  ...
+# Subtest: legacy-only remote Profile payload remains a compatibility projection
+ok 9 - legacy-only remote Profile payload remains a compatibility projection
+  ---
+  duration_ms: 0.976866
+  type: 'test'
+  ...
+# Subtest: Profile remote payload omits unknown legacy defaults instead of rewriting them
+ok 10 - Profile remote payload omits unknown legacy defaults instead of rewriting them
+  ---
+  duration_ms: 0.619447
+  type: 'test'
+  ...
+# Subtest: canonical-only local Profile projections derive legacy arrays
+ok 11 - canonical-only local Profile projections derive legacy arrays
+  ---
+  duration_ms: 1.767483
+  type: 'test'
+  ...
+# Subtest: Profile API normalization accepts backend targets without IDs
+ok 12 - Profile API normalization accepts backend targets without IDs
+  ---
+  duration_ms: 1.196935
+  type: 'test'
+  ...
+# Subtest: Profile API normalization rejects disagreement between canonical and legacy targets
+ok 13 - Profile API normalization rejects disagreement between canonical and legacy targets
+  ---
+  duration_ms: 0.961937
+  type: 'test'
+  ...
+# Subtest: resume Profile Preference binding is deterministic across create and restore reads
+ok 14 - resume Profile Preference binding is deterministic across create and restore reads
+  ---
+  duration_ms: 2.005762
+  type: 'test'
+  ...
+# (node:87670) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: Profile opaque target ID survives push ack, pull, restart, and fresh-device separation
+ok 15 - Profile opaque target ID survives push ack, pull, restart, and fresh-device separation
+  ---
+  duration_ms: 38.685864
+  type: 'test'
+  ...
+# Subtest: Profile remote page validates canonical/legacy targets transactionally
+ok 16 - Profile remote page validates canonical/legacy targets transactionally
+  ---
+  duration_ms: 10.897259
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 584.683217

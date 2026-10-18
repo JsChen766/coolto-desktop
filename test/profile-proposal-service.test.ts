@@ -19,7 +19,8 @@ class FakeLocalSyncStore {
   readonly entities = new Map<string, LocalEntity>();
   issue: SyncIssue | undefined;
 
-  public constructor() {
+  public constructor(options: { seedDefaults?: boolean } = {}) {
+    if (options.seedDefaults === false) return;
     this.entities.set("user-a", entity("user-a", "Alice", "alice@resume.test"));
     this.entities.set("user-b", entity("user-b", "Bob", "bob@resume.test"));
   }
@@ -36,7 +37,17 @@ class FakeLocalSyncStore {
   getSyncIssue(): SyncIssue | undefined { return this.issue; }
 
   private apply(mutation: EnqueueMutation): void {
-    const current = this.entities.get(mutation.entityId)!;
+    const current = this.entities.get(mutation.entityId);
+    if (!current) {
+      this.entities.set(mutation.entityId, {
+        entityType: mutation.entityType, entityId: mutation.entityId,
+        entityVersion: mutation.expectedVersion, localVersion: 1,
+        syncStatus: "pending", operation: "upsert",
+        changedAt: "2026-10-18T00:00:00Z",
+        payload: mutation.localPayload ?? mutation.payload,
+      });
+      return;
+    }
     this.entities.set(mutation.entityId, { ...current, localVersion: current.localVersion + 1,
       syncStatus: "pending", payload: mutation.localPayload ?? mutation.payload });
   }
@@ -134,6 +145,21 @@ test("Profile view keeps legacy local projections readable before a contact emai
   delete payload.contactEmail;
   local.entities.set("user-a", { ...current, payload });
   assert.equal((await store.getProfileView()).contactEmail, null);
+});
+
+
+test("OSS empty Profile seed keeps contact fields null so users can skip and still read profile", async () => {
+  const local = new FakeLocalSyncStore({ seedDefaults: false });
+  const { store } = service(local, "local-owner");
+  const profile = await store.getUserProfile();
+  assert.equal(profile.fullName, null);
+  assert.equal(profile.phone, null);
+  assert.equal(profile.contactEmail, null);
+  assert.equal(profile.location, null);
+  assert.deepEqual(profile.careerTargets, []);
+  assert.equal(profile.preferredLanguage, "zh-CN");
+  assert.equal(local.writes.length, 1);
+  assert.equal(local.writes[0]?.entityId, "local-owner");
 });
 
 test("offline Profile update survives restart and remains ready for Outbox replay", async () => {
