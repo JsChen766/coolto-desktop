@@ -24,6 +24,8 @@ npm run desktop:dev
 
 `npm run check` 依次执行：简历模板一致性、源文件行数门禁、Node/Vue 类型检查、单测、Node 构建、桌面构建。变更 UI 或可见行为时，还需在真实 Electron 下人工验收。
 
+开源**无 Key / fixture QA** 自测清单与证据约定见 [`local-docs/oss-self-test-checklist.md`](local-docs/oss-self-test-checklist.md)（GUI 点通见 [`local-docs/oss-gui-self-test.md`](local-docs/oss-gui-self-test.md)）。
+
 ## 提交与 PR 约定
 
 - **范围可控**：只改与本次目标相关的文件；不做无关重构或大规模格式化。
