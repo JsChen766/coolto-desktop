@@ -1,0 +1,9 @@
+README.md:92:npm run desktop:dev
+README.md:111:npm run package:win
+README.md:115:Linux 以源码 + `desktop:dev` / `desktop:build` 为主；无独立 `package:linux` 必达门禁。
+README.md:119:**开源版请自行管理版本**：从 git 拉取或替换本地源码/发布物后重新 `npm install` 与构建/启动即可。仓库内虽有 `electron-updater` 与 `dev-app-update.yml` 供商业/维护者可选实验，**不作为开源必达自动更新基础设施**。更新失败或中断时，本机业务数据目录（Electron `userData`）与源码树分离，应保持可恢复；若你使用实验性自动更新，请自行验证后再升级。
+README.md:125:| 系统通知 | `Notification.isSupported()` 为 false 时提醒调度直接跳过，不伪造成功投递 |
+README.md:126:| 系统日历（macOS 等） | 权限 `denied` / `not_determined` 时返回 `permission_required` 与可读文案，不假装已写入 |
+src/desktop/main/tracker/reminder-notification-scheduler.ts:37:      if (this.#disposed || !Notification.isSupported()) return;
+src/desktop/main/calendar/calendar-sync-service.ts:80:        return { outcome: "permission_required", requiredAccess: "write_only",
+src/desktop/main/calendar/calendar-sync-service.ts:83:        return { outcome: "permission_required", requiredAccess: "full_access",

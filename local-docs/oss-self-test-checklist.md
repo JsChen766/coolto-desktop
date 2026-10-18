@@ -149,3 +149,28 @@
 | `scripts/run-browser-agent-qa.mjs` | `qa:browser-agent` 启动器 |
 | `scripts/run-phase-4-c2-gates.mjs` | C2 门禁（含 browser-agent） |
 | `.env.example` | 仅变量名模板 |
+
+---
+
+## 三、P0 §3–§5（本机可观测 / 隐私 / 安装）
+
+无需 LLM。证据目录：`local-docs/self-test-evidence/section-3|4|5/`。
+
+### 3.1 §3 本机可观测性
+
+- [ ] 阅读 [`local-diagnostics.md`](./local-diagnostics.md) 与 [`CONTRIBUTING.md`](../CONTRIBUTING.md)「本机可观测性」
+- [ ] `node --import tsx --test test/local-diagnostics.test.ts` 通过
+- [ ] 抽查默认日志/诊断 JSONL 无 Key 与正文
+
+### 3.2 §4 本机隐私与数据控制
+
+- [ ] 设置 → 隐私与数据：可见「导出本机数据」「清除本机数据」；文案无「云端仍保留」误导
+- [ ] 隐私同意展示政策版本；重大变更（`privacy-2026-10-18-v1`）需重确认
+- [ ] 相关单测：`test/privacy-ui-contract.test.ts` 等
+
+### 3.3 §5 跨平台安装与更新（必达）
+
+- [ ] README「桌面开发与跨平台安装」含 Win/mac/Linux 源码启动与 API 配置
+- [ ] README 写明开源版自行管理版本；自动更新非必达
+- [ ] 平台能力降级表（通知 / 日历 / Linux keyring）可读
+

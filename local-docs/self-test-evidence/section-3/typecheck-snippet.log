@@ -1,0 +1,4 @@
+
+> coolto-local-agent@0.1.27 typecheck
+> tsc -p tsconfig.json --noEmit
+

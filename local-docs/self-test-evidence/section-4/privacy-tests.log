@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: clearing local data includes immutable user delivery files
+ok 1 - clearing local data includes immutable user delivery files
+  ---
+  duration_ms: 1.067805
+  type: 'test'
+  ...
+# Subtest: local clear stops at an active agent without cloud calls
+ok 2 - local clear stops at an active agent without cloud calls
+  ---
+  duration_ms: 2.205676
+  type: 'test'
+  ...
+# Subtest: local clear is ordered, preserves cloud, and reports retryable scope failures
+ok 3 - local clear is ordered, preserves cloud, and reports retryable scope failures
+  ---
+  duration_ms: 0.466961
+  type: 'test'
+  ...
+# Subtest: deletion cleanup forwards the recovered account email to device identity removal
+ok 4 - deletion cleanup forwards the recovered account email to device identity removal
+  ---
+  duration_ms: 0.249464
+  type: 'test'
+  ...
+# Subtest: local clear quiesces schedulers before deleting scopes
+ok 5 - local clear quiesces schedulers before deleting scopes
+  ---
+  duration_ms: 0.175989
+  type: 'test'
+  ...
+# Subtest: privacy host wires owner-scoped cleanup without invoking it during setup
+ok 6 - privacy host wires owner-scoped cleanup without invoking it during setup
+  ---
+  duration_ms: 4.268796
+  type: 'test'
+  ...
+# Subtest: offline local clear still purges the current owner without UserServices
+ok 7 - offline local clear still purges the current owner without UserServices
+  ---
+  duration_ms: 0.339883
+  type: 'test'
+  ...
+# Subtest: pre-login acceptance is local-only until authenticated consent is recorded
+ok 8 - pre-login acceptance is local-only until authenticated consent is recorded
+  ---
+  duration_ms: 2.373796
+  type: 'test'
+  ...
+# Subtest: server decline keeps the account gated even after a stale local acceptance
+ok 9 - server decline keeps the account gated even after a stale local acceptance
+  ---
+  duration_ms: 0.376899
+  type: 'test'
+  ...
+# Subtest: required and withdrawn server decisions clear the owner cache
+ok 10 - required and withdrawn server decisions clear the owner cache
+  ---
+  duration_ms: 0.355084
+  type: 'test'
+  ...
+# Subtest: authenticated decline removes the accepted owner cache
+ok 11 - authenticated decline removes the accepted owner cache
+  ---
+  duration_ms: 0.353739
+  type: 'test'
+  ...
+# Subtest: lost authenticated decline response cannot revive the accepted cache
+ok 12 - lost authenticated decline response cannot revive the accepted cache
+  ---
+  duration_ms: 0.756745
+  type: 'test'
+  ...
+# Subtest: unsupported remote policy cannot use a cached acceptance
+ok 13 - unsupported remote policy cannot use a cached acceptance
+  ---
+  duration_ms: 0.30606
+  type: 'test'
+  ...
+# Subtest: unauthorized or malformed consent reads cannot fall back to cached acceptance
+ok 14 - unauthorized or malformed consent reads cannot fall back to cached acceptance
+  ---
+  duration_ms: 0.336369
+  type: 'test'
+  ...
+# Subtest: network-only consent failure stays local-only and cannot open business access
+ok 15 - network-only consent failure stays local-only and cannot open business access
+  ---
+  duration_ms: 0.208688
+  type: 'test'
+  ...
+# Subtest: missing deployed privacy endpoints fail closed with upgrade-required read-only state
+ok 16 - missing deployed privacy endpoints fail closed with upgrade-required read-only state
+  ---
+  duration_ms: 0.367178
+  type: 'test'
+  ...
+# Subtest: unsupported policy and old-server 404 deny business access without writes
+ok 17 - unsupported policy and old-server 404 deny business access without writes
+  ---
+  duration_ms: 0.728466
+  type: 'test'
+  ...
+# Subtest: consent endpoint 404 disables acceptance and business writes
+ok 18 - consent endpoint 404 disables acceptance and business writes
+  ---
+  duration_ms: 0.239791
+  type: 'test'
+  ...
+# Subtest: privacy dialogs keep destructive states keyboard reachable
+ok 19 - privacy dialogs keep destructive states keyboard reachable
+  ---
+  duration_ms: 6.34552
+  type: 'test'
+  ...
+# Subtest: privacy UI keeps demo and unavailable APIs fail-closed
+ok 20 - privacy UI keeps demo and unavailable APIs fail-closed
+  ---
+  duration_ms: 2.869396
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 214.089954

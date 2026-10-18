@@ -70,7 +70,7 @@ Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分
 ### 账户、隐私与本机数据
 
 - 设置中可维护个人档案、AI 接口、求职偏好、邮箱连接、日程、自动化与隐私。
-- 可查看隐私政策、清除本机数据。没有 Coolto 账号，也没有云端删除。
+- 可查看隐私政策、**导出本机数据**、**清除本机数据**。没有 Coolto 账号，也没有云端删除；文案不宣称「云端仍保留」。
 - macOS 可在用户确认后把面试写入系统日历；真实机器的权限与打包验收仍按发布清单执行。
 - 业务写入仍经不可变 Proposal、宿主审批、LocalSyncStore / Outbox 和乐观锁，全部留在本机。
 
@@ -82,9 +82,9 @@ Coolto 是面向求职的桌面 Agent 应用：用自然语言整理经历、分
 - 外部内容（JD、简历、聊天、网页）只作输入，不得覆盖系统约束或安全规则。
 - 被 Agent 读取的工具结果会进入当前模型上下文。产品允许模型处理完成任务所需的固定资产，但不允许 Agent 自动写入、删除或对外提交。
 
-## 桌面开发
+## 桌面开发与跨平台安装（PRD §5 必达）
 
-需要 Node.js 22.13 或更高版本。
+需要 Node.js **22.13** 或更高版本。以下步骤在 **Windows / macOS / Linux** 从源码均可完成：安装依赖 → 开发启动 → 配置自备 API → 跑通主路径。
 
 ```bash
 cp .env.example .env
@@ -94,21 +94,39 @@ npm run desktop:dev
 
 `.env` 可选用 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL` 做首次启动引导。之后请在 **设置 → AI 接口** 保存；Key 进系统凭据库，不要把真实密钥提交进仓库。也兼容 `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `DEEPSEEK_API_KEY`。
 
+配置 API 后，至少可完成开源 PRD §1（fixture/`qa:browser-agent`）或 §2（对话生成简历）之一条主路径。自测清单见 [`local-docs/oss-self-test-checklist.md`](local-docs/oss-self-test-checklist.md)。
+
 这个 Desktop 不会连接 Coolto 生产 API 或 Credit 网关。
 
-构建桌面进程、preload 和 renderer：
+### 构建与打包（可选发布物）
 
 ```bash
 npm run desktop:build
 ```
 
-Windows / macOS 打包前先跑全量校验，并按 `local-docs/desktop-release-hardening-runbook.md` 执行：
+Windows / macOS 安装包在全量校验后按 `local-docs/desktop-release-hardening-runbook.md` 执行（签名/公证为 **maintainer 可选**，非开源必达）：
 
 ```bash
 npm run check
 npm run package:win
 npm run package:mac:dmg
 ```
+
+Linux 以源码 + `desktop:dev` / `desktop:build` 为主；无独立 `package:linux` 必达门禁。
+
+### 更新说明（开源必达）
+
+**开源版请自行管理版本**：从 git 拉取或替换本地源码/发布物后重新 `npm install` 与构建/启动即可。仓库内虽有 `electron-updater` 与 `dev-app-update.yml` 供商业/维护者可选实验，**不作为开源必达自动更新基础设施**。更新失败或中断时，本机业务数据目录（Electron `userData`）与源码树分离，应保持可恢复；若你使用实验性自动更新，请自行验证后再升级。
+
+### 平台能力降级
+
+| 能力 | 拒绝/不可用时行为 |
+|------|-------------------|
+| 系统通知 | `Notification.isSupported()` 为 false 时提醒调度直接跳过，不伪造成功投递 |
+| 系统日历（macOS 等） | 权限 `denied` / `not_determined` 时返回 `permission_required` 与可读文案，不假装已写入 |
+| Linux 无 keyring | 未打包开发态可回退明文加密以便本地烟测（见主进程 bootstrap 注释）；正式环境仍应使用系统凭据库 |
+
+本机诊断与日志说明见 [`local-docs/local-diagnostics.md`](local-docs/local-diagnostics.md)；隐私与本机数据导出/清除见 **设置 → 隐私与数据**。
 
 ## 开发 CLI
 
