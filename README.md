@@ -122,7 +122,7 @@ npm run package:win
 npm run package:mac:dmg
 ```
 
-Linux 以源码 + `desktop:dev` / `desktop:build` 为主；可选 `npm run package:linux`（AppImage，box 冒烟）。Win/Mac 真机安装包见 `package:win` / `package:mac*`，开源 P0 标为 **deferred**（需对应 OS）。
+Linux 以源码 + `desktop:dev` / `desktop:build` 为主；可选 `npm run package:linux`（AppImage，box 冒烟）。Win/Mac 真机安装包见 `package:win` / `package:mac*`，开源 P0 标为 **deferred**（需对应 OS；Linux box 仅能冒烟到 wine/darwin 硬阻断，见 `local-docs/self-test-evidence/section-5-win-mac-package/`）。
 
 ### GitHub Actions（商业发布 workflow）
 

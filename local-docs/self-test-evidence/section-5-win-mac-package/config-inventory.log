@@ -1,0 +1,153 @@
+=== package.json scripts ===
+native:build:win = node scripts/build-native-core.mjs win-x64
+native:build:mac = node scripts/build-native-core.mjs mac-universal
+verify:release:win = node scripts/verify-release-hardening.mjs dist-electron/win-unpacked
+verify:installer:win = node scripts/verify-windows-installer.mjs
+verify:release:mac = node scripts/verify-release-hardening.mjs dist-electron/mac-universal/Coolto.app
+package:win = npm run native:build:win && npm run desktop:build:protected && electron-builder --win nsis --x64 && npm run verify:release:win && npm run verify:installer:win
+package:mac = npm run native:build:mac && npm run desktop:build:protected && electron-builder --mac --dir --universal && npm run verify:release:mac
+package:mac:dmg = npm run native:build:mac && npm run desktop:build:protected && electron-builder --mac --universal && npm run verify:release:mac
+package:linux = npm run desktop:build && electron-builder --linux AppImage --x64
+
+=== electron-builder.yml win/mac targets ===
+26:extraResources:
+38:mac:
+40:  identity: "-"
+41:  entitlements: build/entitlements.mac.plist
+42:  entitlementsInherit: build/entitlements.mac.plist
+50:  signIgnore:
+52:  extraResources:
+55:  target:
+56:    - target: dir
+59:    - target: zip
+62:    - target: dmg
+65:dmg:
+67:win:
+68:  extraResources:
+71:  target:
+74:nsis:
+79:linux:
+80:  target:
+
+=== build resources present? ===
+-rw-r--r-- 1 box box     486 Oct 18 20:23 build/entitlements.mac.plist
+-rw-r--r-- 1 box box 2334015 Oct 18 20:23 build/icon.png
+chi_sim.traineddata
+eng.traineddata
+
+=== native artifacts on this Linux box ===
+ls: cannot access 'native/coolto-core/artifacts/': No such file or directory
+
+=== verify script heads ===
+import { access, readFile, stat } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { basename, join, resolve } from "node:path";
+
+import { extractFile, listPackage } from "@electron/asar";
+import { FuseV1Options, getCurrentFuseWire } from "@electron/fuses";
+import { verifyNativeCalendarRuntime } from "./verify-native-calendar-runtime.mjs";
+
+const appPath = resolve(process.argv[2] ?? "");
+if (!process.argv[2]) throw new Error("Usage: verify-release-hardening <app-path>");
+
+const isMac = appPath.endsWith(".app");
+const resources = isMac
+  ? join(appPath, "Contents", "Resources")
+  : join(appPath, "resources");
+const executable = isMac
+  ? join(appPath, "Contents", "MacOS", basename(appPath, ".app"))
+  : join(appPath, "Coolto.exe");
+const asarPath = join(resources, "app.asar");
+const nativePath = join(resources, "native", "coolto-core.node");
+
+await Promise.all([access(executable), access(asarPath), access(nativePath)]);
+const files = await listPackage(asarPath);
+const normalized = files.map((file) =>
+  file.replaceAll("\\", "/").replace(/^\/+/, ""),
+);
+requireFile(normalized, "out/main/index.cjs");
+requireFile(normalized, "out/main/index.bin");
+const unexpectedMainFiles = normalized.filter(
+  (file) =>
+    file.startsWith("out/main/") &&
+    file !== "out/main/index.cjs" &&
+    file !== "out/main/index.bin",
+);
+if (unexpectedMainFiles.length) {
+  throw new Error(
+    `Release contains unprotected main-process files:\n${unexpectedMainFiles.join("\n")}`,
+  );
+}
+
+---
+import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
+import { access, readFile, rm } from "node:fs/promises";
+import { createServer } from "node:net";
+import { join, resolve } from "node:path";
+
+if (process.platform !== "win32") {
+  throw new Error("The Windows installer smoke test requires Windows");
+}
+
+const root = resolve(import.meta.dirname, "..");
+const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+const releaseDirectory = join(root, "dist-electron");
+const installDirectory = join(releaseDirectory, "installer-smoke");
+const installer = join(releaseDirectory, `Coolto-${packageJson.version}-x64.exe`);
+const installedExe = join(installDirectory, "Coolto.exe");
+const unpackedExe = join(releaseDirectory, "win-unpacked", "Coolto.exe");
+const installedAsar = join(installDirectory, "resources", "app.asar");
+const unpackedAsar = join(releaseDirectory, "win-unpacked", "resources", "app.asar");
+const uninstaller = join(installDirectory, "Uninstall Coolto.exe");
+const readyMarker = "COOLTO_MAIN_BOOTSTRAP_READY";
+const bootstrapTimeoutMs = 30_000;
+let application;
+
+await access(installer);
+await rm(installDirectory, { recursive: true, force: true });
+try {
+  await run(installer, ["/S", `/D=${installDirectory}`]);
+  await Promise.all([access(installedExe), access(installedAsar), access(uninstaller)]);
+  await assertSameFile(installedExe, unpackedExe);
+  await assertSameFile(installedAsar, unpackedAsar);
+  await delay(2_000);
+
+  const port = await availablePort();
+  application = spawn(installedExe, [
+    `--user-data-dir=${join(installDirectory, "smoke-user-data")}`,
+    `--remote-debugging-port=${port}`,
+  ], {
+    env: {
+      ...process.env,
+---
+import { randomBytes } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { delimiter, join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+
+const targetName = process.argv[2];
+const targets = {
+  "win-x64": {
+    platform: "win32",
+    arch: "x64",
+    triple: "x86_64-pc-windows-msvc",
+  },
+  "mac-universal": {
+    platform: "darwin",
+    arch: "arm64",
+    triples: ["aarch64-apple-darwin", "x86_64-apple-darwin"],
+  },
+};
+const target = targets[targetName];
+if (!target) throw new Error(`Unsupported native target: ${targetName}`);
+if (process.platform !== target.platform || process.arch !== target.arch) {
+  throw new Error(
+    `Native ${targetName} must build on ${target.platform}/${target.arch}; current host is ${process.platform}/${process.arch}`,
+  );
+}
+
+const root = resolve(import.meta.dirname, "..");
+const cargoBin = join(process.env.CARGO_HOME ?? join(homedir(), ".cargo"), "bin");
+const cli = join(root, "node_modules", "@napi-rs", "cli", "dist", "cli.js");

@@ -1,0 +1,16 @@
+# Windows machine read-only probe (machineId d90de375-84b1-4890-b6ad-a92ae4b0b3eb)
+# No package:win executed; no approvals for builds.
+
+OS: Microsoft Windows NT 10.0.19045.0
+Arch: AMD64
+node: v24.16.0
+ROOT=E:\vsProjects\coolto\coolto-desktop-local
+git HEAD: 03bf676
+branch: dev/app-complete
+scripts present: native:build:win, native:build:mac, verify:release:win, verify:installer:win, verify:release:mac, package:win, package:mac, package:mac:dmg
+electron-builder.yml: True
+entitlements.mac.plist: True
+icon.png: True
+native artifacts dir: ABSENT
+NOTE: local checkout HEAD (03bf676) may lag box harness branch (72706c1); scripts/config presence confirmed.
+PROBE_DONE

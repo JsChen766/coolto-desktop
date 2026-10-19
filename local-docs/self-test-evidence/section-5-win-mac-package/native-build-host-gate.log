@@ -1,0 +1,35 @@
+=== 2026-10-19T18:28:55+08:00 native:build:win ===
+
+> coolto-local-agent@0.1.27 native:build:win
+> node scripts/build-native-core.mjs win-x64
+
+file:///workspace/coolto-desktop-local/scripts/build-native-core.mjs:23
+  throw new Error(
+        ^
+
+Error: Native win-x64 must build on win32/x64; current host is linux/x64
+    at file:///workspace/coolto-desktop-local/scripts/build-native-core.mjs:23:9
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.3
+EXIT:0
+
+=== 2026-10-19T18:28:55+08:00 native:build:mac ===
+
+> coolto-local-agent@0.1.27 native:build:mac
+> node scripts/build-native-core.mjs mac-universal
+
+file:///workspace/coolto-desktop-local/scripts/build-native-core.mjs:23
+  throw new Error(
+        ^
+
+Error: Native mac-universal must build on darwin/arm64; current host is linux/x64
+    at file:///workspace/coolto-desktop-local/scripts/build-native-core.mjs:23:9
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.3
+EXIT:0

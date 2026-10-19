@@ -42,7 +42,7 @@
 
 | 项 | 说明 |
 |----|------|
-| Win / Mac 真机打包与安装 | `package:win` / `package:mac*`；需对应 OS |
+| Win / Mac 真机打包与安装 | **deferred**；证据 `section-5-win-mac-package/`（box 冒烟至 wine / `@electron/universal` 阻断） |
 | Authenticode / Apple 公证 | 商业门槛；开源可选 |
 | 远程仓同步 / 开 PR | 本阶段明确 **不 push、不开 PR** |
 | §6 职业画像 | **可勾选**；证据 `section-6/SUMMARY.md` |

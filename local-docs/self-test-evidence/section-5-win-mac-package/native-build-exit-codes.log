@@ -1,0 +1,9 @@
+Re-captured exit codes (without || true masking):
+native:build:win exit=1
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.3
+native:build:mac exit=1
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.3

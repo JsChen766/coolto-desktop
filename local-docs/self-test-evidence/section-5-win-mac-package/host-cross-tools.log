@@ -1,0 +1,4 @@
+wine: ABSENT
+wine64: ABSENT
+osxcross: ABSENT
+genisoimage/dmg tools: 

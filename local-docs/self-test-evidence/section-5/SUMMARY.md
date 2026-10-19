@@ -39,3 +39,7 @@ npm run package:linux
 
 unpacked 冷启动 GUI、原生哈希 / keyring 根因与 workaround：见 [`../section-5-linux-package-gui/SUMMARY.md`](../section-5-linux-package-gui/SUMMARY.md)。
 
+## Win/Mac 边界（2026-10-19）
+
+脚本/配置存在；Linux box 冒烟至 wine / darwin-universal 硬阻断；完整安装 **deferred**。详见 [`../section-5-win-mac-package/SUMMARY.md`](../section-5-win-mac-package/SUMMARY.md)。
+
