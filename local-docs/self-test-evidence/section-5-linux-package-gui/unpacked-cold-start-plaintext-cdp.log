@@ -1,0 +1,76 @@
+[137728:1019/182743.871425:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[137728:1019/182744.139821:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[137728:1019/182744.139898:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[137728:1019/182744.139914:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+
+DevTools listening on ws://127.0.0.1:9333/devtools/browser/48205b8e-a2c4-487b-ba3f-13e4b7a8f1e2
+[137728:1019/182744.179829:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[137728:1019/182744.196726:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[137728:1019/182744.201718:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[137728:1019/182744.201772:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+[137728:1019/182744.201787:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[137765:1019/182744.217043:WARNING:media/gpu/vaapi/vaapi_wrapper.cc:1655] drmGetDevices2() has not found any devices
+[137728:1019/182744.218916:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[137765:1019/182744.220780:WARNING:sandbox/policy/linux/sandbox_linux.cc:405] InitializeSandbox() called with multiple threads in process gpu-process.
+[137765:1019/182744.223068:WARNING:ui/gfx/linux/gbm_support_x11.cc:48] dri3 extension not supported.
+APPIMAGE env is not defined, current application is not an AppImage
+APPIMAGE env is not defined, current application is not an AppImage
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/material-ocr-worker.cjs' imported from /workspace/coolto-desktop-local/dist-electron/linux-unpacked/
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:877:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1004:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:632:32)
+    at TracingChannel.tracePromise (node:diagnostics_channel:362:14) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/material-ocr-worker.cjs'
+}
+
+Node.js v24.18.0
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/material-ocr-worker.cjs' imported from /workspace/coolto-desktop-local/dist-electron/linux-unpacked/
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:877:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1004:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:632:32)
+    at TracingChannel.tracePromise (node:diagnostics_channel:362:14) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/material-ocr-worker.cjs'
+}
+
+Node.js v24.18.0
+[137728:1019/182747.882890:ERROR:content/browser/network_service_instance_impl.cc:721] Network service crashed or was terminated, restarting service.
+[137728:1019/182747.889166:ERROR:content/common/zygote/zygote_communication_linux.cc:291] Failed to send GetTerminationStatus message to zygote
+[137728:1019/182747.889184:WARNING:content/common/zygote/zygote_communication_linux.cc:303] Socket closed prematurely.
+[137728:1019/182747.890854:ERROR:content/common/zygote/zygote_communication_linux.cc:291] Failed to send GetTerminationStatus message to zygote
+[137728:1019/182747.890864:WARNING:content/common/zygote/zygote_communication_linux.cc:303] Socket closed prematurely.
+[137728:1019/182747.891798:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[137728:1019/182747.891809:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 1 time(s)
+Renderer process clean-exit - see https://www.electronjs.org/docs/tutorial/application-debugging for potential debugging information.
+[137728:1019/182747.893132:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[137728:1019/182747.893140:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 2 time(s)
+[137728:1019/182747.893613:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[137728:1019/182747.893618:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 3 time(s)
+[137728:1019/182747.893940:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[137728:1019/182747.893944:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 4 time(s)
+[137728:1019/182747.894185:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[137728:1019/182747.894188:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 5 time(s)
+[137728:1019/182747.894411:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[137728:1019/182747.894414:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 6 time(s)
+[137728:1019/182747.894417:FATAL:content/browser/gpu/gpu_data_manager_impl_private.cc:416] GPU process isn't usable. Goodbye.

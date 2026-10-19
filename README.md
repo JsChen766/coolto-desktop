@@ -138,7 +138,7 @@ Linux 以源码 + `desktop:dev` / `desktop:build` 为主；可选 `npm run packa
 |------|-------------------|
 | 系统通知 | `Notification.isSupported()` 为 false 时提醒调度直接跳过，不伪造成功投递 |
 | 系统日历（macOS 等） | 权限 `denied` / `not_determined` 时返回 `permission_required` 与可读文案，不假装已写入 |
-| Linux 无 keyring | 未打包开发态可回退明文加密以便本地烟测（见主进程 bootstrap 注释）；正式环境仍应使用系统凭据库 |
+| Linux 无 keyring | 未打包 `desktop:dev` 自动 plaintext safeStorage；正式包 box/CI 冒烟可设 `COOLTO_ALLOW_PLAINTEXT_SAFE_STORAGE=1`（见主进程 bootstrap）；生产仍应使用系统凭据库 |
 
 本机诊断与日志说明见 [`local-docs/local-diagnostics.md`](local-docs/local-diagnostics.md)；隐私与本机数据导出/清除见 **设置 → 隐私与数据**。
 

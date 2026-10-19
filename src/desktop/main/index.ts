@@ -117,12 +117,16 @@ function createWindow(): void {
 
 async function bootstrap(): Promise<void> {
   // Headless / keyring-less Linux (CI, cloud VMs): Electron safeStorage stays
-  // unavailable without gnome-keyring/libsecret. Dev/unpackaged builds may opt
-  // into an in-memory key so local OSS GUI smoke can pass the privacy gate.
+  // unavailable without gnome-keyring/libsecret. Unpackaged builds always opt
+  // into plaintext encryption; packaged OSS/box smoke may set
+  // COOLTO_ALLOW_PLAINTEXT_SAFE_STORAGE=1 (never for production installs).
   if (
     process.platform === "linux" &&
-    !app.isPackaged &&
-    !safeStorage.isEncryptionAvailable()
+    !safeStorage.isEncryptionAvailable() &&
+    (
+      !app.isPackaged ||
+      process.env.COOLTO_ALLOW_PLAINTEXT_SAFE_STORAGE === "1"
+    )
   ) {
     safeStorage.setUsePlainTextEncryption(true);
   }

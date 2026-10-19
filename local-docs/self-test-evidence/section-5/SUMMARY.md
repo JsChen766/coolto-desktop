@@ -34,3 +34,8 @@ npm run package:linux
 | Mac 真机 `package:mac*` / 公证 | **deferred**（需 macOS；公证可选） |
 | Authenticode / Apple 公证 | 可选；见 release hardening runbook |
 | 完整自动更新 infra | 开源版自行管理版本（README） |
+
+## 后续加深（2026-10-19）
+
+unpacked 冷启动 GUI、原生哈希 / keyring 根因与 workaround：见 [`../section-5-linux-package-gui/SUMMARY.md`](../section-5-linux-package-gui/SUMMARY.md)。
+

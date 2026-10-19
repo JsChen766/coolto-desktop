@@ -1,0 +1,57 @@
+[137355:1019/182708.073990:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[137355:1019/182708.360207:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[137355:1019/182708.360308:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[137355:1019/182708.360346:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+
+DevTools listening on ws://127.0.0.1:9333/devtools/browser/2e56dcab-c3e2-4c8b-be7c-2a27a68f3d34
+[137355:1019/182708.397494:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[137355:1019/182708.414854:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[137355:1019/182708.420287:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[137355:1019/182708.420336:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+[137355:1019/182708.420395:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[137355:1019/182708.445230:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[137387:1019/182708.460001:WARNING:media/gpu/vaapi/vaapi_wrapper.cc:1655] drmGetDevices2() has not found any devices
+[137387:1019/182708.464127:WARNING:sandbox/policy/linux/sandbox_linux.cc:405] InitializeSandbox() called with multiple threads in process gpu-process.
+[137387:1019/182708.467600:WARNING:ui/gfx/linux/gbm_support_x11.cc:48] dri3 extension not supported.
+APPIMAGE env is not defined, current application is not an AppImage
+APPIMAGE env is not defined, current application is not an AppImage
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/material-ocr-worker.cjs' imported from /workspace/coolto-desktop-local/dist-electron/linux-unpacked/
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:877:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1004:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:632:32)
+    at TracingChannel.tracePromise (node:diagnostics_channel:362:14) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/material-ocr-worker.cjs'
+}
+
+Node.js v24.18.0
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/material-ocr-worker.cjs' imported from /workspace/coolto-desktop-local/dist-electron/linux-unpacked/
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:877:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1004:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:632:32)
+    at TracingChannel.tracePromise (node:diagnostics_channel:362:14) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/material-ocr-worker.cjs'
+}
+
+Node.js v24.18.0

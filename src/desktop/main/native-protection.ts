@@ -26,7 +26,10 @@ export function initializeNativeProtection(): void {
   const bindingPath = app.isPackaged
     ? join(process.resourcesPath, "native", "coolto-core.node")
     : developmentBindingPath();
-  if (!bindingPath || (!app.isPackaged && !existsSync(bindingPath))) return;
+  // OSS Linux AppImage ships no coolto-core (electron-builder.yml has no linux
+  // native extraResources; native:build only targets win/mac). Skip rather than
+  // fail packaged startup on a missing binding / empty compile-time hash.
+  if (!bindingPath || !existsSync(bindingPath)) return;
   verifyBinding(bindingPath, app.isPackaged);
   const require = createRequire(join(process.cwd(), "package.json"));
   const binding = require(bindingPath) as CooltoNativeCore;

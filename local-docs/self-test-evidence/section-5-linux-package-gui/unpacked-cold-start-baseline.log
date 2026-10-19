@@ -1,0 +1,58 @@
+[136174:1019/182511.429612:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[1m[47m[31mA JavaScript error occurred in the main process
+[30mUncaught Exception:
+Error: 正式包缺少原生保护模块哈希
+    at CAe (/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/out/main/index.cjs:777:11849)
+    at EAe (/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/out/main/index.cjs:777:11685)
+    at Object.<anonymous> (/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/out/main/index.cjs:2032:1195)
+    at Module._compile (node:internal/modules/cjs/loader:1879:14)
+    at Object..js (node:internal/modules/cjs/loader:2012:10)
+    at Module.load (node:internal/modules/cjs/loader:1601:32)
+    at node:internal/modules/cjs/loader:1403:12
+    at Module._load (node:electron/js2c/node_init:2:18095)
+    at node:electron/js2c/browser_init:2:149312
+    at node:electron/js2c/browser_init:2:149521
+    at node:electron/js2c/browser_init:2:149525
+    at BuiltinModule.compileForInternalLoader (node:internal/bootstrap/realm:398:7)
+    at BuiltinModule.compileForPublicLoader (node:internal/bootstrap/realm:337:10)
+    at loadBuiltinModule (node:internal/modules/helpers:126:7)
+    at loadBuiltinWithHooks (node:internal/modules/cjs/loader:1257:15)
+    at node:internal/modules/cjs/loader:1352:48
+[0m[136174:1019/182513.218848:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[136174:1019/182513.218949:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[136174:1019/182513.218976:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+[136174:1019/182513.278899:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[136174:1019/182513.297975:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[136174:1019/182513.306277:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+[136174:1019/182513.306350:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+[136174:1019/182513.307150:ERROR:dbus/bus.cc:405] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
+[136207:1019/182513.487061:WARNING:media/gpu/vaapi/vaapi_wrapper.cc:1655] drmGetDevices2() has not found any devices
+[136207:1019/182513.492576:WARNING:sandbox/policy/linux/sandbox_linux.cc:405] InitializeSandbox() called with multiple threads in process gpu-process.
+[136207:1019/182513.496041:WARNING:ui/gfx/linux/gbm_support_x11.cc:48] dri3 extension not supported.
+[136174:1019/182513.803253:ERROR:dbus/object_proxy.cc:572] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type: 
+APPIMAGE env is not defined, current application is not an AppImage
+Error occurred in handler for 'auth:current': Error: 系统安全存储不可用，拒绝保存登录状态
+    at pde (/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/out/main/index.cjs:352:10897)
+    at fde.save (/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/out/main/index.cjs:352:10703)
+    at async Vq.activate (/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/out/main/index.cjs:2:1082)
+    at async Hfe.restore (/workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/out/main/index.cjs:707:7572)
+    at async /workspace/coolto-desktop-local/dist-electron/linux-unpacked/resources/app.asar/out/main/index.cjs:707:44511
+    at async Session.<anonymous> (node:electron/js2c/browser_init:2:120530)
+[136174:1019/182536.343161:ERROR:content/browser/network_service_instance_impl.cc:721] Network service crashed or was terminated, restarting service.
+[136174:1019/182536.356724:ERROR:content/common/zygote/zygote_communication_linux.cc:291] Failed to send GetTerminationStatus message to zygote
+[136174:1019/182536.356738:WARNING:content/common/zygote/zygote_communication_linux.cc:303] Socket closed prematurely.
+[136174:1019/182536.358287:ERROR:content/common/zygote/zygote_communication_linux.cc:291] Failed to send GetTerminationStatus message to zygote
+[136174:1019/182536.358300:WARNING:content/common/zygote/zygote_communication_linux.cc:303] Socket closed prematurely.
+[136174:1019/182536.360544:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[136174:1019/182536.360556:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 1 time(s)
+[136174:1019/182536.361134:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[136174:1019/182536.361142:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 2 time(s)
+[136174:1019/182536.361487:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[136174:1019/182536.361492:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 3 time(s)
+[136174:1019/182536.361821:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[136174:1019/182536.361825:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 4 time(s)
+[136174:1019/182536.362083:ERROR:content/browser/gpu/gpu_process_host.cc:1083] GPU process launch failed: error_code=1002
+[136174:1019/182536.362087:WARNING:content/browser/gpu/gpu_process_host.cc:1531] The GPU process has crashed 5 time(s)
+[136381:1019/182536.385563:WARNING:components/prefs/pref_notifier_impl.cc:26] Init observer found at shutdown.
+[136381:1019/182536.386001:WARNING:net/extras/sqlite/sqlite_persistent_store_backend_base.cc:179] Failed to post task from operator()@net/extras/sqlite/sqlite_persistent_shared_dictionary_store.cc:259 to client_task_runner_.
+[136381:1019/182536.386146:WARNING:net/extras/sqlite/sqlite_persistent_store_backend_base.cc:179] Failed to post task from operator()@net/extras/sqlite/sqlite_persistent_shared_dictionary_store.cc:259 to client_task_runner_.
