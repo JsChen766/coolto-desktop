@@ -29,11 +29,14 @@ export interface ExportPackageInput {
   mode: ExportSnapshotView["mode"];
   exportId?: string;
   createdAt?: string;
+  /** When true, snapshot entries are local sync business assets (OSS local-only). */
+  snapshotEntriesLocalOnly?: boolean;
 }
 
 export async function buildExportPackage(input: ExportPackageInput): Promise<ExportEnvelopeV1> {
+  const snapshotLocalOnly = input.snapshotEntriesLocalOnly === true;
   const scope: ExportScope = {
-    cloudAssets: input.snapshot !== null,
+    cloudAssets: input.snapshot !== null && !snapshotLocalOnly,
     localConversations: input.includeConversations,
     localDrafts: input.includeDrafts,
     localTasks: input.includeTasks,
@@ -54,6 +57,7 @@ export async function buildExportPackage(input: ExportPackageInput): Promise<Exp
     scope,
     localEntriesFor(local),
     accountScopeDigest,
+    snapshotLocalOnly,
   );
   const rootSha256 = manifestRootSha256(manifestBody);
   const exportId = input.exportId ?? randomUUID();

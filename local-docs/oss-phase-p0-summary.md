@@ -36,7 +36,7 @@
 
 1. **Linux 正式包 GUI 冷启动**：box 无 keyring / 无 Linux `coolto-core` 原生保护哈希时，unpacked 启动会报安全模块/密钥环错误；开发路径仍用 `desktop:dev`。  
 2. **托管任务诊断粒度**：`managed_task` 依赖 `changed` 回调与授权 executor；极短失败路径若未触发 `changed` 可能漏记（主路径已覆盖）。  
-3. **导出对账为夹具级**：未在本轮跑完整 Electron GUI「点导出」实机包（对话框依赖人工）；逻辑与脱敏由 `DataExportService` + reconciliation 测试覆盖。
+3. **导出对账**：`section-4-export-full/` 已覆盖 `DataExportService`→写盘→解密对账；OSS 本机 sync 业务资产进入导出包。原生另存为对话框仍需人工/OS 自动化（CDP 不可达）。
 
 ## Deferred（下阶段 / 真机）
 

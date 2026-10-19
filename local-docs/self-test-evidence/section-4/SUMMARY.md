@@ -21,3 +21,8 @@ node --import tsx --test test/privacy-ui-contract.test.ts
 ```
 
 详见 `export-reconciliation.log` / `privacy-tests.log`。证据中无密钥明文。
+
+## 后续补齐（2026-10-19）
+
+完整服务写盘路径与 OSS 本机业务资产导出：见 [`../section-4-export-full/SUMMARY.md`](../section-4-export-full/SUMMARY.md)。
+

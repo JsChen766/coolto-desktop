@@ -60,6 +60,7 @@ export function buildManifestBody(
   _scope: ExportScope,
   localEntries: readonly ExportManifestEntry[],
   accountScopeDigest = snapshot?.accountScopeDigest,
+  snapshotEntriesLocalOnly = false,
 ): ExportManifestBody {
   const cloudEntries = snapshot?.entries.map((entry) => ({
     path: entry.path,
@@ -67,7 +68,7 @@ export function buildManifestBody(
     bytes: entry.bytes,
     sha256: entry.sha256,
     protected: true as const,
-    localOnly: false,
+    localOnly: snapshotEntriesLocalOnly,
   })) ?? [];
   const entries = [...cloudEntries, ...localEntries].sort(compareEntry);
   const counts = { ...(snapshot?.counts ?? {}) };

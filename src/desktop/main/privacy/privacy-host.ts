@@ -14,7 +14,9 @@ import { createLocalExportReader } from "./local-export-reader.js";
 import { clearAccountLocalDirectories } from "./local-account-cleanup.js";
 import { executeLocalClear } from "./local-clear-service.js";
 import { PrivacyDeletionService } from "./privacy-deletion-service.js";
-import { DataExportService, ElectronExportSaveDialog } from "./data-export-service.js";
+import { DataExportService } from "./data-export-service.js";
+import { ElectronExportSaveDialog } from "./electron-export-save-dialog.js";
+import { buildLocalBusinessSnapshot } from "./local-business-export-snapshot.js";
 import type { PrivacyIpcOptions } from "./privacy-ipc.js";
 
 export interface PrivacyHostWiring {
@@ -68,7 +70,9 @@ export function createPrivacyHostWiring(
         auth.apiClient.privacy,
         createLocalExportReader(
           () => services.current(),
-          () => auth.privacy.isCloudBusinessAllowed ? auth.requireSyncStore() : undefined,
+          () => {
+            try { return auth.requireSyncStore(); } catch { return undefined; }
+          },
         ),
         new ElectronExportSaveDialog(window),
         () => {
@@ -78,6 +82,19 @@ export function createPrivacyHostWiring(
             apiBaseUrl: auth.apiBaseUrl,
             scopeDigest: offlineScopeDigest(auth.apiBaseUrl, user.id),
           };
+        },
+        {
+          read: async (scope) => {
+            try {
+              const store = auth.requireSyncStore();
+              return buildLocalBusinessSnapshot({
+                source: store,
+                accountScopeDigest: scope.scopeDigest,
+              });
+            } catch {
+              return null;
+            }
+          },
         },
       ),
       hasDeletionRecovery: async () => {

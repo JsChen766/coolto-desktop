@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: export manifest root excludes itself and AAD is deterministic
+ok 1 - export manifest root excludes itself and AAD is deterministic
+  ---
+  duration_ms: 1.741658
+  type: 'test'
+  ...
+# Subtest: export package has exact envelope fields and marks local entries
+ok 2 - export package has exact envelope fields and marks local entries
+  ---
+  duration_ms: 194.655801
+  type: 'test'
+  ...
+# Subtest: local-only export binds its opaque digest to owner and API origin
+ok 3 - local-only export binds its opaque digest to owner and API origin
+  ---
+  duration_ms: 92.360789
+  type: 'test'
+  ...
+# Subtest: export rejects nested mandatory secret and external-content keys
+ok 4 - export rejects nested mandatory secret and external-content keys
+  ---
+  duration_ms: 0.988038
+  type: 'test'
+  ...
+# Subtest: export crypto enforces portable scrypt bounds and authenticates AAD
+ok 5 - export crypto enforces portable scrypt bounds and authenticates AAD
+  ---
+  duration_ms: 280.678209
+  type: 'test'
+  ...
+# Subtest: export dialog keeps passphrases in uncontrolled one-shot inputs
+ok 6 - export dialog keeps passphrases in uncontrolled one-shot inputs
+  ---
+  duration_ms: 3.691899
+  type: 'test'
+  ...
+# Subtest: local export binds one owner across service reads and digest creation
+ok 7 - local export binds one owner across service reads and digest creation
+  ---
+  duration_ms: 1.999783
+  type: 'test'
+  ...
+# Subtest: export form resets before awaiting and returns no credential fields
+ok 8 - export form resets before awaiting and returns no credential fields
+  ---
+  duration_ms: 1.221642
+  type: 'test'
+  ...
+# Subtest: export form redacts a backend error that echoes the passphrase
+ok 9 - export form redacts a backend error that echoes the passphrase
+  ---
+  duration_ms: 0.437653
+  type: 'test'
+  ...
+# Subtest: full export path: DataExportService writes decryptable package with UI asset kinds
+ok 10 - full export path: DataExportService writes decryptable package with UI asset kinds
+  ---
+  duration_ms: 171.352451
+  type: 'test'
+  ...
+# Subtest: OSS local-only full path: sync business assets + optional locals, written to disk
+ok 11 - OSS local-only full path: sync business assets + optional locals, written to disk
+  ---
+  duration_ms: 149.51509
+  type: 'test'
+  ...
+# Subtest: full export path: save dialog cancel returns cancelled without writing
+ok 12 - full export path: save dialog cancel returns cancelled without writing
+  ---
+  duration_ms: 69.471464
+  type: 'test'
+  ...
+# Subtest: buildLocalBusinessSnapshot strips forbidden keys and skips deletes
+ok 13 - buildLocalBusinessSnapshot strips forbidden keys and skips deletes
+  ---
+  duration_ms: 0.394485
+  type: 'test'
+  ...
+# Subtest: export package manifest counts match UI-visible asset kinds
+ok 14 - export package manifest counts match UI-visible asset kinds
+  ---
+  duration_ms: 172.671823
+  type: 'test'
+  ...
+# Subtest: local-only export still rejects secret fields and keeps desensitization
+ok 15 - local-only export still rejects secret fields and keeps desensitization
+  ---
+  duration_ms: 81.008188
+  type: 'test'
+  ...
+# Subtest: privacy IPC accepts only fresh plain export payloads
+ok 16 - privacy IPC accepts only fresh plain export payloads
+  ---
+  duration_ms: 1.592518
+  type: 'test'
+  ...
+# Subtest: privacy IPC accepts only exact deletion fields
+ok 17 - privacy IPC accepts only exact deletion fields
+  ---
+  duration_ms: 0.261818
+  type: 'test'
+  ...
+# Subtest: offline cached consent cannot open cloud deletion transport
+ok 18 - offline cached consent cannot open cloud deletion transport
+  ---
+  duration_ms: 0.259915
+  type: 'test'
+  ...
+# Subtest: privacy dialogs keep destructive states keyboard reachable
+ok 19 - privacy dialogs keep destructive states keyboard reachable
+  ---
+  duration_ms: 3.89294
+  type: 'test'
+  ...
+# Subtest: privacy UI keeps demo and unavailable APIs fail-closed
+ok 20 - privacy UI keeps demo and unavailable APIs fail-closed
+  ---
+  duration_ms: 0.964169
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2366.901544

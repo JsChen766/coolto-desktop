@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, open, unlink } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
-
-import { app, dialog, type BrowserWindow } from "electron";
+import { basename, dirname } from "node:path";
 
 import { PrivacyApi } from "../../../api/privacy-api.js";
 import { buildExportPackage } from "../../../privacy/export-package.js";
 import { canonicalExportJson } from "../../../privacy/export-canonical.js";
 import type { ExportLocalPayload } from "../../../privacy/export-types.js";
+import type { CloudExportSnapshotV1 } from "../../../privacy/types.js";
 import type { PrivacyExportOptions, PrivacyExportResult } from "../../shared/types/privacy.js";
 import { renameWithRetry } from "../atomic-rename.js";
 import { recordLocalDiagnostic } from "../../../diagnostics/local-event-log.js";
@@ -28,24 +27,16 @@ export interface ExportSaveDialog {
   choosePath(suggestedFilename: string): Promise<string | undefined>;
 }
 
-export class ElectronExportSaveDialog implements ExportSaveDialog {
-  public constructor(private readonly window: BrowserWindow) {}
 
-  public async choosePath(suggestedFilename: string): Promise<string | undefined> {
-    const result = await dialog.showSaveDialog(this.window, {
-      title: "导出 Coolto 数据",
-      defaultPath: join(app.getPath("documents"), suggestedFilename),
-      buttonLabel: "导出",
-      filters: [{ name: "Coolto export", extensions: ["coolto-export.json"] }],
-      properties: ["createDirectory", "showOverwriteConfirmation"],
-    });
-    return result.canceled ? undefined : result.filePath;
-  }
-}
 export interface DataExportScope {
   ownerId: string;
   apiBaseUrl: string;
   scopeDigest: string;
+}
+
+/** Optional OSS/local path: project sync-store business assets without cloud. */
+export interface LocalBusinessSnapshotReader {
+  read(scope: DataExportScope): Promise<CloudExportSnapshotV1 | null>;
 }
 
 export class DataExportService {
@@ -54,6 +45,7 @@ export class DataExportService {
     private readonly local: ExportLocalReader,
     private readonly saveDialog: ExportSaveDialog,
     private readonly getScope: () => DataExportScope,
+    private readonly localBusiness: LocalBusinessSnapshotReader | null = null,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -67,9 +59,16 @@ export class DataExportService {
       includeTasks: options.includeTasks,
     });
     if (!sameScope(scope, this.getScope())) throw new Error("账号来源切换期间拒绝导出");
-    const snapshot = options.includeCloudAssets ? await this.api.exportSnapshot() : null;
+    let snapshot = options.includeCloudAssets ? await this.api.exportSnapshot() : null;
+    let snapshotEntriesLocalOnly = false;
+    if (!snapshot && this.localBusiness) {
+      snapshot = await this.localBusiness.read(scope);
+      snapshotEntriesLocalOnly = snapshot !== null;
+    }
     if (!sameScope(scope, this.getScope())) throw new Error("账号来源切换期间拒绝导出");
-    const mode = snapshot ? (local.hasPending ? "local_pending" : "synchronized") : "offline_stale";
+    const mode = options.includeCloudAssets && snapshot
+      ? (local.hasPending ? "local_pending" : "synchronized")
+      : "offline_stale";
     const envelope = await buildExportPackage({
       snapshot,
       accountScopeDigest: snapshot?.accountScopeDigest ?? scope.scopeDigest,
@@ -80,6 +79,7 @@ export class DataExportService {
       passphrase: options.passphrase,
       mode,
       createdAt: this.now().toISOString(),
+      snapshotEntriesLocalOnly,
     });
     if (!sameScope(scope, this.getScope())) throw new Error("账号来源切换期间拒绝导出");
     const suggestedFilename = `coolto-export-v1-${filenameTimestamp(this.now())}.coolto-export.json`;
