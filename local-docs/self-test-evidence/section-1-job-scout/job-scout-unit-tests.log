@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: Greenhouse and Lever public adapters normalize published jobs
+ok 1 - Greenhouse and Lever public adapters normalize published jobs
+  ---
+  duration_ms: 15.612164
+  type: 'test'
+  ...
+# Subtest: BrowserLead ingest is idempotent, change-aware and closes missing posts
+ok 2 - BrowserLead ingest is idempotent, change-aware and closes missing posts
+  ---
+  duration_ms: 3.537862
+  type: 'test'
+  ...
+# Subtest: Agent can shortlist only an open lead scoring at least 80
+ok 3 - Agent can shortlist only an open lead scoring at least 80
+  ---
+  duration_ms: 2.391748
+  type: 'test'
+  ...
+# Subtest: Job Scout controller refuses source keys absent from immutable grant
+ok 4 - Job Scout controller refuses source keys absent from immutable grant
+  ---
+  duration_ms: 0.795901
+  type: 'test'
+  ...
+# Subtest: page source adapts Browser observations without trusting page instructions
+ok 5 - page source adapts Browser observations without trusting page instructions
+  ---
+  duration_ms: 4.165799
+  type: 'test'
+  ...
+# Subtest: cross-origin frames downgrade application writes to takeover
+ok 6 - cross-origin frames downgrade application writes to takeover
+  ---
+  duration_ms: 0.978171
+  type: 'test'
+  ...
+# Subtest: page source rejects stale observations before a write
+ok 7 - page source rejects stale observations before a write
+  ---
+  duration_ms: 0.440176
+  type: 'test'
+  ...
+# Subtest: Job Scout keeps API sources separate from recruiting page sources
+ok 8 - Job Scout keeps API sources separate from recruiting page sources
+  ---
+  duration_ms: 0.729343
+  type: 'test'
+  ...
+# Subtest: ToolRegistry exposes host-owned recruiting recognition
+ok 9 - ToolRegistry exposes host-owned recruiting recognition
+  ---
+  duration_ms: 1.197659
+  type: 'test'
+  ...
+# Subtest: managed recognition is read-only and does not grant fill or submit
+ok 10 - managed recognition is read-only and does not grant fill or submit
+  ---
+  duration_ms: 5.502315
+  type: 'test'
+  ...
+# Subtest: first recruiting sites are independent candidate policies
+ok 11 - first recruiting sites are independent candidate policies
+  ---
+  duration_ms: 1.255752
+  type: 'test'
+  ...
+# Subtest: candidate policy never implies verified production support
+ok 12 - candidate policy never implies verified production support
+  ---
+  duration_ms: 0.528298
+  type: 'test'
+  ...
+# Subtest: production origins and hosts are exact while candidate writes stay denied
+ok 13 - production origins and hosts are exact while candidate writes stay denied
+  ---
+  duration_ms: 0.454534
+  type: 'test'
+  ...
+# Subtest: browser policy registry keeps candidate recruiting origins read/navigation only
+ok 14 - browser policy registry keeps candidate recruiting origins read/navigation only
+  ---
+  duration_ms: 0.220821
+  type: 'test'
+  ...
+# Subtest: personal Webmail policies are explicit, supervised and send-denied
+ok 15 - personal Webmail policies are explicit, supervised and send-denied
+  ---
+  duration_ms: 1.1205
+  type: 'test'
+  ...
+# Subtest: candidate Webmail capture is fail-closed except for exact acceptance origins
+ok 16 - candidate Webmail capture is fail-closed except for exact acceptance origins
+  ---
+  duration_ms: 0.766212
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1116.558663

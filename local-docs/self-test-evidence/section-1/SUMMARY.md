@@ -22,3 +22,8 @@
 ## Verdict
 
 **PASS**
+
+## 后续加深（2026-10-19）
+
+Job Scout 公开搜岗 + browser-agent fixture 复跑：见 [`../section-1-job-scout/SUMMARY.md`](../section-1-job-scout/SUMMARY.md)。
+

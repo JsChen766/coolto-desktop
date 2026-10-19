@@ -1,0 +1,33 @@
+
+> coolto-local-agent@0.1.27 qa:job-scout
+> node --import tsx scripts/run-job-scout-qa.ts
+
+{
+  "passed": 2,
+  "report": [
+    {
+      "provider": "greenhouse",
+      "sourceKey": "greenhouse",
+      "firstCount": 18,
+      "secondCount": 18,
+      "duplicateIds": 0,
+      "secondFetchStates": [
+        "unchanged"
+      ],
+      "sampleRole": "Commercial Counsel",
+      "sampleUrl": "https://job-boards.greenhouse.io/greenhouse/jobs/8126988?gh_jid=8126988"
+    },
+    {
+      "provider": "lever",
+      "sourceKey": "leverdemo",
+      "firstCount": 10,
+      "secondCount": 10,
+      "duplicateIds": 0,
+      "secondFetchStates": [
+        "unchanged"
+      ],
+      "sampleRole": "Customer Success Manager",
+      "sampleUrl": "https://jobs.lever.co/leverdemo/ad208490-4052-4f91-a57e-433f2d1e484b"
+    }
+  ]
+}
