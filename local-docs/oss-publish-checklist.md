@@ -1,9 +1,9 @@
 # Coolto 开源发布清单（本地可交付）
 
-日期：2026-10-18（Asia/Shanghai）  
-仓：`/workspace/coolto-desktop-local`  
+日期：2026-10-18（Asia/Shanghai）；发布落地更新：2026-11-04（Asia/Shanghai）  
+仓：`/workspace/coolto-desktop-local` → 公开远程 `https://github.com/JsChen766/coolto-desktop`  
 本清单轮次基线 HEAD：见文末「本轮提交」（提交后以 `git rev-parse HEAD` 为准）  
-约束：**不 push、不开 PR**；真实 Key 不写入任何文件或本清单。
+约束：真实 Key 不写入任何文件或本清单。**2026-11-03 起公开仓已 push / 已发 Release**；本文件保留发布前抽查记录。
 
 ---
 
@@ -32,7 +32,8 @@
 
 - [x] `LICENSE`：MIT；`CONTRIBUTING.md`；`.github/ISSUE_TEMPLATE/`
 - [x] `local-docs/beginner-issues.md`：5 条草稿
-- [x] **可粘贴正文**：`local-docs/beginner-issues-ready-to-post.md`（3–5 条 good first issue，已就绪；等公开仓后由主人粘贴）
+- [x] **可粘贴正文**：`local-docs/beginner-issues-ready-to-post.md`
+- [x] **已贴公开 Issue**：GitHub `#1`–`#5`（good first issue / documentation，2026-11-03）
 
 ### 默认分支（已代决）
 
@@ -53,26 +54,27 @@
 - [x] 上传步骤在缺 `RELEASE_SERVER_*` 时 skip；**勿**在公开仓把这些 secrets 配成必填
 - [x] README / 本清单已注明：不配置则不跑商业上传
 
-### 远程就绪说明（文档已写清；未执行 push）
+### 远程就绪说明（已落地）
 
 - [x] 下文给出：空仓创建后如何 push **全历史**、默认分支、占位 remote、双托管步骤
-- [x] 明确：**本阶段不 push、不开 PR**
+- [x] **2026-11-03**：已建公开仓并全历史 push `dev/app-complete` → `main`（tip `6ac7595`）
+- [x] **2026-11-03**：GitHub Release [v0.1.27](https://github.com/JsChen766/coolto-desktop/releases/tag/v0.1.27)；本机 GUI 视觉检查通过
+- [x] **2026-11-04**：仓库 Topics 已设（electron / desktop / job-search / resume / llm / local-first / typescript / open-source / agent / harness）
 
 ---
 
-## 仅剩：等主人填 URL
+## 发布落地核对（相对「等主人填 URL」）
 
-> 下列项无法在离线本机替你完成。填空后按「推送步骤」操作即可。
-
-| # | 项 | 状态 | 主人填写 |
-|---|----|------|----------|
-| 1 | GitHub 空仓 URL | **⏳ 等待** | `https://github.com/<ORG_OR_USER>/coolto-desktop.git` |
-| 2 | Gitee 空仓 URL（可选镜像） | **⏳ 等待** | `https://gitee.com/<ORG_OR_USER>/coolto-desktop.git` |
-| 3 | 公开默认分支 | **✅ 已代决 `main`** | — |
-| 4 | 是否 push 全历史 | **✅ 已代决：全历史**（硬伤见抽查；Plan B 已文档化未执行） | — |
-| 5 | 仓名 / 简介 / Topics / 先 Private 再 Public | 主人自定（可与 URL 一并定） | |
+| # | 项 | 状态 | 备注 |
+|---|----|------|------|
+| 1 | GitHub 仓 URL | **✅** | `https://github.com/JsChen766/coolto-desktop`（Public） |
+| 2 | Gitee 空仓 URL（可选镜像） | **⏳ 可选，未做** | 仍可按下方双托管步骤补 |
+| 3 | 公开默认分支 | **✅ `main`** | — |
+| 4 | 是否 push 全历史 | **✅ 已执行全历史**（硬伤见抽查；Plan B 未执行） | — |
+| 5 | 仓名 / 简介 / Topics / Public | **✅** | description 已设；Topics 2026-11-04 补齐 |
 | 6 | GitHub Actions `RELEASE_SERVER_*` | **✅ 已代决：不配置则不跑**；workflow 仅手动 | — |
-| 7 | 创建 beginner Issues | **✅ 正文已备** → `beginner-issues-ready-to-post.md`；等 URL 后粘贴 | — |
+| 7 | 创建 beginner Issues | **✅ 已贴 `#1`–`#5`** | — |
+| 8 | Release | **✅ v0.1.27** | 2026-11-03 发布 |
 
 ---
 
