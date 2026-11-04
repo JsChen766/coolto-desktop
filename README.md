@@ -170,7 +170,11 @@ npm run check
 npm run qa:browser-agent
 ```
 
-开发约定见 `AGENTS.md`；贡献与安全审核见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。新手友好 Issue 草稿见 [`local-docs/beginner-issues.md`](local-docs/beginner-issues.md)；可粘贴到 Tracker 的正文见 [`local-docs/beginner-issues-ready-to-post.md`](local-docs/beginner-issues-ready-to-post.md)。当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`；开源裁剪 PRD 见 `local-docs/PRD-open-source-desktop.md`。
+开发约定见 `AGENTS.md`；贡献与安全审核见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+
+欢迎大学生与第一次参与开源的同学：请 **Fork 本仓后开 PR** 合入 `main`（优先 squash merge），**不要**申请 Collaborator / 写权限。流程、新手范围与安全自检见 CONTRIBUTING；可认领的公开新手任务见 [Issues](https://github.com/JsChen766/coolto-desktop/issues)（含 good first issue）。本地草稿见 [`local-docs/beginner-issues.md`](local-docs/beginner-issues.md) 与 [`local-docs/beginner-issues-ready-to-post.md`](local-docs/beginner-issues-ready-to-post.md)。
+
+当前产品路线入口是 `local-docs/p0-product-completion-roadmap/README.md`；开源裁剪 PRD 见 `local-docs/PRD-open-source-desktop.md`。
 
 ## 代码入口
 
