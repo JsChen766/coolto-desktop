@@ -13,9 +13,31 @@ on:
         type: string
 
 jobs:
+  check-release-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check RELEASE_SERVER_* secrets
+        id: check
+        env:
+          # if: 不能引用 secrets。这里只得到 true/false，不把密钥放进环境。
+          RELEASE_SERVER_CONFIGURED: "${{ secrets.RELEASE_SERVER_SSH_KEY != '' && secrets.RELEASE_SERVER_HOST != '' && secrets.RELEASE_SERVER_USER != '' }}"
+        run: |
+          if [ "${RELEASE_SERVER_CONFIGURED}" = "true" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "RELEASE_SERVER_* configured — homepage deploy will run."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "RELEASE_SERVER_* not configured — homepage deploy skipped (OSS default)."
+          fi
+
   deploy-homepage:
-    # OSS fork 未配置 RELEASE_SERVER_* 时整 job 跳过（绿），避免缺 HomePage-Web / secrets 变红
-    if: ${{ secrets.RELEASE_SERVER_SSH_KEY != '' && secrets.RELEASE_SERVER_HOST != '' && secrets.RELEASE_SERVER_USER != '' }}
+    needs: check-release-server
+    # OSS fork 未配置 RELEASE_SERVER_* 时整 job 跳过（绿），避免缺 HomePage-Web / secrets 变红。
+    # job if 不能读 secrets 或 env，所以用上面的输出。
+    if: ${{ needs.check-release-server.outputs.configured == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -86,7 +108,7 @@ jobs:
           echo "bundle references version ${VERSION}"
 
       - name: Deploy to release server
-        if: ${{ steps.version.outputs.version != '' && secrets.RELEASE_SERVER_SSH_KEY != '' }}
+        if: ${{ steps.version.outputs.version != '' }}
         env:
           SSH_KEY: ${{ secrets.RELEASE_SERVER_SSH_KEY }}
           SERVER_HOST: ${{ secrets.RELEASE_SERVER_HOST }}
