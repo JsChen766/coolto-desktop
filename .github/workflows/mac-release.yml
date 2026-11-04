@@ -10,6 +10,10 @@ jobs:
   build-mac:
     runs-on: macos-14
     timeout-minutes: 60
+    # if: 不能引用 secrets（workflow 文件会非法，每次 push 都红）。
+    # 只暴露是否已配置；密钥仍只在上传步骤注入。
+    env:
+      RELEASE_SERVER_CONFIGURED: "${{ secrets.RELEASE_SERVER_SSH_KEY != '' && secrets.RELEASE_SERVER_HOST != '' && secrets.RELEASE_SERVER_USER != '' }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,7 +57,7 @@ jobs:
           done
 
       - name: Upload artifacts to release server
-        if: ${{ secrets.RELEASE_SERVER_SSH_KEY != '' && secrets.RELEASE_SERVER_HOST != '' && secrets.RELEASE_SERVER_USER != '' }}
+        if: ${{ env.RELEASE_SERVER_CONFIGURED == 'true' }}
         env:
           SSH_KEY: ${{ secrets.RELEASE_SERVER_SSH_KEY }}
           SERVER_HOST: ${{ secrets.RELEASE_SERVER_HOST }}
@@ -81,5 +85,5 @@ jobs:
             "sudo install -o root -g root -m 644 /home/$SERVER_USER/upload-index.html /srv/coolto-releases/index.html && rm -f /home/$SERVER_USER/upload-index.html"
 
       - name: Skip upload when RELEASE_SERVER_* unset
-        if: ${{ secrets.RELEASE_SERVER_SSH_KEY == '' || secrets.RELEASE_SERVER_HOST == '' || secrets.RELEASE_SERVER_USER == '' }}
+        if: ${{ env.RELEASE_SERVER_CONFIGURED != 'true' }}
         run: echo "RELEASE_SERVER_* not configured — packaging done; upload skipped (OSS default)."

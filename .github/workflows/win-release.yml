@@ -10,6 +10,10 @@ jobs:
   build-win:
     runs-on: windows-latest
     timeout-minutes: 60
+    # if: 不能引用 secrets（workflow 文件会非法，每次 push 都红）。
+    # 只暴露是否已配置；密钥仍只在上传步骤注入。
+    env:
+      RELEASE_SERVER_CONFIGURED: "${{ secrets.RELEASE_SERVER_SSH_KEY != '' && secrets.RELEASE_SERVER_HOST != '' && secrets.RELEASE_SERVER_USER != '' }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,7 +48,7 @@ jobs:
         run: node scripts/verify-windows-installer.mjs
 
       - name: Upload artifacts to release server
-        if: ${{ secrets.RELEASE_SERVER_SSH_KEY != '' && secrets.RELEASE_SERVER_HOST != '' && secrets.RELEASE_SERVER_USER != '' }}
+        if: ${{ env.RELEASE_SERVER_CONFIGURED == 'true' }}
         shell: bash
         env:
           SSH_KEY: ${{ secrets.RELEASE_SERVER_SSH_KEY }}
@@ -70,6 +74,6 @@ jobs:
             "sudo install -o root -g root -m 644 /home/$SERVER_USER/latest.yml /home/$SERVER_USER/Coolto-*.exe /home/$SERVER_USER/Coolto-*.exe.blockmap /srv/coolto-releases/ && sudo install -o root -g root -m 644 /home/$SERVER_USER/upload-index.html /srv/coolto-releases/index.html && rm -f /home/$SERVER_USER/latest.yml /home/$SERVER_USER/Coolto-*.exe /home/$SERVER_USER/Coolto-*.exe.blockmap /home/$SERVER_USER/upload-index.html && ls -la /srv/coolto-releases/"
 
       - name: Skip upload when RELEASE_SERVER_* unset
-        if: ${{ secrets.RELEASE_SERVER_SSH_KEY == '' || secrets.RELEASE_SERVER_HOST == '' || secrets.RELEASE_SERVER_USER == '' }}
+        if: ${{ env.RELEASE_SERVER_CONFIGURED != 'true' }}
         shell: bash
         run: echo "RELEASE_SERVER_* not configured — packaging done; upload skipped (OSS default)."
