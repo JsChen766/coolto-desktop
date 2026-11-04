@@ -2,6 +2,27 @@
 
 感谢参与 Coolto 开源本地 Desktop。本仓库是**本地优先**桌面 Agent：不连接 Coolto 云、不登录、不用 Credit。请先阅读根目录 `README.md`、`AGENTS.md`，以及开源裁剪 PRD：`local-docs/PRD-open-source-desktop.md`。站点支持边界见 `local-docs/site-support-boundary.md`。
 
+## 谁可以贡献、如何获得写权限
+
+欢迎大学生与第一次参与开源的同学：本仓完成度已经较高，但文档、体验与局部优化仍有大量适合入门的改动。
+
+- **默认路径是 Fork → Pull Request**，不要申请成为 Collaborator / 写权限。
+- **Collaborator 只留给维护者明确认可的长期共同维护者**；陌生贡献者不会被拉进仓库协作者列表。
+- Issue 与 PR 可用中文或英文。请勿把「私下发补丁 / 只在群里塞代码」当作主路径；代码合入以 GitHub PR 为准。
+
+### 推荐流程
+
+1. 在 [Issues](https://github.com/JsChen766/coolto-desktop/issues) 认领任务（优先 `good first issue` / 文档向），评论说明你想做。
+2. Fork 本仓库，从上游 `main` 拉自己的分支。
+3. 按下方「本地开发」改代码；提交前尽量跑通 `npm run check`。UI / 可见行为变更请再在真实 Electron 下点一遍。
+4. 向 `JsChen766/coolto-desktop` 的 **`main`** 开 PR：写清改了什么、如何自测（命令与结论）、是否触及安全敏感面；关联 Issue 编号。
+5. 维护者 review 通过后，以 **squash merge** 合入 `main`，并删除分支。
+
+### 新手范围建议
+
+- **优先**：文档、文案、README/CONTRIBUTING 澄清、新手 Issue、小范围 UI 文案与无行为破坏的体验优化。
+- **需更严审核**：Agent 内核、审批通道、凭据/密钥处理、打包与安装脚本、依赖升级、招聘站点自动化边界。
+
 ## 本地开发
 
 需要 Node.js **22.13** 或更高版本。
