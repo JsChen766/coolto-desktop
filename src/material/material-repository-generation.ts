@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, rename, rm, stat } from "node:fs/promises";
+import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
+import { renameMaterialPath } from "./material-fs-retry.js";
 import type { MaterialCatalogEntry, MaterialStoredRecord } from "./material-repository.js";
 import { readMaterialEncrypted, writeMaterialEncrypted } from "./material-repository-crypto.js";
 import { normalizeMaterialRecord, toMaterialCatalogEntry } from "./material-repository-helpers.js";
@@ -89,7 +90,7 @@ export class MaterialGenerationStore {
       }
       await writeMaterialEncrypted(join(staging, "catalog.enc"), [...catalog.values()], this.key, this.aad("catalog"));
       await mkdir(join(this.root, "generations"), { recursive: true });
-      await rename(staging, destination);
+      await renameMaterialPath(staging, destination);
       await writeMaterialEncrypted(join(this.root, "commit.enc"), {
         schema: "material.repository.commit", version: 1, generation, previousGeneration: this.#generation ?? null,
       } satisfies CommitMarker, this.key, this.aad("commit"));

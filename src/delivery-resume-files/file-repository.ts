@@ -137,11 +137,9 @@ export class DeliveryResumeFileRepository implements DeliveryResumeFileSource {
   public async stage(fileId: string): Promise<string> {
     const file = await this.get(fileId);
     const content = await this.#readBlob(file);
-    await mkdir(this.#stagingDirectory, { recursive: true, mode: 0o700 });
-    const stage = join(
-      this.#stagingDirectory,
-      `${randomUUID()}-${basename(file.originalFilename)}`,
-    );
+    const directory = join(this.#stagingDirectory, randomUUID());
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    const stage = join(directory, basename(file.originalFilename));
     await writeFile(stage, content, { mode: 0o600 });
     return stage;
   }

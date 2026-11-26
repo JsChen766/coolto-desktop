@@ -9,6 +9,7 @@ import AiNativeAutomationSettings from "./AiNativeAutomationSettings.vue";
 import AiProviderSettings from "./AiProviderSettings.vue";
 import PrivacyDataSection from "./PrivacyDataSection.vue";
 import SettingsDialogNav, { type SettingsNavId } from "./SettingsDialogNav.vue";
+import { isImeComposing } from "../lib/ime-keyboard";
 
 const props = defineProps<{ api: DesktopApi; conversationId: string }>();
 const emit = defineEmits<{
@@ -57,6 +58,7 @@ async function openFeedback(): Promise<void> {
 }
 
 function keydown(event: KeyboardEvent): void {
+  if (isImeComposing(event)) return;
   if (event.key === "Escape") {
     event.preventDefault();
     dismiss();

@@ -1,12 +1,14 @@
 import type { DownloadItem, Event, Session } from "electron";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync } from "node:fs";
-import { basename, extname, join } from "node:path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 import type { BrowserDownloadResult } from "../../../browser/agent-control-types.js";
 import { BrowserDownloadProjectionStore } from
   "../../../browser/browser-download-projection.js";
+import { downloadSaveNameParts } from "../../../browser/browser-download-save-name.js";
 import type { BrowserDownloadView } from "../../shared/types.js";
+import { ensureBrowserDownloadRoot } from "./browser-download-root.js";
 import { onBrowserSessionChanged } from "./browser-session.js";
 
 const RECENT_MS = 30_000;
@@ -72,7 +74,9 @@ export class BrowserDownloadTracker {
     private readonly downloadRoot: string,
     private readonly changed: () => void = () => undefined,
   ) {
-    mkdirSync(downloadRoot, { recursive: true });
+    if (!ensureBrowserDownloadRoot(downloadRoot)) {
+      console.warn("[browser-download] download folder unavailable; downloads may fail");
+    }
     this.#session = getSession();
     this.#session.on("will-download", this.#onDownload);
     this.#unsubscribeScope = onBrowserSessionChanged((session) => this.#rebind(session));
@@ -122,16 +126,14 @@ export class BrowserDownloadTracker {
   }
 
   #reserveSavePath(untrustedName: string): string {
-    const safeName = basename(untrustedName)
-      .replace(/[<>:"/\\|?*\u0000-\u001f]/gu, "_")
-      .slice(0, 240) || "download";
+    ensureBrowserDownloadRoot(this.downloadRoot);
+    const { stem, extension } = downloadSaveNameParts(untrustedName);
+    const safeName = `${stem}${extension}`;
     const initial = join(this.downloadRoot, safeName);
     if (!existsSync(initial) && !this.#reservedPaths.has(initial)) {
       this.#reservedPaths.add(initial);
       return initial;
     }
-    const extension = extname(safeName);
-    const stem = safeName.slice(0, safeName.length - extension.length);
     let suffix = 1;
     let candidate = join(this.downloadRoot, `${stem} (${suffix})${extension}`);
     while (existsSync(candidate) || this.#reservedPaths.has(candidate)) {

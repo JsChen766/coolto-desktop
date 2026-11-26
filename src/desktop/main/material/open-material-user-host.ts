@@ -1,3 +1,5 @@
+import { app } from "electron";
+
 import { SelectedFileRegistry } from "../../../files/selected-file-registry.js";
 import { RegistryMaterialFileBoundary } from "../../../material/material-file-boundary.js";
 import { MaterialDeleteImpactService } from "../../../material/material-delete-impact.js";
@@ -33,7 +35,11 @@ export async function openMaterialUserHost(input: {
   const registry = new SelectedFileRegistry();
   const files = new RegistryMaterialFileBoundary(registry);
   const importer = new MaterialImportService(files, repository);
-  const worker = new ElectronMaterialOcrWorker(resolveMaterialOcrWorkerEntryPath());
+  const worker = new ElectronMaterialOcrWorker(resolveMaterialOcrWorkerEntryPath({
+    isPackaged: app.isPackaged,
+    appPath: app.getAppPath(),
+    cwd: process.cwd(),
+  }));
   const ocr = new MaterialOcrService(repository, worker);
   const views = new MaterialViewService(repository);
   const deleteImpact = new MaterialDeleteImpactService(repository);

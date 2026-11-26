@@ -125,7 +125,7 @@ export function registerDesktopIpc(
   }
   const auth = new DesktopAuthService();
   const windowShell = attachDesktopWindowShell(window);
-  const closeGuard = new WindowCloseGuard(window, () => !windowShell.isQuitting());
+  const closeGuard = new WindowCloseGuard(window, () => !windowShell.isQuitting(), () => windowShell.cancelQuit());
   const services = new UserServicesResolver(
     auth,
     window,

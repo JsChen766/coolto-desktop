@@ -1,7 +1,12 @@
-import { dialog, type BrowserWindow, type IpcMain } from "electron";
+import { app, dialog, type BrowserWindow, type IpcMain } from "electron";
 
 import type { WindowDraftSaveState } from "../shared/types.js";
-import { resolveWindowCloseAction } from "./window-close-policy.js";
+import {
+  closePromptAbortsQuit,
+  resolveCloseCompletion,
+  resolveWindowCloseAction,
+  type WindowClosePromptMode,
+} from "./window-close-policy.js";
 
 export const WINDOW_CLOSE_IPC_CHANNELS = [
   "window:draft-save-state",
@@ -12,11 +17,13 @@ export class WindowCloseGuard {
   private state: WindowDraftSaveState = "saved";
   private forceClose = false;
   private prompting = false;
-  private pending: "hide" | "quit" | undefined;
+  private pending: WindowClosePromptMode | undefined;
 
   public constructor(
     private readonly window: BrowserWindow,
     private readonly shouldHide: () => boolean = () => true,
+    private readonly onQuitAborted: () => void = () => {},
+    private readonly quitApp: () => void = () => app.quit(),
   ) {
     window.on("close", (event) => {
       const action = resolveWindowCloseAction({
@@ -44,20 +51,31 @@ export class WindowCloseGuard {
 
   public completeSave(success: boolean): void {
     if (!success) {
+      const mode = this.pending;
       this.state = "error";
+      if (mode && closePromptAbortsQuit(mode, "save-failed")) {
+        this.pending = undefined;
+        this.onQuitAborted();
+      }
       return;
     }
+    this.finish(this.pending);
+  }
+
+  private finish(mode: WindowClosePromptMode | undefined): void {
     this.state = "saved";
-    if (this.pending === "hide") {
-      this.pending = undefined;
+    this.pending = undefined;
+    if (resolveCloseCompletion(mode) === "hide") {
       this.window.hide();
       return;
     }
+    // The prevented close already cancelled the original quit; quit again so
+    // macOS exits too (its window-all-closed handler never quits).
     this.forceClose = true;
-    this.window.close();
+    this.quitApp();
   }
 
-  private async prompt(mode: "hide" | "quit"): Promise<void> {
+  private async prompt(mode: WindowClosePromptMode): Promise<void> {
     if (this.prompting || this.window.isDestroyed()) return;
     this.prompting = true;
     this.pending = mode;
@@ -87,13 +105,9 @@ export class WindowCloseGuard {
       if (result.response === 0 && !this.window.webContents.isDestroyed()) {
         this.window.webContents.send("window:save-before-close");
       } else if (result.response === 1) {
-        this.state = "saved";
-        if (hiding) this.window.hide();
-        else {
-          this.forceClose = true;
-          this.window.close();
-        }
+        this.finish(mode);
       } else {
+        if (closePromptAbortsQuit(mode, "cancel")) this.onQuitAborted();
         this.pending = undefined;
       }
     } finally {

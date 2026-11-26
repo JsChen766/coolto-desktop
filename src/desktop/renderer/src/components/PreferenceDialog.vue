@@ -16,6 +16,7 @@ import {
 } from "../preference/preference-form";
 import { usePreferenceDialog } from "../preference/use-preference-dialog";
 import { translate, translateFormat } from "../i18n/locale";
+import { isImeComposing } from "../lib/ime-keyboard";
 
 const props = defineProps<{ api: DesktopApi }>();
 const emit = defineEmits<{ close: [] }>();
@@ -78,6 +79,7 @@ function focusPhase(): void {
 function focusFirstInvalid(): void { dialog.value?.querySelector<HTMLElement>("[aria-invalid='true']")?.focus(); }
 function errorId(field: string): string { return `preference-field-error-${field}`; }
 function keydown(event: KeyboardEvent): void {
+  if (isImeComposing(event)) return;
   if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); dismiss(); return; }
   if (event.key !== "Tab" || !dialog.value) return;
   const focusable = [...dialog.value.querySelectorAll<HTMLElement>(

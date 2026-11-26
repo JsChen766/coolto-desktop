@@ -5,6 +5,18 @@ import { basename, dirname, join } from "node:path";
 export interface MaterialRootLockEntry { pid: number; token: string; acquiredAt: string; }
 export const MATERIAL_ROOT_LOCK_STALE_MS = 30_000;
 const OWNER_NAME = /^owner-([a-f0-9-]{36})\.json$/u;
+const WINDOWS_TRANSIENT_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+const MISSING = Symbol("missing");
+const BUSY = Symbol("busy");
+
+/**
+ * Windows keeps a lock directory or marker that another contender removed while still holding a
+ * handle to it "delete pending": mkdir/open/readdir/rename on that name then fail with
+ * EPERM/EACCES/EBUSY instead of EEXIST/ENOENT. That is lock contention, not a permission failure.
+ */
+export function isTransientLockError(error: unknown, platform: NodeJS.Platform = process.platform): boolean {
+  return platform === "win32" && WINDOWS_TRANSIENT_CODES.has((error as NodeJS.ErrnoException)?.code ?? "");
+}
 
 /** A live PID is never age-reclaimed: PID reuse can wedge this local lock, but cannot steal it. */
 export function materialOwnerRootLockPath(root: string): string {
@@ -23,7 +35,7 @@ export async function withMaterialRootLock<T>(lock: string, operation: () => Pro
     const token = randomUUID();
     let created = false;
     try { await mkdir(lock, { mode: 0o700 }); created = true; }
-    catch (error: unknown) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+    catch (error: unknown) { if ((error as NodeJS.ErrnoException).code !== "EEXIST" && !isTransientLockError(error)) throw error; }
     if (created && await claimNewDirectory(lock, token)) {
       try { return await operation(); }
       finally { await releaseMaterialRootLock(lock, token); }
@@ -42,26 +54,19 @@ export function canReclaimMaterialRootLock(payload: string, mtimeMs: number, now
 
 /** One recovery step only renames/unlinks an exact observed marker, then nonrecursively removes an empty directory. */
 export async function reclaimMaterialRootLock(lock: string, nowMs = Date.now(), alive: (pid: number) => boolean = isPidAlive): Promise<boolean> {
-  const directory = await stat(lock).catch((error: unknown) => {
-    if (missing(error)) return undefined;
-    throw error;
-  });
-  if (!directory) return true;
-  if (!directory.isDirectory()) return false;
-  const entries = await readdir(lock, { withFileTypes: true }).catch((error: unknown) => {
-    if (missing(error)) return undefined;
-    throw error;
-  });
-  if (!entries) return true;
+  const directory = await observe(stat(lock));
+  if (directory === MISSING) return true;
+  if (directory === BUSY || !directory.isDirectory()) return false;
+  const entries = await observe(readdir(lock, { withFileTypes: true }));
+  if (entries === MISSING) return true;
+  if (entries === BUSY) return false;
   if (entries.length === 0) return stale(directory.mtimeMs, nowMs) ? removeEmptyDirectory(lock) : false;
   for (const item of entries.sort((left, right) => left.name.localeCompare(right.name))) {
     if (!item.isFile()) return false;
     const marker = join(lock, item.name);
-    const payload = await readFile(marker, "utf8").catch((error: unknown) => {
-      if (missing(error)) return undefined;
-      throw error;
-    });
-    if (payload === undefined) return true;
+    const payload = await observe(readFile(marker, "utf8"));
+    if (payload === MISSING) return true;
+    if (payload === BUSY) return false;
     const entry = parseLock(payload);
     const ownerToken = ownerTokenFromName(item.name);
     if (entry && ownerToken === entry.token) {
@@ -75,9 +80,10 @@ export async function reclaimMaterialRootLock(lock: string, nowMs = Date.now(), 
   return false;
 }
 
+/** Our own marker must be retired even while a contender briefly holds it open on Windows. */
 export async function releaseMaterialRootLock(lock: string, token: string): Promise<void> {
   const marker = materialRootLockMarkerPath(lock, token);
-  const payload = await readFile(marker, "utf8").catch((error: unknown) => {
+  const payload = await retryTransient(() => readFile(marker, "utf8")).catch((error: unknown) => {
     if (missing(error)) return undefined;
     throw error;
   });
@@ -91,37 +97,64 @@ async function claimNewDirectory(lock: string, token: string): Promise<boolean> 
   let handle;
   try { handle = await open(marker, "wx", 0o600); }
   catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST" || (error as NodeJS.ErrnoException).code === "ENOENT") return false;
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST" || code === "ENOENT" || isTransientLockError(error)) return false;
     throw error;
   }
   try { await handle.writeFile(JSON.stringify(entry), "utf8"); await handle.sync(); }
   finally { await handle.close().catch(() => undefined); }
-  const entries = await readdir(lock, { withFileTypes: true }).catch((error: unknown) => {
-    if (missing(error)) return undefined;
-    throw error;
-  });
-  if (entries?.length === 1 && entries[0]?.isFile() && entries[0].name === basename(marker)) return true;
+  const entries = await observe(readdir(lock, { withFileTypes: true }));
+  if (entries !== MISSING && entries !== BUSY && entries.length === 1 && entries[0]?.isFile()
+    && entries[0].name === basename(marker)) return true;
   await releaseMaterialRootLock(lock, token);
   return false;
 }
 
 async function retireMarker(lock: string, marker: string, token: string, phase: string): Promise<boolean> {
   const retired = join(lock, `.retired-${phase}-${token}-${randomUUID()}.json`);
-  try { await rename(marker, retired); }
+  try { await retryTransient(() => rename(marker, retired)); }
   catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
     throw error;
   }
-  await unlink(retired).catch((error: unknown) => { if (!missing(error)) throw error; });
+  await retryTransient(() => unlink(retired)).catch((error: unknown) => { if (!missing(error)) throw error; });
   await removeEmptyDirectory(lock);
   return true;
 }
 
+/** rmdir only ever succeeds on an empty directory; a delete-pending child may linger a moment on Windows. */
 async function removeEmptyDirectory(lock: string): Promise<boolean> {
-  try { await rmdir(lock); return true; }
-  catch { return false; }
+  for (let attempt = 0; ; attempt += 1) {
+    try { await rmdir(lock); return true; }
+    catch (error: unknown) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (process.platform !== "win32" || attempt >= 10 || (code !== "ENOTEMPTY" && !isTransientLockError(error))) return false;
+      await pause(10);
+    }
+  }
 }
 
+/** Maps a lock observation to its value, MISSING (ENOENT) or BUSY (Windows delete-pending). */
+async function observe<T>(read: Promise<T>): Promise<T | typeof MISSING | typeof BUSY> {
+  try { return await read; }
+  catch (error: unknown) {
+    if (missing(error)) return MISSING;
+    if (isTransientLockError(error)) return BUSY;
+    throw error;
+  }
+}
+
+async function retryTransient<T>(operation: () => Promise<T>, attempts = 50): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try { return await operation(); }
+    catch (error: unknown) {
+      if (attempt >= attempts || !isTransientLockError(error)) throw error;
+      await pause(20);
+    }
+  }
+}
+
+function pause(milliseconds: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, milliseconds)); }
 function stale(mtimeMs: number, nowMs: number): boolean { return nowMs - mtimeMs > MATERIAL_ROOT_LOCK_STALE_MS; }
 function missing(error: unknown): boolean { return (error as NodeJS.ErrnoException).code === "ENOENT"; }
 function ownerTokenFromName(name: string): string | undefined { return OWNER_NAME.exec(name)?.[1]; }

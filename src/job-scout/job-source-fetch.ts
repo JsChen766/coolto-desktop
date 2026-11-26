@@ -26,6 +26,20 @@ export function assertSourceKey(value: string, label: string): string {
   return key;
 }
 
+/**
+ * Undo one level of HTML entity escaping (Greenhouse returns `content`
+ * escaped, e.g. "&lt;p&gt;"). `&amp;` is decoded last so a double-escaped
+ * "&amp;lt;" or "&amp;nbsp;" stays as a single entity for plainText().
+ */
+export function decodeHtmlEntitiesOnce(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&lt;/giu, "<")
+    .replace(/&gt;/giu, ">")
+    .replace(/&quot;/giu, "\"")
+    .replace(/&#39;|&apos;/giu, "'")
+    .replace(/&amp;/giu, "&");
+}
+
 export function plainText(value: unknown): string {
   return String(value ?? "")
     .replace(/<script[\s\S]*?<\/script>/giu, " ")

@@ -44,11 +44,7 @@ export class GmailInboxAdapter implements InboxIncrementalAdapter {
       "Gmail messages.list",
     );
     const ids = readMessageIds(page.messages).slice(0, maxResults);
-    return {
-      messages: await Promise.all(ids.map((id) =>
-        this.#message(connectionId, token, id))),
-      cursor,
-    };
+    return { messages: await this.#presentMessages(connectionId, token, ids), cursor };
   }
 
   async #incremental(
@@ -88,12 +84,37 @@ export class GmailInboxAdapter implements InboxIncrementalAdapter {
       if (!pageToken) break;
       if (pageNumber === 19) throw new Error("Gmail history 分页超过安全上限");
     }
-    const selected = [...ids];
-    return {
-      messages: await Promise.all(selected.map((id) =>
-        this.#message(connectionId, token, id))),
-      cursor,
-    };
+    // Keep the computed cursor even when some ids were deleted, so the next
+    // poll moves past them instead of resetting the whole sync.
+    return { messages: await this.#presentMessages(connectionId, token, [...ids]), cursor };
+  }
+
+  async #presentMessages(
+    connectionId: string,
+    token: string,
+    ids: string[],
+  ): Promise<InboxMessagePayloadV1[]> {
+    const messages = await Promise.all(ids.map((id) =>
+      this.#messageIfPresent(connectionId, token, id)));
+    return messages.filter((message): message is InboxMessagePayloadV1 => message !== null);
+  }
+
+  /**
+   * messages.get answers 404 for a message that was permanently deleted after
+   * history.list / messages.list listed it. That means "this message is gone",
+   * not "startHistoryId expired", so it must not reach the fallback in fetch().
+   */
+  async #messageIfPresent(
+    connectionId: string,
+    token: string,
+    id: string,
+  ): Promise<InboxMessagePayloadV1 | null> {
+    try {
+      return await this.#message(connectionId, token, id);
+    } catch (error) {
+      if (error instanceof MailHttpError && error.status === 404) return null;
+      throw error;
+    }
   }
 
   async #message(

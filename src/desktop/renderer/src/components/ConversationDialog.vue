@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
+import { isImeComposing } from "../lib/ime-keyboard";
+
 const props = defineProps<{
   mode: "rename" | "delete";
   title: string;
@@ -12,6 +14,12 @@ const emit = defineEmits<{
 }>();
 
 const value = ref(props.title);
+
+function onEnter(event: KeyboardEvent): void {
+  if (isImeComposing(event)) return;
+  event.preventDefault();
+  if (value.value.trim()) emit("confirm", value.value);
+}
 </script>
 
 <template>
@@ -29,7 +37,7 @@ const value = ref(props.title);
           v-model="value"
           autofocus
           maxlength="80"
-          @keydown.enter.prevent="$emit('confirm', value)"
+          @keydown.enter="onEnter"
         />
       </template>
       <template v-else>

@@ -19,6 +19,7 @@ import { queryBrowserElements } from "./browser-agent-query.js";
 import { waitForBrowserCondition } from "./browser-agent-wait.js";
 import { readBrowserObservation } from "./browser-observation-reader.js";
 import { BrowserDownloadTracker } from "./browser-download-tracker.js";
+import { resolveBrowserDownloadRoot } from "./browser-download-root.js";
 import { getBrowserSession } from "./browser-session.js";
 import {
   dragAgentElement,
@@ -45,7 +46,10 @@ export class BrowserAgentControllerImpl implements BrowserAgentController {
   public constructor(private readonly deps: BrowserAgentControllerDeps) {
     this.#downloads = new BrowserDownloadTracker(
       () => getBrowserSession(),
-      process.env.COOLTO_BROWSER_QA_DOWNLOAD_ROOT ?? app.getPath("downloads"),
+      resolveBrowserDownloadRoot(
+        (name) => app.getPath(name),
+        process.env.COOLTO_BROWSER_QA_DOWNLOAD_ROOT,
+      ),
       deps.onDownloadsChanged,
     );
   }

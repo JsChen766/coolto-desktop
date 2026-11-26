@@ -23,12 +23,13 @@ export class OutlookInboxAdapter implements InboxIncrementalAdapter {
     let cursor: string | null = null;
     for (let pageNumber = 0; pageNumber < 50; pageNumber += 1) {
       const page = record(await fetchMailJson(url, token, {
-        Prefer: 'outlook.body-content-type="text"',
+        Prefer: `outlook.body-content-type="text", odata.maxpagesize=${input.maxResults}`,
       }), "Graph message delta");
+      // 已取回的页必须整页保留：cursor 会越过本页，丢弃即永久丢失。
+      // maxResults 只在页与页之间截断。
       for (const item of Array.isArray(page.value) ? page.value : []) {
         const message = record(item, "Graph message");
-        if (message["@removed"] || message.isDraft === true ||
-            messages.length >= input.maxResults) continue;
+        if (message["@removed"] || message.isDraft === true) continue;
         messages.push(toMessage(input.connection.id, message));
       }
       const next = page["@odata.nextLink"];

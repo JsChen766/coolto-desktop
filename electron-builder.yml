@@ -26,8 +26,6 @@ files:
 extraResources:
   - from: build/material-ocr
     to: material-ocr
-  - from: out/main/material-ocr-worker.cjs
-    to: material-ocr-worker.cjs
 publish:
   provider: generic
   url: https://home.coolto.com.cn/downloads/

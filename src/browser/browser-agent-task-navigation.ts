@@ -35,3 +35,13 @@ export function nextBrowserPageHandoffNavigation(
     sequence: (previous?.sequence ?? 0) + 1,
   };
 }
+
+/** Claims each handoff sequence once, after the chat target exists. */
+export function claimBrowserPageHandoff(
+  request: { sequence: number } | undefined,
+  handledSequence: number,
+  ready: boolean,
+): number | null {
+  if (!request || !ready || request.sequence <= handledSequence) return null;
+  return request.sequence;
+}

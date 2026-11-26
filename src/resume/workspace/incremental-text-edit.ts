@@ -63,6 +63,14 @@ export function applyIncrementalText(
 }
 
 function anchorPattern(text: string, anchor: string, opName: string): string {
+  // indexOf("", n) clamps to text.length, so an empty anchor would never let
+  // the occurrence scan below terminate (it runs in the Electron main process).
+  if (!anchor) {
+    throw new ResumeWorkspaceError(
+      "bullet_anchor_not_found",
+      `${opName} anchor must be a non-empty substring copied verbatim from visibleText.`,
+    );
+  }
   let occurrences = 0;
   let position = text.indexOf(anchor);
   while (position >= 0) {

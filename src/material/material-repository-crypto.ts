@@ -1,6 +1,8 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+
+import { renameMaterialPath } from "./material-fs-retry.js";
 
 const ENCRYPTION_VERSION = 1;
 
@@ -29,7 +31,7 @@ export async function writeMaterialEncrypted(
     await writeFile(temp, payload, { mode: 0o600 });
     const handle = await open(temp, "r+");
     try { await handle.sync(); } finally { await handle.close(); }
-    await rename(temp, file);
+    await renameMaterialPath(temp, file);
   } finally {
     await rm(temp, { force: true });
   }

@@ -3,6 +3,7 @@ import { X } from "@lucide/vue";
 
 import type { ExperienceFormErrors } from "../experiences/experience-form";
 import { normalizeExperienceTags } from "../experiences/experience-form";
+import { isImeComposing } from "../lib/ime-keyboard";
 
 const props = defineProps<{
   tags: string[];
@@ -22,6 +23,7 @@ function commit(): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (isImeComposing(event)) return;
   if (event.key !== "Enter" && event.key !== "," && event.key !== "，") return;
   event.preventDefault();
   commit();

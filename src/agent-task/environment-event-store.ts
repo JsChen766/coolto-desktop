@@ -19,7 +19,8 @@ export class EnvironmentEventStore {
     return this.repository.update((state) => {
       requireTask(state.tasks, draft.taskId, this.ownerId);
       const duplicate = state.events.find((event) =>
-        event.ownerId === this.ownerId && event.dedupeKey === draft.dedupeKey,
+        event.ownerId === this.ownerId && event.taskId === draft.taskId &&
+        event.dedupeKey === draft.dedupeKey,
       );
       if (duplicate) return duplicate;
       const event: EnvironmentEventV1 = {
