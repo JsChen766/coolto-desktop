@@ -62,10 +62,19 @@ function conditionScript(request: BrowserWaitRequest, value: string): string {
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => {
+    if (signal?.aborted) {
+      reject(new Error("浏览器等待已取消"));
+      return;
+    }
+    const onAbort = () => {
       clearTimeout(timer);
       reject(new Error("浏览器等待已取消"));
-    }, { once: true });
+    };
+    // 正常到时也要摘掉监听器：signal 是整轮 agent run 共用的，否则每次轮询都会残留一个。
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }

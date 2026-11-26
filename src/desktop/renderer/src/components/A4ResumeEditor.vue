@@ -7,6 +7,7 @@ import type {
   ResumeDraftDetail,
   ResumeDraftEditInput,
 } from "@desktop/types";
+import { isImeComposing } from "../lib/ime-keyboard";
 import { renderResume } from "../resume-renderer/render-dom";
 import {
   requireResumeTemplate,
@@ -166,7 +167,7 @@ function makeEditable(
     element.dataset.dirty = "false";
   });
   element.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey && !isImeComposing(event)) {
       event.preventDefault();
       element.blur();
     }

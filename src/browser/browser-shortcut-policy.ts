@@ -140,8 +140,12 @@ function noModifiers(input: BrowserShortcutInput): boolean {
   return !input.shift && !input.control && !input.alt && !input.meta;
 }
 
+// A printable ASCII character from the layout wins (AZERTY Ctrl/Cmd+Z arrives
+// as code "KeyW", key "z"); non-ASCII, named and dead keys use the physical code.
 function matches(input: BrowserShortcutInput, code: string, key: string): boolean {
-  return input.code === code || input.key.toLocaleLowerCase() === key.toLocaleLowerCase();
+  const pressed = input.key.toLowerCase();
+  if (/^[\x21-\x7e]$/u.test(input.key)) return pressed === key.toLowerCase();
+  return input.code === code || pressed === key.toLowerCase();
 }
 
 function isZoomInKey(input: BrowserShortcutInput): boolean {

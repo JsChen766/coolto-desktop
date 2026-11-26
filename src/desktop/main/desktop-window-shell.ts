@@ -13,6 +13,7 @@ import {
   parseDesktopShellPrefs,
   type DesktopShellPrefs,
 } from "./desktop-shell-prefs.js";
+import { resetQuitFlush } from "./quit-flush.js";
 
 const TRAY_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAADUlEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=",
@@ -22,6 +23,8 @@ const TRAY_PNG = Buffer.from(
 export interface DesktopWindowShell {
   prefs(): DesktopShellPrefs;
   isQuitting(): boolean;
+  /** The current quit attempt was cancelled; closes hide to the tray again. */
+  cancelQuit(): void;
   setAlwaysOnTop(value: boolean): Promise<DesktopShellPrefs>;
   dispose(): void;
 }
@@ -54,6 +57,10 @@ export function attachDesktopWindowShell(window: BrowserWindow): DesktopWindowSh
   return {
     prefs: () => prefs,
     isQuitting: () => quitting,
+    cancelQuit: () => {
+      quitting = false;
+      resetQuitFlush();
+    },
     setAlwaysOnTop: async (value) => {
       prefs = { alwaysOnTop: value };
       if (!window.isDestroyed()) window.setAlwaysOnTop(value);

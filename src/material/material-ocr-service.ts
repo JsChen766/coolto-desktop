@@ -214,7 +214,7 @@ export class MaterialOcrService {
         }));
       job.resolve(result);
     } catch (error: unknown) {
-      await markOcrFailed(this.repository, job.materialId, job.request, error);
+      await markOcrFailed(this.repository, job.materialId, job.request, error).catch(() => undefined);
       job.reject(error);
     } finally {
       this.#active = false;

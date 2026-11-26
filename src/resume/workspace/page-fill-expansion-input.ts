@@ -39,6 +39,11 @@ export function pageFillExpansionRewrites(
     if (!currentText) throw new Error(`bullet ${input.bulletId} 缺少当前文本`);
     const insertText = input.insertText.trim();
     if (!insertText) throw new Error(`bullet ${input.bulletId} insertText 不能为空`);
+    if (input.placement === "after" && !input.anchor?.trim()) {
+      throw new Error(
+        `bullet ${input.bulletId} placement=after 必须提供 currentText 中唯一出现的非空 anchor`,
+      );
+    }
     const normalizedInsertion = normalized(insertText);
     if (normalizedInsertion.includes(normalized(currentText))) {
       throw new Error(`bullet ${input.bulletId} 只能提交插入片段，不能重交完整 bullet`);

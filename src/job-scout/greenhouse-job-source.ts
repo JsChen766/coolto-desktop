@@ -1,6 +1,7 @@
 import type { JobSourceListing } from "../agent-task/browser-lead-types.js";
 import {
   assertSourceKey,
+  decodeHtmlEntitiesOnce,
   plainText,
   readJson,
   type JobSourceFetch,
@@ -46,7 +47,8 @@ function normalize(job: GreenhouseJob, company: string): JobSourceListing {
     role: job.title,
     location: String(job.location?.name ?? ""),
     workplaceType: null,
-    description: plainText(job.content),
+    // Greenhouse escapes `content`; decode once so tag stripping can run.
+    description: plainText(decodeHtmlEntitiesOnce(job.content)),
     targetUrl: job.absolute_url,
     sourceUpdatedAt: typeof job.updated_at === "string" ? job.updated_at : null,
   };

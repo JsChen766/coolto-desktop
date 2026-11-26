@@ -14,6 +14,7 @@ import type {
   DesktopApprovalDecision,
   DesktopApprovalRequest,
 } from "@desktop/types";
+import { isImeComposing } from "../lib/ime-keyboard";
 
 const props = defineProps<{
   request: DesktopApprovalRequest;
@@ -49,10 +50,17 @@ async function openCustom(): Promise<void> {
 }
 
 function submitCustom(): void {
+  if (props.busy) return;
   const text = customText.value.trim();
   if (text) {
     emit("decide", { type: "custom", text });
   }
+}
+
+function onCustomEnter(event: KeyboardEvent): void {
+  if (isImeComposing(event)) return;
+  event.preventDefault();
+  submitCustom();
 }
 
 function accept(): void {
@@ -196,7 +204,7 @@ function accept(): void {
         v-model="customText"
         rows="3"
         :placeholder="$t('告诉 Agent 应该如何调整…')"
-        @keydown.enter.exact.prevent="submitCustom"
+        @keydown.enter.exact="onCustomEnter"
       />
       <div class="approval-custom-footer">
         <button

@@ -55,9 +55,9 @@ export async function markOcrFailed(
   request: MaterialOcrRequest,
   error: unknown,
 ): Promise<void> {
-  const current = await repository.get(materialId);
-  if (!current) return;
   try {
+    const current = await repository.get(materialId);
+    if (!current) return;
     assertCurrentOcrJob(current, request);
     await repository.update(materialId, (record) => {
       assertCurrentOcrJob(record, request);
@@ -70,7 +70,7 @@ export async function markOcrFailed(
       };
     });
   } catch {
-    // A newer material generation owns the record; an old job may not overwrite it.
+    // Best-effort: a newer generation owns the record, or the repository is unavailable.
   }
 }
 

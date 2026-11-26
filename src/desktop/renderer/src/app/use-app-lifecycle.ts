@@ -1,5 +1,6 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
 
+import { claimBrowserPageHandoff } from "../../../../browser/browser-agent-task-navigation.js";
 import type { AppShell } from "./use-app-shell";
 
 type MainWorkspaceHandle = {
@@ -92,9 +93,12 @@ export function useAppLifecycle(
   watch(shell.agentTaskFocusRequest, (request) => {
     if (request) void openAgentTaskFromBrowser();
   });
+  let handledPageHandoff = 0;
   watch([shell.browserPageHandoff, shell.current, shell.user], ([request, conversation, account]) => {
-    if (!request || !conversation || !account || shell.activeView.value === "chat") return;
-    guardNavigation(() => shell.selectChat(conversation.id));
+    const claimed = claimBrowserPageHandoff(request, handledPageHandoff, Boolean(conversation && account));
+    if (claimed === null || !conversation) return;
+    handledPageHandoff = claimed;
+    if (shell.activeView.value !== "chat") guardNavigation(() => shell.selectChat(conversation.id));
   });
 
   let unsubscribeCalendar: () => void = () => undefined;

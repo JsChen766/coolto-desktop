@@ -158,8 +158,19 @@ async function parseDocx(content: Buffer): Promise<string> {
   return result.value;
 }
 
+// Windows 记事本 / Git autocrlf 产出 CRLF，统一成 LF 才能按段落分块、匹配多段选区；
+// 无 BOM 的 UTF-16 或二进制内容会带 NUL，直接拒绝，避免污染材料与导出包。
 function decodeText(content: Buffer): string {
-  for (const encoding of ["utf-8", "gb18030", "windows-1252"] as const) {
+  const text = decodeBytes(content).replace(/\r\n?/gu, "\n");
+  if (text.includes("\u0000")) throw new Error("无法识别文本文件编码");
+  return text;
+}
+
+function decodeBytes(content: Buffer): string {
+  const bomEncoding = content[0] === 0xff && content[1] === 0xfe ? "utf-16le"
+    : content[0] === 0xfe && content[1] === 0xff ? "utf-16be" : undefined;
+  const encodings = bomEncoding ? [bomEncoding] : ["utf-8", "gb18030", "windows-1252"];
+  for (const encoding of encodings) {
     try {
       return new TextDecoder(encoding, { fatal: true }).decode(content);
     } catch {

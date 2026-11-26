@@ -18,6 +18,7 @@ import DialogSelect from "./DialogSelect.vue";
 import ProfileSyncBanner from "./ProfileSyncBanner.vue";
 import ProfileTargetEditor from "./ProfileTargetEditor.vue";
 import { useProfileSelectOptions } from "../profile/profile-select-options";
+import { isImeComposing } from "../lib/ime-keyboard";
 
 const props = defineProps<{ api: DesktopApi }>();
 const emit = defineEmits<{ close: [] }>();
@@ -89,6 +90,7 @@ function focusInitial(): void {
   dialog.value?.querySelector<HTMLElement>("[data-profile-initial-focus]")?.focus();
 }
 function keydown(event: KeyboardEvent): void {
+  if (isImeComposing(event)) return;
   if (event.key === "Escape") {
     event.preventDefault(); dismiss(); return;
   }
