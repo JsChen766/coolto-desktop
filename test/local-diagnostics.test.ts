@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   configureLocalDiagnostics,
+  flushLocalDiagnostics,
   localDiagnosticsLogPath,
   recentLocalDiagnostics,
   recordLocalDiagnostic,
@@ -63,8 +64,7 @@ test("local diagnostic ring records metadata-only timeline events", async () => 
   assert.equal(recent[0]?.action, "app_start");
   assert.equal(recent[3]?.action, "resume_generation");
   assert.equal(recent[3]?.detail?.content, undefined);
-  // Allow async JSONL flush
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await flushLocalDiagnostics();
   const path = localDiagnosticsLogPath();
   assert.ok(path);
   const body = await readFile(path!, "utf8");
@@ -93,7 +93,7 @@ test("product action helpers cover defined OSS timeline actions", async () => {
     "managed_task:success",
     "managed_task:failure",
   ]);
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await flushLocalDiagnostics();
   const body = await readFile(localDiagnosticsLogPath()!, "utf8");
   assert.match(body, /"action":"managed_task"/u);
   assert.match(body, /"action":"match_analysis"/u);

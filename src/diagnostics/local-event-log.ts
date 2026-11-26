@@ -28,6 +28,11 @@ export function localDiagnosticsLogPath(): string | undefined {
   return logDirectory ? join(logDirectory, "events.jsonl") : undefined;
 }
 
+/** Resolves once every event recorded so far has been appended to events.jsonl. */
+export function flushLocalDiagnostics(): Promise<void> {
+  return writeChain;
+}
+
 export function recentLocalDiagnostics(limit = 50): readonly LocalDiagnosticEvent[] {
   return ring.slice(Math.max(0, ring.length - limit));
 }
