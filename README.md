@@ -126,6 +126,8 @@ Linux 以源码 + `desktop:dev` / `desktop:build` 为主；可选 `npm run packa
 
 ### GitHub Actions（商业发布 workflow）
 
+`check` workflow 会在每个 PR 和 `main` 的 push 上，于 **Windows 与 macOS** 两个平台分别跑 `npm run check`，不需要任何 secrets，fork 的 PR 同样适用。
+
 仓库内 `win-release` / `mac-release` / `homepage-deploy` 仅保留 **手动 `workflow_dispatch`**，开源 fork **不必**配置 `RELEASE_SERVER_*`。未配置时上传/部署步骤会跳过，不会在 clone 后因缺 secrets 自动变红。维护者若要做商业安装包上传，再自行配置 secrets 并手动 Run。详见 [`local-docs/oss-publish-checklist.md`](local-docs/oss-publish-checklist.md)。
 
 ### 更新说明（开源必达）
