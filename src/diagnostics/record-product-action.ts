@@ -10,7 +10,7 @@ export function recordProductAction(
   phase: LocalDiagnosticPhase,
   detail?: Record<string, unknown>,
 ): void {
-  recordLocalDiagnostic({ action, phase, detail });
+  recordLocalDiagnostic({ action, phase, ...(detail ? { detail } : {}) });
 }
 
 const MANAGED_TASK_PHASE: Record<string, LocalDiagnosticPhase> = {

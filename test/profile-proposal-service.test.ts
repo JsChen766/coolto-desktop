@@ -41,7 +41,7 @@ class FakeLocalSyncStore {
     if (!current) {
       this.entities.set(mutation.entityId, {
         entityType: mutation.entityType, entityId: mutation.entityId,
-        entityVersion: mutation.expectedVersion, localVersion: 1,
+        entityVersion: mutation.expectedVersion ?? 0, localVersion: 1,
         syncStatus: "pending", operation: "upsert",
         changedAt: "2026-10-18T00:00:00Z",
         payload: mutation.localPayload ?? mutation.payload,
